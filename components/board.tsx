@@ -1701,10 +1701,14 @@ export function Board({
                                       type="button"
                                       data-group-label-delete={runItem.box.groupId}
                                       data-armed={labelDeleteArmed ? "true" : "false"}
+                                      // The act is UNGROUP, not delete: the
+                                      // group record and the assignments go,
+                                      // the threads keep their cards — the
+                                      // icon and the label both say it.
                                       title={
                                         labelDeleteArmed
-                                          ? `Click again to delete “${runItem.box.name}” for all members`
-                                          : `Delete group “${runItem.box.name}” for all members`
+                                          ? `Removes the group for all members — the threads stay on the board. Click again to confirm.`
+                                          : `Ungroup all members (the threads stay on the board)`
                                       }
                                       // Keep the input focused: a plain mousedown
                                       // would blur it BEFORE the click lands and
@@ -1719,15 +1723,18 @@ export function Board({
                                         closeLabelEditor();
                                       }}
                                       className={cn(
-                                        "flex size-5 items-center justify-center rounded-sm transition-colors",
+                                        "flex h-5 items-center justify-center gap-1 rounded-sm px-1 text-[10px] font-medium transition-colors",
                                         labelDeleteArmed
                                           ? "bg-destructive text-destructive-foreground"
                                           : "text-muted-foreground hover:text-destructive",
                                       )}
                                     >
-                                      <Icon name="Trash2" className="size-3" aria-hidden />
+                                      <Icon name="Ungroup" className="size-3" aria-hidden />
+                                      {labelDeleteArmed ? <span>Ungroup</span> : null}
                                       <span className="sr-only">
-                                        {labelDeleteArmed ? "Confirm delete" : "Delete group"}
+                                        {labelDeleteArmed
+                                          ? "Ungroup (click again to confirm)"
+                                          : "Ungroup all members"}
                                       </span>
                                     </button>
                                   ) : null}
