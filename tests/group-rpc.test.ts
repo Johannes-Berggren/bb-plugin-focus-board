@@ -214,3 +214,57 @@ describe("groups_list fail-loud guards", () => {
     await expect(callRpc("groups_list", null)).rejects.toThrow(/group metadata/);
   });
 });
+
+describe("group_delete", () => {
+  it("removes the record AND clears every member assignment (live and archived)", async () => {
+    const { callRpc, kv, meta } = await setup({
+      threads: ["thr_a", "thr_b"],
+      archived: ["thr_z"],
+    });
+    const created = (await callRpc("group_create", { name: "Auth rework" })) as {
+      group: { id: string };
+    };
+    for (const id of ["thr_a", "thr_b"]) {
+      await callRpc("group_set", { threadId: id, groupId: created.group.id });
+    }
+    await callRpc("group_set", { threadId: "thr_z", groupId: created.group.id });
+    expect(parseGroupsStore(kv.get(GROUPS_KV_KEY))).not.toEqual({});
+    await callRpc("group_delete", { groupId: created.group.id });
+    // The record is gone...
+    expect(parseGroupsStore(kv.get(GROUPS_KV_KEY))).toEqual({});
+    // ...and no metadata survivor points at the dead id (assignments,
+    // unlike names, live per-thread — an orphan would linger forever).
+    for (const id of ["thr_a", "thr_b", "thr_z"]) {
+      const namespace = meta.get(id) as unknown as Record<string, unknown> | undefined;
+      expect(namespace?.[GROUP_METADATA_KEY]).toBeUndefined();
+    }
+  });
+
+  it("publishes a group-changed signal after the delete", async () => {
+    const { callRpc, harness } = await setup({ threads: ["thr_a"] });
+    const created = (await callRpc("group_create", { name: "Auth rework" })) as {
+      group: { id: string };
+    };
+    await callRpc("group_set", { threadId: "thr_a", groupId: created.group.id });
+    harness.inspection.realtimeSignals.length = 0;
+    await callRpc("group_delete", { groupId: created.group.id });
+    expect(harness.inspection.realtimeSignals).toContainEqual({
+      channel: "group-changed",
+      payload: { threadId: "thr_a" } as never,
+    });
+  });
+
+  it("deleting an unknown group fails loud", async () => {
+    const { callRpc } = await setup();
+    await expect(callRpc("group_delete", { groupId: "ghost" })).rejects.toThrow();
+  });
+
+  it("deleting a group with no members still works (registry-only surface)", async () => {
+    const { callRpc, kv } = await setup();
+    const created = (await callRpc("group_create", { name: "Auth rework" })) as {
+      group: { id: string };
+    };
+    await callRpc("group_delete", { groupId: created.group.id });
+    expect(parseGroupsStore(kv.get(GROUPS_KV_KEY))).toEqual({});
+  });
+});

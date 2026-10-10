@@ -127,6 +127,13 @@ interface BoardProps {
    * only: no dot, no pill, no color — the name is secondary text.
    */
   groupBoxOf?: GroupBoxMap;
+  /**
+   * Rename a registry group from the box label: clicking the label turns it
+   * into an inline text input, Enter (or blur) commits the trimmed name,
+   * Escape cancels. The caller settles the shared record — every member
+   * card re-labels through the registry (names live in one place).
+   */
+  onRenameGroup?: (groupId: string, name: string) => void;
   /** Family members that did not match the active filters; rendered dimmed. */
   dimmedIds: ReadonlySet<string>;
   /**
@@ -391,6 +398,7 @@ export function Board({
   childCountByParent,
   doneChildrenByParent,
   groupBoxOf,
+  onRenameGroup,
   dimmedIds,
   collapsedFamilyIds,
   onFamilyCollapsedChange,
@@ -614,6 +622,37 @@ export function Board({
   // a board ignoring the operator, the exact failure this board shipped
   // twice in the drag path.
   const [sweepRefusal, setSweepRefusal] = useState<string | null>(null);
+  // The box-label rename editor: one box re-labels at a time; the input is
+  // uncontrolled (defaultValue seeds the current name) so Enter/Escape/blur
+  // read the settled text straight off the field.
+  const [renamingBoxId, setRenamingBoxId] = useState<string | null>(null);
+  const renameCommittedRef = useRef(false);
+  const startLabelRename = (groupId: string) => {
+    renameCommittedRef.current = false;
+    setRenamingBoxId(groupId);
+  };
+  /** Enter: commit only a valid NEW name; a blank keeps the editor open (fix-up possible, nothing lost). */
+  const commitLabelRename = (groupId: string, raw: string, previousName: string) => {
+    if (renameCommittedRef.current) return;
+    const name = raw.trim();
+    if (name === "" || name.length > 80 || name === previousName) return;
+    renameCommittedRef.current = true;
+    setRenamingBoxId(null);
+    onRenameGroup?.(groupId, name);
+  };
+  /** Blur: the editor leaves focus — commit the valid name, otherwise fold back to the label. */
+  const blurLabelRename = (groupId: string, raw: string, previousName: string) => {
+    if (renameCommittedRef.current) return;
+    const name = raw.trim();
+    if (name !== "" && name.length <= 80 && name !== previousName) {
+      renameCommittedRef.current = true;
+      setRenamingBoxId(null);
+      onRenameGroup?.(groupId, name);
+      return;
+    }
+    renameCommittedRef.current = true;
+    setRenamingBoxId(null);
+  };
   useEffect(() => {
     if (sweepRefusal === null) return;
     const timer = setTimeout(() => setSweepRefusal(null), RANK_ERROR_AUTO_DISMISS_MS);
@@ -1608,13 +1647,55 @@ export function Board({
                             className="relative mt-1.5"
                           >
                             <div className="relative rounded-lg border border-dashed border-muted-foreground/50 px-1 pt-4 pb-0.5">
-                              <span
-                                data-group-box-label={runItem.box.groupId}
-                                title={`Feature group “${runItem.box.name}” — drag any member to move the whole box`}
-                                className="absolute -top-2 left-3 z-10 rounded-sm bg-muted px-1 text-[10.5px] leading-[14px] text-muted-foreground"
-                              >
-                                {runItem.box.name}
-                              </span>
+                              {renamingBoxId === runItem.box.groupId ? (
+                                <input
+                                  type="text"
+                                  key={`rename:${runItem.box.groupId}`}
+                                  defaultValue={runItem.box.name}
+                                  autoFocus
+                                  data-group-rename-input={runItem.box.groupId}
+                                  aria-label={`Rename group, was ${runItem.box.name}`}
+                                  maxLength={80}
+                                  onKeyDown={(event) => {
+                                    if (event.key === "Enter") {
+                                      commitLabelRename(
+                                        runItem.box.groupId,
+                                        event.currentTarget.value,
+                                        runItem.box.name,
+                                      );
+                                    } else if (event.key === "Escape") {
+                                      renameCommittedRef.current = true;
+                                      setRenamingBoxId(null);
+                                    }
+                                  }}
+                                  onBlur={(event) =>
+                                    blurLabelRename(
+                                      runItem.box.groupId,
+                                      event.currentTarget.value,
+                                      runItem.box.name,
+                                    )
+                                  }
+                                  className="absolute -top-2.5 left-3 z-20 h-[18px] w-40 rounded-sm border border-input bg-muted px-1 text-[10.5px] leading-none outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                                />
+                              ) : onRenameGroup !== undefined ? (
+                                <button
+                                  type="button"
+                                  data-group-box-label={runItem.box.groupId}
+                                  title={`Feature group “${runItem.box.name}” — click to rename; drag any member to move the whole box`}
+                                  onClick={() => startLabelRename(runItem.box.groupId)}
+                                  className="absolute -top-2 left-3 z-10 max-w-48 truncate rounded-sm bg-muted px-1 text-left text-[10.5px] leading-[14px] text-muted-foreground hover:text-foreground"
+                                >
+                                  {runItem.box.name}
+                                </button>
+                              ) : (
+                                <span
+                                  data-group-box-label={runItem.box.groupId}
+                                  title={`Feature group “${runItem.box.name}” — drag any member to move the whole box`}
+                                  className="absolute -top-2 left-3 z-10 rounded-sm bg-muted px-1 text-[10.5px] leading-[14px] text-muted-foreground"
+                                >
+                                  {runItem.box.name}
+                                </span>
+                              )}
                               <ul className="flex flex-col gap-1.5">
                                 {runItem.box.members.map((boxMember, memberIndex) =>
                                   threadLi(
