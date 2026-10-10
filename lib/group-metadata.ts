@@ -190,3 +190,67 @@ export function groupMenuActions(options: {
         },
       ];
 }
+
+/**
+ * The GROUP BOX's own right-click menu: the actions the box's surface
+ * (label, padding, gaps — not its member cards, whose own menus win) offers
+ * over the whole group. Three entries, in fixed order: the spawn ("New
+ * thread in group…" — the preset that seeds the composer from the
+ * members' majority and tags the result into the group), the rename (the
+ * same inline label editor the box label's click opens), and the ungroup
+ * (the delete-with-confirm, armed in place — the label editor's two-click
+ * pattern carried into the menu).
+ *
+ * Every capability is optional: an unwired one is OMITTED, never a dead
+ * entry. All three unwired → an empty menu — the board must not open one.
+ * Pure like groupMenuActions so tests pin the order, labels, icons and
+ * the armed flip without rendering the board.
+ */
+export interface GroupBoxMenuAction {
+  id: string;
+  label: string;
+  icon: string;
+  run: () => void;
+  danger?: boolean;
+}
+
+export function groupBoxMenuActions(options: {
+  /** The ungroup entry's armed state (false = one more unarm menu render). */
+  armed: boolean;
+  /** Open the new-thread composer preset to this group. */
+  spawn: (() => void) | undefined;
+  /** Start the box label's inline rename editor. */
+  rename: (() => void) | undefined;
+  /** Run the confirmed ungroup (the caller arms; the lib only renders). */
+  ungroup: (() => void) | undefined;
+}): readonly GroupBoxMenuAction[] {
+  const entries: GroupBoxMenuAction[] = [];
+  if (options.spawn !== undefined) {
+    entries.push({
+      id: "new-thread-in-group",
+      label: "New thread in group…",
+      icon: "Plus",
+      run: options.spawn,
+    });
+  }
+  if (options.rename !== undefined) {
+    entries.push({
+      id: "rename-group",
+      label: "Rename group…",
+      icon: "Edit",
+      run: options.rename,
+    });
+  }
+  if (options.ungroup !== undefined) {
+    entries.push({
+      id: "ungroup-all",
+      label: options.armed
+        ? "Ungroup all members — click again"
+        : "Ungroup all members",
+      icon: "Ungroup",
+      danger: options.armed,
+      run: options.ungroup,
+    });
+  }
+  return entries;
+}

@@ -74,18 +74,24 @@ function renderModal(
     open = true,
     defaultProjectId,
     defaultEnvironment,
+    defaultProviderId,
+    defaultModel,
     focusRequest,
     parentThreadId,
     parentThreadTitle,
+    groupName,
     withMaximize = false,
     rememberProjectId,
   }: {
     open?: boolean;
     defaultProjectId?: string;
     defaultEnvironment?: Record<string, unknown>;
+    defaultProviderId?: string;
+    defaultModel?: string;
     focusRequest?: number;
     parentThreadId?: string;
     parentThreadTitle?: string;
+    groupName?: string;
     withMaximize?: boolean;
     rememberProjectId?: ReturnType<typeof vi.fn>;
   } = {},
@@ -96,9 +102,12 @@ function renderModal(
       onOpenChange,
       defaultProjectId,
       defaultEnvironment,
+      defaultProviderId,
+      defaultModel,
       focusRequest,
       parentThreadId,
       parentThreadTitle,
+      ...(groupName !== undefined ? { groupName } : {}),
       onSpawned,
       ...(rememberProjectId !== undefined ? { rememberProjectId } : {}),
       // A child preset cannot follow to the main view; the app passes the
@@ -269,5 +278,32 @@ describe("NewThreadModal", () => {
     expect(onSpawned).not.toHaveBeenCalled();
     // The composer must still be mounted so the kept draft stays editable.
     expect(document.querySelector('button[type="button"]')).not.toBeNull();
+  });
+});
+
+describe("the group preset (New thread in group…)", () => {
+  it("names the group the spawn will be tagged into", () => {
+    renderModal({ groupName: "Auth rework" });
+    const hint = document.querySelector('[data-new-group-hint=""]');
+    if (hint === null) throw new Error("group hint not rendered");
+    expect(hint.textContent).toContain("Will be tagged into");
+    expect(hint.textContent).toContain("Auth rework");
+  });
+
+  it("without a group, carries no group hint (inverse)", () => {
+    renderModal();
+    expect(document.querySelector('[data-new-group-hint=""]')).toBeNull();
+  });
+
+  it("seeds the composer's provider and model from the group's majority seed", () => {
+    renderModal({ defaultProviderId: "pi_a", defaultModel: "m_a" });
+    expect(lastComposerProps?.defaultProviderId).toBe("pi_a");
+    expect(lastComposerProps?.defaultModel).toBe("m_a");
+  });
+
+  it("without majority seeds, passes nothing to the composer (inverse)", () => {
+    renderModal({ groupName: "Auth rework" });
+    expect("defaultProviderId" in (lastComposerProps ?? {})).toBe(false);
+    expect("defaultModel" in (lastComposerProps ?? {})).toBe(false);
   });
 });

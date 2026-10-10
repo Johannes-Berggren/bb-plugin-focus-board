@@ -4,6 +4,7 @@ import {
   GROUP_METADATA_KEY,
   GROUPS_KV_KEY,
   createGroupRecord,
+  groupBoxMenuActions,
   groupMenuActions,
   groupsRowFromStore,
   normalizeGroupName,
@@ -134,5 +135,69 @@ describe("the metadata key contract", () => {
   it("the assignment key is the stable string 'group'", () => {
     expect(GROUP_METADATA_KEY).toBe("group");
     expect(GROUPS_KV_KEY).toBe("focus-board:groups");
+  });
+});
+
+describe("groupBoxMenuActions (the group box's own right-click menu)", () => {
+  it("carries all three entries in order: spawn, rename, ungroup-all", () => {
+    const actions = groupBoxMenuActions({
+      armed: false,
+      spawn: () => undefined,
+      rename: () => undefined,
+      ungroup: () => undefined,
+    });
+    expect(actions.map((action) => action.id)).toEqual([
+      "new-thread-in-group",
+      "rename-group",
+      "ungroup-all",
+    ]);
+    expect(actions.map((action) => action.label)).toEqual([
+      "New thread in group…",
+      "Rename group…",
+      "Ungroup all members",
+    ]);
+  });
+
+  it("runs are the caller's closures", () => {
+    let ran = "";
+    const actions = groupBoxMenuActions({
+      armed: false,
+      spawn: () => (ran = "spawn"),
+      rename: () => (ran = "rename"),
+      ungroup: () => (ran = "ungroup"),
+    });
+    for (const action of actions) action.run();
+    expect(ran).toBe("ungroup");
+  });
+
+  it("an unwired capability is omitted, never a dead menu entry", () => {
+    expect(
+      groupBoxMenuActions({ armed: false, spawn: undefined, rename: undefined, ungroup: undefined }),
+    ).toEqual([]);
+    const spawnOnly = groupBoxMenuActions({
+      armed: false,
+      spawn: () => undefined,
+      rename: undefined,
+      ungroup: undefined,
+    });
+    expect(spawnOnly.map((action) => action.id)).toEqual(["new-thread-in-group"]);
+  });
+
+  it("the ungroup entry arms in place: the armed menu says click-again and draws danger", () => {
+    const armed = groupBoxMenuActions({
+      armed: true,
+      spawn: () => undefined,
+      rename: () => undefined,
+      ungroup: () => undefined,
+    });
+    const ungroup = armed.find((action) => action.id === "ungroup-all")!;
+    expect(ungroup.label).toMatch(/click again/i);
+    expect(ungroup.danger).toBe(true);
+    // The other entries never arm.
+    expect(
+      armed
+        .filter((action) => action.id !== "ungroup-all")
+        .every((action) => action.danger !== true && !/click again/i.test(action.label)),
+    ).toBe(true);
   });
 });

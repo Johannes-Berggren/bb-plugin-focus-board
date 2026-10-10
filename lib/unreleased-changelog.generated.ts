@@ -7,5 +7,14 @@ export const UNRELEASED_ITEMS: readonly { text: string; children: string[]; grou
   {
     "text": "**The board's settings live in one gear.** A modal with Behavior, What's new, and About panels replaces the standalone What's-new alert; the toolbar icon is a pulsing gift while there is unseen changelog — its click lands straight on the news — and a settings gear otherwise.",
     "children": []
+  },
+  {
+    "text": "**A right-click on a family box offers the group's actions in one menu.** New thread in group… opens the composer preset to the group, Rename group… opens the label editor, and Ungroup all members keeps its click-again confirm.",
+    "children": [
+      "The spawned thread lands with the majority of the members' settings: the most common project and the most common provider/model pair seeded into the composer, each member's model resolved through its own settings.",
+      "The composer dialog announces the target, \"Will be tagged into *group*\", before the prompt is spent, and tags the spawned thread into the group itself.",
+      "Member cards keep their own menus; the group menu covers the box's surface only."
+    ],
+    "group": "Groups and family boxes"
   }
 ];

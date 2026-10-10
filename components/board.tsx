@@ -22,7 +22,9 @@ import {
   type SweepRunView,
 } from "../lib/sweep";
 import { ThreadCard } from "./thread-card";
+import { MenuPopover } from "./menu-popover";
 import type { ThreadLink } from "../lib/link-metadata";
+import { groupBoxMenuActions } from "../lib/group-metadata";
 import { containerSlideX, listScrollY } from "./board-scroll";
 import type { CardMenuAction } from "./thread-card-menu";
 import type { BrowserRevealNotice } from "@/lib/browser-reveal";
@@ -175,6 +177,13 @@ interface BoardProps {
    * member's assignment go together.
    */
   onDeleteGroup?: (groupId: string) => void;
+  /**
+   * Start a new thread for a registry group (the box context menu's "New
+   * thread in group…"): the caller seeds the composer from the members'
+   * majority settings and tags the spawned thread into the group. Unwired →
+   * the menu offers no spawn entry.
+   */
+  onNewThreadInGroup?: (groupId: string) => void;
   /** Family members that did not match the active filters; rendered dimmed. */
   dimmedIds: ReadonlySet<string>;
   /**
@@ -448,6 +457,7 @@ export function Board({
   groupBoxOf,
   onRenameGroup,
   onDeleteGroup,
+  onNewThreadInGroup,
   onJoinGroup,
   dimmedIds,
   collapsedFamilyIds,
@@ -926,6 +936,20 @@ export function Board({
   // delete pattern, miniaturized).
   const [renamingBoxId, setRenamingBoxId] = useState<string | null>(null);
   const [labelDeleteArmed, setLabelDeleteArmed] = useState(false);
+  // The group box's own right-click menu: where the pointer landed and
+  // which box it names; the ungroup entry arms in place (the label
+  // editor's two-click pattern, carried into the menu).
+  const [groupMenu, setGroupMenu] = useState<{
+    groupId: string;
+    name: string;
+    x: number;
+    y: number;
+  } | null>(null);
+  const [groupMenuUngroupArmed, setGroupMenuUngroupArmed] = useState(false);
+  const closeGroupMenu = () => {
+    setGroupMenu(null);
+    setGroupMenuUngroupArmed(false);
+  };
   /** The group box whose own surface (not a member card) a drag hovers: the drop-to-join promise. */
   const [joinHoverId, setJoinHoverId] = useState<string | null>(null);
   const renameCommittedRef = useRef(false);
@@ -2360,6 +2384,30 @@ export function Board({
                         key={`group:${runItem.box.groupId}`}
                         data-group-box={runItem.box.groupId}
                         className="relative mt-1.5"
+                        onContextMenu={(event) => {
+                          // The box context menu covers the box's own
+                          // surface — label, padding, gaps, and the group
+                          // shape. A member card opens its own menu (the
+                          // card wrapper stops this event's propagation
+                          // first), and a card's menu must never also open
+                          // this box's. With no group capability wired the
+                          // surface opens nothing.
+                          if (
+                            onNewThreadInGroup === undefined &&
+                            onRenameGroup === undefined &&
+                            onDeleteGroup === undefined
+                          ) {
+                            return;
+                          }
+                          event.preventDefault();
+                          setGroupMenuUngroupArmed(false);
+                          setGroupMenu({
+                            groupId: runItem.box.groupId,
+                            name: runItem.box.name,
+                            x: event.clientX,
+                            y: event.clientY,
+                          });
+                        }}
                             onDragOver={(event) => {
                               if (!ranking || onJoinGroup === undefined) return;
                               // Every surface inside the dashed outline joins:
@@ -2602,6 +2650,60 @@ export function Board({
         })}
         </div>
       </div>
+      {groupMenu !== null ? (
+        <MenuPopover
+          open={groupMenu}
+          onClose={closeGroupMenu}
+          label="Group actions"
+          title={groupMenu.name}
+        >
+          {groupBoxMenuActions({
+            armed: groupMenuUngroupArmed,
+            spawn:
+              onNewThreadInGroup === undefined
+                ? undefined
+                : () => {
+                    const groupId = groupMenu.groupId;
+                    closeGroupMenu();
+                    onNewThreadInGroup(groupId);
+                  },
+            rename:
+              onRenameGroup === undefined
+                ? undefined
+                : () => {
+                    const groupId = groupMenu.groupId;
+                    closeGroupMenu();
+                    startLabelRename(groupId);
+                  },
+            ungroup:
+              onDeleteGroup === undefined
+                ? undefined
+                : () => {
+                    if (!groupMenuUngroupArmed) {
+                      setGroupMenuUngroupArmed(true);
+                      return; // the menu stays open for the confirm
+                    }
+                    const groupId = groupMenu.groupId;
+                    closeGroupMenu();
+                    onDeleteGroup(groupId);
+                  },
+          }).map((action) => (
+            <button
+              key={action.id}
+              type="button"
+              role="menuitem"
+              onClick={action.run}
+              className={cn(
+                "flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-left text-xs hover:bg-accent",
+                action.danger && "text-destructive",
+              )}
+            >
+              <Icon name={action.icon} className="size-3.5 shrink-0 text-muted-foreground" aria-hidden />
+              {action.label}
+            </button>
+          ))}
+        </MenuPopover>
+      ) : null}
     </div>
   );
 }

@@ -45,9 +45,12 @@ export function NewThreadModal({
   onOpenChange,
   defaultProjectId,
   defaultEnvironment,
+  defaultProviderId,
+  defaultModel,
   focusRequest,
   parentThreadId,
   parentThreadTitle,
+  groupName,
   onMaximize,
   rememberProjectId,
   onSpawned,
@@ -67,11 +70,25 @@ export function NewThreadModal({
    * seeds nothing and the composer resolves its own default.
    */
   defaultEnvironment?: NewThreadRequest["environment"];
+  /**
+   * Seeds the composer's provider picker — a group preset carries the
+   * majority provider of the group's members. Same seed semantics as
+   * defaultProjectId: a seed the user can change.
+   */
+  defaultProviderId?: string;
+  /** Seeds the composer's model picker; the group preset's majority model. */
+  defaultModel?: string;
   focusRequest?: number;
   /** The thread the new thread will spawn under; absent spawns at the root. */
   parentThreadId?: string;
   /** The parent's display title, for the dialog's "will nest under" hint. */
   parentThreadTitle?: string;
+  /**
+   * The group the composer will tag the spawned thread into ("New thread in
+   * group…" preset): the dialog's hint names it. The tagging itself happens
+   * app-side after the spawn — the modal only announces it.
+   */
+  groupName?: string;
   /**
    * Maximize: expand this composer into bb's main new-thread view. The app
    * supplies the hand-off (seeds and the stored prompt text ride along; the
@@ -164,6 +181,18 @@ export function NewThreadModal({
               <span className="text-foreground">{parentThreadTitle ?? parentThreadId}</span>
             </p>
           ) : null}
+          {groupName !== undefined ? (
+            // Same transparency for the group preset: the spawn will be
+            // tagged into the named group — before the prompt is spent.
+            <p
+              data-new-group-hint=""
+              className="text-xs font-medium text-muted-foreground"
+            >
+              <Icon name="Tag" className="mr-1 inline size-3.5 align-[-2px]" aria-hidden />
+              Will be tagged into{" "}
+              <span className="text-foreground">{groupName}</span>
+            </p>
+          ) : null}
         </DialogHeader>
         {spawnFailed ? (
           <p role="alert" className="text-sm text-destructive">
@@ -174,6 +203,8 @@ export function NewThreadModal({
           <NewThreadComposer
             defaultProjectId={defaultProjectId}
             {...(defaultEnvironment !== undefined ? { defaultEnvironment } : {})}
+            {...(defaultProviderId !== undefined ? { defaultProviderId } : {})}
+            {...(defaultModel !== undefined ? { defaultModel } : {})}
             focusRequest={focusRequest}
             onSubmit={handleSubmit}
           />
