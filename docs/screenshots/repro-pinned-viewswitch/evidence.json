@@ -1,0 +1,747 @@
+{
+  "errors": [],
+  "results": [
+    {
+      "label": "A1 fresh attention",
+      "kind": "column-board",
+      "columns": [
+        {
+          "id": "pinned",
+          "cards": [
+            "thr_ship_release",
+            "thr_roadmap"
+          ]
+        },
+        {
+          "id": "attention",
+          "cards": [
+            "thr_permissions",
+            "thr_demo_needs",
+            "thr_demo_needs_c0",
+            "thr_demo_needs_c1",
+            "thr_demo_needs_c2",
+            "thr_deploy_fail"
+          ]
+        },
+        {
+          "id": "unread",
+          "cards": [
+            "thr_rpc_auth",
+            "thr_uat_queue",
+            "thr_review_pr",
+            "thr_demo_unread",
+            "thr_demo_unread_c0",
+            "thr_demo_unread_c1"
+          ]
+        },
+        {
+          "id": "working",
+          "cards": [
+            "thr_column_sort",
+            "thr_drag_done",
+            "thr_demo_work",
+            "thr_demo_work_c0",
+            "thr_demo_work_c1",
+            "thr_demo_work_c2",
+            "thr_sweep_parent",
+            "thr_sweep_child",
+            "thr_sweep_w0",
+            "thr_sweep_w1",
+            "thr_sweep_w2",
+            "thr_sweep_w3",
+            "thr_sweep_w4",
+            "thr_sweep_w5"
+          ]
+        },
+        {
+          "id": "idle-recent",
+          "cards": [
+            "thr_glyph_glue",
+            "thr_kbd_focus",
+            "thr_toolbar_labels"
+          ]
+        },
+        {
+          "id": "idle-today",
+          "cards": [
+            "thr_flaky_ci",
+            "thr_readme_quickstart"
+          ]
+        },
+        {
+          "id": "idle-earlier",
+          "cards": [
+            "thr_icon_lazy",
+            "thr_env_edge"
+          ]
+        },
+        {
+          "id": "idle-awhile",
+          "cards": [
+            "thr_grouping_spike",
+            "thr_parent_lane",
+            "thr_child_lane",
+            "thr_proj_family",
+            "thr_proj_live",
+            "thr_big_family",
+            "thr_big_c8",
+            "thr_big_c7",
+            "thr_big_c6",
+            "thr_big_c5",
+            "thr_big_c4",
+            "thr_big_c3",
+            "thr_big_c2",
+            "thr_big_c1",
+            "thr_big_c0"
+          ]
+        },
+        {
+          "id": "done",
+          "cards": [
+            "thr_pane_padding",
+            "thr_license",
+            "thr_proj_family",
+            "thr_proj_done"
+          ]
+        }
+      ],
+      "lanes": []
+    },
+    {
+      "label": "A2 parent",
+      "kind": "parent-lane-board",
+      "columns": [],
+      "lanes": [
+        "true",
+        "true",
+        "true",
+        "true",
+        "true",
+        "true",
+        "true"
+      ]
+    },
+    {
+      "label": "A3 attention after round-trip",
+      "kind": "column-board",
+      "columns": [
+        {
+          "id": "pinned",
+          "cards": [
+            "thr_ship_release",
+            "thr_roadmap"
+          ]
+        },
+        {
+          "id": "attention",
+          "cards": [
+            "thr_permissions",
+            "thr_demo_needs",
+            "thr_demo_needs_c0",
+            "thr_demo_needs_c1",
+            "thr_demo_needs_c2",
+            "thr_deploy_fail"
+          ]
+        },
+        {
+          "id": "unread",
+          "cards": [
+            "thr_rpc_auth",
+            "thr_uat_queue",
+            "thr_review_pr",
+            "thr_demo_unread",
+            "thr_demo_unread_c0",
+            "thr_demo_unread_c1"
+          ]
+        },
+        {
+          "id": "working",
+          "cards": [
+            "thr_column_sort",
+            "thr_drag_done",
+            "thr_demo_work",
+            "thr_demo_work_c0",
+            "thr_demo_work_c1",
+            "thr_demo_work_c2",
+            "thr_sweep_parent",
+            "thr_sweep_child",
+            "thr_sweep_w0",
+            "thr_sweep_w1",
+            "thr_sweep_w2",
+            "thr_sweep_w3",
+            "thr_sweep_w4",
+            "thr_sweep_w5"
+          ]
+        },
+        {
+          "id": "idle-recent",
+          "cards": [
+            "thr_glyph_glue",
+            "thr_kbd_focus",
+            "thr_toolbar_labels"
+          ]
+        },
+        {
+          "id": "idle-today",
+          "cards": [
+            "thr_flaky_ci",
+            "thr_readme_quickstart"
+          ]
+        },
+        {
+          "id": "idle-earlier",
+          "cards": [
+            "thr_icon_lazy",
+            "thr_env_edge"
+          ]
+        },
+        {
+          "id": "idle-awhile",
+          "cards": [
+            "thr_grouping_spike",
+            "thr_parent_lane",
+            "thr_child_lane",
+            "thr_proj_family",
+            "thr_proj_live",
+            "thr_big_family",
+            "thr_big_c8",
+            "thr_big_c7",
+            "thr_big_c6",
+            "thr_big_c5",
+            "thr_big_c4",
+            "thr_big_c3",
+            "thr_big_c2",
+            "thr_big_c1",
+            "thr_big_c0"
+          ]
+        },
+        {
+          "id": "done",
+          "cards": [
+            "thr_pane_padding",
+            "thr_license",
+            "thr_proj_family",
+            "thr_proj_done"
+          ]
+        }
+      ],
+      "lanes": []
+    },
+    {
+      "label": "B1 fresh parent",
+      "kind": "parent-lane-board",
+      "columns": [],
+      "lanes": [
+        "true",
+        "true",
+        "true",
+        "true",
+        "true",
+        "true",
+        "true"
+      ]
+    },
+    {
+      "label": "B2 parent, pane open",
+      "kind": "parent-lane-board",
+      "columns": [],
+      "lanes": [
+        "true",
+        "true",
+        "true",
+        "true",
+        "true",
+        "true",
+        "true"
+      ]
+    },
+    {
+      "label": "B3 attention with pane open",
+      "kind": "column-board",
+      "columns": [
+        {
+          "id": "pinned",
+          "cards": [
+            "thr_ship_release",
+            "thr_roadmap"
+          ]
+        },
+        {
+          "id": "attention",
+          "cards": [
+            "thr_permissions",
+            "thr_demo_needs",
+            "thr_demo_needs_c0",
+            "thr_demo_needs_c1",
+            "thr_demo_needs_c2",
+            "thr_deploy_fail"
+          ]
+        },
+        {
+          "id": "unread",
+          "cards": [
+            "thr_rpc_auth",
+            "thr_uat_queue",
+            "thr_review_pr",
+            "thr_demo_unread",
+            "thr_demo_unread_c0",
+            "thr_demo_unread_c1"
+          ]
+        },
+        {
+          "id": "working",
+          "cards": [
+            "thr_column_sort",
+            "thr_drag_done",
+            "thr_demo_work",
+            "thr_demo_work_c0",
+            "thr_demo_work_c1",
+            "thr_demo_work_c2",
+            "thr_sweep_parent",
+            "thr_sweep_child",
+            "thr_sweep_w0",
+            "thr_sweep_w1",
+            "thr_sweep_w2",
+            "thr_sweep_w3",
+            "thr_sweep_w4",
+            "thr_sweep_w5"
+          ]
+        },
+        {
+          "id": "idle-recent",
+          "cards": [
+            "thr_glyph_glue",
+            "thr_kbd_focus",
+            "thr_toolbar_labels"
+          ]
+        },
+        {
+          "id": "idle-today",
+          "cards": [
+            "thr_flaky_ci",
+            "thr_readme_quickstart"
+          ]
+        },
+        {
+          "id": "idle-earlier",
+          "cards": [
+            "thr_icon_lazy",
+            "thr_env_edge"
+          ]
+        },
+        {
+          "id": "idle-awhile",
+          "cards": [
+            "thr_grouping_spike",
+            "thr_parent_lane",
+            "thr_child_lane",
+            "thr_proj_family",
+            "thr_proj_live",
+            "thr_big_family",
+            "thr_big_c8",
+            "thr_big_c7",
+            "thr_big_c6",
+            "thr_big_c5",
+            "thr_big_c4",
+            "thr_big_c3",
+            "thr_big_c2",
+            "thr_big_c1",
+            "thr_big_c0"
+          ]
+        },
+        {
+          "id": "done",
+          "cards": [
+            "thr_pane_padding",
+            "thr_license",
+            "thr_proj_family",
+            "thr_proj_done"
+          ]
+        }
+      ],
+      "lanes": []
+    },
+    {
+      "label": "C1 pin attempt in parent",
+      "pinC": {
+        "attempt": {
+          "ok": true,
+          "id": "thr_demo_work_c0"
+        },
+        "clicked": {
+          "ok": true,
+          "item": "Pin"
+        }
+      }
+    },
+    {
+      "label": "C2 parent view right after menu Pin",
+      "pinnedIds": [
+        "thr_demo_work_c0"
+      ]
+    },
+    {
+      "label": "C3 attention after pinning in parent",
+      "kind": "column-board",
+      "columns": [
+        {
+          "id": "pinned",
+          "cards": [
+            "thr_demo_work_c0",
+            "thr_ship_release",
+            "thr_roadmap"
+          ]
+        },
+        {
+          "id": "attention",
+          "cards": [
+            "thr_permissions",
+            "thr_demo_needs",
+            "thr_demo_needs_c0",
+            "thr_demo_needs_c1",
+            "thr_demo_needs_c2",
+            "thr_deploy_fail"
+          ]
+        },
+        {
+          "id": "unread",
+          "cards": [
+            "thr_rpc_auth",
+            "thr_uat_queue",
+            "thr_review_pr",
+            "thr_demo_unread",
+            "thr_demo_unread_c0",
+            "thr_demo_unread_c1"
+          ]
+        },
+        {
+          "id": "working",
+          "cards": [
+            "thr_column_sort",
+            "thr_drag_done",
+            "thr_demo_work",
+            "thr_demo_work_c1",
+            "thr_demo_work_c2",
+            "thr_sweep_parent",
+            "thr_sweep_child",
+            "thr_sweep_w0",
+            "thr_sweep_w1",
+            "thr_sweep_w2",
+            "thr_sweep_w3",
+            "thr_sweep_w4",
+            "thr_sweep_w5"
+          ]
+        },
+        {
+          "id": "idle-recent",
+          "cards": [
+            "thr_glyph_glue",
+            "thr_kbd_focus",
+            "thr_toolbar_labels"
+          ]
+        },
+        {
+          "id": "idle-today",
+          "cards": [
+            "thr_flaky_ci",
+            "thr_readme_quickstart"
+          ]
+        },
+        {
+          "id": "idle-earlier",
+          "cards": [
+            "thr_icon_lazy",
+            "thr_env_edge"
+          ]
+        },
+        {
+          "id": "idle-awhile",
+          "cards": [
+            "thr_grouping_spike",
+            "thr_parent_lane",
+            "thr_child_lane",
+            "thr_proj_family",
+            "thr_proj_live",
+            "thr_big_family",
+            "thr_big_c8",
+            "thr_big_c7",
+            "thr_big_c6",
+            "thr_big_c5",
+            "thr_big_c4",
+            "thr_big_c3",
+            "thr_big_c2",
+            "thr_big_c1",
+            "thr_big_c0"
+          ]
+        },
+        {
+          "id": "done",
+          "cards": [
+            "thr_pane_padding",
+            "thr_license",
+            "thr_proj_family",
+            "thr_proj_done"
+          ]
+        }
+      ],
+      "lanes": []
+    },
+    {
+      "label": "C4 attention snapshot",
+      "pinnedIds": [
+        "thr_demo_work_c0",
+        "thr_ship_release",
+        "thr_roadmap"
+      ]
+    },
+    {
+      "label": "C5 pin log after pin",
+      "pinLogAfterPin": [
+        {
+          "threadId": "thr_demo_work_c0",
+          "pinned": true
+        }
+      ],
+      "pinLogAfterSwitch": [
+        {
+          "threadId": "thr_demo_work_c0",
+          "pinned": true
+        }
+      ],
+      "parkLog": null
+    },
+    {
+      "label": "D1 pin attempt in attention",
+      "pinD": {
+        "attempt": {
+          "ok": true,
+          "id": "thr_flaky_ci"
+        },
+        "clicked": {
+          "ok": true,
+          "item": "Pin"
+        }
+      }
+    },
+    {
+      "label": "D2 attention right after menu Pin",
+      "pinnedIds": [
+        "thr_ship_release",
+        "thr_flaky_ci",
+        "thr_roadmap"
+      ]
+    },
+    {
+      "label": "D3 attention columns after pin",
+      "kind": "column-board",
+      "columns": [
+        {
+          "id": "pinned",
+          "cards": [
+            "thr_ship_release",
+            "thr_flaky_ci",
+            "thr_roadmap"
+          ]
+        },
+        {
+          "id": "attention",
+          "cards": [
+            "thr_permissions",
+            "thr_demo_needs",
+            "thr_demo_needs_c0",
+            "thr_demo_needs_c1",
+            "thr_demo_needs_c2",
+            "thr_deploy_fail"
+          ]
+        },
+        {
+          "id": "unread",
+          "cards": [
+            "thr_rpc_auth",
+            "thr_uat_queue",
+            "thr_review_pr",
+            "thr_demo_unread",
+            "thr_demo_unread_c0",
+            "thr_demo_unread_c1"
+          ]
+        },
+        {
+          "id": "working",
+          "cards": [
+            "thr_column_sort",
+            "thr_drag_done",
+            "thr_demo_work",
+            "thr_demo_work_c0",
+            "thr_demo_work_c1",
+            "thr_demo_work_c2",
+            "thr_sweep_parent",
+            "thr_sweep_child",
+            "thr_sweep_w0",
+            "thr_sweep_w1",
+            "thr_sweep_w2",
+            "thr_sweep_w3",
+            "thr_sweep_w4",
+            "thr_sweep_w5"
+          ]
+        },
+        {
+          "id": "idle-recent",
+          "cards": [
+            "thr_glyph_glue",
+            "thr_kbd_focus",
+            "thr_toolbar_labels"
+          ]
+        },
+        {
+          "id": "idle-today",
+          "cards": [
+            "thr_readme_quickstart"
+          ]
+        },
+        {
+          "id": "idle-earlier",
+          "cards": [
+            "thr_icon_lazy",
+            "thr_env_edge"
+          ]
+        },
+        {
+          "id": "idle-awhile",
+          "cards": [
+            "thr_grouping_spike",
+            "thr_parent_lane",
+            "thr_child_lane",
+            "thr_proj_family",
+            "thr_proj_live",
+            "thr_big_family",
+            "thr_big_c8",
+            "thr_big_c7",
+            "thr_big_c6",
+            "thr_big_c5",
+            "thr_big_c4",
+            "thr_big_c3",
+            "thr_big_c2",
+            "thr_big_c1",
+            "thr_big_c0"
+          ]
+        },
+        {
+          "id": "done",
+          "cards": [
+            "thr_pane_padding",
+            "thr_license",
+            "thr_proj_family",
+            "thr_proj_done"
+          ]
+        }
+      ],
+      "lanes": []
+    },
+    {
+      "label": "D4 attention columns after round-trip",
+      "kind": "column-board",
+      "columns": [
+        {
+          "id": "pinned",
+          "cards": [
+            "thr_ship_release",
+            "thr_flaky_ci",
+            "thr_roadmap"
+          ]
+        },
+        {
+          "id": "attention",
+          "cards": [
+            "thr_permissions",
+            "thr_demo_needs",
+            "thr_demo_needs_c0",
+            "thr_demo_needs_c1",
+            "thr_demo_needs_c2",
+            "thr_deploy_fail"
+          ]
+        },
+        {
+          "id": "unread",
+          "cards": [
+            "thr_rpc_auth",
+            "thr_uat_queue",
+            "thr_review_pr",
+            "thr_demo_unread",
+            "thr_demo_unread_c0",
+            "thr_demo_unread_c1"
+          ]
+        },
+        {
+          "id": "working",
+          "cards": [
+            "thr_column_sort",
+            "thr_drag_done",
+            "thr_demo_work",
+            "thr_demo_work_c0",
+            "thr_demo_work_c1",
+            "thr_demo_work_c2",
+            "thr_sweep_parent",
+            "thr_sweep_child",
+            "thr_sweep_w0",
+            "thr_sweep_w1",
+            "thr_sweep_w2",
+            "thr_sweep_w3",
+            "thr_sweep_w4",
+            "thr_sweep_w5"
+          ]
+        },
+        {
+          "id": "idle-recent",
+          "cards": [
+            "thr_glyph_glue",
+            "thr_kbd_focus",
+            "thr_toolbar_labels"
+          ]
+        },
+        {
+          "id": "idle-today",
+          "cards": [
+            "thr_readme_quickstart"
+          ]
+        },
+        {
+          "id": "idle-earlier",
+          "cards": [
+            "thr_icon_lazy",
+            "thr_env_edge"
+          ]
+        },
+        {
+          "id": "idle-awhile",
+          "cards": [
+            "thr_grouping_spike",
+            "thr_parent_lane",
+            "thr_child_lane",
+            "thr_proj_family",
+            "thr_proj_live",
+            "thr_big_family",
+            "thr_big_c8",
+            "thr_big_c7",
+            "thr_big_c6",
+            "thr_big_c5",
+            "thr_big_c4",
+            "thr_big_c3",
+            "thr_big_c2",
+            "thr_big_c1",
+            "thr_big_c0"
+          ]
+        },
+        {
+          "id": "done",
+          "cards": [
+            "thr_pane_padding",
+            "thr_license",
+            "thr_proj_family",
+            "thr_proj_done"
+          ]
+        }
+      ],
+      "lanes": []
+    }
+  ]
+}

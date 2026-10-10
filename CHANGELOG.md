@@ -29,6 +29,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- **A pin applied in the Parent view now survives the switch to the Attention view.** Pinning a child card nested it away under its unpinned parent on every other view — the card menu still offered Unpin while the Pinned column showed nothing. A pinned child now stands alone in the Pinned column like the pin state's promise ([#28](https://github.com/cristoslc/bb-plugin-focus-board/issues/28)), with Done children keeping their Done-lane placement.
 - **Drop a card anywhere on a group box to join it — member cards included.** A card dropped on the dashed area used to land on the member inside, which kept its reorder and nest gestures and never joined; a parent-family member left almost none of the box reachable. A joining drag over a member's card now joins, while its middle third still nests, same-group drags still reorder, and card drags from another column arm the join ring too.
 - **New thread starts where the board points, even with no filter armed.** Without a parent preset or single-project filter the composer now seeds from the board's unanimous project, else from the project the board's composer last spawned into (remembered across sessions), so "No project" only shows when nothing on the board points anywhere — parent presets and filters keep winning.
   ([#24](https://github.com/cristoslc/bb-plugin-focus-board/issues/24))
