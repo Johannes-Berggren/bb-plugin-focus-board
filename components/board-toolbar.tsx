@@ -480,10 +480,12 @@ export function BoardToolbar({
     .sort((a, b) => a.label.localeCompare(b.label));
   return (
     <div className="flex flex-wrap items-center gap-2 border-b border-border px-3 py-2">
-      <div className="flex items-center">
-        {/* Creation leads, at the far left: New thread opens the board
-            composer (components/new-thread-modal, whose header carries the
-            maximize hand-off to bb's main new-thread view). */}
+      {/* Creation leads at the far left, with the thread count and the
+          What's-new gift stacked under the button: whatever wrapping does
+          to the filter cluster, this column stays whole. New thread opens
+          the board composer (components/new-thread-modal, whose header
+          carries the maximize hand-off to bb's main new-thread view). */}
+      <div className="flex flex-col items-start gap-1">
         <button
           type="button"
           onClick={onNewThread}
@@ -492,6 +494,26 @@ export function BoardToolbar({
           <Icon name="Plus" className="size-3.5" aria-hidden />
           New thread
         </button>
+        <div className="flex items-center gap-2">
+          <span className="pl-0.5 text-xs text-muted-foreground">{totalCount} threads</span>
+          {/* Always present — the changelog never becomes unreachable. The
+              pulse (and the amber tint) is the only state, and it clears on
+              open. */}
+          <button
+            type="button"
+            onClick={onOpenWhatsNew}
+            aria-label="What's new"
+            title="What's new"
+            className={cn(
+              "-ml-1 inline-flex size-6 items-center justify-center rounded-md transition-colors hover:bg-accent hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+              whatsNewUnseen
+                ? "motion-safe:animate-pulse text-amber-500 hover:text-amber-400"
+                : "text-muted-foreground",
+            )}
+          >
+            <Icon name="Gift" className="size-4" aria-hidden />
+          </button>
+        </div>
       </div>
       {/* Search and the filter controls wrap as ONE cluster: on a narrow
           panel whole controls move onto a continuation line under the
@@ -641,25 +663,6 @@ export function BoardToolbar({
             Clear
           </button>
         ) : null}
-      </div>
-      <div className="ml-auto flex items-center gap-2">
-        <span className="text-xs text-muted-foreground">{totalCount} threads</span>
-        {/* Always present — the changelog never becomes unreachable. The pulse
-            (and the amber tint) is the only state, and it clears on open. */}
-        <button
-          type="button"
-          onClick={onOpenWhatsNew}
-          aria-label="What's new"
-          title="What's new"
-          className={cn(
-            "inline-flex size-8 items-center justify-center rounded-md transition-colors hover:bg-accent hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-            whatsNewUnseen
-              ? "motion-safe:animate-pulse text-amber-500 hover:text-amber-400"
-              : "text-muted-foreground",
-          )}
-        >
-          <Icon name="Gift" className="size-4" aria-hidden />
-        </button>
       </div>
     </div>
   );

@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
-// Toolbar layout: New thread leads from the far left; the search field and
-// the filter controls form one wrapping cluster (so a wrap moves whole
-// filters to a continuation line, never stranding the count); the thread
-// count and the What's-new gift form their own right-hand cluster.
+// Toolbar layout: New thread leads at the far left with the thread count
+// and the What's-new gift stacked directly under it; the search field and
+// the filter controls form one wrapping cluster to the right (so a wrap
+// moves whole filters to a continuation line, never stranding the count).
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, render, screen } from "@testing-library/react";
 import { BoardToolbar } from "../components/board-toolbar";
@@ -58,40 +58,45 @@ afterEach(() => {
 });
 
 describe("BoardToolbar layout", () => {
-  it("orders New thread, search, the five filters, then the count cluster", () => {
+  it("stacks count and gift under New thread, before search and the filters", () => {
     renderToolbar();
     const newThread = screen.getByText("New thread");
+    const count = screen.getByText("7 threads");
+    const gift = screen.getByLabelText("What's new");
     const search = screen.getByLabelText("Search threads");
     const group = screen.getByText(/Group:/);
     const project = screen.getByText(/Project:/);
     const provider = screen.getByText(/Provider:/);
     const state = screen.getByText(/State:/);
-    const count = screen.getByText("7 threads");
+    expect(follows(newThread, count)).toBe(true);
+    expect(follows(count, gift)).toBe(true);
     expect(follows(newThread, search)).toBe(true);
     expect(follows(search, group)).toBe(true);
     expect(follows(group, project)).toBe(true);
     expect(follows(project, provider)).toBe(true);
     expect(follows(provider, state)).toBe(true);
-    expect(follows(state, count)).toBe(true);
   });
 
-  it("search and the filters wrap as one cluster, separate from the count", () => {
+  it("the creation stack holds count and gift; search and filters wrap separately", () => {
     const root = renderToolbar();
+    const newThread = screen.getByText("New thread");
+    const count = screen.getByText("7 threads");
+    const gift = screen.getByLabelText("What's new");
     const search = screen.getByLabelText("Search threads");
     const group = screen.getByText(/Group:/);
     const state = screen.getByText(/State:/);
-    const count = screen.getByText("7 threads");
-    const gift = screen.getByLabelText("What's new");
+    const creationStack = commonAncestor(newThread, count);
     const searchCluster = commonAncestor(search, group);
-    const countCluster = commonAncestor(count, gift);
+    expect(creationStack).not.toBeNull();
     expect(searchCluster).not.toBeNull();
-    expect(countCluster).not.toBeNull();
-    // The two clusters are different subtrees, both inside the toolbar root.
+    // Different clusters, both inside the toolbar root; the count and the
+    // gift never leave the creation stack, whatever wrapping does.
+    expect(creationStack).not.toBe(root);
     expect(searchCluster).not.toBe(root);
-    expect(countCluster).not.toBe(root);
-    expect(searchCluster).not.toBe(countCluster);
+    expect(creationStack).not.toBe(searchCluster);
+    expect(creationStack?.contains(gift) ?? false).toBe(true);
+    expect(creationStack?.contains(search) ?? true).toBe(false);
     expect(searchCluster?.contains(state) ?? false).toBe(true);
-    expect(countCluster?.contains(search) ?? true).toBe(false);
   });
 
   it("places Clear inside the search-and-filters cluster when one is active", () => {
