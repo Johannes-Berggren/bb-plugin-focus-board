@@ -152,25 +152,98 @@ describe("planGroupBoxes", () => {
     expect(plan.columnOverrides.get("thr_new")?.id).toBe("idle-recent");
   });
 
-  it("boxes stay off under axis groupings (project/provider/machine/parent)", () => {
+  it("boxes render under the project grouping: the box lands in the freshest member's project column", () => {
+    const projects = [
+      { id: "proj_a", name: "Alpha" },
+      { id: "proj_b", name: "Beta" },
+    ] as never;
+    const threads = [
+      thread({ id: "thr_a", projectId: "proj_b", updatedAt: NOW - 1000 }),
+      thread({ id: "thr_b", projectId: "proj_a", updatedAt: NOW - 2000 }),
+    ];
+    const plan = planGroupBoxes(
+      threads,
+      groupOf({ thr_a: "grp_auth", thr_b: "grp_auth" }),
+      NAMES,
+      "project",
+      { projects, providers: [] },
+      new Set(),
+      NOW,
+    );
+    expect(plan.active).toBe(true);
+    expect(plan.groupBoxOf.get("thr_a")?.groupId).toBe("grp_auth");
+    expect(plan.groupBoxOf.get("thr_a")).toBe(plan.groupBoxOf.get("thr_b"));
+    // Both members override into ONE column: the freshest member's project
+    // (both idle, so the fresher member carries the box, same as status).
+    expect(plan.columnOverrides.get("thr_a")).toEqual({ id: "proj_b", label: "Beta" });
+    expect(plan.columnOverrides.get("thr_b")).toEqual({ id: "proj_b", label: "Beta" });
+  });
+
+  it("a group of one boxes its lone member under the project grouping too", () => {
+    const projects = [{ id: "proj_a", name: "Alpha" }] as never;
+    const plan = planGroupBoxes(
+      [thread({ id: "thr_a" })],
+      groupOf({ thr_a: "grp_auth" }),
+      NAMES,
+      "project",
+      { projects, providers: [] },
+      new Set(),
+      NOW,
+    );
+    expect(plan.active).toBe(true);
+    expect(plan.groupBoxOf.get("thr_a")?.name).toBe("Auth rework");
+    expect(plan.columnOverrides.get("thr_a")).toEqual({ id: "proj_a", label: "Alpha" });
+  });
+
+  it("provider and machine groupings box too (per-thread-column groupings)", () => {
+    const threads = [
+      thread({ id: "thr_a", providerId: "opencode", updatedAt: NOW - 1000 }),
+      thread({ id: "thr_b", providerId: "pi", updatedAt: NOW - 2000 }),
+    ];
+    // Provider: one box, overridden into the freshest member's provider column.
+    const plan = planGroupBoxes(
+      threads,
+      groupOf({ thr_a: "grp_auth", thr_b: "grp_auth" }),
+      NAMES,
+      "provider",
+      { projects: [] as never, providers: [{ id: "opencode", displayName: "OpenCode" }] },
+      new Set(),
+      NOW,
+    );
+    expect(plan.active).toBe(true);
+    expect(plan.groupBoxOf.get("thr_a")).toBe(plan.groupBoxOf.get("thr_b"));
+    expect(plan.columnOverrides.get("thr_a")).toEqual({ id: "opencode", label: "OpenCode" });
+    expect(plan.columnOverrides.get("thr_b")).toEqual({ id: "opencode", label: "OpenCode" });
+    // Machine: members without a host degrade to the "No machine" lane.
+    const machinePlan = planGroupBoxes(
+      [thread({ id: "thr_a" }), thread({ id: "thr_b" })],
+      groupOf({ thr_a: "grp_auth", thr_b: "grp_auth" }),
+      NAMES,
+      "machine",
+      context,
+      new Set(),
+      NOW,
+    );
+    expect(machinePlan.active).toBe(true);
+    expect(machinePlan.columnOverrides.get("thr_a")).toEqual({ id: "none", label: "No machine" });
+  });
+
+  it("boxes stay off under the parent grouping (families are their own unit system)", () => {
     const threads = [
       thread({ id: "thr_a" }),
       thread({ id: "thr_b" }),
     ];
-    const assignments = groupOf({ thr_a: "grp_auth", thr_b: "grp_auth" });
-    for (const groupBy of ["project", "provider", "machine", "parent"] as const) {
-      const plan = planGroupBoxes(
-        threads,
-        assignments,
-        NAMES,
-        groupBy,
-        { projects: [{ id: "proj_a", name: "P" } as never], providers: [] },
-        new Set(),
-        NOW,
-      );
-      expect(plan.active).toBe(false);
-      expect(plan.groupBoxOf.size).toBe(0);
-    }
+    const plan = planGroupBoxes(
+      threads,
+      groupOf({ thr_a: "grp_auth", thr_b: "grp_auth" }),
+      NAMES,
+      "parent",
+      context,
+      new Set(),
+      NOW,
+    );
+    expect(plan.active).toBe(false);
+    expect(plan.groupBoxOf.size).toBe(0);
   });
 
   it("under recency, the box lands in the freshest member's bucket", () => {

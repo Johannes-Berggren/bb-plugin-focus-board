@@ -29,6 +29,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- **Group boxes render on the Project view.** A groups-on-project board drew every member as a plain card because the box plan bailed on non-status groupings; the plan now runs under every per-thread-column grouping — Project, Provider, and Machine join Attention, None, and Last activity — while the parent/family lane view stays unboxed.
 - **Drop a card anywhere on a group box to join it — member cards included.** A card dropped on the dashed area used to land on the member inside, which kept its reorder and nest gestures and never joined; a parent-family member left almost none of the box reachable. A joining drag over a member's card now joins, while its middle third still nests, same-group drags still reorder, and card drags from another column arm the join ring too.
 - **New thread starts where the board points, even with no filter armed.** Without a parent preset or single-project filter the composer now seeds from the board's unanimous project, else from the project the board's composer last spawned into (remembered across sessions), so "No project" only shows when nothing on the board points anywhere — parent presets and filters keep winning.
   ([#24](https://github.com/cristoslc/bb-plugin-focus-board/issues/24))

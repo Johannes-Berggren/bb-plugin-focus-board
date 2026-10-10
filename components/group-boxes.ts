@@ -17,11 +17,14 @@
 //   recency bucket of that member. This is the family placement rule
 //   (familyColumnOverrides) re-derived for groups, so "behaves like a
 //   family for column selection" is literally the same algorithm.
-// - Groupings that split members by their own axis (project, provider,
-//   machine) deactivate boxes entirely: the axis IS that board's grouping,
-//   and wrapping members from several axis columns is a placement the
-//   board cannot honour. Under "parent", the parent lanes are the
-//   grouping; boxes stay off there too.
+// - A grouping that renders per-thread columns (status, none, recency,
+//   project, provider, machine) keeps boxes active: the box lands in ONE
+//   column — the lane of its most attention-needing member, pulled there by
+//   the plan's columnOverrides exactly as the status side already does
+//   (buildColumns honours overrides under every grouping). "Parent" is the
+//   one exclusion: its lanes are family projections, not thread lanes, so a
+//   box around a family's lanes has no meaning — families are their own
+//   unit system there.
 // - A box owns its members' placement: members leave the flat list
 //   whenever the box does, and the runs pass below keeps them contiguous,
 //   in the column's own display order.
@@ -41,8 +44,13 @@ import { STATUS_COLUMN_ORDER } from "./grouping";
 import type { MoveTarget } from "../lib/rank";
 import type { TicketRef } from "../lib/tickets";
 
-/** The groupings under which boxes are active (see the module comment). */
-const BOX_GROUPINGS: ReadonlySet<GroupBy> = new Set(["status", "none", "recency"]);
+/**
+ * The grouping under which boxes are OFF (see the module comment): the
+ * parent/family lane view. Every per-thread-column grouping — status, none,
+ * recency, project, provider, machine — boxes, so this is an exclusion
+ * list: a future per-thread-column GroupBy boxes by default.
+ */
+const NO_BOX_GROUPINGS: ReadonlySet<GroupBy> = new Set(["parent"]);
 
 export interface GroupBox {
   /** The registry id; the name rides along for label rendering. */
@@ -61,7 +69,7 @@ export interface GroupBoxPlan {
   /**
    * Thread id → the box it renders in. Holds EXACTLY the threads inside
    * boxes; a thread absent from it renders standalone even when assigned
-   * (pinned/done member, axis grouping — a group of one boxes its lone
+   * (pinned/done member, the parent grouping — a group of one boxes its lone
    * member these days).
    */
   groupBoxOf: ReadonlyMap<string, GroupBox>;
@@ -94,7 +102,7 @@ export function planGroupBoxes(
 ): GroupBoxPlan {
   const groupBoxOf = new Map<string, GroupBox>();
   const columnOverrides = new Map<string, { id: string; label: string }>();
-  if (!BOX_GROUPINGS.has(groupBy)) {
+  if (NO_BOX_GROUPINGS.has(groupBy)) {
     return { groupBoxOf, columnOverrides, active: false };
   }
   // Candidates: live members only — done members keep the Done lane's
@@ -387,7 +395,7 @@ export function flattenRuns(
  * Group-aware filtering, the family keep rule restricted to boxes: a box
  * passes when ANY member passes a filter or the search, whole — and
  * non-matching members of a passing box are recorded in `dimmedIds`. A
- * thread NOT in a box (pinned/done members, axis groupings) keeps its own
+ * thread NOT in a box (pinned/done members, the parent grouping) keeps its own
  * pass/fail. Apply AFTER the family/individual filter: input here is the
  * already-kept list, so a member a failed family dropped cannot keep its
  * box on the board.
