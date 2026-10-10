@@ -32,7 +32,7 @@ import { NewThreadModal } from "./components/new-thread-modal";
 import type { SpawnedThread } from "./components/new-thread-modal";
 import type { CardMenuAction } from "./components/thread-card-menu";
 import { cardMenuActions } from "./lib/card-menu";
-import { useOpenHrefInNewWindow } from "./lib/open-in-new-window";
+import { useOpenHrefInBrowser } from "./lib/open-in-browser";
 import type { FilterState, GroupBy, ThreadState } from "./components/grouping";
 import {
   buildColumns,
@@ -649,7 +649,7 @@ function BoardPage({ subPath }: { subPath: string }) {
                 title: thread.title,
                 titleFallback: thread.titleFallback,
                 // The pane's open menu reuses the row href for its
-                // new-window and copy-link destinations; archived rows from
+                // in-browser and copy-link destinations; archived rows from
                 // older SDK views may not carry one.
                 href: "href" in thread && typeof thread.href === "string" ? thread.href : null,
               })),
@@ -2049,7 +2049,7 @@ function BoardPage({ subPath }: { subPath: string }) {
     [navigate, sdk],
   );
 
-  const openHrefInNewWindow = useOpenHrefInNewWindow();
+  const openHrefInBrowser = useOpenHrefInBrowser();
 
   const menuActionsFor = useCallback(
     (thread: PluginSidebarThread): readonly CardMenuAction[] => {
@@ -2083,7 +2083,7 @@ function BoardPage({ subPath }: { subPath: string }) {
               setBrowserNotice({ message: browserReachFailure(error) });
             });
           },
-          openNewWindow: () => openHrefInNewWindow(thread.href),
+          openInBrowser: () => openHrefInBrowser(thread.href),
           openNewChild: () => openNewChildThread(thread.id),
           togglePinned: () => {
             liftSnooze();
@@ -2194,7 +2194,7 @@ function BoardPage({ subPath }: { subPath: string }) {
         },
       );
     },
-    [actions, applyUnreadStateEffects, clearParkPin, clearSnooze, doneAgeSource, doneIds, exitPinnedLane, groupAssignments, openHrefInNewWindow, openNewChildThread, pendingStateClaimsRef, requestReveal, restoreParkedPin, runBrowserReveal, rpc, setBrowserNotice, setDoneExtras, setDoneIds, setGroupDialogFor, setSnoozeDialogFor, snoozedIds, sdk],
+    [actions, applyUnreadStateEffects, clearParkPin, clearSnooze, doneAgeSource, doneIds, exitPinnedLane, groupAssignments, openHrefInBrowser, openNewChildThread, pendingStateClaimsRef, requestReveal, restoreParkedPin, runBrowserReveal, rpc, setBrowserNotice, setDoneExtras, setDoneIds, setGroupDialogFor, setSnoozeDialogFor, snoozedIds, sdk],
   );
 
   if (sidebarStatus === "loading" && threads.length === 0) {

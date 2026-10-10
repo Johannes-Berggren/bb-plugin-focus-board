@@ -73,10 +73,10 @@ export interface CardMenuHandlers {
   openNewChild: () => void;
   /**
    * The thread's fresh-surface open, run with the card's app-relative
-   * href (lib/open-in-new-window owns where the host routes it: the
+   * href (lib/open-in-browser owns where the host routes it: the
    * desktop app's in-app browser on desktop, a detached tab on the web).
    */
-  openNewWindow: (href: string) => void;
+  openInBrowser: (href: string) => void;
 }
 
 export function cardMenuActions(
@@ -121,11 +121,11 @@ export function cardMenuActions(
       : [];
   return [
     {
-      id: "open-new-window",
-      label: "Open in new window",
+      id: "open-in-browser",
+      label: "Open in browser",
       icon: "NewTab",
       dividerAbove: true,
-      run: () => handlers.openNewWindow(thread.href),
+      run: () => handlers.openInBrowser(thread.href),
     },
     {
       id: "reveal-browser-tab",

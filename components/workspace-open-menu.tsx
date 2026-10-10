@@ -1,7 +1,7 @@
 // The thread pane header's workspace-open control, the pane's take on the
 // main thread view's open button: an icon that opens the thread's workspace
 // in the preferred editor, plus an attached chevron whose dropdown lists the
-// other destinations — file explorer, terminal, new window, reveal browser
+// other destinations — file explorer, terminal, in-browser, reveal browser
 // tab, copy link.
 //
 // The daemon conversation lives server-side (lib/workspace-open.ts via the
@@ -17,7 +17,7 @@ import { Icon } from "@/components/ui/icon";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { HEADER_ICON_BUTTON_CLASS } from "@/lib/pane-chrome";
-import { useOpenHrefInNewWindow } from "@/lib/open-in-new-window";
+import { useOpenHrefInBrowser } from "@/lib/open-in-browser";
 
 type WorkspaceOpenTargets = z.infer<
 	(typeof rpcContract)["workspace_open_targets"]["output"]
@@ -26,11 +26,11 @@ type WorkspaceOpenTarget = WorkspaceOpenTargets["targets"][number];
 
 interface WorkspaceOpenMenuProps {
 	threadId: string;
-	/** The thread's app-relative URL for the new-window and copy-link entries. */
+	/** The thread's app-relative URL for the in-browser and copy-link entries. */
 	threadHref: string;
 	/**
 	 * The pane's "open in the main view" action (bb's pane maximize), offered
-	 * in the dropdown's thread group beside the new-window entry.
+	 * in the dropdown's thread group beside the in-browser entry.
 	 */
 	onMaximize: () => void;
 	/**
@@ -127,7 +127,7 @@ export function WorkspaceOpenMenu({
 	showLabel = false,
 }: WorkspaceOpenMenuProps) {
 	const rpc = useRpc<typeof rpcContract>();
-	const openHrefInNewWindow = useOpenHrefInNewWindow();
+	const openHrefInBrowser = useOpenHrefInBrowser();
 	const [state, setState] = useState<WorkspaceOpenTargets | null>(null);
 	const [open, setOpen] = useState(false);
 	const [error, setError] = useState<string | null>(null);
@@ -234,13 +234,13 @@ export function WorkspaceOpenMenu({
 			run: onMaximize,
 		},
 		{
-			id: "new-window",
-			label: "Open in new window",
+			id: "in-browser",
+			label: "Open in browser",
 			icon: "NewTab",
-			// Routing is the host's (lib/open-in-new-window): the desktop
+			// Routing is the host's (lib/open-in-browser): the desktop
 			// app's in-app browser on desktop, the same _blank detached tab
 			// the raw window.open produced on the web.
-			run: () => openHrefInNewWindow(absoluteHref),
+			run: () => openHrefInBrowser(absoluteHref),
 		},
 		...(onRevealBrowserTab !== undefined
 			? [

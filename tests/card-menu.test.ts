@@ -31,7 +31,7 @@ function makeHandlers(): CardMenuHandlers {
 		openSnoozePicker: vi.fn(noop),
 		openGroupPicker: vi.fn(noop),
 		openNewChild: vi.fn(noop),
-		openNewWindow: vi.fn(noop),
+		openInBrowser: vi.fn(noop),
 	};
 }
 
@@ -70,7 +70,7 @@ describe("card menu grouping", () => {
 	it("the base thread's actions sit in the group order: destinations, state, lineage, lifecycle", () => {
 		const ids = cardMenuActions(makeInputs(), makeHandlers()).map((entry) => entry.id);
 		expect(ids).toEqual([
-			"open-new-window",
+			"open-in-browser",
 			"reveal-browser-tab",
 			"pin",
 			"read",
@@ -87,7 +87,7 @@ describe("card menu grouping", () => {
 	it("dividers open exactly the four group heads — nothing else carries one", () => {
 		const actions = cardMenuActions(makeInputs(), makeHandlers());
 		const byId = Object.fromEntries(actions.map((entry) => [entry.id, entry]));
-		expect(byId["open-new-window"].dividerAbove).toBe(true);
+		expect(byId["open-in-browser"].dividerAbove).toBe(true);
 		expect(byId["reveal-browser-tab"].dividerAbove).toBeUndefined();
 		expect(byId["pin"].dividerAbove).toBe(true);
 		expect(byId["read"].dividerAbove).toBeUndefined();
@@ -119,13 +119,13 @@ describe("card menu grouping", () => {
 		expect(dangerous).toEqual(["delete"]);
 	});
 
-	it("Open in new window routes through the shared open handler with the card's href", () => {
+	it("Open in browser routes through the shared open handler with the card's href", () => {
 		const handlers = makeHandlers();
-		action(makeInputs({ thread: { href: "/threads/thr_9" } }), "open-new-window", handlers).run();
+		action(makeInputs({ thread: { href: "/threads/thr_9" } }), "open-in-browser", handlers).run();
 		// The builder owns order and labels only; where the URL opens is the
-		// host-routed shared handler (lib/open-in-new-window), so the raw
+		// host-routed shared handler (lib/open-in-browser), so the raw
 		// window.open never appears here.
-		expect(handlers.openNewWindow).toHaveBeenCalledWith("/threads/thr_9");
+		expect(handlers.openInBrowser).toHaveBeenCalledWith("/threads/thr_9");
 	});
 
 	it("every state and lineage entry runs its handler", () => {

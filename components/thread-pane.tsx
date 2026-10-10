@@ -85,7 +85,7 @@ export interface ThreadPaneThread {
   isPinned: boolean;
   /**
    * The thread's app-relative URL (the sidebar row's href) for the open
-   * menu's "Open in new window" and "Copy thread link" destinations.
+   * menu's "Open in browser" and "Copy thread link" destinations.
    */
   href: string;
 }

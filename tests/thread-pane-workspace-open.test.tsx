@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 // The thread pane header's open control: an icon that opens the thread's
 // workspace in the preferred editor plus a dropdown with the other
-// destinations (file explorer, terminal, new window, copy link). It replaces
+// destinations (file explorer, terminal, in-browser, copy link). It replaces
 // the debug-only bug button, which is gone entirely — the scroll-debug log
 // stays console-only even with the debug setting on.
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -239,7 +239,7 @@ describe("pane header workspace-open menu", () => {
 		expect(primary.querySelector('[data-icon="Code"]')).toBeNull();
 	});
 
-	it("the dropdown lists editor, file explorer, terminal, new window, and copy link", async () => {
+	it("the dropdown lists editor, file explorer, terminal, open in browser, and copy link", async () => {
 		renderPane();
 		const primaryProbe = await screen.findByRole("button", {
 			name: /open workspace in vs code/i,
@@ -253,7 +253,7 @@ describe("pane header workspace-open menu", () => {
 			"Open in editor",
 			"Open in file explorer",
 			"Open in terminal",
-			"Open in new window",
+			"Open in browser",
 			"Copy thread link",
 		]) {
 			expect(screen.getByRole("menuitem", { name: label })).toBeTruthy();
@@ -288,7 +288,7 @@ describe("pane header workspace-open menu", () => {
 		);
 	});
 
-	it("Open in new window asks the host navigate to open the absolute href (the desktop-app route)", async () => {
+	it("Open in browser asks the host navigate to open the absolute href (the desktop-app route)", async () => {
 		const openSpy = vi.spyOn(window, "open").mockImplementation(() => null);
 		try {
 			renderPane();
@@ -297,7 +297,7 @@ describe("pane header workspace-open menu", () => {
 				await screen.findByRole("button", { name: /more places to open/i }),
 			);
 			fireEvent.click(
-				screen.getByRole("menuitem", { name: "Open in new window" }),
+				screen.getByRole("menuitem", { name: "Open in browser" }),
 			);
 			// The host owns where a URL opens: the desktop app's in-app
 			// browser on desktop, a detached tab on the web. A true return
@@ -312,7 +312,7 @@ describe("pane header workspace-open menu", () => {
 		}
 	});
 
-	it("Open in new window falls back to a detached noopener tab when the host declines the URL", async () => {
+	it("Open in browser falls back to a detached noopener tab when the host declines the URL", async () => {
 		const openSpy = vi.spyOn(window, "open").mockImplementation(() => null);
 		openUrlMock.mockReturnValue(false);
 		try {
@@ -321,7 +321,7 @@ describe("pane header workspace-open menu", () => {
 				await screen.findByRole("button", { name: /more places to open/i }),
 			);
 			fireEvent.click(
-				screen.getByRole("menuitem", { name: "Open in new window" }),
+				screen.getByRole("menuitem", { name: "Open in browser" }),
 			);
 			expect(openSpy).toHaveBeenCalledWith(
 				`${window.location.origin}/threads/thr_1`,
@@ -355,18 +355,18 @@ describe("pane header workspace-open menu", () => {
 		}
 	});
 
-	it("the dropdown offers Maximize pane just before Open in new window, and maximizes on click", async () => {
+	it("the dropdown offers Maximize pane just before Open in browser, and maximizes on click", async () => {
 		const { onMaximize } = renderPane();
 		fireEvent.click(
 			await screen.findByRole("button", { name: /more places to open/i }),
 		);
 		const maximize = screen.getByRole("menuitem", { name: "Maximize pane" });
-		const newWindow = screen.getByRole("menuitem", {
-			name: "Open in new window",
+		const inBrowser = screen.getByRole("menuitem", {
+			name: "Open in browser",
 		});
 		// bb's own term, sitting next to the other thread destinations.
 		expect(
-			maximize.compareDocumentPosition(newWindow) &
+			maximize.compareDocumentPosition(inBrowser) &
 				Node.DOCUMENT_POSITION_FOLLOWING,
 		).toBeTruthy();
 		fireEvent.click(maximize);
@@ -406,13 +406,13 @@ describe("pane header workspace-open menu", () => {
 		);
 	});
 
-	it("Reveal browser tab sits in the thread group between Open in new window and Copy thread link", async () => {
+	it("Reveal browser tab sits in the thread group between Open in browser and Copy thread link", async () => {
 		renderPane({ onRevealBrowserTab: () => {} });
 		fireEvent.click(
 			await screen.findByRole("button", { name: /more places to open/i }),
 		);
-		const newWindow = screen.getByRole("menuitem", {
-			name: "Open in new window",
+		const inBrowser = screen.getByRole("menuitem", {
+			name: "Open in browser",
 		});
 		const reveal = screen.getByRole("menuitem", {
 			name: "Reveal browser tab",
@@ -422,7 +422,7 @@ describe("pane header workspace-open menu", () => {
 		// thread destination, not a workspace one, so it lands in the thread
 		// group — after the raw window-open, before the copied link.
 		expect(
-			newWindow.compareDocumentPosition(reveal) &
+			inBrowser.compareDocumentPosition(reveal) &
 				Node.DOCUMENT_POSITION_FOLLOWING,
 		).toBeTruthy();
 		expect(

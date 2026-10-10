@@ -15,13 +15,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **The board can wear a wallpaper.** The toolbar's image control opens a picker: eight bundled gradient presets and a deterministic Picsum shuffle strip work offline-first, a keyless Openverse search adds openly licensed photos, and a free-form url field takes anything http(s) or data — all with a dim slider that keeps cards readable. The setting persists per browser and today always applies globally, with the stored document versioned and ready for per-project or per-group overrides later.
 - **The New thread composer can maximize into the main new-thread view.** A maximize button in the composer's dialog (beside the close) hands off to bb's root compose surface — project and environment seeds plus the prompt text ride along; the board's own draft is kept (a maximize is a close, not a spawn) and the button hides while a child preset is armed since the main view cannot spawn a nested thread.
 - **`/` jumps to search.** With no pane open, pressing `/` on the board moves focus to the toolbar's search field and puts the caret at the end of the query; panes, dialogs, open dropdowns, and modifier chords keep claiming the key.
-- **The pane's open menu reveals the thread's browser tab.** "Reveal browser tab" sits in the dropdown's thread group between "Open in new window" and "Copy thread link", running the same one-step gesture the card menu carries. Outcomes still report on the board's banner, and render sites without a banner pass no callback and see no entry.
+- **The pane's open menu reveals the thread's browser tab.** "Reveal browser tab" sits in the dropdown's thread group between "Open in browser" and "Copy thread link", running the same one-step gesture the card menu carries. Outcomes still report on the board's banner, and render sites without a banner pass no callback and see no entry.
 
 ### Changed
 
 - **Board cards name personal threads "No project", matching the composer's picker.** The card label used the personal project's "Personal" name where bb's New-thread picker calls that state "No project" ([get-bb/bb#5340](https://github.com/get-bb/bb/issues/5340)), so the board now uses the picker's term, and a filter naming personal seeds that state deliberately. ([#25](https://github.com/cristoslc/bb-plugin-focus-board/issues/25))
 - **The board toolbar reads as one line: create, search + View, filters.** New thread leads, the search field pairs with a View chip that names the current view like a mode (no colon label — grouping and the Nest child threads toggle live inside its menu), and Project / Provider / State run with the thread count and What's-new gift as one trailing cluster, so narrow panels wrap them all together instead of stranding the count against an empty edge.
-- **The card menu now reads in four groups.** Destinations (new window, reveal browser tab) lead, the organizational block follows with the state toggles and the snooze and group pickers folded in as one block, and lineage (new child, make top-level) plus the lifecycle close (sweep keep, archive, delete) finish the menu — one divider per group head, no more divider between Read and Done.
+- **The card menu now reads in four groups.** Destinations (open in browser, reveal browser tab) lead, the organizational block follows with the state toggles and the snooze and group pickers folded in as one block, and lineage (new child, make top-level) plus the lifecycle close (sweep keep, archive, delete) finish the menu — one divider per group head, no more divider between Read and Done.
 
 ### Fixed
 
@@ -29,7 +29,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   ([#24](https://github.com/cristoslc/bb-plugin-focus-board/issues/24))
   - The maximize hand-off rides the same seed now, instead of bb's own remembered pick.
 
-- **"Open in new window" opens the thread in the desktop app.** The gesture now routes through bb's navigate, so a desktop click opens the thread in the app's own browser panel instead of a detached web-browser tab (the raw `window.open` bb's window guard forced); the web board's detached-tab behavior is unchanged.
+- **"Open in browser" opens the thread in the desktop app.** Renamed from "Open in new window" because a native second window is not plugin-reachable (upstream request drafted at `docs/upstream/bb-feature-request-thread-window.md`). The gesture routes through bb's navigate, so a desktop click opens the thread in the app's own browser panel instead of a detached web-browser tab (the raw `window.open` bb's window guard forced); the web board's detached-tab behavior is unchanged.
 
 ## [1.1.0] - 2026-10-09
 

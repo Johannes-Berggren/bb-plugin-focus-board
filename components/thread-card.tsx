@@ -509,7 +509,7 @@ export function ThreadCard({
           onClick={(event) => {
             // Sweep mode is modal: the click curates the selection, it never
             // navigates — not even modifier-clicks, which would otherwise
-            // open a new window from the href. The board reads the gesture:
+            // open a browser tab from the href. The board reads the gesture:
             // shift extends the range from the anchor, cmd/ctrl and plain
             // clicks toggle this one card.
             if (isSweepSelecting) {

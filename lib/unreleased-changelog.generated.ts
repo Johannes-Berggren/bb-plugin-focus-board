@@ -24,7 +24,7 @@ export const UNRELEASED_ITEMS: readonly { text: string; children: string[] }[] =
     "children": []
   },
   {
-    "text": "**The pane's open menu reveals the thread's browser tab.** \"Reveal browser tab\" sits in the dropdown's thread group between \"Open in new window\" and \"Copy thread link\", running the same one-step gesture the card menu carries. Outcomes still report on the board's banner, and render sites without a banner pass no callback and see no entry.",
+    "text": "**The pane's open menu reveals the thread's browser tab.** \"Reveal browser tab\" sits in the dropdown's thread group between \"Open in browser\" and \"Copy thread link\", running the same one-step gesture the card menu carries. Outcomes still report on the board's banner, and render sites without a banner pass no callback and see no entry.",
     "children": []
   },
   {
@@ -36,7 +36,7 @@ export const UNRELEASED_ITEMS: readonly { text: string; children: string[] }[] =
     "children": []
   },
   {
-    "text": "**The card menu now reads in four groups.** Destinations (new window, reveal browser tab) lead, the organizational block follows with the state toggles and the snooze and group pickers folded in as one block, and lineage (new child, make top-level) plus the lifecycle close (sweep keep, archive, delete) finish the menu — one divider per group head, no more divider between Read and Done.",
+    "text": "**The card menu now reads in four groups.** Destinations (open in browser, reveal browser tab) lead, the organizational block follows with the state toggles and the snooze and group pickers folded in as one block, and lineage (new child, make top-level) plus the lifecycle close (sweep keep, archive, delete) finish the menu — one divider per group head, no more divider between Read and Done.",
     "children": []
   },
   {
@@ -46,7 +46,7 @@ export const UNRELEASED_ITEMS: readonly { text: string; children: string[] }[] =
     ]
   },
   {
-    "text": "**\"Open in new window\" opens the thread in the desktop app.** The gesture now routes through bb's navigate, so a desktop click opens the thread in the app's own browser panel instead of a detached web-browser tab (the raw `window.open` bb's window guard forced); the web board's detached-tab behavior is unchanged.",
+    "text": "**\"Open in browser\" opens the thread in the desktop app.** Renamed from \"Open in new window\" because a native second window is not plugin-reachable (upstream request drafted at `docs/upstream/bb-feature-request-thread-window.md`). The gesture routes through bb's navigate, so a desktop click opens the thread in the app's own browser panel instead of a detached web-browser tab (the raw `window.open` bb's window guard forced); the web board's detached-tab behavior is unchanged.",
     "children": []
   }
 ];
