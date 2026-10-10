@@ -197,7 +197,13 @@ describe("select-all beside the dropdown search bar", () => {
 
   it("the exclusive View dropdown, though searchable, has no checkbox", () => {
     renderToolbar();
-    openMenu(/View:/);
+    // The View chip has no "View:" text (mode-chip trigger), so it is
+    // reached by its aria-label rather than the text-content matcher.
+    const trigger = document.querySelector<HTMLButtonElement>(
+      'button[aria-haspopup="listbox"][aria-label="View"]',
+    );
+    if (trigger === null) throw new Error("missing View trigger");
+    fireEvent.click(trigger);
     expect(document.querySelector("[data-select-all]")).toBeNull();
   });
 });

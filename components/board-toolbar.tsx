@@ -35,8 +35,12 @@ interface MultiSelectDropdownProps {
   onSingleSelect: (value: string) => void;
   /** Omit when `exclusive`: picking another row replaces the selection. */
   onClear?: () => void;
-  /** Selections are mutually exclusive (e.g. the Group control). */
+  /** Selections are mutually exclusive (e.g. the View control). */
   exclusive?: boolean;
+  /** Mode-chip trigger: drop the "Label:" prefix and show the current
+   *  summary as the dominant text — for controls that are a MODE (one
+   *  always active), not a narrowing filter. */
+  modeChip?: boolean;
   footer?: React.ReactNode;
 }
 
@@ -51,6 +55,7 @@ function MultiSelectDropdown({
   onSingleSelect,
   onClear,
   exclusive = false,
+  modeChip = false,
   footer,
 }: MultiSelectDropdownProps) {
   const [open, setOpen] = useState(false);
@@ -109,6 +114,7 @@ function MultiSelectDropdown({
         type="button"
         aria-haspopup="listbox"
         aria-expanded={open}
+        aria-label={modeChip ? label : undefined}
         onClick={() => setOpen((current) => !current)}
         className={cn(
           "inline-flex h-8 items-center gap-1.5 rounded-md px-2 text-xs font-medium text-foreground",
@@ -116,8 +122,20 @@ function MultiSelectDropdown({
         )}
       >
         <Icon name={icon} className="size-3.5 text-muted-foreground" aria-hidden />
-        <span className="text-muted-foreground">{label}:</span>
-        <span className="max-w-40 truncate">{summaryFor(selected)}</span>
+        {modeChip ? (
+          /* A mode chip, deliberately not the filter anatomy: the current
+             view's name is the whole readable text (no "Label:" prefix) —
+             the View is a mode, always exactly one active, and must read
+             apart from the narrowing filters. */
+          <span className="max-w-40 truncate font-medium text-foreground">
+            {summaryFor(selected)}
+          </span>
+        ) : (
+          <>
+            <span className="text-muted-foreground">{label}:</span>
+            <span className="max-w-40 truncate">{summaryFor(selected)}</span>
+          </>
+        )}
         <Icon name="ChevronDown" className="size-3 text-muted-foreground" aria-hidden />
       </button>
       {open ? (
@@ -480,112 +498,88 @@ export function BoardToolbar({
     .sort((a, b) => a.label.localeCompare(b.label));
   return (
     <div className="flex flex-wrap items-center gap-2 border-b border-border px-3 py-2">
-      {/* Creation leads at the far left, with the thread count and the
-          What's-new gift centered under the button: whatever wrapping does
-          to the filter cluster, this column stays whole. New thread opens
-          the board composer (components/new-thread-modal, whose header
-          carries the maximize hand-off to bb's main new-thread view). */}
-      <div className="flex flex-col items-center gap-1">
-        <button
-          type="button"
-          onClick={onNewThread}
-          className="inline-flex h-8 items-center gap-1.5 rounded-md bg-primary px-2.5 text-xs font-medium text-primary-foreground transition-colors hover:bg-primary/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-        >
-          <Icon name="Plus" className="size-3.5" aria-hidden />
-          New thread
-        </button>
-        <div className="flex items-center gap-2">
-          <span className="pl-0.5 text-xs text-muted-foreground">{totalCount} threads</span>
-          {/* Always present — the changelog never becomes unreachable. The
-              pulse (and the amber tint) is the only state, and it clears on
-              open. */}
-          <button
-            type="button"
-            onClick={onOpenWhatsNew}
-            aria-label="What's new"
-            title="What's new"
-            className={cn(
-              "-ml-1 inline-flex size-6 items-center justify-center rounded-md transition-colors hover:bg-accent hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-              whatsNewUnseen
-                ? "motion-safe:animate-pulse text-amber-500 hover:text-amber-400"
-                : "text-muted-foreground",
-            )}
-          >
-            <Icon name="Gift" className="size-4" aria-hidden />
-          </button>
-        </div>
-      </div>
+      {/* Creation leads at the far left, one line like everything else:
+          the thread count is board metadata and rides at the row's end with
+          the filters, not with the button. New thread opens the board
+          composer (components/new-thread-modal, whose header carries the
+          maximize hand-off to bb's main new-thread view). */}
+      <button
+        type="button"
+        onClick={onNewThread}
+        className="inline-flex h-8 items-center gap-1.5 rounded-md bg-primary px-2.5 text-xs font-medium text-primary-foreground transition-colors hover:bg-primary/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      >
+        <Icon name="Plus" className="size-3.5" aria-hidden />
+        New thread
+      </button>
       {/* Search pairs with the View menu (the surfaces that change what the
-          board shows structurally); the Project/Provider/State filters
-          follow as their own cluster, so a wrap moves that group as a unit
-          and the count never strands mid-row. */}
-      <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
-        <div className="flex items-center gap-2">
-          {/* Search sits right after creation; the View menu abuts it. */}
-          <div className="relative min-w-36 flex-1 sm:max-w-64">
-            <Icon
-              name="Search"
-              className="pointer-events-none absolute left-2 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground"
-              aria-hidden
-            />
-            <Input
-              ref={searchInputRef}
-              value={search}
-              onChange={(event) => onSearchChange(event.target.value)}
-              placeholder="Search title or id…"
-              aria-label="Search threads"
-              className="h-8 pl-7 text-xs"
-            />
-          </div>
-          {/* The View menu: picking a grouping replaces the current one,
-              and the "Nest child threads" toggle lives here now — it changes
-              how the board structures families, like the grouping. Locked
-              under the Parent view, which always nests two levels. */}
-          <MultiSelectDropdown
-            exclusive
-            label="View"
-            icon="SlidersHorizontal"
-            selected={new Set([groupBy])}
-            options={groupOptions}
-            summaryFor={() => GROUP_BY_OPTIONS.find((o) => o.value === groupBy)?.label ?? groupBy}
-            onSingleSelect={(value) => onGroupByChange(value as GroupBy)}
-            footer={
-              <button
-                type="button"
-                role="checkbox"
-                aria-checked={nestingLocked || nestChildren}
-                aria-disabled={nestingLocked || undefined}
-                title={
-                  nestingLocked ? "Parent view always nests two levels" : undefined
-                }
-                onClick={() => {
-                  if (nestingLocked) return;
-                  onNestChildrenChange(!nestChildren);
-                }}
-                className={cn(
-                  "flex w-full items-center gap-1.5 rounded-sm px-2 py-1.5 text-left text-xs",
-                  "hover:bg-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                  nestingLocked && "cursor-not-allowed opacity-50 hover:bg-transparent",
-                )}
-              >
-                <span
-                  className={cn(
-                    "flex size-3.5 shrink-0 items-center justify-center rounded-[3px] border",
-                    nestingLocked || nestChildren
-                      ? "border-primary bg-primary text-primary-foreground"
-                      : "border-muted-foreground/50 bg-background",
-                  )}
-                  aria-hidden
-                >
-                  {nestingLocked || nestChildren ? (
-                    <Icon name="Check" className="size-2.5" aria-hidden />
-                  ) : null}
-                </span>
-                Nest child threads
-              </button>
-            }
+          board shows structurally); fixed width so the search never starves
+          the row to wrapping. */}
+      <div className="flex items-center gap-2">
+        <div className="relative w-44 sm:w-56">
+          <Icon
+            name="Search"
+            className="pointer-events-none absolute left-2 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground"
+            aria-hidden
+          />
+          <Input
+            ref={searchInputRef}
+            value={search}
+            onChange={(event) => onSearchChange(event.target.value)}
+            placeholder="Search title or id…"
+            aria-label="Search threads"
+            className="h-8 pl-7 text-xs"
           />
         </div>
+        {/* The View menu: picking a grouping replaces the current one,
+            and the "Nest child threads" toggle lives here now — it changes
+            how the board structures families, like the grouping. Locked
+            under the Parent view, which always nests two levels. */}
+        <MultiSelectDropdown
+          exclusive
+          modeChip
+          label="View"
+          icon="SlidersHorizontal"
+          selected={new Set([groupBy])}
+          options={groupOptions}
+          summaryFor={() => GROUP_BY_OPTIONS.find((o) => o.value === groupBy)?.label ?? groupBy}
+          onSingleSelect={(value) => onGroupByChange(value as GroupBy)}
+          footer={
+            <button
+              type="button"
+              role="checkbox"
+              aria-checked={nestingLocked || nestChildren}
+              aria-disabled={nestingLocked || undefined}
+              title={
+                nestingLocked ? "Parent view always nests two levels" : undefined
+              }
+              onClick={() => {
+                if (nestingLocked) return;
+                onNestChildrenChange(!nestChildren);
+              }}
+              className={cn(
+                "flex w-full items-center gap-1.5 rounded-sm px-2 py-1.5 text-left text-xs",
+                "hover:bg-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                nestingLocked && "cursor-not-allowed opacity-50 hover:bg-transparent",
+              )}
+            >
+              <span
+                className={cn(
+                  "flex size-3.5 shrink-0 items-center justify-center rounded-[3px] border",
+                  nestingLocked || nestChildren
+                    ? "border-primary bg-primary text-primary-foreground"
+                    : "border-muted-foreground/50 bg-background",
+                )}
+                aria-hidden
+              >
+                {nestingLocked || nestChildren ? (
+                  <Icon name="Check" className="size-2.5" aria-hidden />
+                ) : null}
+              </span>
+              Nest child threads
+            </button>
+          }
+        />
+      </div>
         <div className="flex flex-wrap items-center gap-2">
           <ProjectDropdown
             projects={projects.filter((project) => projectIds.has(project.id) || !project.isPersonal)}
@@ -675,8 +669,29 @@ export function BoardToolbar({
               Clear
             </button>
           ) : null}
+          {/* Board metadata rides with the filters it describes: the count
+              and the gift end the filter group, so wrapping carries them
+              WITH it — never stranded on an empty right edge. Always
+              present — the changelog never becomes unreachable; the pulse
+              (and the amber tint) clears on open. */}
+          <div className="flex items-center gap-1.5">
+            <span className="text-xs text-muted-foreground">{totalCount} threads</span>
+            <button
+              type="button"
+              onClick={onOpenWhatsNew}
+              aria-label="What's new"
+              title="What's new"
+              className={cn(
+                "-ml-1 inline-flex size-6 items-center justify-center rounded-md transition-colors hover:bg-accent hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                whatsNewUnseen
+                  ? "motion-safe:animate-pulse text-amber-500 hover:text-amber-400"
+                  : "text-muted-foreground",
+              )}
+            >
+              <Icon name="Gift" className="size-4" aria-hidden />
+            </button>
+          </div>
         </div>
-      </div>
     </div>
   );
 }

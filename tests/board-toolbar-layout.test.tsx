@@ -1,9 +1,9 @@
 // @vitest-environment jsdom
-// Toolbar layout: New thread leads at the far left with the thread count and
-// the What's-new gift centered under it; the search field pairs with the View
-// menu (grouping + the Nest toggle live inside that menu); the Project /
-// Provider / State controls form their own filter cluster. Wrapping breaks
-// between clusters, never inside the creation stack.
+// Toolbar layout: one line, height-matched, three zones. New thread stands
+// alone; search pairs with the View mode chip (no colon label — it names the
+// current view like a mode, not a filter); the Project/Provider/State
+// filters run together with the thread count and the What's-new gift as one
+// trailing cluster, so wrapping never strands the count across a void.
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { BoardToolbar } from "../components/board-toolbar";
@@ -55,8 +55,9 @@ function commonAncestor(a: Element, b: Element): Element | null {
 }
 
 function openViewMenu(): void {
-  const trigger = screen.getByText(/View:/);
-  const button = trigger instanceof HTMLButtonElement ? trigger : trigger.closest("button");
+  const button = document.querySelector<HTMLButtonElement>(
+    'button[aria-label="View"]',
+  );
   if (button === null) throw new Error("View menu trigger not found");
   fireEvent.click(button);
 }
@@ -66,67 +67,80 @@ afterEach(() => {
 });
 
 describe("BoardToolbar layout", () => {
-  it("stacks count and gift under New thread, before search, View, and filters", () => {
+  it("one line: New thread, search, View chip, filters, count, gift", () => {
     renderToolbar();
     const newThread = screen.getByText("New thread");
-    const count = screen.getByText("7 threads");
-    const gift = screen.getByLabelText("What's new");
     const search = screen.getByLabelText("Search threads");
-    const view = screen.getByText(/View:/);
+    const view = document.querySelector('button[aria-label="View"]');
+    if (view === null) throw new Error("View trigger not found");
     const project = screen.getByText(/Project:/);
     const provider = screen.getByText(/Provider:/);
     const state = screen.getByText(/State:/);
-    expect(follows(newThread, count)).toBe(true);
-    expect(follows(count, gift)).toBe(true);
+    const count = screen.getByText("7 threads");
+    const gift = screen.getByLabelText("What's new");
     expect(follows(newThread, search)).toBe(true);
     expect(follows(search, view)).toBe(true);
     expect(follows(view, project)).toBe(true);
     expect(follows(project, provider)).toBe(true);
     expect(follows(provider, state)).toBe(true);
+    expect(follows(state, count)).toBe(true);
+    expect(follows(count, gift)).toBe(true);
   });
 
-  it("three clusters: creation stack, search+View pair, then the filter cluster", () => {
+  it("creation stands alone — no container shared with the count", () => {
     const root = renderToolbar();
     const newThread = screen.getByText("New thread");
     const count = screen.getByText("7 threads");
-    const gift = screen.getByLabelText("What's new");
-    const search = screen.getByLabelText("Search threads");
-    const view = screen.getByText(/View:/);
-    const project = screen.getByText(/Project:/);
-    const provider = screen.getByText(/Provider:/);
-    const state = screen.getByText(/State:/);
-    const creationStack = commonAncestor(newThread, count);
-    const searchCluster = commonAncestor(search, view);
-    const filterCluster = commonAncestor(project, state);
-    // All three clusters are distinct subtrees inside the toolbar root.
-    expect(creationStack).not.toBeNull();
-    expect(searchCluster).not.toBeNull();
-    expect(filterCluster).not.toBeNull();
-    expect(creationStack).not.toBe(root);
-    expect(searchCluster).not.toBe(root);
-    expect(filterCluster).not.toBe(root);
-    expect(creationStack).not.toBe(searchCluster);
-    expect(searchCluster).not.toBe(filterCluster);
-    // The creation stack holds the gift and never the search.
-    expect(creationStack?.contains(gift) ?? false).toBe(true);
-    expect(creationStack?.contains(search) ?? true).toBe(false);
-    // Search pairs with View, not with the filters.
-    expect(searchCluster?.contains(project) ?? true).toBe(false);
-    // The filter cluster holds all three option controls.
-    expect(filterCluster?.contains(provider) ?? false).toBe(true);
+    // Only the toolbar root contains both: the button is not in a stacked
+    // column with the count (the always-two-line stack is gone).
+    expect(commonAncestor(newThread, count)).toBe(root);
   });
 
-  it("places Clear inside the filter cluster when one is active", () => {
+  it("search pairs with the View chip, apart from the filter cluster", () => {
+    const root = renderToolbar();
+    const search = screen.getByLabelText("Search threads");
+    const view = document.querySelector('button[aria-label="View"]');
+    if (view === null) throw new Error("View trigger not found");
+    const project = screen.getByText(/Project:/);
+    const pairCluster = commonAncestor(search, view);
+    expect(pairCluster).not.toBeNull();
+    expect(pairCluster).not.toBe(root);
+    expect(pairCluster?.contains(project) ?? true).toBe(false);
+  });
+
+  it("count and gift travel with the filters, not pinned to the edge", () => {
+    const root = renderToolbar();
+    const project = screen.getByText(/Project:/);
+    const state = screen.getByText(/State:/);
+    const count = screen.getByText("7 threads");
+    const gift = screen.getByLabelText("What's new");
+    const trailingCluster = commonAncestor(project, count);
+    expect(trailingCluster).not.toBeNull();
+    expect(trailingCluster).not.toBe(root);
+    expect(trailingCluster?.contains(gift) ?? false).toBe(true);
+    expect(trailingCluster?.contains(state) ?? false).toBe(true);
+  });
+
+  it("places Clear right behind the filters when one is active", () => {
     const onClearFilters = vi.fn();
     renderToolbar({ anyFilterActive: true, onClearFilters });
     const clear = screen.getByText("Clear");
     const state = screen.getByText(/State:/);
-    const project = screen.getByText(/Project:/);
-    const filterCluster = commonAncestor(project, state);
+    const count = screen.getByText("7 threads");
     expect(follows(state, clear)).toBe(true);
-    expect(filterCluster?.contains(clear) ?? false).toBe(true);
+    expect(follows(clear, count)).toBe(true);
     fireEvent.click(clear);
     expect(onClearFilters).toHaveBeenCalledTimes(1);
+  });
+
+  it("the View chip names the current view, no colon filter label", () => {
+    renderToolbar();
+    const view = document.querySelector('button[aria-label="View"]');
+    if (view === null) throw new Error("View trigger not found");
+    expect(view.textContent).toContain("Attention");
+    // The filter anatomy ("View: Attention") is what made the mode read
+    // like just another dropdown; the chip drops the colon prefix entirely.
+    expect(screen.queryByText(/View:/)).toBeNull();
   });
 
   it("carries no standalone Nest toggle and no maximize button", () => {
@@ -160,7 +174,7 @@ describe("BoardToolbar layout", () => {
     expect(onNestChildrenChange).not.toHaveBeenCalled();
   });
 
-  it("picking a grouping in the View menu reports the ViewBy value", () => {
+  it("picking a grouping in the View menu reports the groupBy value", () => {
     const onGroupByChange = vi.fn();
     renderToolbar({ onGroupByChange });
     openViewMenu();
