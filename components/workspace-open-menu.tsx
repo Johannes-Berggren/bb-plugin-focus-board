@@ -17,6 +17,7 @@ import { Icon } from "@/components/ui/icon";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { HEADER_ICON_BUTTON_CLASS } from "@/lib/pane-chrome";
+import { useOpenHrefInNewWindow } from "@/lib/open-in-new-window";
 
 type WorkspaceOpenTargets = z.infer<
 	(typeof rpcContract)["workspace_open_targets"]["output"]
@@ -126,6 +127,7 @@ export function WorkspaceOpenMenu({
 	showLabel = false,
 }: WorkspaceOpenMenuProps) {
 	const rpc = useRpc<typeof rpcContract>();
+	const openHrefInNewWindow = useOpenHrefInNewWindow();
 	const [state, setState] = useState<WorkspaceOpenTargets | null>(null);
 	const [open, setOpen] = useState(false);
 	const [error, setError] = useState<string | null>(null);
@@ -235,9 +237,10 @@ export function WorkspaceOpenMenu({
 			id: "new-window",
 			label: "Open in new window",
 			icon: "NewTab",
-			// noopener: the opened tab must not reach back through
-			// window.opener into this board.
-			run: () => window.open(absoluteHref, "_blank", "noopener"),
+			// Routing is the host's (lib/open-in-new-window): the desktop
+			// app's in-app browser on desktop, the same _blank detached tab
+			// the raw window.open produced on the web.
+			run: () => openHrefInNewWindow(absoluteHref),
 		},
 		...(onRevealBrowserTab !== undefined
 			? [

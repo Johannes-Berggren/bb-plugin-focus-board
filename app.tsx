@@ -31,6 +31,7 @@ import { NewThreadModal } from "./components/new-thread-modal";
 import type { SpawnedThread } from "./components/new-thread-modal";
 import type { CardMenuAction } from "./components/thread-card-menu";
 import { cardMenuActions } from "./lib/card-menu";
+import { useOpenHrefInNewWindow } from "./lib/open-in-new-window";
 import type { FilterState, GroupBy, ThreadState } from "./components/grouping";
 import {
   buildColumns,
@@ -1991,6 +1992,8 @@ function BoardPage({ subPath }: { subPath: string }) {
     [navigate, sdk],
   );
 
+  const openHrefInNewWindow = useOpenHrefInNewWindow();
+
   const menuActionsFor = useCallback(
     (thread: PluginSidebarThread): readonly CardMenuAction[] => {
       const isThreadDone = doneIds.has(thread.id);
@@ -2023,6 +2026,7 @@ function BoardPage({ subPath }: { subPath: string }) {
               setBrowserNotice({ message: browserReachFailure(error) });
             });
           },
+          openNewWindow: () => openHrefInNewWindow(thread.href),
           openNewChild: () => openNewChildThread(thread.id),
           togglePinned: () => {
             liftSnooze();
@@ -2133,7 +2137,7 @@ function BoardPage({ subPath }: { subPath: string }) {
         },
       );
     },
-    [actions, applyUnreadStateEffects, clearParkPin, clearSnooze, doneAgeSource, doneIds, exitPinnedLane, groupAssignments, openNewChildThread, pendingStateClaimsRef, requestReveal, restoreParkedPin, runBrowserReveal, rpc, setBrowserNotice, setDoneExtras, setDoneIds, setGroupDialogFor, setSnoozeDialogFor, snoozedIds, sdk],
+    [actions, applyUnreadStateEffects, clearParkPin, clearSnooze, doneAgeSource, doneIds, exitPinnedLane, groupAssignments, openHrefInNewWindow, openNewChildThread, pendingStateClaimsRef, requestReveal, restoreParkedPin, runBrowserReveal, rpc, setBrowserNotice, setDoneExtras, setDoneIds, setGroupDialogFor, setSnoozeDialogFor, snoozedIds, sdk],
   );
 
   if (status === "loading" && threads.length === 0) {

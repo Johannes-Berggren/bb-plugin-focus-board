@@ -30,5 +30,9 @@ export const UNRELEASED_ITEMS: readonly { text: string; children: string[] }[] =
   {
     "text": "**The card menu now reads in four groups.** Destinations (new window, reveal browser tab) lead, the organizational block follows with the state toggles and the snooze and group pickers folded in as one block, and lineage (new child, make top-level) plus the lifecycle close (sweep keep, archive, delete) finish the menu — one divider per group head, no more divider between Read and Done.",
     "children": []
+  },
+  {
+    "text": "**\"Open in new window\" opens the thread in the desktop app.** The gesture now routes through bb's navigate, so a desktop click opens the thread in the app's own browser panel instead of a detached web-browser tab (the raw `window.open` bb's window guard forced); the web board's detached-tab behavior is unchanged.",
+    "children": []
   }
 ];

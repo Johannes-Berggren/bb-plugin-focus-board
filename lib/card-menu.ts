@@ -71,6 +71,12 @@ export interface CardMenuHandlers {
   /** Open the group picker ("Group…" / "Change group…" entry, lib/group-metadata). */
   openGroupPicker: () => void;
   openNewChild: () => void;
+  /**
+   * The thread's fresh-surface open, run with the card's app-relative
+   * href (lib/open-in-new-window owns where the host routes it: the
+   * desktop app's in-app browser on desktop, a detached tab on the web).
+   */
+  openNewWindow: (href: string) => void;
 }
 
 export function cardMenuActions(
@@ -119,15 +125,7 @@ export function cardMenuActions(
       label: "Open in new window",
       icon: "NewTab",
       dividerAbove: true,
-      run: () => {
-        // noopener: the opened tab must not reach back through
-        // window.opener into this board.
-        window.open(
-          new URL(thread.href, window.location.origin).toString(),
-          "_blank",
-          "noopener",
-        );
-      },
+      run: () => handlers.openNewWindow(thread.href),
     },
     {
       id: "reveal-browser-tab",

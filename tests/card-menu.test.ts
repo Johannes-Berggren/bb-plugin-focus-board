@@ -31,6 +31,7 @@ function makeHandlers(): CardMenuHandlers {
 		openSnoozePicker: vi.fn(noop),
 		openGroupPicker: vi.fn(noop),
 		openNewChild: vi.fn(noop),
+		openNewWindow: vi.fn(noop),
 	};
 }
 
@@ -118,19 +119,13 @@ describe("card menu grouping", () => {
 		expect(dangerous).toEqual(["delete"]);
 	});
 
-	it("Open in new window opens the thread href detached with noopener", () => {
-		const openSpy = vi.spyOn(window, "open").mockImplementation(() => null);
-		try {
-			const entry = action(makeInputs(), "open-new-window");
-			entry.run();
-			expect(openSpy).toHaveBeenCalledWith(
-				`${window.location.origin}/threads/thr_1`,
-				"_blank",
-				"noopener",
-			);
-		} finally {
-			openSpy.mockRestore();
-		}
+	it("Open in new window routes through the shared open handler with the card's href", () => {
+		const handlers = makeHandlers();
+		action(makeInputs({ thread: { href: "/threads/thr_9" } }), "open-new-window", handlers).run();
+		// The builder owns order and labels only; where the URL opens is the
+		// host-routed shared handler (lib/open-in-new-window), so the raw
+		// window.open never appears here.
+		expect(handlers.openNewWindow).toHaveBeenCalledWith("/threads/thr_9");
 	});
 
 	it("every state and lineage entry runs its handler", () => {

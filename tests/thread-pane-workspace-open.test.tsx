@@ -11,9 +11,10 @@ import { ThreadPane } from "../components/thread-pane";
 
 type RpcCall = (method: string, args?: unknown) => Promise<unknown>;
 
-const { rpcCallMock, toThreadMock } = vi.hoisted(() => ({
+const { rpcCallMock, toThreadMock, openUrlMock } = vi.hoisted(() => ({
 	rpcCallMock: vi.fn<RpcCall>(() => async () => ({})),
 	toThreadMock: vi.fn(),
+	openUrlMock: vi.fn(() => true),
 }));
 
 let settingsValues: Record<string, string | number | boolean> | undefined;
@@ -30,7 +31,7 @@ vi.mock("@get-bb/plugin-sdk/app", () => ({
 		subscribe: () => () => {},
 	}),
 	useRpc: () => ({ call: rpcCallMock }),
-	useBbNavigate: () => ({ toThread: toThreadMock }),
+	useBbNavigate: () => ({ toThread: toThreadMock, openUrl: openUrlMock }),
 	useSettings: () => ({ values: settingsValues, isLoading: false }),
 }));
 
@@ -287,10 +288,33 @@ describe("pane header workspace-open menu", () => {
 		);
 	});
 
-	it("Open in new window opens the thread href detached with noopener", async () => {
-		const openSpy = vi
-			.spyOn(window, "open")
-			.mockImplementation(() => null);
+	it("Open in new window asks the host navigate to open the absolute href (the desktop-app route)", async () => {
+		const openSpy = vi.spyOn(window, "open").mockImplementation(() => null);
+		try {
+			renderPane();
+			openUrlMock.mockClear();
+			fireEvent.click(
+				await screen.findByRole("button", { name: /more places to open/i }),
+			);
+			fireEvent.click(
+				screen.getByRole("menuitem", { name: "Open in new window" }),
+			);
+			// The host owns where a URL opens: the desktop app's in-app
+			// browser on desktop, a detached tab on the web. A true return
+			// means the host took the URL, so the raw window.open never
+			// runs side by side with it.
+			expect(openUrlMock).toHaveBeenCalledWith(
+				`${window.location.origin}/threads/thr_1`,
+			);
+			expect(openSpy).not.toHaveBeenCalled();
+		} finally {
+			openSpy.mockRestore();
+		}
+	});
+
+	it("Open in new window falls back to a detached noopener tab when the host declines the URL", async () => {
+		const openSpy = vi.spyOn(window, "open").mockImplementation(() => null);
+		openUrlMock.mockReturnValue(false);
 		try {
 			renderPane();
 			fireEvent.click(
@@ -306,6 +330,7 @@ describe("pane header workspace-open menu", () => {
 			);
 		} finally {
 			openSpy.mockRestore();
+			openUrlMock.mockReturnValue(true);
 		}
 	});
 

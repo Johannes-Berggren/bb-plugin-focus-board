@@ -21,6 +21,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **The board toolbar reads as one line: create, search + View, filters.** New thread leads, the search field pairs with a View chip that names the current view like a mode (no colon label — grouping and the Nest child threads toggle live inside its menu), and Project / Provider / State run with the thread count and What's-new gift as one trailing cluster, so narrow panels wrap them all together instead of stranding the count against an empty edge.
 - **The card menu now reads in four groups.** Destinations (new window, reveal browser tab) lead, the organizational block follows with the state toggles and the snooze and group pickers folded in as one block, and lineage (new child, make top-level) plus the lifecycle close (sweep keep, archive, delete) finish the menu — one divider per group head, no more divider between Read and Done.
 
+### Fixed
+
+- **"Open in new window" opens the thread in the desktop app.** The gesture now routes through bb's navigate, so a desktop click opens the thread in the app's own browser panel instead of a detached web-browser tab (the raw `window.open` bb's window guard forced); the web board's detached-tab behavior is unchanged.
+
 ## [1.1.0] - 2026-10-09
 
 ### Added
