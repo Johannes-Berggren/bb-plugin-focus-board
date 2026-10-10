@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import { Icon } from "@/components/ui/icon";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
-import { isAllowedWallpaperUrl, type WallpaperSettings } from "./preferences";
+import { isAllowedWallpaperUrl, wallpaperBackgroundStyle, type WallpaperSettings, type WallpaperLayer } from "./preferences";
+import { usePrefersDarkScheme } from "./ui/hooks/use-media-query";
 import {
   PICSUM_SEEDS,
   WALLPAPER_PRESETS,
@@ -31,6 +32,7 @@ export function WallpaperDropdown({
   onWallpaperChange: (next: WallpaperSettings) => void;
 }) {
   const active = wallpaper.global;
+  const dark = usePrefersDarkScheme();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState<string>(active?.url ?? "");
   const [dim, setDim] = useState<number>(active?.dim ?? 0.35);
@@ -53,9 +55,10 @@ export function WallpaperDropdown({
     }
     onWallpaperChange({ version: 1, global: { url, dim: nextDim } });
   };
-  const commitFromGallery = (url: string) => {
+  const commitFromGallery = (url: string, darkUrl?: string) => {
     if (!isAllowedWallpaperUrl(url)) return;
-    onWallpaperChange({ version: 1, global: { url, dim } });
+    const layer: WallpaperLayer = darkUrl === undefined ? { url, dim } : { url, dim, darkUrl };
+    onWallpaperChange({ version: 1, global: layer });
   };
   return (
     <div
@@ -92,9 +95,18 @@ export function WallpaperDropdown({
                   aria-label={`Wallpaper preset: ${preset.label}`}
                   aria-pressed={active?.url === preset.url}
                   title={preset.label}
-                  onClick={() => commitFromGallery(preset.url)}
+                  onClick={() => commitFromGallery(preset.url, preset.darkUrl)}
                   className="aspect-video rounded-sm border border-border transition-colors hover:ring-2 hover:ring-ring focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                  style={{ backgroundImage: `url("${preset.url}")`, backgroundSize: "cover" }}
+                  style={
+                    wallpaperBackgroundStyle(
+                      {
+                        url: preset.url,
+                        darkUrl: preset.darkUrl,
+                        dim: 0,
+                      },
+                      dark,
+                    ) ?? undefined
+                  }
                 />
               ))}
             </div>
@@ -153,7 +165,11 @@ export function WallpaperDropdown({
                     setDim(nextDim);
                     const url = (active?.url ?? query.trim()) || "";
                     if (url !== "" && active !== null) {
-                      onWallpaperChange({ version: 1, global: { url, dim: nextDim } });
+                      const layer: WallpaperLayer =
+                        active.darkUrl === undefined
+                          ? { url, dim: nextDim }
+                          : { url, dim: nextDim, darkUrl: active.darkUrl };
+                      onWallpaperChange({ version: 1, global: layer });
                     }
                   }}
                   className="flex-1 accent-[var(--primary)]"

@@ -1,4 +1,5 @@
 import type { GroupBy } from "./grouping";
+import type { CSSProperties } from "react";
 
 /**
  * The "Nest child threads" toggle's localStorage persistence (R3). The
@@ -103,6 +104,11 @@ export interface WallpaperLayer {
   /** http(s) or data URL. Anything else is refused at parse time so a
    *  javascript:-style string can never reach a CSS url(). */
   url: string;
+  /** The dark-scheme variant (optional): a matchMedia
+   *  (prefers-color-scheme: dark) flip swaps the paint to this url. Same
+   *  url rules as `url`; an invalid stored value degrades by dropping the
+   *  FIELD only (the layer survives with the light url). */
+  darkUrl?: string;
   /** Overlay opacity in [0, 0.9]; 0 = untinted image, high dim keeps cards readable. */
   dim: number;
 }
@@ -141,15 +147,57 @@ export function isAllowedWallpaperUrl(url: string): boolean {
 
 function parseWallpaperLayer(raw: unknown): WallpaperLayer | null {
   if (raw === null || typeof raw !== "object") return null;
-  const record = raw as { url?: unknown; dim?: unknown };
+  const record = raw as { url?: unknown; dim?: unknown; darkUrl?: unknown };
   if (typeof record.url !== "string") return null;
   const url = record.url.trim();
   if (url === "" || !isAllowedWallpaperUrl(url)) return null;
+  // Per-key tolerance like every other stored value: a bad darkUrl drops the
+  // FIELD, never the layer (dark mode then falls back to the light url).
+  let darkUrl: string | undefined;
+  if (typeof record.darkUrl === "string") {
+    const dark = record.darkUrl.trim();
+    if (dark !== "" && isAllowedWallpaperUrl(dark)) darkUrl = dark;
+  }
   // A missing dim takes the default; a garbage-typed dim drops the whole
   // layer, so no stale image ever renders untinted by accident.
-  if (record.dim === undefined) return { url, dim: WALLPAPER_DIM_DEFAULT };
+  if (record.dim === undefined) {
+    return darkUrl === undefined ? { url, dim: WALLPAPER_DIM_DEFAULT } : { url, dim: WALLPAPER_DIM_DEFAULT, darkUrl };
+  }
   if (typeof record.dim !== "number" || !Number.isFinite(record.dim)) return null;
-  return { url, dim: clampWallpaperDim(record.dim) };
+  return darkUrl === undefined
+    ? { url, dim: clampWallpaperDim(record.dim) }
+    : { url, dim: clampWallpaperDim(record.dim), darkUrl };
+}
+
+/**
+ * The url a wallpaper layer paints right now: the dark variant while the OS
+ * prefers dark, the light url otherwise (and whenever no dark variant exists).
+ */
+export function resolvedWallpaperUrl(
+  layer: Pick<WallpaperLayer, "url" | "darkUrl">,
+  isDark: boolean,
+): string {
+  return isDark ? layer.darkUrl ?? layer.url : layer.url;
+}
+
+/**
+ * The style object the panel root paints a wallpaper with, letterboxed
+ * (contain, no-repeat, centered — full-fit beats aggressive cropping), with
+ * the url escaped so quotes and backslashes can never break out of url().
+ * Null = no wallpaper (the caller paints no background style at all).
+ */
+export function wallpaperBackgroundStyle(
+  layer: WallpaperLayer | null,
+  isDark: boolean,
+): CSSProperties | null {
+  if (layer === null) return null;
+  const url = resolvedWallpaperUrl(layer, isDark).replace(/["\\]/gu, "\\$&");
+  return {
+    backgroundImage: `url("${url}")`,
+    backgroundSize: "contain",
+    backgroundRepeat: "no-repeat",
+    backgroundPosition: "center",
+  };
 }
 
 /**

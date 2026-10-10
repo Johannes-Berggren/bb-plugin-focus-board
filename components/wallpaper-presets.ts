@@ -14,6 +14,7 @@ export interface WallpaperPreset {
   id: string;
   label: string;
   url: string;
+  darkUrl: string;
   dim: number;
 }
 
@@ -26,10 +27,11 @@ function svgDataUrl(svg: string): string {
 function gradientPreset(
   id: string,
   label: string,
-  colors: readonly [string, string, string],
+  light: readonly [string, string, string],
+  dark: readonly [string, string, string],
   dim: number,
 ): WallpaperPreset {
-  const svg = [
+  const svg = (colors: readonly [string, string, string]) => [
     `<svg xmlns="http://www.w3.org/2000/svg" width="1920" height="1080">`,
     `<defs>`,
     `<linearGradient id="g" x1="0" y1="0" x2="1" y2="1">`,
@@ -46,20 +48,77 @@ function gradientPreset(
     `<rect width="1920" height="1080" fill="url(#r)"/>`,
     `</svg>`,
   ].join("");
-  return { id, label, url: svgDataUrl(svg), dim };
+  return { id, label, url: svgDataUrl(svg(light)), darkUrl: svgDataUrl(svg(dark)), dim };
 }
 
-/** Eight bundled gradient wallpapers, light washes by default (the theme
- *  overlay stays subtle so cards do their own contrast work). */
+/** Eight bundled Maine-flavored gradient wallpapers with a light and a dark
+ *  palette each (the scheme flip swaps them live); the theme overlay stays
+ *  subtle so cards do their own contrast work. */
 export const WALLPAPER_PRESETS: readonly WallpaperPreset[] = [
-  gradientPreset("aurora", "Aurora", ["#0b3b3c", "#2dd4bf", "#a7f3d0"], 0.25),
-  gradientPreset("ember", "Ember", ["#1c0a04", "#b45309", "#f59e0b"], 0.25),
-  gradientPreset("meadow", "Meadow", ["#0b1f0e", "#15803d", "#86efac"], 0.25),
-  gradientPreset("dusk", "Dusk", ["#1e1035", "#7c3aed", "#f0abfc"], 0.25),
-  gradientPreset("ocean", "Ocean", ["#082032", "#1d4ed8", "#7dd3fc"], 0.25),
-  gradientPreset("slate", "Slate", ["#0f172a", "#475569", "#94a3b8"], 0.25),
-  gradientPreset("sand", "Sand", ["#2a1c07", "#a16207", "#fde68a"], 0.25),
-  gradientPreset("night", "Night", ["#030712", "#1e293b", "#475569"], 0.25),
+  // Acadia's granite coast: grays warmed by sea-spray light.
+  gradientPreset(
+    "acadia",
+    "Acadia",
+    ["#4a5158", "#8f9aa3", "#dfe6ea"],
+    ["#14181d", "#3a444d", "#77828d"],
+    0.25,
+  ),
+  // Wild blueberry: indigo barrens ripening to a pale bloom.
+  gradientPreset(
+    "blueberry",
+    "Blueberry",
+    ["#2e1a5e", "#5b3fa8", "#c7b8f0"],
+    ["#170b31", "#40247e", "#7c5cd6"],
+    0.25,
+  ),
+  // Lobster shell: deep coral through a steamed-red blush.
+  gradientPreset(
+    "lobster",
+    "Lobster",
+    ["#7f1d1d", "#dc2626", "#fca5a5"],
+    ["#450a0a", "#991b1b", "#ef4444"],
+    0.25,
+  ),
+  // Upland pine: dark spruce greens with needle-highlight glints.
+  gradientPreset(
+    "pine",
+    "Pine",
+    ["#0f2417", "#2f6b3f", "#a3d9a5"],
+    ["#05130b", "#14532d", "#4ade80"],
+    0.25,
+  ),
+  // Coastal fog: soft grays rolling in over a pale sky.
+  gradientPreset(
+    "fog",
+    "Fog",
+    ["#6b7280", "#9ca3af", "#e5e7eb"],
+    ["#111827", "#374151", "#6b7280"],
+    0.25,
+  ),
+  // Tide pools: deep sea blues to a shallow-shell glow.
+  gradientPreset(
+    "tide",
+    "Tide",
+    ["#0c4a6e", "#0284c7", "#bae6fd"],
+    ["#082f49", "#0369a1", "#38bdf8"],
+    0.25,
+  ),
+  // Dawn over Cadillac Mountain: first light in the eastern US.
+  gradientPreset(
+    "dawn",
+    "Dawn",
+    ["#7c2d12", "#ea580c", "#fed7aa"],
+    ["#431407", "#c2410c", "#fdba74"],
+    0.25,
+  ),
+  // Fall foliage: turning maples from gold to ember.
+  gradientPreset(
+    "foliage",
+    "Foliage",
+    ["#5c2e0e", "#b45309", "#fbbf24"],
+    ["#3b1606", "#92400e", "#f59e0b"],
+    0.25,
+  ),
 ];
 
 /** Stable seeds: the shuffle is deterministic, so a thumbnail and the url it
