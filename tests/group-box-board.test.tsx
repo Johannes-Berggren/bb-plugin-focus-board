@@ -68,6 +68,51 @@ function renderBoard(
   render(<Board {...props} />);
 }
 
+function renderProjectColumns(
+  members: readonly PluginSidebarThread[],
+  projectColumns: ReadonlyMap<string, { id: string; label: string }>,
+  groupBoxOf: ReadonlyMap<string, { groupId: string; name: string }> = new Map(),
+) {
+  const context = {
+    projects: [
+      { id: "proj_a", name: "Alpha" },
+      { id: "proj_b", name: "Beta" },
+    ],
+    providers: [],
+  };
+  const props = {
+    groupBy: "project" as const,
+    columns: buildColumns(
+      members,
+      "project",
+      context,
+      new Map(),
+      new Set<string>(),
+      NOW,
+      {},
+      projectColumns,
+    ),
+    activeThreadId: null,
+    doneIds: new Set<string>(),
+    nestedChildrenByParent: new Map(),
+    doneChildrenByParent: new Map(),
+    childCountByParent: new Map<number, never>(),
+    dimmedIds: new Set<string>(),
+    rankStore: {},
+    onRankMove: () => {},
+    groupBoxOf,
+    projectNameFor: () => "",
+    repoBaseFor: () => null,
+    onOpenThread: () => {},
+    onNewTask: () => {},
+    onDropDone: () => {},
+    onDropUnread: () => {},
+    onDropPinned: () => {},
+    menuActionsFor: () => [],
+  } as unknown as BoardProps;
+  render(<Board {...props} />);
+}
+
 describe("the family box renders as one container around its members", () => {
   const members = [
     thread({ id: "thr_a", status: "active", updatedAt: NOW - 1000 }),
@@ -131,6 +176,47 @@ describe("the family box renders as one container around its members", () => {
       boxes,
     );
     expect(document.querySelector('[data-group-box]')).toBeNull();
+  });
+});
+
+describe("group boxes render on the Project view (groupBy === 'project')", () => {
+  // The Project grouping renders per-thread columns like status does. The
+  // plan's columnOverrides pull every member into ONE project column — the
+  // freshest member's (thr_a, updatedAt NOW-1000), Beta — exactly the
+  // status-side box-follows-best-member rule.
+  const members = [
+    thread({ id: "thr_a", projectId: "proj_b", displayTitle: "Card A", status: "active", updatedAt: NOW - 1000 }),
+    thread({ id: "thr_b", projectId: "proj_a", displayTitle: "Card B", status: "active", updatedAt: NOW - 2000 }),
+  ];
+  const overrides = new Map([
+    ["thr_a", { id: "proj_b", label: "Beta" }],
+    ["thr_b", { id: "proj_b", label: "Beta" }],
+  ]);
+  const boxes = new Map([
+    ["thr_a", { groupId: "grp_1", name: "Auth rework", members }],
+    ["thr_b", { groupId: "grp_1", name: "Auth rework", members }],
+  ]);
+
+  it("the dashed box renders around both members inside the project column", () => {
+    renderProjectColumns(members, overrides, boxes);
+    const box = document.querySelector('[data-group-box="grp_1"]');
+    expect(box).not.toBeNull();
+    expect(box?.querySelectorAll('[data-group-box-member="grp_1"]')).toHaveLength(2);
+    expect(document.querySelector('[data-group-box-label="grp_1"]')?.textContent).toBe(
+      "Auth rework",
+    );
+  });
+
+  it("boxed member cards keep their run roles (first/last) in project columns", () => {
+    renderProjectColumns(members, overrides, boxes);
+    const first = document.querySelector('[data-group-box-first="grp_1"]');
+    const last = document.querySelector('[data-group-box-last="grp_1"]');
+    expect(first).not.toBeNull();
+    expect(last).not.toBeNull();
+    // thr_a is the column's first member, thr_b its last — the roles carry
+    // the drag unit and the memberEdge join deferral, grouping-blind.
+    expect(first?.textContent).toContain("Card A");
+    expect(last?.textContent).toContain("Card B");
   });
 });
 

@@ -60,6 +60,10 @@ export const UNRELEASED_ITEMS: readonly { text: string; children: string[] }[] =
     "children": []
   },
   {
+    "text": "**Group boxes render on the Project view.** A groups-on-project board drew every member as a plain card because the box plan bailed on non-status groupings; the plan now runs under every per-thread-column grouping — Project, Provider, and Machine join Attention, None, and Last activity — while the parent/family lane view stays unboxed.",
+    "children": []
+  },
+  {
     "text": "**Drop a card anywhere on a group box to join it — member cards included.** A card dropped on the dashed area used to land on the member inside, which kept its reorder and nest gestures and never joined; a parent-family member left almost none of the box reachable. A joining drag over a member's card now joins, while its middle third still nests, same-group drags still reorder, and card drags from another column arm the join ring too.",
     "children": []
   },
