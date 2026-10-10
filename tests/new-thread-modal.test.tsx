@@ -13,6 +13,7 @@ const spawn = vi.fn();
 const onOpenChange = vi.fn();
 const onSpawned = vi.fn();
 const onMaximize = vi.fn();
+const rememberProjectId = vi.fn();
 
 // The submit request is opaque to the modal (it forwards verbatim to
 // spawn), so the test builds a minimal one and casts.
@@ -61,6 +62,7 @@ beforeEach(() => {
   onOpenChange.mockReset();
   onSpawned.mockReset();
   onMaximize.mockReset();
+  rememberProjectId.mockReset();
   lastComposerProps = null;
   lastSubmitPromise = null;
 });
@@ -76,6 +78,7 @@ function renderModal(
     parentThreadId,
     parentThreadTitle,
     withMaximize = false,
+    rememberProjectId,
   }: {
     open?: boolean;
     defaultProjectId?: string;
@@ -84,6 +87,7 @@ function renderModal(
     parentThreadId?: string;
     parentThreadTitle?: string;
     withMaximize?: boolean;
+    rememberProjectId?: ReturnType<typeof vi.fn>;
   } = {},
 ) {
   return render(
@@ -96,6 +100,7 @@ function renderModal(
       parentThreadId,
       parentThreadTitle,
       onSpawned,
+      ...(rememberProjectId !== undefined ? { rememberProjectId } : {}),
       // A child preset cannot follow to the main view; the app passes the
       // handler only for root threads, mirrored here by the flag.
       onMaximize: withMaximize ? onMaximize : undefined,
@@ -220,6 +225,34 @@ describe("NewThreadModal", () => {
     expect(screen.getByText("New thread")).toBeTruthy();
     expect(document.querySelector('[data-new-child-hint=""]')).toBeNull();
     expect(screen.queryByText("New child thread")).toBeNull();
+  });
+
+  it("hands the spawned thread's project to the board's remember-memory on success", async () => {
+    // The spawn success path is where the board's remembered-project rung
+    // is fed: the spawn result carries the project the thread landed in.
+    renderModal({ rememberProjectId });
+    fireEvent.click(submitButton());
+    await waitFor(() => {
+      expect(onSpawned).toHaveBeenCalledWith(SPAWNED);
+    });
+    expect(rememberProjectId).toHaveBeenCalledTimes(1);
+    expect(rememberProjectId).toHaveBeenCalledWith("proj_1");
+  });
+
+  it("a failed spawn remembers nothing (inverse)", async () => {
+    spawn.mockRejectedValue(new Error("spawn failed"));
+    renderModal({ rememberProjectId });
+    fireEvent.click(submitButton());
+    await expect(lastSubmitPromise).rejects.toThrow("spawn failed");
+    expect(rememberProjectId).not.toHaveBeenCalled();
+  });
+
+  it("without a remember-memory callback, submits fine (inverse)", async () => {
+    renderModal();
+    fireEvent.click(submitButton());
+    await waitFor(() => {
+      expect(onSpawned).toHaveBeenCalledWith(SPAWNED);
+    });
   });
 
   it("on failure keeps the modal open, reports the error, and keeps the draft", async () => {
