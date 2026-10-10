@@ -43,6 +43,20 @@ none), each filed under the matching Added/Changed/Fixed subsection,
 same-behavior duplicates folded into one bullet with facet sub-bullets, each
 bullet Slack-punchy — a bold lead plus at most two short sentences, no
 state-list enumerations; longer detail moves to linked docs or gets cut.
+The bold lead is also the What's-new line: the modal (dev and released
+alike) shows only each bullet's lead plus its sub-bullets' first sentences,
+so the lead must name the bullet's feature surface and read standalone for
+a first-time reader ("Re-searching an Openverse query…" named nothing its
+reader could place). The modal groups by feature surface: optional
+`#### <surface>` level-4 headings inside the `[Unreleased]` group, placed
+between bullets never inside them, tag the bullets that follow and persist
+across the Added/Changed/Fixed lines, and the modal merges same-surface
+items so one feature's additions, changes, and fixes read together; the
+finalize rename carries the tags into the published entry. New group text
+is humanizer-clean: the ai-output-humanizer scan exits 0 over it (zero em
+dashes in new bullets), every noun is resolvable with no thread memory, one
+trailing denial tops out a passage, and the whole group stays short enough
+for the gift button's one-screen read.
 The finalize rename sets a bullet-misfile trap for merges that cross it:
 after a rebase or PR conflict resolution, check the bullets did not land
 inside a renamed published section.
