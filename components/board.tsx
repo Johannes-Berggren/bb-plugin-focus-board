@@ -887,110 +887,119 @@ export function Board({
     return null;
   };
   return (
-    <div
-      ref={scrollRef}
-      onClick={handleBackgroundClick}
-      data-columns-board
-      className="min-h-0 flex-1 overflow-x-auto overflow-y-hidden px-3 pb-3 pt-2"
-    >
-      {/* The insertion line is the only visual feedback a reorder gives, so
-          a screen reader gets the same information in words. */}
-      <p aria-live="polite" className="sr-only">
-        {announcement}
-      </p>
-      {rankError !== null ? (
-        <div
-          role="status"
-          data-testid="rank-error-banner"
-          className="mx-3 mb-1 flex items-center justify-between gap-2 rounded border border-destructive/40 bg-destructive/10 px-2 py-1 text-[11px] text-destructive"
-        >
-          <p className="min-w-0">{rankError}</p>
-          <button
-            type="button"
-            onClick={() => setRankError(null)}
-            aria-label="Dismiss error"
-            title="Dismiss"
-            className="shrink-0 rounded p-0.5 text-destructive/70 transition-colors hover:bg-destructive/10 hover:text-destructive focus-visible:outline focus-visible:outline-1 focus-visible:outline-destructive"
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+      {/* The banner row lives above the horizontal scroll surface: a banner
+          inside the overflow-x-auto container rides the same scrollable
+          coordinate space as the columns, so once the column row overflows
+          and the operator scrolls, the banner — its message and dismiss
+          control included — is carried off the viewport's left edge (observed
+          2026-10-10). */}
+      <div data-banner-row className="shrink-0">
+        {rankError !== null ? (
+          <div
+            role="status"
+            data-testid="rank-error-banner"
+            className="mx-3 mb-1 flex items-center justify-between gap-2 rounded border border-destructive/40 bg-destructive/10 px-2 py-1 text-[11px] text-destructive"
           >
-            <Icon name="X" className="size-3" aria-hidden />
-          </button>
-        </div>
-      ) : null}
-      {sweepNotice !== null ? (
-        <div
-          role="status"
-          data-testid="sweep-notice"
-          className="mx-3 mb-1 flex items-center justify-between gap-2 rounded border border-amber-500/40 bg-amber-500/10 px-2 py-1 text-[11px] text-amber-700 dark:text-amber-400"
-        >
-          <p className="min-w-0">{sweepNotice.message}</p>
-          <span className="flex shrink-0 items-center gap-0.5">
-            {sweepNotice.undo !== undefined && sweepNotice.undo.ids.length > 0 ? (
-              <button
-                type="button"
-                data-sweep-undo=""
-                onClick={() => {
-                  const undo = sweepNotice.undo;
-                  if (undo !== undefined) onSweepUndo?.(undo.ids, undo.destination);
-                }}
-                aria-label={
-                  sweepNotice.undo.destination === "done"
-                    ? `Undo the sweep: mark ${sweepNotice.undo.ids.length} threads not Done again`
-                    : `Undo the sweep: restore ${sweepNotice.undo.ids.length} archived threads`
-                }
-                className="rounded px-1.5 py-0.5 font-medium underline decoration-dotted underline-offset-2 transition-colors hover:bg-amber-500/10 hover:text-amber-700 focus-visible:outline focus-visible:outline-1 focus-visible:outline-amber-600 dark:hover:text-amber-400"
-              >
-                Undo
-              </button>
-            ) : null}
+            <p className="min-w-0">{rankError}</p>
             <button
               type="button"
-              onClick={() => onDismissSweepNotice?.()}
-              aria-label="Dismiss sweep notice"
+              onClick={() => setRankError(null)}
+              aria-label="Dismiss error"
+              title="Dismiss"
+              className="shrink-0 rounded p-0.5 text-destructive/70 transition-colors hover:bg-destructive/10 hover:text-destructive focus-visible:outline focus-visible:outline-1 focus-visible:outline-destructive"
+            >
+              <Icon name="X" className="size-3" aria-hidden />
+            </button>
+          </div>
+        ) : null}
+        {sweepNotice !== null ? (
+          <div
+            role="status"
+            data-testid="sweep-notice"
+            className="mx-3 mb-1 flex items-center justify-between gap-2 rounded border border-amber-500/40 bg-amber-500/10 px-2 py-1 text-[11px] text-amber-700 dark:text-amber-400"
+          >
+            <p className="min-w-0">{sweepNotice.message}</p>
+            <span className="flex shrink-0 items-center gap-0.5">
+              {sweepNotice.undo !== undefined && sweepNotice.undo.ids.length > 0 ? (
+                <button
+                  type="button"
+                  data-sweep-undo=""
+                  onClick={() => {
+                    const undo = sweepNotice.undo;
+                    if (undo !== undefined) onSweepUndo?.(undo.ids, undo.destination);
+                  }}
+                  aria-label={
+                    sweepNotice.undo.destination === "done"
+                      ? `Undo the sweep: mark ${sweepNotice.undo.ids.length} threads not Done again`
+                      : `Undo the sweep: restore ${sweepNotice.undo.ids.length} archived threads`
+                  }
+                  className="rounded px-1.5 py-0.5 font-medium underline decoration-dotted underline-offset-2 transition-colors hover:bg-amber-500/10 hover:text-amber-700 focus-visible:outline focus-visible:outline-1 focus-visible:outline-amber-600 dark:hover:text-amber-400"
+                >
+                  Undo
+                </button>
+              ) : null}
+              <button
+                type="button"
+                onClick={() => onDismissSweepNotice?.()}
+                aria-label="Dismiss sweep notice"
+                title="Dismiss"
+                className="rounded p-0.5 text-amber-700/70 transition-colors hover:bg-amber-500/10 hover:text-amber-700 focus-visible:outline focus-visible:outline-1 focus-visible:outline-amber-600 dark:text-amber-400/70 dark:hover:text-amber-400"
+              >
+                <Icon name="X" className="size-3" aria-hidden />
+              </button>
+            </span>
+          </div>
+        ) : null}
+        {browserNotice !== null ? (
+          <div
+            role="status"
+            data-testid="browser-reveal-notice"
+            className="mx-3 mb-1 flex items-center justify-between gap-2 rounded border border-amber-500/40 bg-amber-500/10 px-2 py-1 text-[11px] text-amber-700 dark:text-amber-400"
+          >
+            <p className="min-w-0">{browserNotice.message}</p>
+            <button
+              type="button"
+              onClick={() => onDismissBrowserNotice?.()}
+              aria-label="Dismiss browser notice"
               title="Dismiss"
               className="rounded p-0.5 text-amber-700/70 transition-colors hover:bg-amber-500/10 hover:text-amber-700 focus-visible:outline focus-visible:outline-1 focus-visible:outline-amber-600 dark:text-amber-400/70 dark:hover:text-amber-400"
             >
               <Icon name="X" className="size-3" aria-hidden />
             </button>
-          </span>
-        </div>
-      ) : null}
-      {browserNotice !== null ? (
-        <div
-          role="status"
-          data-testid="browser-reveal-notice"
-          className="mx-3 mb-1 flex items-center justify-between gap-2 rounded border border-amber-500/40 bg-amber-500/10 px-2 py-1 text-[11px] text-amber-700 dark:text-amber-400"
-        >
-          <p className="min-w-0">{browserNotice.message}</p>
-          <button
-            type="button"
-            onClick={() => onDismissBrowserNotice?.()}
-            aria-label="Dismiss browser notice"
-            title="Dismiss"
-            className="rounded p-0.5 text-amber-700/70 transition-colors hover:bg-amber-500/10 hover:text-amber-700 focus-visible:outline focus-visible:outline-1 focus-visible:outline-amber-600 dark:text-amber-400/70 dark:hover:text-amber-400"
+          </div>
+        ) : null}
+        {sweepRefusal !== null ? (
+          <div
+            role="status"
+            data-testid="sweep-refusal"
+            className="mx-3 mb-1 flex items-center justify-between gap-2 rounded border border-destructive/40 bg-destructive/10 px-2 py-1 text-[11px] text-destructive"
           >
-            <Icon name="X" className="size-3" aria-hidden />
-          </button>
-        </div>
-      ) : null}
-      {sweepRefusal !== null ? (
-        <div
-          role="status"
-          data-testid="sweep-refusal"
-          className="mx-3 mb-1 flex items-center justify-between gap-2 rounded border border-destructive/40 bg-destructive/10 px-2 py-1 text-[11px] text-destructive"
-        >
-          <p className="min-w-0">{sweepRefusal}</p>
-          <button
-            type="button"
-            onClick={() => setSweepRefusal(null)}
-            aria-label="Dismiss sweep refusal"
-            title="Dismiss"
-            className="shrink-0 rounded p-0.5 text-destructive/70 transition-colors hover:bg-destructive/10 hover:text-destructive focus-visible:outline focus-visible:outline-1 focus-visible:outline-destructive"
-          >
-            <Icon name="X" className="size-3" aria-hidden />
-          </button>
-        </div>
-      ) : null}
-      <div className="flex h-full min-h-0 items-stretch gap-4">
+            <p className="min-w-0">{sweepRefusal}</p>
+            <button
+              type="button"
+              onClick={() => setSweepRefusal(null)}
+              aria-label="Dismiss sweep refusal"
+              title="Dismiss"
+              className="shrink-0 rounded p-0.5 text-destructive/70 transition-colors hover:bg-destructive/10 hover:text-destructive focus-visible:outline focus-visible:outline-1 focus-visible:outline-destructive"
+            >
+              <Icon name="X" className="size-3" aria-hidden />
+            </button>
+          </div>
+        ) : null}
+      </div>
+      <div
+        ref={scrollRef}
+        onClick={handleBackgroundClick}
+        data-columns-board
+        className="min-h-0 flex-1 overflow-x-auto overflow-y-hidden px-3 pb-3 pt-2"
+      >
+        {/* The insertion line is the only visual feedback a reorder gives, so
+            a screen reader gets the same information in words. */}
+        <p aria-live="polite" className="sr-only">
+          {announcement}
+        </p>
+        <div className="flex h-full min-h-0 items-stretch gap-4">
         {columns.map((column) => {
           const dropHandler = dropHandlerFor(column.id);
           const isDropTarget = dropHandler !== null;
@@ -1971,6 +1980,7 @@ export function Board({
             </section>
           );
         })}
+        </div>
       </div>
     </div>
   );

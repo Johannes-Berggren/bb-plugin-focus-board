@@ -48,7 +48,15 @@ export const UNRELEASED_ITEMS: readonly { text: string; children: string[] }[] =
     "children": []
   },
   {
+    "text": "**Board alert banners stay bound to the viewport.** The four status banners (rank refusal, sweep notice, browser reveal, sweep refusal) now render above the horizontal scroll surface, so scrolling a wide board can no longer carry a banner — its message and dismiss control included — offscreen. ([#26](https://github.com/cristoslc/bb-plugin-focus-board/issues/26))",
+    "children": []
+  },
+  {
     "text": "**Project filters no longer leak unselected projects into the board.** With nesting on, a family whose only match lived in a selected project kept its dimmed parent on the board, so filtering to 4 projects still showed Personal and vikunja-pwa-fork columns; a project miss now drops its member outright while state, provider, and search misses keep-and-dim inside columns that pass ([#27](https://github.com/cristoslc/bb-plugin-focus-board/issues/27)).",
+    "children": []
+  },
+  {
+    "text": "**A pin applied in the Parent view now survives the switch to the Attention view.** Pinning a child card nested it away under its unpinned parent on every other view — the card menu still offered Unpin while the Pinned column showed nothing. A pinned child now stands alone in the Pinned column like the pin state's promise ([#28](https://github.com/cristoslc/bb-plugin-focus-board/issues/28)), with Done children keeping their Done-lane placement.",
     "children": []
   },
   {
