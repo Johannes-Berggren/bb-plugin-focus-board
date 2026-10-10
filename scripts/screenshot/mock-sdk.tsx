@@ -395,6 +395,10 @@ const rpcCall = async (method: string, args?: unknown): Promise<unknown> => {
   if (method === "rank_list") return { orders: structuredClone(simRanks) };
   if (method === "pin_parks_list") return { parks: {} };
   if (method === "snooze_list") return { snoozes: {} };
+  // The mock previously fell through to `{}` here, and the app's links
+  // reader (`Object.entries(result.links)`) recorded an unhandled rejection
+  // on every harness boot and every "link-changed" wake.
+  if (method === "link_list") return { links: {} };
   // Feature groups (components/group-boxes): the harness renders one box
   // ("chat-imagegent") around the two active threads by default, and its
   // group writes mutate the module map + re-render, the way thread_reparent
