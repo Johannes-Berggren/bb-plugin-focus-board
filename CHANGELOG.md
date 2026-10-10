@@ -15,7 +15,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
-- **The toolbar's controls follow the creation lead.** New thread and the search field sit at the far left and the Group / Nest / Project / Provider / State controls abut the search field; the thread count and What's-new gift anchor the right edge.
+- **The toolbar's controls follow the creation lead.** New thread and the search field sit at the far left and the Group / Nest / Project / Provider / State controls abut the search field; the thread count and What's-new gift stack under the New thread button.
 
 ## [1.1.0] - 2026-10-09
 
