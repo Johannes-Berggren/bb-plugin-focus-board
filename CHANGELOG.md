@@ -7,6 +7,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **Restrict the board with a Group filter.** A Group control sits beside the Project filter with a row per feature group — plus "No group" for unassigned threads and "Unknown group" when an assignment outlives its registry record — composing with the Project / Provider / State filters and persisting like them.
+- **Hide a group lane straight from the board.** In the Group view, hovering a column's header shows the same eye-off affordance the Project view hides project lanes with: two clicks write the lane's group out of the Group filter and a banner names the restore path (re-check the row in that filter's menu).
 - **Hide a project lane straight from the board.** In the Project view, hovering a lane's header shows an eye-off icon where the sweep pill sits; two clicks (icon → armed "Hide") write the lane's project out of the Project filter and a banner explains the lane restores from that filter — the board's only project lane refuses with its reason instead of pretending to hide.
 - **Reorder cards inside a family box.** Dropping a box member beside a sibling in the same dashed box moves that member alone — no more box-edge anchor, no refusal banner — while a drop beside anything outside the box still moves the whole box as one unit.
 - **Reorder the nested child rows under a family card.** Drop a child row on a sibling row's edge and the row order under that parent is written per family (`child:<parent>`, its own rank order — never the parent card's column order); Done families keep their done-recency rows, and dragging a row onto the floor still detaches it.
@@ -19,19 +21,6 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **Toolbar search reaches feature-group names.** Typing the name of a family box's group — e.g. an epic — surfaces its member cards even when no card's title, branch, or project says it; a group hit keeps a nested family or box whole with its non-matching members dimmed, like every other search field.
 - **The board can wear a wallpaper.** The toolbar's image control opens a picker with gradient presets, a shuffle strip, a search over openly licensed photos, and a free-form URL field — all with a dim slider that keeps cards readable. The setting persists per browser and applies globally.
   - Theme-aware: each preset carries a light and a dark palette and the board follows `prefers-color-scheme` live; a wallpaper without a dark variant keeps its light URL everywhere.
-||||||| 857ed5f
-- **Groups are manageable from the label and the picker.** Click a family box's label on the board to rename it inline — the editor carries an Ungroup control (one click arms it, the second ungroups everyone; the threads stay on the board) — and use the pencil/trash on any row of the Group picker to rename or delete a group; the shared registry re-labels every member card on a rename, and a delete strips every member's assignment, archived holders included.
-
-- **Sibling threads now join a named family box.** "Group…" in a card menu assigns the thread to a shared named group (created in-line); members render inside one dashed outline with the group name on the border, the whole box moves as one unit by drag or Alt+Arrow, and the group evaporates when its last assignment clears — no parent thread involved.
-  - The box survives a group of one: the solitary outline stays on the board with its name, so the group is never hiding at two-of-three members.
-  - The outline is the join target: drag a card onto any group box (it rings amber like the nest gesture) and the drop moves the card into that group — a multi-member box dragged as a unit never dissolves.
-- **The board can wear a wallpaper.** The toolbar's image control opens a picker: eight Maine-flavored gradient presets and a deterministic Picsum shuffle strip work offline-first, a keyless Openverse search adds openly licensed photos, and a free-form url field takes anything http(s) or data — all with a dim slider that keeps cards readable. The setting persists per browser and today always applies globally, with the stored document versioned and ready for per-project or per-group overrides later.
-  - Theme-aware: each preset carries a light and a dark palette and the board follows `prefers-color-scheme` live; a wallpaper without a dark variant keeps its light url everywhere.
-  - Letterboxed: wallpapers fit the whole image instead of center-cropping at odd panel shapes, with the letterbox bars in the theme background.
-  - Done stays readable with a wallpaper on: done, dimmed, and snoozed cards fade through a wash of their own surface color instead of whole-card opacity.
-- **The New thread composer can maximize into the main new-thread view.** Project and environment seeds plus the prompt text ride along, and the maximize hides while a child preset is armed, since the main view cannot spawn a nested thread — the board's own draft is kept.
-- **`/` jumps to search.** With no pane open, pressing `/` on the board moves focus to the toolbar's search field and puts the caret at the end of the query; panes, dialogs, open dropdowns, and modifier chords keep claiming the key.
-- **The pane's open menu reveals the thread's browser tab.** "Reveal browser tab" sits in the dropdown's thread group between "Open in browser" and "Copy thread link", running the same one-step gesture the card menu carries and reporting outcomes on the board's banner.
 
 ### Changed
 

@@ -12,6 +12,7 @@ import {
   columnFor,
   derivedCompare,
   doneRecencyCompare,
+  groupFilterMisses,
   matchesFilter,
   threadState,
 } from "./grouping";
@@ -765,9 +766,10 @@ export function filterFamilies(
   projectNameFor?: (projectId: string) => string,
   ticketRefsFor?: (thread: PluginSidebarThread) => readonly TicketRef[],
   groupNameFor?: (thread: PluginSidebarThread) => string,
+  groupsByThread?: ReadonlyMap<string, string>,
 ): FamilyFilterResult {
   const passes = (thread: PluginSidebarThread): boolean =>
-    threadPassesFilter(thread, filter, searchQuery, projectNameFor, ticketRefsFor, groupNameFor);
+    threadPassesFilter(thread, filter, searchQuery, projectNameFor, ticketRefsFor, groupNameFor, groupsByThread);
 
   // Group visible threads into families by their root, so a parent and its
   // descendants pass or fail together.
@@ -799,9 +801,15 @@ export function filterFamilies(
       // A project filter is a column gate: a member in a project the
       // operator did not select never renders, dimmed or not — a dim-kept
       // member grouped by project forms a column for an unselected project
-      // (the Personal / unselected-family-parent report). State, provider,
-      // and search misses keep-and-dim below, inside columns that pass.
+      // (the Personal / unselected-family-parent report). The group filter
+      // runs the same gate (the Group view builds a column per bucket, and
+      // a member of an unselected bucket must never dim back onto the
+      // board). State, provider, and search misses keep-and-dim below,
+      // inside columns that pass.
       if (filter.projects.size > 0 && !filter.projects.has(thread.projectId)) {
+        continue;
+      }
+      if (groupFilterMisses(thread, filter, groupsByThread)) {
         continue;
       }
       kept.push(thread);
@@ -824,11 +832,13 @@ function threadPassesFilter(
   projectNameFor?: (projectId: string) => string,
   ticketRefsFor?: (thread: PluginSidebarThread) => readonly TicketRef[],
   groupNameFor?: (thread: PluginSidebarThread) => string,
+  groupsByThread?: ReadonlyMap<string, string>,
 ): boolean {
   if (thread.isArchived) return false;
   if (filter.projects.size > 0 && !filter.projects.has(thread.projectId)) return false;
   if (filter.providers.size > 0 && !filter.providers.has(thread.providerId)) return false;
   if (filter.states.size > 0 && !filter.states.has(threadState(thread))) return false;
+  if (groupFilterMisses(thread, filter, groupsByThread)) return false;
   if (
     searchQuery.trim() !== "" &&
     !matchesFilter(thread, searchQuery.trim(), projectNameFor, ticketRefsFor, groupNameFor)
@@ -850,6 +860,7 @@ export function filterIndividually(
   projectNameFor?: (projectId: string) => string,
   ticketRefsFor?: (thread: PluginSidebarThread) => readonly TicketRef[],
   groupNameFor?: (thread: PluginSidebarThread) => string,
+  groupsByThread?: ReadonlyMap<string, string>,
 ): FamilyFilterResult {
   const kept: PluginSidebarThread[] = [];
   for (const thread of threads) {
@@ -861,6 +872,7 @@ export function filterIndividually(
         projectNameFor,
         ticketRefsFor,
         groupNameFor,
+        groupsByThread,
       )
     ) {
       kept.push(thread);

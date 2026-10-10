@@ -1065,15 +1065,18 @@ export function Board({
           const dropHandler = dropHandlerFor(column.id);
           const isDropTarget = dropHandler !== null;
           const sweepKind = sweepColumnKind(column.id);
-          // The Project view's hide-a-lane affordance: a real project lane
-          // (no machine-less "none" lane — the filter menu cannot restore
-          // an unlisted id; no fixed Pinned/Done lanes either — they are
-          // board furniture, not a project's slice). No sweep kind applies
-          // to a project lane, so the header's sweep slot is free here.
+          // The hide-a-lane affordance on the two bucket-grouped views:
+          // the Project view shows it on real project lanes (no machine-less
+          // "none" lane — the Project filter's menu cannot restore an
+          // unlisted id; the Group view DOES list the "No group" bucket in
+          // its menu, so that lane hides and restores like any other). No
+          // fixed Pinned/Done lanes either side — they are board furniture,
+          // not a project's or group's slice. Neither view's sweep kind
+          // applies, so the header's sweep slot is free here.
           const hideLaneHere =
-            groupBy === "project" &&
+            (groupBy === "project" || groupBy === "group") &&
             onHideLane !== undefined &&
-            column.id !== "none" &&
+            (groupBy === "group" || column.id !== "none") &&
             column.id !== "pinned" &&
             column.id !== "done";
           // The sweep-family contract is arm-scoped: only the arms whose
@@ -1441,12 +1444,17 @@ export function Board({
                     ) : null}
                     {hideLaneHere ? (
                       // Hover-revealed at the sweep pill's slot: the eye-off
-                      // icon reads as "make this lane's project invisible",
-                      // which is exactly the write — the lane's project
-                      // leaves the Project filter's selection. First click
-                      // arms; the second writes; Escape disarm.
+                      // icon reads as "make this lane invisible", which is
+                      // exactly the write — the lane's project (or group)
+                      // leaves its filter's selection. First click arms; the
+                      // second writes; Escape disarm. The wording names the
+                      // view's filter — each view's menu restores the lane.
                       (() => {
                         const armed = hideArmColumn === column.id;
+                        const laneFilterLabel =
+                          groupBy === "group" ? "Group filter" : "Project filter";
+                        const laneSubject =
+                          groupBy === "group" ? "its group" : "its project";
                         return (
                           <button
                             type="button"
@@ -1454,7 +1462,7 @@ export function Board({
                             data-hide-lane-armed={armed ? "" : undefined}
                             aria-label={
                               armed
-                                ? `Hide the ${column.label} lane: its project leaves the Project filter's selection`
+                                ? `Hide the ${column.label} lane: ${laneSubject} leaves the ${laneFilterLabel}'s selection`
                                 : `Hide the ${column.label} lane (click again to confirm)`
                             }
                             onClick={(event) => {
@@ -1470,10 +1478,10 @@ export function Board({
                               setHideLaneReport({
                                 message:
                                   outcome.kind === "hidden"
-                                    ? `Hid the "${column.label}" lane. Restore it from the Project filter in the toolbar.`
+                                    ? `Hid the "${column.label}" lane. Restore it from the ${laneFilterLabel} in the toolbar.`
                                     : outcome.reason === "sole-lane"
-                                      ? `The "${column.label}" lane is the only project lane the board knows, so it stays on the board.`
-                                      : `"${column.label}" is already outside the Project filter, so the lane stays as it is.`,
+                                      ? `The "${column.label}" lane is the only ${groupBy === "group" ? "group" : "project"} lane the board knows, so it stays on the board.`
+                                      : `"${column.label}" is already outside the ${laneFilterLabel}, so the lane stays as it is.`,
                               });
                             }}
                             onKeyDown={(event) => {

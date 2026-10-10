@@ -5,6 +5,8 @@ Fine-grained notes that don't belong in the README's feature list.
 ## Grouping
 
 - In Parent-thread mode lanes sort by family recency (most recently touched family at left) and can optionally group by project.
+- The Group filter restricts the board to feature-group buckets — threads assigned to the selected groups, or to the "No group" bucket when unassigned — and composes with the Project / Provider / State filters. The choice persists with the other filters.
+- In the Group and Project views, hovering a bucket column's header shows an eye-off button at the sweep slot: two clicks (icon → armed "Hide" → write) hide the lane by removing its bucket from the view's filter selection, and a banner names the restore path — re-check the bucket's row in that filter's menu. A hide that would empty the board's known lanes of its kind refuses (sole-lane), and a lane already outside the selection says so; the report banner self-expires after ten seconds.
 
 ## Drag and drop
 
