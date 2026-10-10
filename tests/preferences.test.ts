@@ -11,6 +11,7 @@ import {
   parseNestStored,
   parseParentLaneOrderStored,
   parseWallpaperStored,
+  wallpaperBackgroundStyle,
   wallpaperLayerOf,
   wallpaperStoredValue,
 } from "../components/preferences";
@@ -78,6 +79,76 @@ describe("wallpaper persistence", () => {
       url: "https://a",
       dim: 0.4,
     });
+  });
+
+  it("round-trips a dark variant next to the light url", () => {
+    const settings = {
+      version: 1 as const,
+      global: { url: "https://example.com/w.png", dim: 0.4, darkUrl: "https://example.com/w-dark.png" },
+    };
+    expect(parseWallpaperStored(wallpaperStoredValue(settings))).toEqual(settings);
+    expect(wallpaperStoredValue(settings)).toBe(
+      '{"version":1,"global":{"url":"https://example.com/w.png","dim":0.4,"darkUrl":"https://example.com/w-dark.png"}}',
+    );
+  });
+
+  it("an invalid darkUrl degrades by dropping the field but keeps the layer", () => {
+    for (const darkUrl of ["javascript:alert(1)", "not-a-url", "", "   ", "file:///etc/passwd"]) {
+      expect(
+        parseWallpaperStored(
+          JSON.stringify({ version: 1, global: { url: "https://a", dim: 0.3, darkUrl } }),
+        ).global,
+      ).toEqual({ url: "https://a", dim: 0.3 });
+    }
+    // A darkUrl of the wrong TYPE degrades the same per-key way.
+    expect(
+      parseWallpaperStored(JSON.stringify({ version: 1, global: { url: "https://a", dim: 0.3, darkUrl: 7 } }))
+        .global,
+    ).toEqual({ url: "https://a", dim: 0.3 });
+  });
+
+  it("a valid data darkUrl round-trips too", () => {
+    expect(
+      parseWallpaperStored(
+        JSON.stringify({ version: 1, global: { url: "https://a", dim: 0.3, darkUrl: "data:image/svg+xml;base64,x" } }),
+      ),
+    ).toEqual({
+      version: 1,
+      global: { url: "https://a", dim: 0.3, darkUrl: "data:image/svg+xml;base64,x" },
+    });
+  });
+});
+
+describe("wallpaper paint style (pure helper)", () => {
+  it("returns null without a layer so no background paints", () => {
+    expect(wallpaperBackgroundStyle(null, false)).toBeNull();
+    expect(wallpaperBackgroundStyle(null, true)).toBeNull();
+  });
+
+  it("paints the light url letterboxed (contain, no-repeat, centered)", () => {
+    expect(wallpaperBackgroundStyle({ url: "https://example.com/w.png", dim: 0.3 }, false)).toEqual({
+      backgroundImage: 'url("https://example.com/w.png")',
+      backgroundSize: "contain",
+      backgroundRepeat: "no-repeat",
+      backgroundPosition: "center",
+    });
+  });
+
+  it("dark mode resolves darkUrl ?? url", () => {
+    expect(wallpaperBackgroundStyle({ url: "https://a/l.png", dim: 0.3, darkUrl: "https://a/d.png" }, true)).toEqual({
+      backgroundImage: 'url("https://a/d.png")',
+      backgroundSize: "contain",
+      backgroundRepeat: "no-repeat",
+      backgroundPosition: "center",
+    });
+    expect(
+      wallpaperBackgroundStyle({ url: "https://a/l.png", dim: 0.3 }, true)?.backgroundImage,
+    ).toBe('url("https://a/l.png")');
+  });
+
+  it("escapes quotes and backslashes in the resolved url", () => {
+    const style = wallpaperBackgroundStyle({ url: 'https://a/"a\\b.png', dim: 0.3 }, false);
+    expect(style?.backgroundImage).toBe('url("https://a/\\"a\\\\b.png")');
   });
 });
 

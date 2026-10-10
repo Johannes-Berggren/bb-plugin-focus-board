@@ -68,3 +68,8 @@ export function useMediaQuery(query: string): boolean {
 export function usePrefersReducedMotion(): boolean {
   return useMediaQuery(REDUCED_MOTION_QUERY);
 }
+
+/** True while the OS prefers dark — the wallpaper variants' scheme read. */
+export function usePrefersDarkScheme(): boolean {
+  return useMediaQuery(DARK_COLOR_SCHEME_QUERY);
+}

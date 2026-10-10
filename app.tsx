@@ -119,6 +119,7 @@ import {
   parseGroupStored,
   parseParentLaneOrderStored,
   parseWallpaperStored,
+  wallpaperBackgroundStyle,
   type ParentLaneOrder,
   wallpaperLayerOf,
   wallpaperStoredValue,
@@ -126,6 +127,8 @@ import {
   type WallpaperSettings,
   WALLPAPER_KEY,
 } from "./components/preferences";
+import { usePrefersDarkScheme } from "./components/ui/hooks/use-media-query";
+import { WallpaperActiveProvider } from "./components/wallpaper-contrast";
 import { EmptyState } from "./components/empty-state";
 import { WhatsNewModal } from "./components/whats-new-modal";
 import {
@@ -745,6 +748,9 @@ function BoardPage({ subPath }: { subPath: string }) {
     setWallpaper(next);
     writeStored(WALLPAPER_KEY, wallpaperStoredValue(next));
   }, []);
+  // Scheme read for the wallpaper's dark variant: the hook lives with the
+  // media-query hooks and flips live (a change listener, no reload).
+  const darkScheme = usePrefersDarkScheme();
   // The open pane lives in the panel's URL subPath (`t/<threadId>`), not in
   // component state, so bb's back arrow, a reload, and deep links all land on
   // the pane the user left. The ref mirrors the last pushed thread id; sync
@@ -2206,18 +2212,11 @@ function BoardPage({ subPath }: { subPath: string }) {
 
   const activeWallpaper = wallpaperLayerOf(wallpaper);
   return (
+    <WallpaperActiveProvider active={activeWallpaper !== null}>
     <div
       className={(activeWallpaper === null ? "" : "relative ") + "flex h-full min-h-0"}
       data-focus-board-panel=""
-      style={
-        activeWallpaper === null
-          ? undefined
-          : {
-              backgroundImage: `url("${activeWallpaper.url.replace(/["\\]/gu, "\\$&")}")`,
-              backgroundSize: "cover",
-              backgroundPosition: "center",
-            }
-      }
+      style={wallpaperBackgroundStyle(activeWallpaper, darkScheme) ?? undefined}
     >
       {activeWallpaper === null ? null : (
         <div
@@ -2570,6 +2569,7 @@ function BoardPage({ subPath }: { subPath: string }) {
         );
       })()}
     </div>
+    </WallpaperActiveProvider>
   );
 }
 
