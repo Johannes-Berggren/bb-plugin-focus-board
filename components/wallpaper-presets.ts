@@ -85,9 +85,25 @@ export function picsumThumbUrl(seed: string): string {
   return `https://picsum.photos/seed/${seed}/240/135`;
 }
 
-/** The keyless Openverse search url for a query. */
-export function openverseSearchUrl(query: string): string {
-  return `https://api.openverse.org/v1/images/?q=${encodeURIComponent(query)}&page_size=12`;
+/**
+ * The keyless Openverse search url for a query, at `page` (page 1 is the
+ * API's own default, but it stays on the wire so a re-searched page and the
+ * first page are never confused).
+ */
+export function openverseSearchUrl(query: string, page = 1): string {
+  return `https://api.openverse.org/v1/images/?q=${encodeURIComponent(query)}&page_size=12&page=${page}`;
+}
+
+/**
+ * The response's page_count — the last reachable page (Openverse caps
+ * anonymous pagination depth, and the field reports that cap). Garbage or
+ * absence degrades to null; the picker then paginates without an end.
+ */
+export function openversePageCount(payload: unknown): number | null {
+  if (payload === null || typeof payload !== "object") return null;
+  const pageCount = (payload as { page_count?: unknown }).page_count;
+  if (typeof pageCount !== "number" || !Number.isInteger(pageCount) || pageCount < 1) return null;
+  return pageCount;
 }
 
 export interface OpenverseImage {
