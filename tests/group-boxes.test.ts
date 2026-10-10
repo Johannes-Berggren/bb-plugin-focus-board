@@ -7,6 +7,7 @@ import {
   columnRunInfo,
   filterWithGroupBoxes,
   flattenRuns,
+  inBoxMoveTarget,
   planGroupBoxes,
   reconcileGroupBoxPlan,
   runsFromColumns,
@@ -580,6 +581,90 @@ describe("columnRunInfo and unitMoveTarget", () => {
       beforeId: "thr_x",
       toEnd: false,
     });
+  });
+});
+
+describe("inBoxMoveTarget (reordering members INSIDE one box)", () => {
+  const threads = [
+    thread({ id: "thr_c", status: "active", updatedAt: NOW - 1000 }),
+    thread({ id: "thr_b", status: "active", updatedAt: NOW - 2000 }),
+    thread({ id: "thr_a", status: "active", updatedAt: NOW - 3000 }),
+    thread({ id: "thr_x", status: "active", updatedAt: NOW - 4000 }),
+    thread({ id: "thr_y", status: "active", updatedAt: NOW - 5000 }),
+  ];
+  // One three-member box (a, b, c in display order) plus two plain cards.
+  const plan = planGroupBoxes(
+    threads,
+    groupOf({ thr_a: "grp_auth", thr_b: "grp_auth", thr_c: "grp_auth" }),
+    NAMES,
+    "status",
+    context,
+    new Set(),
+    NOW,
+  );
+  const order = ["thr_c", "thr_b", "thr_a", "thr_x", "thr_y"];
+  const info = columnRunInfo(threads, plan.groupBoxOf);
+
+  it("a before-edge drop anchors on the hovered member itself, mid-box and all", () => {
+    // Drag b onto a's top half: b lands directly above a — an insert the
+    // box-edge normalization (unitMoveTarget) refuses by design.
+    expect(inBoxMoveTarget(order, "thr_a", "before", "thr_b", info)).toEqual({
+      beforeId: "thr_a",
+      toEnd: false,
+    });
+  });
+
+  it("an after-edge drop anchors on the card below the hovered member", () => {
+    expect(inBoxMoveTarget(order, "thr_c", "after", "thr_a", info)).toEqual({
+      beforeId: "thr_b",
+      toEnd: false,
+    });
+  });
+
+  it("an after-edge below the box's last member lands the member just below the box", () => {
+    // Drag a (box member) onto c's bottom half: below c is plain thr_x, and
+    // a becomes the box's new last member — still contiguous. Hovering the
+    // box's top member's after-edge instead anchors on the next member (b).
+    expect(inBoxMoveTarget(order, "thr_c", "after", "thr_a", info)).toEqual({
+      beforeId: "thr_b",
+      toEnd: false,
+    });
+    expect(inBoxMoveTarget(order, "thr_a", "after", "thr_c", info)).toEqual({
+      beforeId: "thr_x",
+      toEnd: false,
+    });
+  });
+
+  it("hovering the member directly above the dragged one is a no-op (re-anchored beside it)", () => {
+    // Drag a onto b's bottom half: the card below b IS a, so the move is
+    // where a already sits — anchor before b instead (equal position).
+    expect(inBoxMoveTarget(order, "thr_b", "after", "thr_a", info)).toEqual({
+      beforeId: "thr_b",
+      toEnd: false,
+    });
+  });
+
+  it("a member hovering itself is no target", () => {
+    expect(inBoxMoveTarget(order, "thr_b", "before", "thr_b", info)).toBeNull();
+  });
+
+  it("a foreign card's hover is out of scope (unitMoveTarget owns cross-box moves)", () => {
+    expect(inBoxMoveTarget(order, "thr_x", "before", "thr_b", info)).toBeNull();
+  });
+
+  it("a solo run member drags as a plain card, never as an in-box reorder", () => {
+    // grp_solo: a group-of-one box around thr_x.
+    const soloPlan = planGroupBoxes(
+      threads,
+      groupOf({ thr_a: "grp_auth", thr_b: "grp_auth", thr_c: "grp_auth", thr_x: "grp_solo" }),
+      NAMES,
+      "status",
+      context,
+      new Set(),
+      NOW,
+    );
+    const soloInfo = columnRunInfo(threads, soloPlan.groupBoxOf);
+    expect(inBoxMoveTarget(order, "thr_x", "before", "thr_c", soloInfo)).toBeNull();
   });
 });
 

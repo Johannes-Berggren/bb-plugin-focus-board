@@ -7,6 +7,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **Reorder cards inside a family box.** Dropping a box member beside a sibling in the same dashed box moves that member alone — no more box-edge anchor, no refusal banner — while a drop beside anything outside the box still moves the whole box as one unit.
+- **Reorder the nested child rows under a family card.** Drop a child row on a sibling row's edge and the row order under that parent is written per family (`child:<parent>`, its own rank order — never the parent card's column order); Done families keep their done-recency rows, and dragging a row onto the floor still detaches it.
 - **Threads join named family boxes, and the boxes are manageable.** "Group…" in a card menu assigns the thread to a shared named group (created in-line); members render inside one dashed outline with the group name on its border, the whole box moves as one unit by drag or Alt+Arrow, and the group evaporates when its last assignment clears.
   - The outline is the join target: a drop onto the box or any member card joins the group, while a member card's middle third still nests and same-group drags still reorder — tall members no longer hide the target.
   - A group of one keeps its named outline on the board, so the group never hides between joins.
