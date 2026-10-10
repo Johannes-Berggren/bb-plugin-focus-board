@@ -4,8 +4,11 @@
 // board's unanimous project (derived), then the project the board's composer
 // last spawned into (remembered), and stale project ids seed nothing —
 // with nothing armed the modal hands the host composer no seed at all and
-// bb lands on its personal project ("No project"); that default belongs to
-// bb core (issue #25), never to these rungs.
+// bb lands on its personal project ("No project") by its own fallback; that
+// fallback belongs to bb core (issue #25, get-bb/bb#5340), never to these
+// rungs. The filter rung itself seeds the personal state deliberately when
+// the operator filtered to it: a filter is explicit intent (#25, decision
+// (a)), while the derived and remembered rungs never seed personal.
 import { describe, expect, it } from "vitest";
 import {
   BB_PERSONAL_PROJECT_ID,
@@ -86,8 +89,9 @@ describe("newThreadSeedProjectId", () => {
 
   it("a remembered id equal to the personal project seeds nothing", () => {
     // The operator's last board pick was "Don't work in a project" (bb's
-    // personal project). Remembering it must not re-seed "No project";
-    // seeding personal is bb core's decision, tracked in issue #25.
+    // personal project). Remembering it must not re-seed "No project":
+    // only the operator's EXPLICIT act (the filter, #25 decision (a))
+    // seeds the personal state; the remembered rung stays silent.
     const seededFromConstant = seedArgs({
       rememberedProjectId: BB_PERSONAL_PROJECT_ID,
     });
@@ -146,7 +150,8 @@ describe("derived rung (through the ladder)", () => {
     });
     // The personal derive would win on precedence alone; the exclusion
     // drops the rung entirely so the remembered project takes over —
-    // and with no remembered rung the ladder hands over nothing at all.
+    // and with no remembered rung the ladder hands over nothing at all
+    // (bb's unseeded default owns that case; #25).
     const rememberedless = seedArgs({ derivedProjectId: BB_PERSONAL_PROJECT_ID });
     expect(rememberedless).toBeUndefined();
     expect(seed).toBe("proj_home");
@@ -182,6 +187,47 @@ describe("derived rung (through the ladder)", () => {
       rememberedProjectId: "proj_home",
     });
     expect(seed).toBe("proj_side");
+  });
+});
+
+describe("filter rung names the personal project deliberately (#25, decision (a))", () => {
+  it("a filter naming bb's personal id seeds the personal pick though the picker list lacks it", () => {
+    // bb 0.46.0's sidebar live view includes the personal row, so the normal
+    // membership guard already passes — but a bb build whose list excludes
+    // the row must not silence an explicit operator filter either: the
+    // filter names the state, and the composer renders this id as "No
+    // project" (its projectless pick). Deliberate seeding, not a fallback.
+    const seed = seedArgs({
+      filterProjectId: BB_PERSONAL_PROJECT_ID,
+      knownProjectIds: ["proj_home"],
+    });
+    expect(seed).toBe(BB_PERSONAL_PROJECT_ID);
+  });
+
+  it("a filter naming the sidebar-declared personal id seeds it though the picker list lacks it", () => {
+    const seed = seedArgs({
+      filterProjectId: "personal_default",
+      personalProjectId: "personal_default",
+      knownProjectIds: ["proj_home"],
+    });
+    expect(seed).toBe("personal_default");
+  });
+
+  it("a parent preset still beats a personal filter", () => {
+    const seed = seedArgs({
+      parentProjectId: "proj_home",
+      filterProjectId: BB_PERSONAL_PROJECT_ID,
+    });
+    expect(seed).toBe("proj_home");
+  });
+
+  it("a personal filter beats the derived and remembered rungs", () => {
+    const seed = seedArgs({
+      filterProjectId: BB_PERSONAL_PROJECT_ID,
+      derivedProjectId: "proj_home",
+      rememberedProjectId: "proj_side",
+    });
+    expect(seed).toBe(BB_PERSONAL_PROJECT_ID);
   });
 });
 
