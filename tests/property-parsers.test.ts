@@ -235,7 +235,7 @@ describe("preference parser properties (corrupt anything, degrade to documented 
   });
 
   it("parseGroupStored: only the exact allow-list members pass, everything else falls back to 'status'", () => {
-    const allowed = ["none", "status", "recency", "project", "provider", "machine", "parent"];
+    const allowed = ["none", "status", "recency", "project", "provider", "machine", "parent", "group"];
     fc.assert(
       fc.property(preferenceGarbage, (raw) => {
         const parsed = parseGroupStored(raw as string | null);
@@ -298,7 +298,7 @@ describe("columnRankKey properties", () => {
   it("the Pinned and Done lanes are never namespaced, every other column always is", () => {
     fc.assert(
       fc.property(
-        fc.constantFrom("none", "status", "recency", "project", "provider", "machine", "parent"),
+        fc.constantFrom("none", "status", "recency", "project", "provider", "machine", "parent", "group"),
         fc.string({ minLength: 1 }),
         (groupBy, columnId) => {
           const key = columnRankKey(groupBy, columnId);

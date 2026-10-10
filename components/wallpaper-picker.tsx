@@ -60,7 +60,7 @@ export function WallpaperDropdown({
   };
   return (
     <div
-      className="relative"
+      className="relative flex"
       onKeyDown={(event) => {
         if (!open || event.key !== "Escape") return;
         event.stopPropagation();

@@ -29,6 +29,7 @@ const ALLOWED_GROUP_BY: readonly GroupBy[] = [
   "provider",
   "machine",
   "parent",
+  "group",
 ];
 
 /** Validate a stored group-by value; anything stale or unknown falls back to Attention. */

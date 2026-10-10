@@ -243,6 +243,10 @@ describe("simultaneous corruption (every key garbage at once)", () => {
     JSON.stringify(5),
   ];
 
+  it("round-trips the group grouping", () => {
+    expect(parseGroupStored("group")).toBe("group"); // Feature-group columns
+  });
+
   it("every parser survives the full garbage list and returns its documented fallback", () => {
     for (const raw of garbage) {
       expect(parseNestStored(raw)).toBe(true); // default ON

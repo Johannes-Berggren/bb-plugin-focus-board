@@ -99,7 +99,7 @@ function MultiSelectDropdown({
   };
   return (
     <div
-      className="relative"
+      className="relative flex"
       id={containerId}
       onKeyDown={(event) => {
         // Only claim Escape while the menu is open; otherwise let it reach
