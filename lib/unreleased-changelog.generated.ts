@@ -17,7 +17,7 @@ export const UNRELEASED_ITEMS: readonly { text: string; children: string[] }[] =
     "children": []
   },
   {
-    "text": "**The toolbar's controls follow the creation lead.** New thread and the search field sit at the far left and the Group / Nest / Project / Provider / State controls abut the search field; the thread count and What's-new gift anchor the right edge.",
+    "text": "**The toolbar's controls follow the creation lead.** New thread and the search field sit at the far left and the Group / Nest / Project / Provider / State controls abut the search field; the thread count and What's-new gift stack under the New thread button.",
     "children": []
   }
 ];
