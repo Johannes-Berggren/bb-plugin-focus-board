@@ -2,8 +2,11 @@
 // Toolbar layout: one line, height-matched, three zones. New thread stands
 // alone; search pairs with the View mode chip (no colon label — it names the
 // current view like a mode, not a filter); the Project/Provider/State
-// filters run together with the thread count and the What's-new gift as one
-// trailing cluster, so wrapping never strands the count across a void.
+// filters run together with the thread count and the settings gear/gift as
+// one trailing cluster, so wrapping never strands the count across a void.
+// The gear/gift is one icon with a binary costume: a pulsing gift while the
+// changelog has unseen content (click deep-links to the What's-new tab), a
+// plain settings gear otherwise (click opens on Behavior).
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { BoardToolbar } from "../components/board-toolbar";
@@ -33,7 +36,7 @@ function renderToolbar(
     anyFilterActive: false,
     onNewThread: vi.fn(),
     whatsNewUnseen: false,
-    onOpenWhatsNew: vi.fn(),
+    onOpenSettings: vi.fn(),
     wallpaper: { version: 1 as const, global: null },
     onWallpaperChange: vi.fn(),
     ...overrides,
@@ -69,7 +72,7 @@ afterEach(() => {
 });
 
 describe("BoardToolbar layout", () => {
-  it("one line: New thread, search, View chip, filters, count, gift", () => {
+  it("one line: New thread, search, View chip, filters, count, settings icon", () => {
     renderToolbar();
     const newThread = screen.getByText("New thread");
     const search = screen.getByLabelText("Search threads");
@@ -79,14 +82,14 @@ describe("BoardToolbar layout", () => {
     const provider = screen.getByText(/Provider:/);
     const state = screen.getByText(/State:/);
     const count = screen.getByText("7 threads");
-    const gift = screen.getByLabelText("What's new");
+    const settings = screen.getByLabelText("Focus Board settings");
     expect(follows(newThread, search)).toBe(true);
     expect(follows(search, view)).toBe(true);
     expect(follows(view, project)).toBe(true);
     expect(follows(project, provider)).toBe(true);
     expect(follows(provider, state)).toBe(true);
     expect(follows(state, count)).toBe(true);
-    expect(follows(count, gift)).toBe(true);
+    expect(follows(count, settings)).toBe(true);
   });
 
   it("creation stands alone — no container shared with the count", () => {
@@ -110,16 +113,16 @@ describe("BoardToolbar layout", () => {
     expect(pairCluster?.contains(project) ?? true).toBe(false);
   });
 
-  it("count and gift travel with the filters, not pinned to the edge", () => {
+  it("count and settings icon travel with the filters, not pinned to the edge", () => {
     const root = renderToolbar();
     const project = screen.getByText(/Project:/);
     const state = screen.getByText(/State:/);
     const count = screen.getByText("7 threads");
-    const gift = screen.getByLabelText("What's new");
+    const settings = screen.getByLabelText("Focus Board settings");
     const trailingCluster = commonAncestor(project, count);
     expect(trailingCluster).not.toBeNull();
     expect(trailingCluster).not.toBe(root);
-    expect(trailingCluster?.contains(gift) ?? false).toBe(true);
+    expect(trailingCluster?.contains(settings) ?? false).toBe(true);
     expect(trailingCluster?.contains(state) ?? false).toBe(true);
   });
 
@@ -216,5 +219,35 @@ describe("BoardToolbar layout", () => {
       );
       expect(inFlow.length, `${label} wrapper in-flow children`).toBe(1);
     }
+  });
+});
+
+describe("BoardToolbar settings icon: gear/gift double duty", () => {
+  it("when caught up, the icon is a plain settings gear opening on Behavior", () => {
+    const onOpenSettings = vi.fn();
+    renderToolbar({ onOpenSettings });
+    const button = screen.getByLabelText("Focus Board settings");
+    expect(screen.queryByLabelText("What's new")).toBeNull();
+    fireEvent.click(button);
+    expect(onOpenSettings).toHaveBeenCalledTimes(1);
+    expect(onOpenSettings).toHaveBeenCalledWith("behavior");
+  });
+
+  it("with unseen changelog content, the icon is the What's-new gift deep-linking to that tab", () => {
+    const onOpenSettings = vi.fn();
+    renderToolbar({ whatsNewUnseen: true, onOpenSettings });
+    const button = screen.getByLabelText("What's new");
+    expect(screen.queryByLabelText("Focus Board settings")).toBeNull();
+    fireEvent.click(button);
+    expect(onOpenSettings).toHaveBeenCalledTimes(1);
+    expect(onOpenSettings).toHaveBeenCalledWith("whats-new");
+  });
+
+  it("the pulse stays reachable without motion (reduce-motion users still get the gift)", () => {
+    // The costume is binary regardless of reduced-motion preference; the
+    // animation itself is motion-safe, so the label + glyph must not depend
+    // on animation support.
+    renderToolbar({ whatsNewUnseen: true });
+    expect(screen.getByLabelText("What's new")).not.toBeNull();
   });
 });

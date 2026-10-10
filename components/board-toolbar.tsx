@@ -510,7 +510,8 @@ interface BoardToolbarProps {
   onNewThread: () => void;
   /** An update landed since the stored last-seen version — the gift pulses. */
   whatsNewUnseen: boolean;
-  onOpenWhatsNew: () => void;
+  /** Opens the settings modal on the asked tab: "whats-new" (pulse click) or "behavior" (gear click). */
+  onOpenSettings: (tab: "behavior" | "whats-new") => void;
   /** Board wallpaper behind the panel (global scope for now). */
   wallpaper: WallpaperSettings;
   onWallpaperChange: (next: WallpaperSettings) => void;
@@ -552,7 +553,7 @@ export function BoardToolbar({
   anyFilterActive,
   onNewThread,
   whatsNewUnseen,
-  onOpenWhatsNew,
+  onOpenSettings,
 }: BoardToolbarProps) {
   // The View menu's rows (the grouping picker) — named apart from the
   // Group filter's bucket list, which arrives as a prop.
@@ -761,18 +762,23 @@ export function BoardToolbar({
             </button>
           ) : null}
           {/* Board metadata rides with the filters it describes: the count
-              and the gift end the filter group, so wrapping carries them
-              WITH it — never stranded on an empty right edge. Always
-              present — the changelog never becomes unreachable; the pulse
-              (and the amber tint) clears on open. */}
+              and the settings icon end the filter group, so wrapping carries
+              them WITH it — never stranded on an empty right edge. Always
+              present — the changelog never becomes unreachable. The icon is
+              a double-duty costume with a strictly binary state: unseen
+              What's-new content renders the pulsing gift that deep-links to
+              that tab; a read board renders the plain settings gear that
+              opens on Behavior. The aria-label flips with the costume. */}
           <div className="flex items-center gap-1.5">
             <span className="text-xs text-muted-foreground">{totalCount} threads</span>
             <WallpaperDropdown wallpaper={wallpaper} onWallpaperChange={onWallpaperChange} />
             <button
               type="button"
-              onClick={onOpenWhatsNew}
-              aria-label="What's new"
-              title="What's new"
+              onClick={() =>
+                onOpenSettings(whatsNewUnseen ? "whats-new" : "behavior")
+              }
+              aria-label={whatsNewUnseen ? "What's new" : "Focus Board settings"}
+              title={whatsNewUnseen ? "What's new" : "Focus Board settings"}
               className={cn(
                 "-ml-1 inline-flex size-6 items-center justify-center rounded-md transition-colors hover:bg-accent hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                 whatsNewUnseen
@@ -780,7 +786,11 @@ export function BoardToolbar({
                   : "text-muted-foreground",
               )}
             >
-              <Icon name="Gift" className="size-4" aria-hidden />
+              <Icon
+                name={whatsNewUnseen ? "Gift" : "Settings"}
+                className="size-4"
+                aria-hidden
+              />
             </button>
           </div>
         </div>

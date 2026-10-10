@@ -305,6 +305,16 @@ const mockSdk = {
   hosts: {
     list: async () => [{ id: "host_local", name: "MacBook Pro", lifecycle: { phase: "active" } }],
   },
+  plugins: {
+    // The settings modal's Behavior tab writes the plugin's declarative
+    // settings; the mock records the patch in `uatCalls` so a UAT driver can
+    // assert the write, while the reactive read side stays null (the
+    // harness has no host settings surface).
+    updateSettings: async (args: { pluginId: string; values: Record<string, unknown> }) => {
+      uatCalls.push({ method: "plugins.updateSettings", args });
+      return { ok: true as const };
+    },
+  },
   projects: {
     list: async () => SIM_PROJECTS.map((project) => ({ ...project, gitRemoteUrl: null })),
     create: async () => ({}),
@@ -527,6 +537,15 @@ export function useRealtime(_channel: string, _handler: (payload: unknown) => vo
  */
 export function useSettings(): { values: Record<string, unknown> | null } {
   return { values: null };
+}
+
+/**
+ * The mock plugin id (0.6.x): the settings modal's Behavior tab writes the
+ * plugin's own settings through `sdk.plugins.updateSettings({ pluginId })`,
+ * which the routing annotations below already scope to MOCK_PLUGIN_ID.
+ */
+export function experimental_usePluginId(): string {
+  return MOCK_PLUGIN_ID;
 }
 
 interface MockMessage {
