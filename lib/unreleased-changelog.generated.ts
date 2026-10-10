@@ -50,6 +50,10 @@ export const UNRELEASED_ITEMS: readonly { text: string; children: string[] }[] =
     "children": []
   },
   {
+    "text": "**The toolbar's filter row aligns at any host font size.** Bare `relative` wrappers positioned the dropdown and wallpaper triggers on the text baseline, so bb's own font metrics lifted each trigger up to a pixel above its flex-centred neighbours — the drift that read as an off-kilter filter row. The wrappers now position by flex; the alignment holds across font metric changes and the screenshot harness verifies all controls share one center.",
+    "children": []
+  },
+  {
     "text": "**Board alert banners stay bound to the viewport.** The four status banners (rank refusal, sweep notice, browser reveal, sweep refusal) now render above the horizontal scroll surface, so scrolling a wide board can no longer carry a banner offscreen. ([#26](https://github.com/cristoslc/bb-plugin-focus-board/issues/26))",
     "children": []
   },

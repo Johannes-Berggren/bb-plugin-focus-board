@@ -188,4 +188,33 @@ describe("BoardToolbar layout", () => {
     renderToolbar();
     expect(screen.queryByLabelText("Maximize new thread")).toBeNull();
   });
+
+  it("centers every trigger by flex, not the host text baseline", () => {
+    // The bare `relative` wrappers position their inline-flex triggers on
+    // the wrapper's text baseline; under a host font whose line metrics
+    // differ from the harness's, each such trigger rides up to ~1px high
+    // of its flex-centered row neighbors (measured on-device, and
+    // reproduced in the screenshot harness at 16px/1.5). Flex wrappers
+    // position the trigger by centering, immune to line metrics.
+    renderToolbar();
+    const labels = ["View", "Project", "Provider", "State", "Wallpaper"];
+    const triggers = [
+      document.querySelector('button[aria-label="View"]'),
+      screen.getByText(/Project:/).closest("button"),
+      screen.getByText(/Provider:/).closest("button"),
+      screen.getByText(/State:/).closest("button"),
+      screen.getByLabelText("Wallpaper"),
+    ];
+    for (const [i, label] of labels.entries()) {
+      const trigger = triggers[i];
+      if (trigger === null) throw new Error(`${label} trigger not found`);
+      const wrapper = trigger.parentElement;
+      expect(wrapper?.className, `${label} wrapper`).toContain("flex");
+      // flex centering only anchors the trigger when it is the sole in-flow child
+      const inFlow = [...wrapper!.children].filter(
+        (child) => getComputedStyle(child).position !== "absolute",
+      );
+      expect(inFlow.length, `${label} wrapper in-flow children`).toBe(1);
+    }
+  });
 });

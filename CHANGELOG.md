@@ -30,6 +30,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+<<<<<<< HEAD
+- **The toolbar's filter row aligns at any host font size.** Bare `relative` wrappers positioned the dropdown and wallpaper triggers on the text baseline, so bb's own font metrics lifted each trigger up to a pixel above its flex-centred neighbours — the drift that read as an off-kilter filter row. The wrappers now position by flex; the alignment holds across font metric changes and the screenshot harness verifies all controls share one center.
 - **Board alert banners stay bound to the viewport.** The four status banners (rank refusal, sweep notice, browser reveal, sweep refusal) now render above the horizontal scroll surface, so scrolling a wide board can no longer carry a banner offscreen. ([#26](https://github.com/cristoslc/bb-plugin-focus-board/issues/26))
 - **Project filters no longer leak unselected projects into the board.** With nesting on, a family whose only match lived in a selected project kept its dimmed parent on the board; a project miss now drops its member outright, while state, provider, and search misses keep-and-dim inside columns that pass ([#27](https://github.com/cristoslc/bb-plugin-focus-board/issues/27)).
 - **A pin applied in the Parent view now survives the switch to the Attention view.** Pinning a child card nested it away under its unpinned parent on every other view — the card menu still offered Unpin while the Pinned column showed nothing. A pinned child now stands alone in the Pinned column, Done children keeping their Done-lane placement ([#28](https://github.com/cristoslc/bb-plugin-focus-board/issues/28)).
