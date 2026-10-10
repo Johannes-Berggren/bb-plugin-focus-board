@@ -50,6 +50,11 @@ function renderToolbar(overrides: Partial<BoardToolbarProps> = {}) {
     projectIds: new Set<string>(),
     providerIds: allProviders(),
     projects: [],
+    wallpaper: {
+      version: 1 as const,
+      global: null,
+    } as const,
+    onWallpaperChange: vi.fn(),
     providers: PROVIDERS,
     onCreateProject: vi.fn(() => Promise.resolve()),
     totalCount: 0,

@@ -155,6 +155,8 @@ describe("BoardToolbar search ref wiring", () => {
         whatsNewUnseen={false}
         onOpenWhatsNew={() => {}}
         searchInputRef={searchInputRef}
+        wallpaper={{ version: 1, global: null }}
+        onWallpaperChange={() => {}}
       />,
     );
     const input = document.querySelector(

@@ -32,6 +32,8 @@ function renderToolbar(
     onNewThread: vi.fn(),
     whatsNewUnseen: false,
     onOpenWhatsNew: vi.fn(),
+    wallpaper: { version: 1 as const, global: null },
+    onWallpaperChange: vi.fn(),
     ...overrides,
   } as unknown as BoardToolbarProps;
   const view = render(<BoardToolbar {...props} />);

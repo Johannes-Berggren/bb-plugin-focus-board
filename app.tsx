@@ -109,7 +109,13 @@ import {
   parseNestStored,
   parseGroupStored,
   parseParentLaneOrderStored,
+  parseWallpaperStored,
   type ParentLaneOrder,
+  wallpaperLayerOf,
+  wallpaperStoredValue,
+  type WallpaperLayer,
+  type WallpaperSettings,
+  WALLPAPER_KEY,
 } from "./components/preferences";
 import { EmptyState } from "./components/empty-state";
 import { WhatsNewModal } from "./components/whats-new-modal";
@@ -677,6 +683,15 @@ function BoardPage({ subPath }: { subPath: string }) {
   const [collapsedFamilies, setCollapsedFamilies] = useState<ReadonlySet<string>>(() =>
     parseCollapsedFamiliesStored(readStoredText(COLLAPSED_FAMILIES_KEY, "")),
   );
+  // Board wallpaper: a versioned settings document (single global layer
+  // today; per-project / per-group overrides extend the same document).
+  const [wallpaper, setWallpaper] = useState<WallpaperSettings>(() =>
+    parseWallpaperStored(readStoredText(WALLPAPER_KEY, "")),
+  );
+  const persistWallpaper = useCallback((next: WallpaperSettings) => {
+    setWallpaper(next);
+    writeStored(WALLPAPER_KEY, wallpaperStoredValue(next));
+  }, []);
   // The open pane lives in the panel's URL subPath (`t/<threadId>`), not in
   // component state, so bb's back arrow, a reload, and deep links all land on
   // the pane the user left. The ref mirrors the last pushed thread id; sync
@@ -2166,9 +2181,37 @@ function BoardPage({ subPath }: { subPath: string }) {
     );
   }
 
+  const activeWallpaper = wallpaperLayerOf(wallpaper);
   return (
-    <div className="flex h-full min-h-0" data-focus-board-panel="">
-      <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col">
+    <div
+      className={(activeWallpaper === null ? "" : "relative ") + "flex h-full min-h-0"}
+      data-focus-board-panel=""
+      style={
+        activeWallpaper === null
+          ? undefined
+          : {
+              backgroundImage: `url("${activeWallpaper.url.replace(/["\\]/gu, "\\$&")}")`,
+              backgroundSize: "cover",
+              backgroundPosition: "center",
+            }
+      }
+    >
+      {activeWallpaper === null ? null : (
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-0 z-0"
+          style={{
+            backgroundColor: "var(--background)",
+            opacity: activeWallpaper.dim,
+          }}
+        />
+      )}
+      <div
+        className={
+          (activeWallpaper === null ? "" : "relative z-10 ") +
+          "flex h-full min-h-0 min-w-0 flex-1 flex-col"
+        }
+      >
         <BoardToolbar
           groupBy={groupBy}
           onGroupByChange={persistGroupBy}
@@ -2194,6 +2237,8 @@ function BoardPage({ subPath }: { subPath: string }) {
           nestChildren={nestChildren}
           onNestChildrenChange={persistNestChildren}
           nestingLocked={isParentGroupBy}
+          wallpaper={wallpaper}
+          onWallpaperChange={persistWallpaper}
         />
         {groupBy === "parent" ? (
           <ParentLaneBoard

@@ -5,15 +5,15 @@ export const UNRELEASED_ITEMS: readonly { text: string; children: string[] }[] =
     "children": []
   },
   {
+    "text": "**The board can wear a wallpaper.** The toolbar's image control takes any http(s) or data image url with a dim slider that keeps cards readable; the setting persists per browser and today always applies globally, with the stored document versioned and ready for per-project or per-group overrides later.",
+    "children": []
+  },
+  {
     "text": "**The New thread composer can maximize into the main new-thread view.** A maximize button in the composer's dialog (beside the close) hands off to bb's root compose surface — project and environment seeds plus the prompt text ride along; the board's own draft is kept (a maximize is a close, not a spawn) and the button hides while a child preset is armed since the main view cannot spawn a nested thread.",
     "children": []
   },
   {
     "text": "**`/` jumps to search.** With no pane open, pressing `/` on the board moves focus to the toolbar's search field and puts the caret at the end of the query; panes, dialogs, open dropdowns, and modifier chords keep claiming the key.",
-    "children": []
-  },
-  {
-    "text": "**The toolbar's controls follow the creation lead.** New thread and the search field sit at the far left and the Group / Nest / Project / Provider / State controls abut the search field; the thread count and What's-new gift anchor the right edge.",
     "children": []
   }
 ];

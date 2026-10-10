@@ -15,6 +15,7 @@ import ArrowRight01Icon from "@hugeicons/core-free-icons/ArrowRight01Icon";
 import BotIcon from "@hugeicons/core-free-icons/BotIcon";
 import BubbleChatAddIcon from "@hugeicons/core-free-icons/BubbleChatAddIcon";
 import BubbleChatIcon from "@hugeicons/core-free-icons/BubbleChatIcon";
+import Image01Icon from "@hugeicons/core-free-icons/Image01Icon";
 import Bug01Icon from "@hugeicons/core-free-icons/Bug01Icon";
 import Cancel01Icon from "@hugeicons/core-free-icons/Cancel01Icon";
 import CancelCircleIcon from "@hugeicons/core-free-icons/CancelCircleIcon";
@@ -223,6 +224,7 @@ const CORE_ICON_MAP = {
   FilterHorizontal: FilterHorizontalIcon,
   FocusBoard: FocusBoardLaneEyeIcon,
   Gift: GiftIcon,
+  Image: Image01Icon,
   Folder: FolderIcon,
   FolderExport: FolderExportIcon,
   FolderGit: FolderGitTwoIcon,
