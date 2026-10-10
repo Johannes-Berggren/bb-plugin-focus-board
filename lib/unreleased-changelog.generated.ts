@@ -60,6 +60,10 @@ export const UNRELEASED_ITEMS: readonly { text: string; children: string[] }[] =
     "children": []
   },
   {
+    "text": "**An armed \"Hide\" can now be disarmed.** Escape anywhere on the board, or a pointer press outside the armed icon, drops the arm without writing — a clicked button only holds focus in some browsers, so the arm's listeners live at the document level; the armed icon itself still confirms on its second click.",
+    "children": []
+  },
+  {
     "text": "**A family box's lane never depends on the open pane.** Opening one member's detail pulled the whole box — a running sibling included — into the lane that card held at open, so an active thread read as idle; the box now always renders in its most attention-needing member's lane, and a lifted parent/child family rides the same rule through an open pane. Cards no family claims keep the open-pane freeze.",
     "children": []
   },
