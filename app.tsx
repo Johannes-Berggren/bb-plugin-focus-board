@@ -61,6 +61,7 @@ import {
   rememberedProjectStorageKey,
   rememberedProjectStoredValue,
 } from "./lib/new-thread-seed";
+import { majorityGroupSpawnSeed, type GroupSpawnSeed } from "./lib/group-spawn-seed";
 import { maximizeComposerToMainView } from "./lib/compose-maximize";
 import { SnoozeDialog } from "./components/snooze-dialog";
 import {
@@ -1410,9 +1411,19 @@ function BoardPage({ subPath }: { subPath: string }) {
   // New Thread clears it. Held as an id, not a thread row — the sidebar
   // cache can refresh underneath and the title resolves fresh at render.
   const [newThreadParentId, setNewThreadParentId] = useState<string | null>(null);
+  // The group the composer will spawn INTO and tag the result with ("New
+  // thread in group…"): a preset like the parent-child one — the two are
+  // mutually exclusive (each opener clears the other).
+  const [newThreadGroupId, setNewThreadGroupId] = useState<string | null>(null);
+  // The group preset's majority seed (lib/group-spawn-seed): the members'
+  // most common project and provider/model pair, resolved by the effect
+  // below. Undefined while loading or when no member voted.
+  const [newThreadGroupSeed, setNewThreadGroupSeed] = useState<GroupSpawnSeed | undefined>(undefined);
   const openNewThread = useCallback(() => {
     setComposerFocusRequest((nonce) => nonce + 1);
     setNewThreadParentId(null);
+    setNewThreadGroupId(null);
+    setNewThreadGroupSeed(undefined);
     setNewThreadOpen(true);
   }, []);
   // The child-spawn entry point the card and pane menus share: same composer,
@@ -1421,6 +1432,17 @@ function BoardPage({ subPath }: { subPath: string }) {
   const openNewChildThread = useCallback((threadId: string) => {
     setComposerFocusRequest((nonce) => nonce + 1);
     setNewThreadParentId(threadId);
+    setNewThreadGroupId(null);
+    setNewThreadGroupSeed(undefined);
+    setNewThreadOpen(true);
+  }, []);
+  // The group-spawn entry point (the group box context menu): same composer,
+  // preset to tag the result into the acted-on group.
+  const openNewThreadInGroup = useCallback((groupId: string) => {
+    setComposerFocusRequest((nonce) => nonce + 1);
+    setNewThreadParentId(null);
+    setNewThreadGroupId(groupId);
+    setNewThreadGroupSeed(undefined);
     setNewThreadOpen(true);
   }, []);
   // The composer dialog's "will nest under" hint names the parent. A parent
@@ -1435,8 +1457,10 @@ function BoardPage({ subPath }: { subPath: string }) {
     return newThreadParent?.displayTitle ?? newThreadParentId;
   }, [newThreadParentId, newThreadParent]);
   // The composer's project seed (lib/new-thread-seed): a child preset copies
-  // its PARENT'S project, so the family keeps landing in one place; without
-  // a preset the rungs descend the ladder — the single filter-selected
+  // its PARENT'S project, so the family keeps landing in one place; a group
+  // preset copies the MEMBERS' MAJORITY project (the group's spawn seed) the
+  // same way — a preset's copy beats the filter either way; without a preset
+  // the rungs descend the ladder — the single filter-selected
   // project, then the board's unanimous project (the threads already here),
   // then the project this board's composer last spawned into (remembered,
   // plugin-scoped localStorage). Only a LOADED picker list may reject a
@@ -1449,7 +1473,10 @@ function BoardPage({ subPath }: { subPath: string }) {
   const newThreadProjectId = useMemo(
     () =>
       newThreadSeedProjectId({
-        parentProjectId: newThreadParent?.projectId,
+        parentProjectId:
+          newThreadGroupId !== null
+            ? newThreadGroupSeed?.projectId
+            : newThreadParent?.projectId,
         filterProjectId:
           filter.projects.size === 1 ? [...filter.projects][0] : undefined,
         derivedProjectId: newThreadDerivedProjectId(
@@ -1462,7 +1489,7 @@ function BoardPage({ subPath }: { subPath: string }) {
         knownProjectIds: projects.map((project) => project.id),
         knownProjectsLoaded: sidebarStatus === "ready",
       }),
-    [newThreadParent, filter.projects, searched, rememberedProjectId, projects, sidebarStatus],
+    [newThreadParent, newThreadGroupId, newThreadGroupSeed, filter.projects, searched, rememberedProjectId, projects, sidebarStatus],
   );
   // The composer's environment seed: a parent whose checkout is a worktree
   // seeds the `reuse` variant so the child starts in the parent's checkout
@@ -1471,6 +1498,45 @@ function BoardPage({ subPath }: { subPath: string }) {
     () => newThreadSeedEnvironment({ parentEnvironment: newThreadParent?.environment }),
     [newThreadParent],
   );
+  // The group preset's seed fetch: the members' votes (project + provider
+  // from each row; model from the SDK's resolved defaultExecutionOptions —
+  // the same chain the server's autotitle probe clones a spawn from),
+  // majority-voted by lib/group-spawn-seed. A member that resolves nothing
+  // casts no vote; a fetch failure leaves the composer's own defaults in
+  // charge — a failed seed must not block the composer from opening. The
+  // preset runs only while the modal is open; a closed modal clears it.
+  useEffect(() => {
+    if (!newThreadOpen || newThreadGroupId === null) {
+      setNewThreadGroupSeed(undefined);
+      return;
+    }
+    let cancelled = false;
+    const members = threads.filter(
+      (candidate) =>
+        !candidate.isArchived && groupAssignments[candidate.id] === newThreadGroupId,
+    );
+    void Promise.all(
+      members.map(async (member) => {
+        let model: string | null = null;
+        try {
+          const options = await sdk.threads.defaultExecutionOptions({ threadId: member.id });
+          model = options?.model ?? null;
+        } catch {
+          model = null; // a member that cannot resolve casts no vote
+        }
+        return {
+          projectId: member.projectId,
+          providerId: member.providerId,
+          model,
+        };
+      }),
+    ).then((votes) => {
+      if (!cancelled) setNewThreadGroupSeed(majorityGroupSpawnSeed(votes));
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [newThreadOpen, newThreadGroupId, threads, groupAssignments, sdk]);
   // Expand ("maximize") the board composer into bb's main new-thread view:
   // the seeds and the composer's stored prompt text ride along, the main
   // view focuses the prompt, and the board's own draft is KEPT — a maximize
@@ -1619,6 +1685,19 @@ function BoardPage({ subPath }: { subPath: string }) {
       openThreadCard(thread.id);
     },
     [pluginId, openThreadCard],
+  );
+  // The group preset's spawn: the opened composer promised to tag the result
+  // into the armed group, so the tag write rides the success path before the
+  // board hands the thread to the pane. The optimistic assign + the
+  // group-changed refetch (setThreadGroup) settle the box on the board.
+  const handleGroupSpawnedThread = useCallback(
+    (thread: SpawnedThread) => {
+      if (newThreadGroupId !== null) {
+        setThreadGroup(thread.id, newThreadGroupId);
+      }
+      handleSpawnedThread(thread);
+    },
+    [newThreadGroupId, setThreadGroup, handleSpawnedThread],
   );
 
   const closeThreadPane = useCallback(() => {
@@ -2415,6 +2494,7 @@ function BoardPage({ subPath }: { subPath: string }) {
             onJoinGroup={setThreadGroup}
             onRenameGroup={renameGroup}
             onDeleteGroup={deleteGroup}
+            onNewThreadInGroup={openNewThreadInGroup}
             collapsedFamilyIds={collapsedFamilies}
             onFamilyCollapsedChange={setFamilyCollapsed}
             dimmedIds={dimmedIds}
@@ -2618,11 +2698,23 @@ function BoardPage({ subPath }: { subPath: string }) {
         onOpenChange={setNewThreadOpen}
         defaultProjectId={newThreadProjectId}
         defaultEnvironment={newThreadEnvironmentSeed}
+        defaultProviderId={newThreadGroupSeed?.providerId}
+        defaultModel={newThreadGroupSeed?.model}
         focusRequest={composerFocusRequest}
         parentThreadId={newThreadParentId ?? undefined}
         parentThreadTitle={newThreadParentTitle}
-        onMaximize={newThreadParentId === null ? maximizeNewThread : undefined}
-        onSpawned={handleSpawnedThread}
+        groupName={
+          newThreadGroupId === null
+            ? undefined
+            : (groupRegistry[newThreadGroupId]?.name ?? newThreadGroupId)
+        }
+        // A group preset cannot follow to the main view either: the main
+        // view spawns the thread but the group tag write would be lost —
+        // the promise the dialog made ("Will be tagged into…") breaks.
+        onMaximize={
+          newThreadParentId === null && newThreadGroupId === null ? maximizeNewThread : undefined
+        }
+        onSpawned={newThreadGroupId === null ? handleSpawnedThread : handleGroupSpawnedThread}
       />
       <SettingsModal
         open={settingsOpen}

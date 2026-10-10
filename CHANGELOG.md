@@ -10,6 +10,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **Cards teleport with the transporter dissolve.** A card moving between lanes wipes out in its old spot (the slot holds through the wipe, then collapses) and wipes in at the new one; both sweeps ease in. A view switch or a whole-board batch move keeps the plain reflow.
 - **The board's settings live in one gear.** A modal with Behavior, What's new, and About panels replaces the standalone What's-new alert; the toolbar icon is a pulsing gift while there is unseen changelog — its click lands straight on the news — and a settings gear otherwise.
 
+#### Groups and family boxes
+
+- **A right-click on a family box offers the group's actions in one menu.** New thread in group… opens the composer preset to the group, Rename group… opens the label editor, and Ungroup all members keeps its click-again confirm.
+  - The spawned thread lands with the majority of the members' settings: the most common project and the most common provider/model pair seeded into the composer, each member's model resolved through its own settings.
+  - The composer dialog announces the target, "Will be tagged into *group*", before the prompt is spent, and tags the spawned thread into the group itself.
+  - Member cards keep their own menus; the group menu covers the box's surface only.
+
 ### Changed
 
 ### Fixed
