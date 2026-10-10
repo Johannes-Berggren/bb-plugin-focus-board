@@ -3,6 +3,7 @@ import {
   appendTo,
   applyMove,
   applyMoveVisible,
+  childRankKey,
   columnIsRanked,
   displayAfterMove,
   columnRankKey,
@@ -15,6 +16,23 @@ import {
 
 const newestFirst = (a: { updatedAt: number }, b: { updatedAt: number }): number =>
   b.updatedAt - a.updatedAt;
+
+describe("child rank keys (one family's nested-rows order)", () => {
+  it("scopes the order under the parent id", () => {
+    expect(childRankKey("thr_parent")).toBe("child:thr_parent");
+  });
+
+  it("never collides with a column key for the same id", () => {
+    // The prefix is the whole point: a column named after a thread id in
+    // some grouping must not share a store slot with that family's rows.
+    expect(childRankKey("abc")).not.toBe(columnRankKey("status", "abc"));
+    expect(childRankKey("abc")).not.toBe(columnRankKey("parent", "abc"));
+  });
+
+  it("an empty parent id throws instead of minting a mystery slot", () => {
+    expect(() => childRankKey("")).toThrow();
+  });
+});
 
 describe("column rank keys", () => {
   it("namespaces a lane by its grouping", () => {

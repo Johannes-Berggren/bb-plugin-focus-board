@@ -1,4 +1,4 @@
-import { type ReactNode, useState } from "react";
+import { type DragEvent, type ReactNode, useState } from "react";
 import type { PluginSidebarThread } from "@get-bb/plugin-sdk/app";
 import { Icon } from "@/components/ui/icon";
 import { cn } from "@/lib/utils";
@@ -83,6 +83,19 @@ interface ThreadCardProps {
   menuActions?: readonly CardMenuAction[];
   /** Children that render as nested rows beneath this card, in display order. */
   childThreads?: readonly PluginSidebarThread[];
+  /**
+   * The same-family nested-row reorder gesture (the board owns every
+   * decision — target, guard, write). Wired only when the rows can actually
+   * reorder: ranking on, the write available, and the family renders more
+   * than one row. Absent → the rows keep their plain drag-out behavior.
+   */
+  childRankDrag?: {
+    onDragOver: (hoverChildId: string, event: DragEvent) => void;
+    onDrop: (hoverChildId: string, event: DragEvent) => void;
+    onDragLeave: (event: DragEvent) => void;
+    /** The row currently carrying the insertion line, and its half. */
+    line?: { childId: string; zone: "before" | "after" };
+  };
   /**
    * The child-count chip's number: ALL visible children of this parent
    * (including ones rendering standalone), not just the nested rows.
@@ -260,6 +273,7 @@ function ChildRow({
   snoozeFor,
   rankKey,
   onRankDragStart,
+  rankDrag,
 }: {
   child: PluginSidebarThread;
   /** A done child row dims, as does any child of a done parent. */
@@ -275,16 +289,46 @@ function ChildRow({
    * read the gesture. */
   rankKey?: string;
   onRankDragStart?: (threadId: string | null) => void;
+  /**
+   * The same-family reorder gesture from the board (targeting, guards, and
+   * the write all live there). Only the row's events and its insertion line
+   * live here. Absent → the row stays a drag SOURCE only.
+   */
+  rankDrag?: {
+    onDragOver: (hoverChildId: string, event: DragEvent) => void;
+    onDrop: (hoverChildId: string, event: DragEvent) => void;
+    onDragLeave: (event: DragEvent) => void;
+    line?: { childId: string; zone: "before" | "after" };
+  };
 }) {
   const now = Date.now();
   const childSnoozeWakeAt = snoozeFor?.(child.id) ?? null;
   const childSnoozed = childSnoozeWakeAt !== null;
+  // This row's insertion line (the same-family reorder promise): "before"
+  // draws above the row, "after" below — the same affordance card slots get.
+  const rowLine =
+    rankDrag?.line?.childId === child.id ? (rankDrag.line ? rankDrag.line.zone : undefined) : undefined;
   const row = (
     <a
       href={child.href}
       data-thread-card={child.id}
       data-snoozed={childSnoozeWakeAt !== null ? "" : undefined}
       draggable={!childSnoozed}
+      onDragOver={
+        rankDrag === undefined
+          ? undefined
+          : (event) => rankDrag.onDragOver(child.id, event)
+      }
+      onDrop={
+        rankDrag === undefined ? undefined : (event) => rankDrag.onDrop(child.id, event)
+      }
+      onDragLeave={(event) => {
+        // The line dies only when the pointer truly leaves the row —
+        // crossing a span inside it must not flicker the promise away.
+        const into = event.relatedTarget;
+        if (into instanceof Node && event.currentTarget.contains(into)) return;
+        rankDrag?.onDragLeave(event);
+      }}
       aria-current={isActive ? "true" : undefined}
       onDragStart={(event) => {
         // A snoozed child refuses drag (`draggable={!childSnoozed}` above);
@@ -315,13 +359,17 @@ function ChildRow({
         // branch line, no project line. The whole row is the drag handle:
         // dragging it off a family card and releasing over a column floor
         // un-nests it.
-        "block rounded-md border border-border/50 bg-muted/40 px-2 py-1.5 text-left",
+        "relative block rounded-md border border-border/50 bg-muted/40 px-2 py-1.5 text-left",
         "transition-colors hover:bg-accent/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring",
         "opacity-70 hover:opacity-100",
         child.isArchived && "saturate-50",
         dimmed && "opacity-50",
         childSnoozeWakeAt !== null && "saturate-50",
         isActive && "ring-2 ring-ring",
+        rowLine === "before" &&
+          "before:absolute before:inset-x-0 before:-top-0.5 before:h-0.5 before:rounded-full before:bg-ring",
+        rowLine === "after" &&
+          "after:absolute after:inset-x-0 after:-bottom-0.5 after:h-0.5 after:rounded-full after:bg-ring",
       )}
     >
       <div className="flex items-center gap-1.5">
@@ -394,6 +442,7 @@ export function ThreadCard({
   activeThreadId,
   onOpenThread,
   childMenuActions,
+  childRankDrag,
   isCollapsed,
   onCollapsedChange,
   // Ruler+wrap mini cards: tighter padding and type, no ticket chips.
@@ -709,6 +758,7 @@ export function ThreadCard({
                         snoozeFor={snoozeFor}
                         rankKey={rankKey}
                         onRankDragStart={onRankDragStart}
+                        rankDrag={childRankDrag}
                       />
                     </li>
                   );

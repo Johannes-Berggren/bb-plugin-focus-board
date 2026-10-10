@@ -32,11 +32,13 @@ import { NewThreadModal } from "./components/new-thread-modal";
 import type { SpawnedThread } from "./components/new-thread-modal";
 import type { CardMenuAction } from "./components/thread-card-menu";
 import { cardMenuActions } from "./lib/card-menu";
-import type { FilterState, GroupBy, ThreadState } from "./components/grouping";
+import type { FilterState, GroupBy, LaneHideOutcome, ThreadState } from "./components/grouping";
 import {
   buildColumns,
   columnFor,
+  filterBucketsWithoutLane,
   matchesFilter,
+  NO_GROUP_BUCKET,
 } from "./components/grouping";
 import {
   buildFamilyIndex,
@@ -722,6 +724,7 @@ function BoardPage({ subPath }: { subPath: string }) {
         (["working", "attention", "unread", "idle"] as const).includes(state as ThreadState),
       ),
     ),
+    groups: new Set(readStoredList(`${FILTER_KEY}:groups`)),
   }));
   const [search, setSearch] = useState<string>(() => readStoredText(SEARCH_KEY, ""));
   // R3 "Nest child threads" toggle, default ON, persisted like groupBy.
@@ -876,11 +879,13 @@ function BoardPage({ subPath }: { subPath: string }) {
     writeStored(`${FILTER_KEY}:projects`, JSON.stringify([...next.projects]));
     writeStored(`${FILTER_KEY}:providers`, JSON.stringify([...next.providers]));
     writeStored(`${FILTER_KEY}:states`, JSON.stringify([...next.states]));
+    writeStored(`${FILTER_KEY}:groups`, JSON.stringify([...(next.groups ?? [])]));
   }, []);
   const persistSearch = useCallback((value: string) => {
     setSearch(value);
     writeStored(SEARCH_KEY, value);
   }, []);
+
   const persistNestChildren = useCallback((enabled: boolean) => {
     setNestChildren(enabled);
     writeStored(NEST_CHILDREN_KEY, nestStoredValue(enabled));
@@ -922,16 +927,60 @@ function BoardPage({ subPath }: { subPath: string }) {
     [nonHiddenThreads],
   );
 
+  // The filter dropdowns' row sources, derived from the board's live set the
+  // way the columns are: project and provider ids, and the Group filter's
+  // buckets — every assigned id on the board (registry names, "Unknown
+  // group" for a record-less assignment) plus the "No group" sentinel when
+  // an unassigned thread sits on the board.
   const filterOptions = useMemo(() => {
     const projectIds = new Set<string>();
     const providerIds = new Set<string>();
+    const buckets = new Set<string>();
+    let unassigned = false;
     for (const thread of liveThreads) {
       projectIds.add(thread.projectId);
       providerIds.add(thread.providerId);
+      const groupId = groupAssignments[thread.id];
+      if (groupId === undefined) unassigned = true;
+      else buckets.add(groupId);
     }
-    return { projectIds, providerIds };
-  }, [liveThreads]);
+    const groupOptions: readonly { id: string; label: string }[] = [
+      ...[...buckets].map((id) => ({
+        id,
+        label: groupRegistry[id]?.name ?? "Unknown group",
+      })),
+      ...(unassigned ? [{ id: NO_GROUP_BUCKET, label: "No group" }] : []),
+    ].sort((a, b) => a.label.localeCompare(b.label));
+    return { projectIds, providerIds, groupOptions };
+  }, [liveThreads, groupAssignments, groupRegistry]);
 
+  // The Board's hide-a-lane gesture (Project and Group views): the lane's
+  // project (or group) leaves its filter's selection — the same write the
+  // filter menu's checkbox for that bucket would make, so the menu restores
+  // the lane. The Board carries the report; refusals (the board's only
+  // known lane of its kind, or a lane standing outside the selection
+  // through box overrides) say why. The Group filter's known buckets are
+  // the menu's own row list, the No-group sentinel included (its lane
+  // hides and restores like any other).
+  const hideLane = useCallback(
+    (columnId: string): LaneHideOutcome => {
+      const isGroup = groupBy === "group";
+      const outcome = filterBucketsWithoutLane(
+        isGroup ? (filter.groups ?? new Set()) : filter.projects,
+        isGroup
+          ? filterOptions.groupOptions.map((option) => option.id)
+          : projects.map((project) => project.id),
+        columnId,
+      );
+      if (outcome.kind === "hidden") {
+        persistFilter(
+          isGroup ? { ...filter, groups: outcome.next } : { ...filter, projects: outcome.next },
+        );
+      }
+      return outcome.kind === "hidden" ? { kind: "hidden" } : outcome;
+    },
+    [groupBy, filter, projects, filterOptions, persistFilter],
+  );
   // The board card's label for a thread's project (lib/project-name): rows
   // from the sidebar's project list render their real name; bb's personal
   // project and unresolvable ids render "No project" — the term bb's own
@@ -983,12 +1032,20 @@ function BoardPage({ subPath }: { subPath: string }) {
   // "parent" grouping overrides that (D11): the nesting toggle is inert
   // there, and lane mode always filters family-first (D10 keep-and-dim).
   const familyIndex = useMemo(() => buildFamilyIndex(nonHiddenThreads), [nonHiddenThreads]);
+  // The feature-group assignment map (thread id → group id) as a stable Map
+  // for the filter pass AND the grouping context below: the group filter
+  // needs the bucket per thread everywhere the per-thread predicate runs,
+  // in both board views.
+  const groupsByThread = useMemo(
+    () => new Map<string, string>(Object.entries(groupAssignments)),
+    [groupAssignments],
+  );
   const familyFiltered = useMemo(
     () =>
       nestChildren || groupBy === "parent"
-        ? filterFamilies(nonHiddenThreads, familyIndex, filter, search.trim(), projectNameFor, ticketRefsFor, groupNameFor)
-        : filterIndividually(nonHiddenThreads, filter, search.trim(), projectNameFor, ticketRefsFor, groupNameFor),
-    [nestChildren, groupBy, nonHiddenThreads, familyIndex, filter, search, projectNameFor, ticketRefsFor, groupNameFor],
+        ? filterFamilies(nonHiddenThreads, familyIndex, filter, search.trim(), projectNameFor, ticketRefsFor, groupNameFor, groupsByThread)
+        : filterIndividually(nonHiddenThreads, filter, search.trim(), projectNameFor, ticketRefsFor, groupNameFor, groupsByThread),
+    [nestChildren, groupBy, nonHiddenThreads, familyIndex, filter, search, projectNameFor, ticketRefsFor, groupNameFor, groupsByThread],
   );
   // The feature-group plan (the decided family-box design): which groups
   // render a box, which lane each box lands in. Computed over the FULL
@@ -1014,10 +1071,6 @@ function BoardPage({ subPath }: { subPath: string }) {
   // assignment (and the box plan rides the same maps, so its column
   // overrides agree with the natural buckets). Other groupings ignore the
   // extra fields.
-  const groupsByThread = useMemo(
-    () => new Map<string, string>(Object.entries(groupAssignments)),
-    [groupAssignments],
-  );
   const groupContext = useMemo(
     () => ({
       projects,
@@ -1045,10 +1098,8 @@ function BoardPage({ subPath }: { subPath: string }) {
   const groupBoxFiltered = useMemo(
     () =>
       groupBoxPlan.active
-        ? filterWithGroupBoxes(familyFiltered.kept, groupBoxPlan.groupBoxOf, filter, search.trim(), projectNameFor, ticketRefsFor, groupNameFor)
-        : { kept: familyFiltered.kept, dimmedIds: new Set<string>() as ReadonlySet<string> },
-    [groupBoxPlan, familyFiltered, filter, search, projectNameFor, ticketRefsFor, groupNameFor],
-  );
+        ? filterWithGroupBoxes(familyFiltered.kept, groupBoxPlan.groupBoxOf, filter, search.trim(), projectNameFor, ticketRefsFor, groupNameFor, groupsByThread)        : { kept: familyFiltered.kept, dimmedIds: new Set<string>() as ReadonlySet<string> },
+    [groupBoxPlan, familyFiltered, filter, search, projectNameFor, ticketRefsFor, groupNameFor, groupsByThread]  );
   const dimmedAll = useMemo(
     () => new Set([...familyFiltered.dimmedIds, ...groupBoxFiltered.dimmedIds]),
     [familyFiltered, groupBoxFiltered],
@@ -1324,7 +1375,11 @@ function BoardPage({ subPath }: { subPath: string }) {
   );
 
   const anyFilterActive =
-    filter.projects.size > 0 || filter.providers.size > 0 || filter.states.size > 0 || searchActive;
+    filter.projects.size > 0 ||
+    filter.providers.size > 0 ||
+    filter.states.size > 0 ||
+    (filter.groups?.size ?? 0) > 0 ||
+    searchActive;
   // The board's own new-thread composer: a modal over the board and pane, so
   // composing never leaves the surface and bb's new-thread window stays out
   // of the way. The nonce re-focuses the composer editor on every open.
@@ -2279,12 +2334,13 @@ function BoardPage({ subPath }: { subPath: string }) {
           onSearchChange={persistSearch}
           projectIds={filterOptions.projectIds}
           providerIds={filterOptions.providerIds}
+          groupOptions={filterOptions.groupOptions}
           projects={projects}
           providers={providers}
           onCreateProject={createProject}
           totalCount={boardCount}
           onClearFilters={() => {
-            persistFilter({ projects: new Set(), providers: new Set(), states: new Set() });
+            persistFilter({ projects: new Set(), providers: new Set(), states: new Set(), groups: new Set() });
             persistSearch("");
           }}
           anyFilterActive={anyFilterActive}
@@ -2351,6 +2407,7 @@ function BoardPage({ subPath }: { subPath: string }) {
             onClosePane={closeThreadPane}
             onNewTask={openNewThread}
             snoozeFor={snoozeFor}
+            onHideLane={groupBy === "project" || groupBy === "group" ? hideLane : undefined}
             sweepCandidatesFor={sweepCandidatesFor}
             armedSweep={armedSweep}
             sweepRun={sweepRun}

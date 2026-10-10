@@ -7,7 +7,7 @@ import {
   type MouseEvent,
 } from "react";
 import type { PluginSidebarThread } from "@get-bb/plugin-sdk/app";
-import type { BoardColumn, GroupBy } from "./grouping";
+import type { BoardColumn, GroupBy, LaneHideOutcome } from "./grouping";
 import { threadState } from "./grouping";
 import {
   SWEEP_DESTINATION_LABELS,
@@ -30,6 +30,7 @@ import { Icon } from "@/components/ui/icon";
 import { cn } from "@/lib/utils";
 import {
   applyMoveVisible,
+  childRankKey,
   columnIsRanked,
   columnRankKey,
   displayAfterMove,
@@ -42,6 +43,7 @@ import { reparentRefusalFromParents } from "../lib/reparent";
 import {
   canJoinGroup,
   columnRunInfo,
+  inBoxMoveTarget,
   runsFromColumns,
   unitMoveTarget,
   type ColumnRunInfo,
@@ -229,6 +231,13 @@ interface BoardProps {
    * exactly as before this prop existed.
    */
   onDropPinned?: (threadId: string) => void;
+  /**
+   * The Project view's hide-a-lane write: the caller turns the lane's
+   * project out of the Project filter and the Board renders the report the
+   * outcome carries (or the refused "why"). Absent, no lane offers the
+   * affordance — there is nothing the gesture could write.
+   */
+  onHideLane?: (columnId: string) => LaneHideOutcome;
   /**
    * One-shot lane-reveal request from a menu action that relocates a card
    * (see the reveal effect inside `Board`). Seq-numbered so the board can
@@ -436,6 +445,7 @@ export function Board({
   onDropDone,
   onDropUnread,
   onDropPinned,
+  onHideLane,
   reveal = null,
   menuActionsFor,
   snoozeFor,
@@ -478,6 +488,22 @@ export function Board({
     threadId: string;
     zone: DropZone;
   } | null>(null);
+  /**
+   * The nested row showing an insertion line for a same-family reorder: the
+   * drop writes the family's own child rank order (`child:<parentId>`), never
+   * the parent card's column order — those are two different orders and only
+   * one of them means "row order under this parent". Cleared with every
+   * other drag promise on dragend, dragleave, and after a commit.
+   */
+  const [childDrop, setChildDrop] = useState<{
+    parentId: string;
+    childId: string;
+    zone: Half;
+  } | null>(null);
+
+  function clearChildDrop(): void {
+    setChildDrop(null);
+  }
 
   // The shift-click anchor: the last card clicked without Shift in the armed
   // column. Shift extends the selection from it (it stays put — standard
@@ -598,6 +624,15 @@ export function Board({
   // leaves the sighted operator with a drag that silently does nothing, which
   // is exactly how the last version of this shipped.
   const [rankError, setRankError] = useState<string | null>(null);
+
+  // The hide-a-lane gesture's report (Project view): a lane the Project
+  // filter wrote out says so on the board — a silent write reads the way
+  // every other silent action here reads, as being ignored. Refusals
+  // report too (the sole-lane corner, or a lane the filter already shows
+  // without). One lane armed at a time: the first click arms Hide, the
+  // second confirms.
+  const [hideLaneReport, setHideLaneReport] = useState<{ message: string } | null>(null);
+  const [hideArmColumn, setHideArmColumn] = useState<string | null>(null);
   // Bumped on every refusal so the auto-dismiss timer restarts even when the
   // new message is identical to the old one — React would otherwise bail out
   // on the same string and let the stale clock cut the repeat refusal short.
@@ -635,6 +670,14 @@ export function Board({
     );
     return () => clearTimeout(timer);
   }, [browserNotice, onDismissBrowserNotice]);
+
+  // The lane-hide's report expires the same way: a dead banner would squat
+  // on the board pretending to matter.
+  useEffect(() => {
+    if (hideLaneReport === null) return;
+    const timer = setTimeout(() => setHideLaneReport(null), RANK_ERROR_AUTO_DISMISS_MS);
+    return () => clearTimeout(timer);
+  }, [hideLaneReport]);
 
   // A sweep-mode click on a thread that may not join a sweep (live-child
   // parent) refuses on screen: a click that silently does nothing reads as
@@ -969,6 +1012,24 @@ export function Board({
             </button>
           </div>
         ) : null}
+        {hideLaneReport !== null ? (
+          <div
+            role="status"
+            data-testid="lane-hide-notice"
+            className="mx-3 mb-1 flex items-center justify-between gap-2 rounded border border-amber-500/40 bg-amber-500/10 px-2 py-1 text-[11px] text-amber-700 dark:text-amber-400"
+          >
+            <p className="min-w-0">{hideLaneReport.message}</p>
+            <button
+              type="button"
+              onClick={() => setHideLaneReport(null)}
+              aria-label="Dismiss lane notice"
+              title="Dismiss"
+              className="rounded p-0.5 text-amber-700/70 transition-colors hover:bg-amber-500/10 hover:text-amber-700 focus-visible:outline focus-visible:outline-1 focus-visible:outline-amber-600 dark:text-amber-400/70 dark:hover:text-amber-400"
+            >
+              <Icon name="X" className="size-3" aria-hidden />
+            </button>
+          </div>
+        ) : null}
         {sweepRefusal !== null ? (
           <div
             role="status"
@@ -1004,6 +1065,20 @@ export function Board({
           const dropHandler = dropHandlerFor(column.id);
           const isDropTarget = dropHandler !== null;
           const sweepKind = sweepColumnKind(column.id);
+          // The hide-a-lane affordance on the two bucket-grouped views:
+          // the Project view shows it on real project lanes (no machine-less
+          // "none" lane — the Project filter's menu cannot restore an
+          // unlisted id; the Group view DOES list the "No group" bucket in
+          // its menu, so that lane hides and restores like any other). No
+          // fixed Pinned/Done lanes either side — they are board furniture,
+          // not a project's or group's slice. Neither view's sweep kind
+          // applies, so the header's sweep slot is free here.
+          const hideLaneHere =
+            (groupBy === "project" || groupBy === "group") &&
+            onHideLane !== undefined &&
+            (groupBy === "group" || column.id !== "none") &&
+            column.id !== "pinned" &&
+            column.id !== "done";
           // The sweep-family contract is arm-scoped: only the arms whose
           // action removes the thread from the live board (archive, Done)
           // refuse live-child parents. Unpinning and marking read leave the
@@ -1068,6 +1143,84 @@ export function Board({
             return below !== undefined
               ? { threadId: below.id, zone: "before" }
               : { threadId: run.memberIds[run.memberIds.length - 1], zone: "after" };
+          };
+          /**
+           * The nested-row reorder gesture, shared by a child row's dragover
+           * and drop. Scope, on purpose: only a SAME-family sibling row is a
+           * target — a row of another family (or an unrelated card dragged
+           * over one) falls through untouched, keeping every gesture the
+           * rows already participate in (nest-under-this-parent through the
+           * card's surface, the detach floor). The write goes to the
+           * family's own child rank order (`child:<parentId>`): the column
+           * order the parent card shares with other cards must never decide
+           * where the rows sit under their own parent.
+           *
+           * Only the row list the parent currently renders can be reordered
+           * (attention and pinned children stand alone; a Done family's rows
+           * keep their recency order), which `childRowsOf` already reflects.
+           */
+          const childRowsOf = (parentId: string): readonly PluginSidebarThread[] =>
+            nestedChildrenByParent.get(parentId) ?? [];
+          const childRowTarget = (
+            parent: PluginSidebarThread,
+            hoverChildId: string,
+            draggedId: string,
+            event: React.DragEvent,
+          ): { beforeId: string | null; toEnd: boolean } | null => {
+            if (!isLaneDrag(event.dataTransfer.types, rankKey)) return null;
+            if (liveParentOf(draggedId) !== parent.id || draggedId === hoverChildId) return null;
+            const rowIds = childRowsOf(parent.id).map((child) => child.id);
+            const rect = event.currentTarget.getBoundingClientRect();
+            const edge: Half = event.clientY - rect.top < rect.height / 2 ? "before" : "after";
+            return moveTargetFor(rowIds, hoverChildId, edge, draggedId);
+          };
+          const childRankDragOver = (
+            parent: PluginSidebarThread,
+            hoverChildId: string,
+            event: React.DragEvent,
+          ): void => {
+            if (!ranking) return;
+            const draggedId = draggingIdRef.current;
+            if (draggedId === null || draggedId === "" || draggedId === hoverChildId) return;
+            // Only a same-family lane drag reorders; anything else leaves the
+            // row's handlers unclaimed so the parent card's gestures run.
+            const target = childRowTarget(parent, hoverChildId, draggedId, event);
+            if (target === null) return;
+            event.preventDefault();
+            event.stopPropagation();
+            event.dataTransfer.dropEffect = "move";
+            const rect = event.currentTarget.getBoundingClientRect();
+            const zone: Half = event.clientY - rect.top < rect.height / 2 ? "before" : "after";
+            setChildDrop((current) =>
+              current?.parentId === parent.id &&
+              current?.childId === hoverChildId &&
+              current?.zone === zone
+                ? current
+                : { parentId: parent.id, childId: hoverChildId, zone },
+            );
+          };
+          const childRankDrop = (
+            parent: PluginSidebarThread,
+            hoverChildId: string,
+            event: React.DragEvent,
+          ): void => {
+            if (!ranking) return;
+            const droppedId = draggedIdFor(event, draggingIdRef.current);
+            if (droppedId === "") return;
+            // Guards re-run on the payload's id: the dragover's ref can name
+            // a card the drop contradicts.
+            const target = childRowTarget(parent, hoverChildId, droppedId, event);
+            if (target === null) return;
+            event.preventDefault();
+            event.stopPropagation();
+            setChildDrop(null);
+            setRankError(null);
+            const rowIds = childRowsOf(parent.id).map((child) => child.id);
+            onRankMove?.(childRankKey(parent.id), droppedId, target.beforeId, target.toEnd, rowIds);
+            const after = displayAfterMove(rowIds, droppedId, target.beforeId, target.toEnd);
+            setAnnouncement(
+              `Moved to position ${after.indexOf(droppedId) + 1} of ${after.length} within ${parent.displayTitle}.`,
+            );
           };
           return (
             <section
@@ -1179,7 +1332,8 @@ export function Board({
             >
               <header
                 className={cn(
-                  "flex items-baseline gap-1.5 px-1 pb-1.5 transition-colors",
+                  // `group` lights the hover-revealed hide-lane icon.
+                  "group flex items-baseline gap-1.5 px-1 pb-1.5 transition-colors",
                   // Grow the hit strip only while a drag flies, and grow it
                   // with negated margins so no card moves beneath the cursor:
                   // +4px each side here, -4px back from the content flow.
@@ -1251,38 +1405,106 @@ export function Board({
                     <Icon name="SortingOneNine" className="size-3" aria-hidden />
                   </span>
                 ) : null}
-                {sweepActive && sweepKind !== null ? (
+                {(sweepActive && sweepKind !== null) || hideLaneHere ? (
                   <span className="ml-auto flex items-center gap-0.5">
-                    <SweepButton
-                      eligibleCount={eligible.length}
-                      isArmed={isArmed}
-                      run={
-                        runHere === null
-                          ? null
-                          : { done: runHere.done, total: runHere.total }
-                      }
-                      destination={sweepDestination(column.id) ?? "archive"}
-                      onArm={() => onSweepArm?.(column.id)}
-                      onConfirm={() => onSweepConfirm?.(column.id)}
-                    />
-                    {isArmed || runHere !== null ? (
-                      <button
-                        type="button"
-                        data-sweep-cancel=""
-                        aria-label={runHere !== null ? "Cancel sweep" : "Exit sweep mode"}
-                        title={
-                          runHere !== null
-                            ? "Cancel: the current thread finishes, nothing else is swept"
-                            : "Exit sweep mode"
-                        }
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          onSweepCancel?.();
-                        }}
-                        className="inline-flex size-5 items-center justify-center rounded text-muted-foreground/70 transition-colors hover:bg-accent/60 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                      >
-                        <Icon name="X" className="size-3" aria-hidden />
-                      </button>
+                    {sweepActive && sweepKind !== null ? (
+                      <>
+                        <SweepButton
+                          eligibleCount={eligible.length}
+                          isArmed={isArmed}
+                          run={
+                            runHere === null
+                              ? null
+                              : { done: runHere.done, total: runHere.total }
+                          }
+                          destination={sweepDestination(column.id) ?? "archive"}
+                          onArm={() => onSweepArm?.(column.id)}
+                          onConfirm={() => onSweepConfirm?.(column.id)}
+                        />
+                        {isArmed || runHere !== null ? (
+                          <button
+                            type="button"
+                            data-sweep-cancel=""
+                            aria-label={runHere !== null ? "Cancel sweep" : "Exit sweep mode"}
+                            title={
+                              runHere !== null
+                                ? "Cancel: the current thread finishes, nothing else is swept"
+                                : "Exit sweep mode"
+                            }
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              onSweepCancel?.();
+                            }}
+                            className="inline-flex size-5 items-center justify-center rounded text-muted-foreground/70 transition-colors hover:bg-accent/60 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                          >
+                            <Icon name="X" className="size-3" aria-hidden />
+                          </button>
+                        ) : null}
+                      </>
+                    ) : null}
+                    {hideLaneHere ? (
+                      // Hover-revealed at the sweep pill's slot: the eye-off
+                      // icon reads as "make this lane invisible", which is
+                      // exactly the write — the lane's project (or group)
+                      // leaves its filter's selection. First click arms; the
+                      // second writes; Escape disarm. The wording names the
+                      // view's filter — each view's menu restores the lane.
+                      (() => {
+                        const armed = hideArmColumn === column.id;
+                        const laneFilterLabel =
+                          groupBy === "group" ? "Group filter" : "Project filter";
+                        const laneSubject =
+                          groupBy === "group" ? "its group" : "its project";
+                        return (
+                          <button
+                            type="button"
+                            data-hide-lane=""
+                            data-hide-lane-armed={armed ? "" : undefined}
+                            aria-label={
+                              armed
+                                ? `Hide the ${column.label} lane: ${laneSubject} leaves the ${laneFilterLabel}'s selection`
+                                : `Hide the ${column.label} lane (click again to confirm)`
+                            }
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              if (!armed) {
+                                setHideArmColumn(column.id);
+                                return;
+                              }
+                              setHideArmColumn(null);
+                              const outcome =
+                                onHideLane?.(column.id) ??
+                                ({ kind: "refused", reason: "sole-lane" } as const);
+                              setHideLaneReport({
+                                message:
+                                  outcome.kind === "hidden"
+                                    ? `Hid the "${column.label}" lane. Restore it from the ${laneFilterLabel} in the toolbar.`
+                                    : outcome.reason === "sole-lane"
+                                      ? `The "${column.label}" lane is the only ${groupBy === "group" ? "group" : "project"} lane the board knows, so it stays on the board.`
+                                      : `"${column.label}" is already outside the ${laneFilterLabel}, so the lane stays as it is.`,
+                              });
+                            }}
+                            onKeyDown={(event) => {
+                              if (event.key === "Escape" && armed) {
+                                setHideArmColumn(null);
+                              }
+                            }}
+                            className={cn(
+                              "inline-flex h-5 shrink-0 items-center gap-1 whitespace-nowrap rounded px-1.5 text-[10px] font-medium transition-opacity",
+                              "focus:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                              armed
+                                ? "bg-amber-500/90 text-amber-950 opacity-100 hover:bg-amber-500"
+                                : cn(
+                                    "transition-colors text-muted-foreground/70 hover:bg-accent/60 hover:text-foreground",
+                                    "opacity-0 group-hover:opacity-100 group-focus-within:opacity-100",
+                                  ),
+                            )}
+                          >
+                            <Icon name="EyeOff" className="size-3" aria-hidden />
+                            {armed ? "Hide" : null}
+                          </button>
+                        );
+                      })()
                     ) : null}
                   </span>
                 ) : null}
@@ -1404,14 +1626,45 @@ export function Board({
                               return;
                             }
                             // Same-run hover (a member of the dragged card's
-                            // own box, either side) is a no-op: the box
-                            // cannot land inside itself.
+                            // own box, either side): the EDGES reorder inside
+                            // the box — the member moves alone, never the run
+                            // (inBoxMoveTarget answers; the box-edge
+                            // normalization stays unitMoveTarget's job). The
+                            // middle third keeps the nest zone below.
                             const dragUnit =
                               draggingIdRef.current !== null && draggingIdRef.current !== ""
                                 ? unitOf(draggingIdRef.current)
                                 : undefined;
                             if (dragUnit !== undefined && dragUnit.includes(thread.id)) {
-                              clearRankDrop();
+                              if (zone === "onto") {
+                                const rep = rankRepFor(thread.id, zone);
+                                setRankDrop((current) =>
+                                  current?.columnId === column.id &&
+                                  current?.threadId === rep.threadId &&
+                                  current?.zone === rep.zone
+                                    ? current
+                                    : { columnId: column.id, threadId: rep.threadId, zone: rep.zone },
+                                );
+                                return;
+                              }
+                              const inBoxTarget = inBoxMoveTarget(
+                                shownThreads.map((candidate) => candidate.id),
+                                thread.id,
+                                zone,
+                                draggingIdRef.current as string,
+                                runInfo,
+                              );
+                              if (inBoxTarget === null) {
+                                clearRankDrop();
+                                return;
+                              }
+                              setRankDrop((current) =>
+                                current?.columnId === column.id &&
+                                current?.threadId === thread.id &&
+                                current?.zone === zone
+                                  ? current
+                                  : { columnId: column.id, threadId: thread.id, zone },
+                              );
                               return;
                             }
                             const rep = rankRepFor(thread.id, zone);
@@ -1505,13 +1758,34 @@ export function Board({
                             event.stopPropagation();
                             clearRankDrop();
                             if (droppedId === "") return;
-                            const target = unitMoveTarget(
-                              shownThreads.map((candidate) => candidate.id),
-                              thread.id,
-                              edge,
-                              droppedId,
-                              runInfo,
-                            );
+                            // A hover inside the dragged member's own box
+                            // reorders WITHIN the family: the member moves
+                            // alone (no unit ids), into the slot the line
+                            // showed. Every hover outside the box keeps the
+                            // box-edge unit move.
+                            const dropRun = runInfo.get(droppedId);
+                            const hoverRun = runInfo.get(thread.id);
+                            const sameBox =
+                              dropRun !== undefined &&
+                              dropRun.role !== "solo" &&
+                              hoverRun !== undefined &&
+                              hoverRun.role !== "solo" &&
+                              dropRun.boxId === hoverRun.boxId;
+                            const target = sameBox
+                              ? inBoxMoveTarget(
+                                  shownThreads.map((candidate) => candidate.id),
+                                  thread.id,
+                                  edge,
+                                  droppedId,
+                                  runInfo,
+                                )
+                              : unitMoveTarget(
+                                  shownThreads.map((candidate) => candidate.id),
+                                  thread.id,
+                                  edge,
+                                  droppedId,
+                                  runInfo,
+                                );
                             if (target === null) {
                               reportRefusal(
                                 `the drop position in ${column.label} resolved to no move.`,
@@ -1524,7 +1798,7 @@ export function Board({
                               target.beforeId,
                               target.toEnd,
                               shownThreads.map((candidate) => candidate.id),
-                              unitOf(droppedId),
+                              sameBox ? undefined : unitOf(droppedId),
                             );
                           }
                         }
@@ -1713,6 +1987,28 @@ export function Board({
                           onOpen={() => onOpenThread(thread.id)}
                           onOpenThread={onOpenThread}
                           childMenuActions={menuActionsFor}
+                          childRankDrag={
+                            ranking &&
+                            onRankMove !== undefined &&
+                            // Done keeps its recency order — rows under a
+                            // Done card (a done parent's or a family
+                            // projection's) sort by when the work finished,
+                            // and a child-rank write there would never show.
+                            column.id !== "done" &&
+                            childRowsOf(thread.id).length > 1
+                              ? {
+                                  onDragOver: (hoverChildId, event) =>
+                                    childRankDragOver(thread, hoverChildId, event),
+                                  onDrop: (hoverChildId, event) =>
+                                    childRankDrop(thread, hoverChildId, event),
+                                  onDragLeave: () => clearChildDrop(),
+                                  line:
+                                    childDrop !== null && childDrop.parentId === thread.id
+                                      ? { childId: childDrop.childId, zone: childDrop.zone }
+                                      : undefined,
+                                }
+                              : undefined
+                          }
                           rankKey={ranking ? rankKey : undefined}
                           onRankDragStart={(id) => {
                             draggingIdRef.current = id;
@@ -1727,6 +2023,7 @@ export function Board({
                             if (id === null) {
                               clearRankDrop();
                               setJoinHoverId(null);
+                              clearChildDrop();
                             }
                           }}
                         />

@@ -7,6 +7,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **Restrict the board with a Group filter.** A Group control sits beside the Project filter with a row per feature group — plus "No group" for unassigned threads and "Unknown group" when an assignment outlives its registry record — composing with the Project / Provider / State filters and persisting like them.
+- **Hide a group lane straight from the board.** In the Group view, hovering a column's header shows the same eye-off affordance the Project view hides project lanes with: two clicks write the lane's group out of the Group filter and a banner names the restore path (re-check the row in that filter's menu).
+- **Hide a project lane straight from the board.** In the Project view, hovering a lane's header shows an eye-off icon where the sweep pill sits; two clicks (icon → armed "Hide") write the lane's project out of the Project filter and a banner explains the lane restores from that filter — the board's only project lane refuses with its reason instead of pretending to hide.
+- **Reorder cards inside a family box.** Dropping a box member beside a sibling in the same dashed box moves that member alone — no more box-edge anchor, no refusal banner — while a drop beside anything outside the box still moves the whole box as one unit.
+- **Reorder the nested child rows under a family card.** Drop a child row on a sibling row's edge and the row order under that parent is written per family (`child:<parent>`, its own rank order — never the parent card's column order); Done families keep their done-recency rows, and dragging a row onto the floor still detaches it.
 - **Threads join named family boxes, and the boxes are manageable.** "Group…" in a card menu assigns the thread to a shared named group (created in-line); members render inside one dashed outline with the group name on its border, the whole box moves as one unit by drag or Alt+Arrow, and the group evaporates when its last assignment clears.
   - The outline is the join target: a drop onto the box or any member card joins the group, while a member card's middle third still nests and same-group drags still reorder — tall members no longer hide the target.
   - A group of one keeps its named outline on the board, so the group never hides between joins.
@@ -16,11 +21,6 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **Toolbar search reaches feature-group names.** Typing the name of a family box's group — e.g. an epic — surfaces its member cards even when no card's title, branch, or project says it; a group hit keeps a nested family or box whole with its non-matching members dimmed, like every other search field.
 - **The board can wear a wallpaper.** The toolbar's image control opens a picker with gradient presets, a shuffle strip, a search over openly licensed photos, and a free-form URL field — all with a dim slider that keeps cards readable. The setting persists per browser and applies globally.
   - Theme-aware: each preset carries a light and a dark palette and the board follows `prefers-color-scheme` live; a wallpaper without a dark variant keeps its light URL everywhere.
-  - Letterboxed: wallpapers fit the whole image instead of center-cropping at odd panel shapes, with the letterbox bars in the theme background.
-  - Done stays readable with a wallpaper on: done, dimmed, and snoozed cards fade through a wash of their own surface color instead of whole-card opacity.
-- **The New thread composer can maximize into the main new-thread view.** Project and environment seeds plus the prompt text ride along, and the maximize hides while a child preset is armed, since the main view cannot spawn a nested thread — the board's own draft is kept.
-- **`/` jumps to search.** With no pane open, pressing `/` on the board moves focus to the toolbar's search field and puts the caret at the end of the query; panes, dialogs, open dropdowns, and modifier chords keep claiming the key.
-- **The pane's open menu reveals the thread's browser tab.** "Reveal browser tab" sits in the dropdown's thread group between "Open in browser" and "Copy thread link", running the same one-step gesture the card menu carries and reporting outcomes on the board's banner.
 
 ### Changed
 

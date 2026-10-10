@@ -38,6 +38,13 @@ export type FilterState = {
   providers: ReadonlySet<string>;
   /** Empty set means all states; a non-empty set restricts to those states. */
   states: ReadonlySet<ThreadState>;
+  /** Empty or absent set means all groups; a non-empty set restricts to
+   *  those buckets — group ids (including the "Unknown group" buckets of
+   *  record-less assignments), or NO_GROUP_BUCKET for unassigned threads.
+   *  The assignment lookup rides the filter call's `groupsByThread`, not
+   *  the state. The Group view's hide gesture writes this set (the lane's
+   *  group leaves the selection). */
+  groups?: ReadonlySet<string>;
 };
 
 export interface BoardColumn {
@@ -175,14 +182,109 @@ export function matchesFilter(
 export function filterThreads(
   threads: readonly PluginSidebarThread[],
   filter: FilterState,
+  groupsByThread?: ReadonlyMap<string, string>,
 ): PluginSidebarThread[] {
   return threads.filter((thread) => {
     if (filter.projects.size > 0 && !filter.projects.has(thread.projectId)) return false;
     if (filter.providers.size > 0 && !filter.providers.has(thread.providerId)) return false;
     if (filter.states.size > 0 && !filter.states.has(threadState(thread))) return false;
+    if (groupFilterMisses(thread, filter, groupsByThread)) return false;
     return true;
   });
 }
+
+/** The bucket id the "No group" column uses — shared by columnFor, the
+ *  filter machinery, and the toolbar's option list (sentinel value: group
+ *  ids from the RPCs never collide). */
+export const NO_GROUP_BUCKET = "none";
+
+/** The thread's group-filter bucket: its feature-group assignment, or the
+ *  "No group" sentinel when unassigned (or no assignment map is wired). */
+export function groupBucketFor(
+  thread: PluginSidebarThread,
+  groupsByThread?: ReadonlyMap<string, string>,
+): string {
+  return groupsByThread?.get(thread.id) ?? NO_GROUP_BUCKET;
+}
+
+/**
+ * The group-filter half of a thread's pass check, shared by every filter
+ * entry point (filterThreads, threadPassesFilter, filterWithGroupBoxes):
+ * an EMPTY (or absent — a legacy stored filter) restrict shows every
+ * bucket; a non-empty restrict misses buckets outside the selection, the
+ * No-group sentinel included. */
+export function groupFilterMisses(
+  thread: PluginSidebarThread,
+  filter: FilterState,
+  groupsByThread?: ReadonlyMap<string, string>,
+): boolean {
+  const bucket = groupBucketFor(thread, groupsByThread);
+  if (filter.groups !== undefined && filter.groups.size > 0 && !filter.groups.has(bucket)) {
+    return true;
+  }
+  return false;
+}
+
+/** The board's hide-a-lane gesture's result: the filter write that must
+ *  follow, or why the click changed nothing (the report the banner carries). */
+export type LaneHideOutcome =
+  | { kind: "hidden" }
+  | { kind: "refused"; reason: "sole-lane" | "outside-filter" };
+
+/**
+ * The project selection after hiding the lane `hiddenColumnId` names. The
+ * selection holds the projects that PASS the filter; an EMPTY set shows
+ * every project. So hiding a lane means:
+ * - already filtered (any selection size > 1): the project leaves the set;
+ * - the lane's project is the only checked one (the set is empty, or only
+ *   this project): an empty result would read as "show all" — the exact
+ *   opposite of the click — so the write becomes "every other KNOWN project
+ *   checked, this one out" (the menu row the gesture would have produced);
+ * - the project's lane already sits outside the selection, and the set has
+ *   other entries: nothing to write (a bare lane can still stand on the
+ *   board through box overrides). Refused.
+ * Returns `null`-free: a refusal returns the reason instead.
+ *
+ * The algorithm is bucket-agnostic — the Group view's hide gesture runs the
+ * same core over the group filter's selection and known buckets (the pinned
+ * project-helpers below name the two views for their wiring).
+ */
+export function filterBucketsWithoutLane(
+  selected: ReadonlySet<string>,
+  knownBucketIds: readonly string[],
+  hiddenColumnId: string,
+): { kind: "hidden"; next: ReadonlySet<string> } | { kind: "refused"; reason: "sole-lane" | "outside-filter" } {
+  if (!selected.has(hiddenColumnId)) {
+    if (selected.size === 0) {
+      const next = new Set(knownBucketIds);
+      next.delete(hiddenColumnId);
+      return next.size === 0
+        ? { kind: "refused", reason: "sole-lane" }
+        : { kind: "hidden", next };
+    }
+    // The lane stands without its bucket passing the filter (box
+    // overrides): the gesture cannot change what it shows.
+    return { kind: "refused", reason: "outside-filter" };
+  }
+  if (selected.size > 1) {
+    const next = new Set(selected);
+    next.delete(hiddenColumnId);
+    return { kind: "hidden", next: next as ReadonlySet<string> };
+  }
+  const next = new Set(knownBucketIds);
+  next.delete(hiddenColumnId);
+  return next.size === 0
+    ? { kind: "refused", reason: "sole-lane" }
+    : { kind: "hidden", next };
+}
+
+/** The Project view's hide wiring name for the shared core (pinned by
+ *  `tests/grouping.test.ts`; the Project filter's menu restores the lane). */
+export const filterProjectsWithoutLane = filterBucketsWithoutLane;
+
+/** The Group view's hide wiring name for the shared core (the Group
+ *  filter's menu restores the lane). */
+export const filterGroupsWithoutLane = filterBucketsWithoutLane;
 
 /** The board's derived order: pinned first, then newest-first. This is the
  *  tiebreak under a manual rank AND the whole order for an unranked column.
@@ -254,7 +356,7 @@ export function columnFor(
   // optional context fields, so every other grouping is untouched.
   if (groupBy === "group") {
     const groupId = context.groupsByThread?.get(thread.id);
-    if (groupId === undefined) return { id: "none", label: "No group" };
+    if (groupId === undefined) return { id: NO_GROUP_BUCKET, label: "No group" };
     return { id: groupId, label: context.groupNames?.get(groupId) ?? "Unknown group" };
   }
   // Machine comes from the thread payload itself: the SDK resolves the host's

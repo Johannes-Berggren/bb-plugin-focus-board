@@ -39,7 +39,7 @@ import type {
   GroupingContext,
   ThreadState,
 } from "./grouping";
-import { columnFor, matchesFilter, threadState } from "./grouping";
+import { columnFor, groupFilterMisses, matchesFilter, threadState } from "./grouping";
 import { STATUS_COLUMN_ORDER } from "./grouping";
 import type { MoveTarget } from "../lib/rank";
 import type { TicketRef } from "../lib/tickets";
@@ -358,6 +358,49 @@ export function unitMoveTarget(
   return { beforeId: cursor, toEnd: false };
 }
 
+/**
+ * Where a drop on the hovered member's `edge` lands when BOTH sides are
+ * members of the SAME box: only the dragged member moves, into another slot
+ * in its own run — the reorder-inside-a-family gesture. This is the one
+ * insert `unitMoveTarget` must NOT answer: it anchors at the box's edge and
+ * moves the whole run, by design, so a same-run hover returns null there.
+ *
+ * The target is a plain single-card anchor. A member stays inside its run's
+ * span in every same-box edge case (the anchors are its siblings or the card
+ * just past the box), so the box's contiguity survives the write and the
+ * display keeps one box. Callers move WITHOUT the unit ids — the member
+ * travels alone.
+ */
+export function inBoxMoveTarget(
+  visibleIds: readonly string[],
+  hoverId: string,
+  edge: "before" | "after",
+  draggedId: string,
+  runInfo: ReadonlyMap<string, ColumnRunInfo>,
+): MoveTarget | null {
+  const dragRun = runInfo.get(draggedId);
+  const hoverRun = runInfo.get(hoverId);
+  if (
+    dragRun === undefined ||
+    hoverRun === undefined ||
+    dragRun.role === "solo" ||
+    hoverRun.role === "solo" ||
+    dragRun.boxId !== hoverRun.boxId
+  ) {
+    return null;
+  }
+  if (draggedId === hoverId) return null;
+  if (edge === "before") return { beforeId: hoverId, toEnd: false };
+  // edge === "after": anchor on whatever renders below the hover — the next
+  // member, or the card just past the box (the dragged member becomes the
+  // run's new last member). Below the dragged member itself is the no-op
+  // the board already re-anchors beside the hover.
+  const below = visibleIds[visibleIds.indexOf(hoverId) + 1];
+  if (below === undefined) return { beforeId: null, toEnd: true };
+  if (below === draggedId) return { beforeId: hoverId, toEnd: false };
+  return { beforeId: below, toEnd: false };
+}
+
 /** Flatten runs back to the visible order cards render in (drag anchors read this). */
 export function flattenRuns(
   items: readonly GroupRunItem[],
@@ -382,12 +425,14 @@ export function filterWithGroupBoxes(
   projectNameFor?: (projectId: string) => string,
   ticketRefsFor?: (thread: PluginSidebarThread) => readonly TicketRef[],
   groupNameFor?: (thread: PluginSidebarThread) => string,
+  groupsByThread?: ReadonlyMap<string, string>,
 ): { kept: PluginSidebarThread[]; dimmedIds: ReadonlySet<string> } {
   const passes = (thread: PluginSidebarThread): boolean => {
     if (thread.isArchived) return false;
     if (filter.projects.size > 0 && !filter.projects.has(thread.projectId)) return false;
     if (filter.providers.size > 0 && !filter.providers.has(thread.providerId)) return false;
     if (filter.states.size > 0 && !filter.states.has(threadState(thread))) return false;
+    if (groupFilterMisses(thread, filter, groupsByThread)) return false;
     if (
       searchQuery.trim() !== "" &&
       !matchesFilter(thread, searchQuery.trim(), projectNameFor, ticketRefsFor, groupNameFor)
