@@ -239,7 +239,7 @@ describe("delete from the label editor (arm → confirm)", () => {
     fireEvent.click(document.querySelector('[data-group-box-label="grp_1"]') as HTMLButtonElement);
   }
 
-  it("the editor hosts a trash control; the first click only arms it", () => {
+  it("the editor hosts the ungroup control; the first click only arms it", () => {
     const onDeleteGroup = vi.fn();
     renderEditor(onDeleteGroup);
     const trash = document.querySelector('[data-group-label-delete="grp_1"]') as HTMLButtonElement;
@@ -259,6 +259,18 @@ describe("delete from the label editor (arm → confirm)", () => {
     expect(onDeleteGroup).toHaveBeenCalledTimes(1);
     expect(onDeleteGroup).toHaveBeenCalledWith("grp_1");
     expect(document.querySelector('[data-group-rename-input="grp_1"]')).toBeNull();
+  });
+
+  it("the control reads Ungroup — threads stay — never a card delete", () => {
+    const onDeleteGroup = vi.fn();
+    renderEditor(onDeleteGroup);
+    const control = document.querySelector('[data-group-label-delete="grp_1"]') as HTMLButtonElement;
+    expect(control.textContent).toContain("Ungroup all members");
+    fireEvent.click(control);
+    expect(control.textContent).toContain("Ungroup");
+    expect(control.textContent).not.toContain("Delete");
+    expect(control.title).toContain("threads stay");
+    expect(onDeleteGroup).not.toHaveBeenCalled();
   });
 
   it("Escape (or a re-opened edit) disarms; the armed control never deletes without a second click", () => {

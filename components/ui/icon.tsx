@@ -25,6 +25,7 @@ import ComputerTerminal01Icon from "@hugeicons/core-free-icons/ComputerTerminal0
 import Copy01Icon from "@hugeicons/core-free-icons/Copy01Icon";
 import DashedLineCircleIcon from "@hugeicons/core-free-icons/DashedLineCircleIcon";
 import Delete02Icon from "@hugeicons/core-free-icons/Delete02Icon";
+import UngroupIcon from "@hugeicons/core-free-icons/UngroupIcon";
 import Download01Icon from "@hugeicons/core-free-icons/Download01Icon";
 import Edit02Icon from "@hugeicons/core-free-icons/Edit02Icon";
 import FilterHorizontalIcon from "@hugeicons/core-free-icons/FilterHorizontalIcon";
@@ -251,6 +252,7 @@ const CORE_ICON_MAP = {
   Toolbox: ToolboxIcon,
   ToolCase: ToolCaseIcon,
   Trash2: Delete02Icon,
+  Ungroup: UngroupIcon,
   Unavailable: UnavailableIcon,
   UserRoundPlus: UserAdd01Icon,
   Workflow: WorkflowCircle03Icon,
