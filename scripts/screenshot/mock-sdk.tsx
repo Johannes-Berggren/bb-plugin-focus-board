@@ -149,6 +149,10 @@ export function useBbNavigate(): unknown {
   };
 }
 
+export function experimental_usePluginId(): string {
+  return "focus-board";
+}
+
 export function experimental_useSidebarThreads(): unknown {
   return {
     status: "ready",
