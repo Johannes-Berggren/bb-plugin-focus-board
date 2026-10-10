@@ -20,6 +20,26 @@ const context = { projects: [], providers: [] };
 
 type BoardProps = Parameters<typeof Board>[0];
 
+/** A jsdom-friendly DataTransfer: writable payload, readable types at dragover time. */
+function makeDataTransfer() {
+  const payload = new Map<string, string>();
+  const types: string[] = [];
+  return {
+    get types() {
+      return [...types];
+    },
+    setData(type: string, value: string) {
+      if (!types.includes(type)) types.push(type);
+      payload.set(type, value);
+    },
+    getData(type: string) {
+      return payload.get(type) ?? "";
+    },
+    effectAllowed: "move",
+    dropEffect: "none",
+  };
+}
+
 function renderBoard(
   threads: readonly PluginSidebarThread[],
   groupBoxOf: ReadonlyMap<string, { groupId: string; name: string }>,
@@ -302,25 +322,6 @@ describe("drop-to-join: the box container takes a dragged card into the group", 
     ["thr_solo", { groupId: "grp_1", name: "Auth rework", members: [solo] }],
   ]);
 
-  function makeDataTransfer() {
-    const payload = new Map<string, string>();
-    const types: string[] = [];
-    return {
-      get types() {
-        return [...types];
-      },
-      setData(type: string, value: string) {
-        if (!types.includes(type)) types.push(type);
-        payload.set(type, value);
-      },
-      getData(type: string) {
-        return payload.get(type) ?? "";
-      },
-      effectAllowed: "move",
-      dropEffect: "none",
-    };
-  }
-
   function renderJoinableBoard(
     onJoinGroup: ((threadId: string, groupId: string) => void) | undefined,
   ) {
@@ -401,5 +402,173 @@ describe("drop-to-join: the box container takes a dragged card into the group", 
     expect(() => fireEvent(box, drop)).not.toThrow();
     // No join promise was ever shown, and no join write exists to fire.
     expect(document.querySelector("[data-group-box-join-hover]")).toBeNull();
+  });
+});
+
+describe("drop-to-join reaches the member cards (a tall member used to hide the target)", () => {
+  // The operator's repro: a parent family with children dragged onto a group
+  // whose member is ANOTHER parent family with children. The member card plus
+  // its nested child rows cover nearly the whole dashed outline, so a drop
+  // that looks like it landed "on the box" actually landed on the member
+  // card — which used to keep its own gestures and never offered the join.
+  const parent = thread({
+    id: "thr_family",
+    status: "active",
+    updatedAt: NOW - 5000,
+    displayTitle: "Family parent",
+  });
+  const childA = thread({
+    id: "thr_childA",
+    status: "active",
+    parentThreadId: "thr_family",
+    updatedAt: NOW - 4000,
+  });
+  const childB = thread({
+    id: "thr_childB",
+    status: "active",
+    parentThreadId: "thr_family",
+    updatedAt: NOW - 3000,
+  });
+  const freeActive = thread({ id: "thr_free", status: "active", updatedAt: NOW - 1000 });
+  const freeUnread = thread({ id: "thr_free", status: "unread", updatedAt: NOW - 1000 });
+  const familyBoxes = new Map([
+    ["thr_family", { groupId: "grp_1", name: "Ship it", members: [parent] }],
+  ]);
+
+  type Overrides = {
+    onJoinGroup?: (threadId: string, groupId: string) => void;
+    onReparent?: (childId: string, parentId: string | null) => Promise<void>;
+  };
+
+  function renderFamilyBoard(free: PluginSidebarThread, overrides: Overrides = {}) {
+    const props = {
+      groupBy: "status" as const,
+      columns: buildColumns([parent, childA, childB, free], "status", context, new Map(), new Set<string>(), NOW, {}),
+      activeThreadId: null,
+      doneIds: new Set<string>(),
+      nestedChildrenByParent: new Map([["thr_family", [childA, childB]]]),
+      childCountByParent: new Map([["thr_family", 2]]),
+      doneChildrenByParent: new Map(),
+      dimmedIds: new Set<string>(),
+      rankStore: {},
+      onRankMove: () => {},
+      groupBoxOf: familyBoxes,
+      onJoinGroup: overrides.onJoinGroup,
+      onReparent: overrides.onReparent,
+      projectNameFor: () => "",
+      repoBaseFor: () => null,
+      onOpenThread: () => {},
+      onNewTask: () => {},
+      onDropDone: () => {},
+      onDropUnread: () => {},
+      onDropPinned: () => {},
+      menuActionsFor: () => [],
+    } as unknown as BoardProps;
+    render(<Board {...props} />);
+  }
+
+  /** jsdom rects are 0×0; give the member slot a 300px-tall box so thirds are real. */
+  function giveSlotRect(height = 300): void {
+    const slot = document.querySelector('[data-rank-slot="thr_family"]') as HTMLElement | null;
+    if (slot === null) throw new Error("missing member rank slot for thr_family");
+    slot.getBoundingClientRect = () =>
+      ({ top: 0, left: 0, right: 100, bottom: height, width: 100, height }) as DOMRect;
+  }
+
+  /** Full drag over `target`: dragstart on the source anchor, then dragover at `clientY`. */
+  function beginDrag(fromId: string, target: HTMLElement, at?: { clientY: number }) {
+    const anchor = document.querySelector(`[data-thread-card="${fromId}"] a[draggable]`);
+    if (!(anchor instanceof HTMLElement)) throw new Error(`missing draggable card ${fromId}`);
+    const dt = makeDataTransfer();
+    fireEvent.dragStart(anchor, { dataTransfer: dt });
+    const over = createEvent.dragOver(target, { dataTransfer: dt });
+    if (at !== undefined) Object.defineProperty(over, "clientY", { value: at.clientY });
+    fireEvent(target, over);
+    return {
+      over,
+      hoverArmed: () => document.querySelector("[data-group-box-join-hover]") !== null,
+      finishDrop() {
+        const drop = createEvent.drop(target, { dataTransfer: dt });
+        if (at !== undefined) Object.defineProperty(drop, "clientY", { value: at.clientY });
+        fireEvent(target, drop);
+        return drop;
+      },
+    };
+  }
+
+  function parentAnchor(): HTMLElement {
+    const anchor = document.querySelector('[data-thread-card="thr_family"] a[draggable]');
+    if (!(anchor instanceof HTMLElement)) throw new Error("missing draggable family parent card");
+    return anchor;
+  }
+
+  it("a drop on the boxed member card itself joins the group", () => {
+    const onJoinGroup = vi.fn();
+    renderFamilyBoard(freeActive, { onJoinGroup });
+    const drag = beginDrag("thr_free", parentAnchor());
+    // The card's own dragover used to claim insertion; the ring only arms
+    // when the join is the promise on screen.
+    expect(drag.hoverArmed()).toBe(true);
+    drag.finishDrop();
+    expect(onJoinGroup).toHaveBeenCalledTimes(1);
+    expect(onJoinGroup).toHaveBeenCalledWith("thr_free", "grp_1");
+  });
+
+  it("a drop on a nested child row of the boxed family joins too", () => {
+    const onJoinGroup = vi.fn();
+    renderFamilyBoard(freeActive, { onJoinGroup });
+    // The row inside the family card, not the child's own top-level card.
+    const childRow = document.querySelector('[data-nested-rows] a[data-thread-card="thr_childA"]');
+    if (!(childRow instanceof HTMLElement)) throw new Error("missing nested child row thr_childA");
+    const drag = beginDrag("thr_free", childRow);
+    expect(drag.hoverArmed()).toBe(true);
+    drag.finishDrop();
+    expect(onJoinGroup).toHaveBeenCalledTimes(1);
+    expect(onJoinGroup).toHaveBeenCalledWith("thr_free", "grp_1");
+  });
+
+  it("the member's middle third still nests — the nest zone wins over the join", () => {
+    const onJoinGroup = vi.fn();
+    const onReparent = vi.fn().mockResolvedValue(undefined);
+    renderFamilyBoard(freeActive, { onJoinGroup, onReparent });
+    giveSlotRect(300);
+    const drag = beginDrag("thr_free", parentAnchor(), { clientY: 150 });
+    expect(drag.hoverArmed()).toBe(false);
+    drag.finishDrop();
+    expect(onReparent).toHaveBeenCalledWith("thr_free", "thr_family");
+    expect(onJoinGroup).not.toHaveBeenCalled();
+  });
+
+  it("a cross-lane drop on the member card in a state-neutral lane never joins", () => {
+    // The working column has no state-change drop target, and cross-lane
+    // drags keep the member's own gesture contract rather than bubbling a
+    // deferred join: the box's ring stays dark, no group write happens.
+    const onJoinGroup = vi.fn();
+    renderFamilyBoard(freeUnread, { onJoinGroup });
+    const drag = beginDrag("thr_free", parentAnchor());
+    expect(drag.hoverArmed()).toBe(false);
+    drag.finishDrop();
+    expect(onJoinGroup).not.toHaveBeenCalled();
+  });
+
+  it("a cross-lane hover on the box's own surface arms the join (a drop from another column joins)", () => {
+    const onJoinGroup = vi.fn();
+    renderFamilyBoard(freeUnread, { onJoinGroup });
+    const box = document.querySelector('[data-group-box="grp_1"]') as HTMLElement;
+    const drag = beginDrag("thr_free", box);
+    // The lane gate used to refuse cross-column drags here: no permission,
+    // no ring, and the browser never fires the drop at all.
+    expect(drag.over.defaultPrevented).toBe(true);
+    expect(drag.hoverArmed()).toBe(true);
+    drag.finishDrop();
+    expect(onJoinGroup).toHaveBeenCalledTimes(1);
+    expect(onJoinGroup).toHaveBeenCalledWith("thr_free", "grp_1");
+  });
+
+  it("without onJoinGroup wired, a drop on the member card does nothing (no crash)", () => {
+    renderFamilyBoard(freeActive, {});
+    const drag = beginDrag("thr_free", parentAnchor());
+    expect(drag.hoverArmed()).toBe(false);
+    expect(() => drag.finishDrop()).not.toThrow();
   });
 });

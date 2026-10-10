@@ -779,8 +779,14 @@ export function Board({
     event: React.DragEvent,
     childId: string | null,
     targetId: string,
+    /**
+     * Rects read off currentTarget by default; the group-box handlers pass
+     * the hovered member's element instead so the zone math runs against
+     * the card the pointer is actually over.
+     */
+    element?: Element,
   ): DropZone {
-    const rect = event.currentTarget.getBoundingClientRect();
+    const rect = (element ?? event.currentTarget).getBoundingClientRect();
     const y = event.clientY - rect.top;
     const edge: Half = y < rect.height / 2 ? "before" : "after";
     if (
@@ -795,6 +801,35 @@ export function Board({
     if (y < rect.height / 3) return "before";
     if (y > (rect.height * 2) / 3) return "after";
     return "onto";
+  }
+
+  /**
+   * The edge-zone join deferral, shared by a box member's dragover and drop:
+   * a drag landing on a member card's surface defers to the enclosing box's
+   * drop-to-join when the dragged thread can join that member's group and
+   * the member's own gesture is not claimed first. Scope, on purpose:
+   * lane drags only — a cross-lane drag keeps the member card's own
+   * state-change-at-an-edge gesture; the middle third stays the nest zone
+   * (nesting under a boxed card has no other surface); the same-group case
+   * refuses via canJoinGroup and keeps the insertion line and reorder.
+   * Without this, a tall member (a parent family's card, its child rows
+   * included) covers nearly the whole dashed outline and none of "drop a
+   * card on this box to join" is reachable on it (observed 2026-10-10).
+   */
+  function memberEdgeDefersToJoin(
+    droppedId: string,
+    memberBoxId: string | undefined,
+    zone: DropZone,
+    lane: boolean,
+  ): boolean {
+    return (
+      onJoinGroup !== undefined &&
+      memberBoxId !== undefined &&
+      lane &&
+      zone !== "onto" &&
+      droppedId !== "" &&
+      canJoinGroup(droppedId, memberBoxId, groupBoxOf ?? EMPTY_GROUP_BOXES)
+    );
   }
 
   /**
@@ -1337,9 +1372,24 @@ export function Board({
                               );
                               return;
                             }
+                            const droppedHoverId = draggingIdRef.current;
+                            const zone = dropZoneFor(event, droppedHoverId, thread.id);
+                            if (
+                              memberEdgeDefersToJoin(
+                                droppedHoverId ?? "",
+                                runInfo.get(thread.id)?.boxId,
+                                zone,
+                                isLaneDrag(event.dataTransfer.types, rankKey),
+                              )
+                            ) {
+                              // The enclosing group box arms the join instead;
+                              // carrying this card's insertion line would put
+                              // two promises under one pointer.
+                              clearRankDrop();
+                              return;
+                            }
                             event.preventDefault();
                             event.dataTransfer.dropEffect = "move";
-                            const zone = dropZoneFor(event, draggingIdRef.current, thread.id);
                             if (draggingIdRef.current === thread.id) {
                               clearRankDrop();
                               return;
@@ -1376,6 +1426,19 @@ export function Board({
                             // name a card the payload contradicts.
                             const droppedId = draggedIdFor(event, draggingIdRef.current);
                             const zone = dropZoneFor(event, droppedId, thread.id);
+                            if (
+                              memberEdgeDefersToJoin(
+                                droppedId,
+                                runInfo.get(thread.id)?.boxId,
+                                zone,
+                                isLaneDrag(event.dataTransfer.types, rankKey),
+                              )
+                            ) {
+                              // Claimless on purpose: the event bubbles to the
+                              // group box's onDrop, which joins — the promise
+                              // its dragover armed over this same card.
+                              return;
+                            }
                             if (zone === "onto") {
                               event.preventDefault();
                               // Claim the event so the column's own handler
@@ -1683,16 +1746,38 @@ export function Board({
                             className="relative mt-1.5"
                             onDragOver={(event) => {
                               if (!ranking || onJoinGroup === undefined) return;
-                              if (!isLaneDrag(event.dataTransfer.types, rankKey)) return;
-                              // Member-card surfaces keep their own gestures
-                              // (insertion edges, the nest zone): only the
-                              // container's own surface — label, padding, and
-                              // the gaps between member cards — joins.
+                              // Every surface inside the dashed outline joins:
+                              // label, padding, gaps, and the member cards
+                              // themselves (via memberEdgeDefersToJoin). A tall
+                              // member — a parent family's card, child rows and
+                              // all — used to cover nearly the whole box, so
+                              // the visible target advertised join and offered
+                              // none of it. Over a member card, a cross-lane
+                              // drag keeps the card's own gestures and never
+                              // arms the box; the same-lane middle third is the
+                              // nest zone and it also stays the card's.
                               const target = event.target instanceof Element ? event.target : null;
-                              if (target?.closest("[data-group-box-member]") !== null) return;
+                              const memberEl = target?.closest("[data-group-box-member]") ?? null;
                               const droppedId = draggingIdRef.current;
                               if (droppedId === null || droppedId === "") return;
                               if (!canJoinGroup(droppedId, runItem.box.groupId, groupBoxOf ?? EMPTY_GROUP_BOXES)) return;
+                              if (memberEl !== null) {
+                                if (!isLaneDrag(event.dataTransfer.types, rankKey)) return;
+                                const memberZone = dropZoneFor(
+                                  event,
+                                  droppedId,
+                                  memberEl.getAttribute("data-rank-slot") ?? "",
+                                  memberEl,
+                                );
+                                if (memberZone === "onto") {
+                                  // The nest hover owns the card now; the box
+                                  // must drop its own promise, not double-glow.
+                                  setJoinHoverId((current) =>
+                                    current === runItem.box.groupId ? null : current,
+                                  );
+                                  return;
+                                }
+                              }
                               event.preventDefault();
                               event.dataTransfer.dropEffect = "move";
                               setJoinHoverId(runItem.box.groupId);
@@ -1707,7 +1792,30 @@ export function Board({
                             onDrop={(event) => {
                               if (!ranking || onJoinGroup === undefined) return;
                               const target = event.target instanceof Element ? event.target : null;
-                              if (target?.closest("[data-group-box-member]") !== null) return;
+                              const memberEl = target?.closest("[data-group-box-member]") ?? null;
+                              if (memberEl !== null) {
+                                // A member-surface drop reaches the container
+                                // only when the member's handlers stepped aside
+                                // (a same-lane edge with a live join — see
+                                // memberEdgeDefersToJoin). Re-read the live zone
+                                // off the payload: the pointer can have settled
+                                // somewhere else since the hover armed the ring.
+                                // Never a cross-lane member drop, never the nest
+                                // third — those the member keeps.
+                                const probeId = draggedIdFor(event, draggingIdRef.current);
+                                const memberZone = dropZoneFor(
+                                  event,
+                                  probeId,
+                                  memberEl.getAttribute("data-rank-slot") ?? "",
+                                  memberEl,
+                                );
+                                if (
+                                  !isLaneDrag(event.dataTransfer.types, rankKey) ||
+                                  memberZone === "onto"
+                                ) {
+                                  return;
+                                }
+                              }
                               const droppedId = draggedIdFor(event, draggingIdRef.current);
                               if (
                                 droppedId === "" ||
