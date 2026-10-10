@@ -307,6 +307,48 @@ describe("planGroupBoxes", () => {
   });
 });
 
+describe("runsFromColumns — in-box member order follows the column's own order", () => {
+  // The box's members were ranked [b, a] IN THAT COLUMN (the in-box reorder
+  // writes the column's order with the members reordered inside the box's
+  // span). The plan's member list still holds the recency-order pair [a, b],
+  // because planGroupBoxes collects members by iterating recency-ordered
+  // threads. The box must render [b, a] — the column's order, which the
+  // operator's drag wrote — or every in-box reorder sticks in the store and
+  // immediately un-renders, looking exactly like "reorder not working"
+  // (reproduced live 2026-10-10, mock store reordered while the box did not).
+  const threads = [
+    thread({ id: "thr_a", status: "active", updatedAt: NOW - 1000 }),
+    thread({ id: "thr_b", status: "active", updatedAt: NOW - 2000 }),
+  ];
+  const plan = planGroupBoxes(
+    threads,
+    groupOf({ thr_a: "grp_auth", thr_b: "grp_auth" }),
+    NAMES,
+    "status",
+    context,
+    new Set(),
+    NOW,
+  );
+  it("renders the box members in the column's display order, not the plan's", () => {
+    const columns = buildColumns(
+      threads,
+      "status",
+      context,
+      new Map(),
+      new Set(),
+      NOW,
+      { "status:attention": [], "status:working": ["thr_b", "thr_a"] },
+      plan.columnOverrides,
+    );
+    const working = columns.find((c) => c.id === "working");
+    const runs = runsFromColumns([working as never], plan.groupBoxOf);
+    const items = (runs as Map<string, readonly { kind: string; box?: { members: { id: string }[] }; thread?: { id: string } }[]>).get("working");
+    expect(items).toHaveLength(1);
+    expect(items![0]).toMatchObject({ kind: "box" });
+    expect(items![0]!.box!.members.map((m) => m.id)).toEqual(["thr_b", "thr_a"]);
+  });
+});
+
 describe("runsFromColumns", () => {
   const threads = [
     thread({ id: "thr_a", status: "active", updatedAt: NOW - 1000 }),
