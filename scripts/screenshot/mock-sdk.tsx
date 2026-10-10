@@ -305,6 +305,16 @@ const mockSdk = {
   hosts: {
     list: async () => [{ id: "host_local", name: "MacBook Pro", lifecycle: { phase: "active" } }],
   },
+  plugins: {
+    // The settings modal's Behavior tab writes the plugin's declarative
+    // settings; the mock records the patch in `uatCalls` so a UAT driver can
+    // assert the write, while the reactive read side stays null (the
+    // harness has no host settings surface).
+    updateSettings: async (args: { pluginId: string; values: Record<string, unknown> }) => {
+      uatCalls.push({ method: "plugins.updateSettings", args });
+      return { ok: true as const };
+    },
+  },
   projects: {
     list: async () => SIM_PROJECTS.map((project) => ({ ...project, gitRemoteUrl: null })),
     create: async () => ({}),
@@ -385,6 +395,10 @@ const rpcCall = async (method: string, args?: unknown): Promise<unknown> => {
   if (method === "rank_list") return { orders: structuredClone(simRanks) };
   if (method === "pin_parks_list") return { parks: {} };
   if (method === "snooze_list") return { snoozes: {} };
+  // The mock previously fell through to `{}` here, and the app's links
+  // reader (`Object.entries(result.links)`) recorded an unhandled rejection
+  // on every harness boot and every "link-changed" wake.
+  if (method === "link_list") return { links: {} };
   // Feature groups (components/group-boxes): the harness renders one box
   // ("chat-imagegent") around the two active threads by default, and its
   // group writes mutate the module map + re-render, the way thread_reparent

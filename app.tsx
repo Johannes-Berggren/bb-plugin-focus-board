@@ -132,7 +132,7 @@ import {
 import { usePrefersDarkScheme } from "./components/ui/hooks/use-media-query";
 import { WallpaperActiveProvider } from "./components/wallpaper-contrast";
 import { EmptyState } from "./components/empty-state";
-import { WhatsNewModal } from "./components/whats-new-modal";
+import { SettingsModal, type SettingsTab } from "./components/settings-modal";
 import {
   APP_VERSION,
   CURRENT_UNRELEASED_FINGERPRINT,
@@ -256,6 +256,19 @@ function BoardPage({ subPath }: { subPath: string }) {
   // off; loading or an unavailable settings surface keeps the ON default.
   const escStopsRunningThread = escStopsRunningFromSetting(
     settingValues?.escStopsRunningThread,
+  );
+  // The settings modal's Behavior tab writes the same host declaration the
+  // detail page's config panel edits — a partial values patch on this
+  // plugin's settings (the host stores settings per key, so the panel keys
+  // beside it are untouched), then reacts through `useSettings()` when the
+  // host confirms. Failures propagate to the modal's inline error.
+  const setEscStopsRunningThread = useCallback(
+    async (value: boolean) =>
+      void (await sdk.plugins.updateSettings({
+        pluginId,
+        values: { escStopsRunningThread: value },
+      })),
+    [sdk, pluginId],
   );
 
   // The board's "needs you" state rides the sidebar's `hasPendingInteraction`
@@ -841,7 +854,7 @@ function BoardPage({ subPath }: { subPath: string }) {
   }, [lastSeenVersion]);
   // The unreleased fingerprint is NOT stamped at load: a fresh dev build
   // pulses its standing group until opened (see hasUnseenWhatsNew); only
-  // opening the modal records it as seen (openWhatsNew).
+  // opening the tab records it as seen (openSettings).
   const whatsNewUnseen = hasUnseenWhatsNew({
     runningVersion: APP_VERSION,
     lastSeenVersion,
@@ -855,13 +868,20 @@ function BoardPage({ subPath }: { subPath: string }) {
     () => whatsNewEntriesFor(APP_VERSION, whatsNewUnseen, lastSeenVersion),
     [whatsNewUnseen, lastSeenVersion],
   );
-  const [whatsNewOpen, setWhatsNewOpen] = useState(false);
-  const openWhatsNew = useCallback(() => {
-    writeLastSeenUnreleased(CURRENT_UNRELEASED_FINGERPRINT);
-    setLastSeenUnreleased(CURRENT_UNRELEASED_FINGERPRINT);
-    writeLastSeenVersion(APP_VERSION);
-    setLastSeenVersion(APP_VERSION);
-    setWhatsNewOpen(true);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [settingsTab, setSettingsTab] = useState<SettingsTab>("behavior");
+  // Opening the modal on What's new marks the changelog seen — the same
+  // side effect the standalone What's-new modal owned before it became a
+  // tab; opening on Behavior (the plain gear) touches nothing.
+  const openSettings = useCallback((tab: SettingsTab) => {
+    if (tab === "whats-new") {
+      writeLastSeenUnreleased(CURRENT_UNRELEASED_FINGERPRINT);
+      setLastSeenUnreleased(CURRENT_UNRELEASED_FINGERPRINT);
+      writeLastSeenVersion(APP_VERSION);
+      setLastSeenVersion(APP_VERSION);
+    }
+    setSettingsTab(tab);
+    setSettingsOpen(true);
   }, []);
   // The selected thread's column is captured when it is opened and held until
   // it is deselected, so live state/age changes cannot slide the card.
@@ -2346,7 +2366,7 @@ function BoardPage({ subPath }: { subPath: string }) {
           anyFilterActive={anyFilterActive}
           onNewThread={openNewThread}
           whatsNewUnseen={whatsNewUnseen}
-          onOpenWhatsNew={openWhatsNew}
+          onOpenSettings={openSettings}
           searchInputRef={searchInputRef}
           nestChildren={nestChildren}
           onNestChildrenChange={persistNestChildren}
@@ -2604,10 +2624,14 @@ function BoardPage({ subPath }: { subPath: string }) {
         onMaximize={newThreadParentId === null ? maximizeNewThread : undefined}
         onSpawned={handleSpawnedThread}
       />
-      <WhatsNewModal
-        open={whatsNewOpen}
-        onOpenChange={setWhatsNewOpen}
+      <SettingsModal
+        open={settingsOpen}
+        onOpenChange={setSettingsOpen}
+        tab={settingsTab}
+        onTabChange={setSettingsTab}
         entries={whatsNewEntries}
+        escStopsRunningThread={settingValues?.escStopsRunningThread}
+        onSetEscStopsRunningThread={setEscStopsRunningThread}
       />
       {snoozeDialogFor === null ? null : (() => {
         const dialogThread = threads.find((candidate) => candidate.id === snoozeDialogFor);

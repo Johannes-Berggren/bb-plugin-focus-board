@@ -26,9 +26,18 @@ window.localStorage.setItem(
 // Seed the stored last-seen plugin version (the what's-new gift button's
 // state): `?lastSeenVersion=0.4.4` simulates an upgrade from that version;
 // absent, the first visit stamps the running version as seen.
+// `?lastSeenUnreleased=…` seeds the [Unreleased]-group fingerprint a
+// prerelease build keys its pulse on; absent, nothing is stored.
 const lastSeenVersion = params.get("lastSeenVersion");
 if (lastSeenVersion !== null) {
   window.localStorage.setItem("focus-board:lastSeenVersion", lastSeenVersion);
+}
+const lastSeenUnreleased = params.get("lastSeenUnreleased");
+if (lastSeenUnreleased !== null) {
+  window.localStorage.setItem(
+    "focus-board:lastSeenUnreleased",
+    lastSeenUnreleased,
+  );
 }
 
 // Seed the persisted collapsed-family store: `?collapsed=id1,id2` folds those

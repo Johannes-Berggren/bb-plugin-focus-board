@@ -580,17 +580,21 @@ const pageColumnCardVisible = (threadId) => {
  * the operator sees.
  */
 const pageWhatsNew = () => {
-  const button = document.querySelector('button[aria-label="What\'s new"]');
+  // The gear/gift double-duty icon: a pulse (gift) while the changelog has
+  // unseen content, a settings gear otherwise — one button, one label
+  // whichever state it is in.
+  const button =
+    document.querySelector('button[aria-label="What\'s new"]') ??
+    document.querySelector('button[aria-label="Focus Board settings"]');
   const modal =
     document.querySelector("[role=dialog]") ??
     document.querySelector("[data-bb-portaled-overlay] [role=dialog]") ??
     document.querySelector("[data-bb-portaled-overlay] [role=alertdialog]");
+  const tab = document.querySelector('[role="tab"][aria-selected="true"]');
   return {
     icon: button !== null,
-    // The pulse ships as the motion-safe variant, compiled into one class
-    // name; the classList holds exactly that string.
-    unseen: button?.classList.contains("motion-safe:animate-pulse") ?? false,
     modal: modal !== null,
+    tab: tab?.textContent ?? null,
   };
 };
 
@@ -1062,10 +1066,31 @@ async function check(step, page, gestureResults = []) {
         );
       }
       if (want.unseen !== undefined) {
+        // Binary costume: unseen renders the "What's new" gift; seen renders
+        // the "Focus Board settings" gear. The pulse class alone can't tell
+        // the two states apart once the gear takes over, so assert the class
+        // AND the label together.
+        const [unseen, giftLabel, gearLabel] = await page.evaluate(() => {
+          const gift = document.querySelector('button[aria-label="What\'s new"]');
+          const gear = document.querySelector('button[aria-label="Focus Board settings"]');
+          return [
+            gift?.classList.contains("motion-safe:animate-pulse") ?? false,
+            gift !== null && gear === null,
+            gear !== null && gift === null,
+          ];
+        });
+        const labelMatches = want.unseen ? giftLabel : gearLabel;
         expect(
-          `what's-new ${want.unseen ? "unseen (pulsing)" : "seen (quiet)"}`,
-          got.unseen === want.unseen,
-          got.unseen ? "pulsing" : "quiet",
+          `what's-new ${want.unseen ? "unseen (pulsing gift)" : "seen (quiet gear)"}`,
+          unseen === want.unseen && labelMatches,
+          unseen ? "pulsing" : "quiet",
+        );
+      }
+      if (want.tab !== undefined) {
+        expect(
+          `settings modal selected tab ${JSON.stringify(want.tab)}`,
+          got.tab === want.tab,
+          got.tab === null ? "no tab selected" : `selected: ${got.tab}`,
         );
       }
       if (want.modal !== undefined) {

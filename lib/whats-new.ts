@@ -243,8 +243,10 @@ export interface GroupedWhatsNewItems {
 export function groupWhatsNewItems(
   items: readonly WhatsNewItem[],
 ): readonly GroupedWhatsNewItems[] {
-  const labeled: GroupedWhatsNewItems[] = [];
-  const byLabel = new Map<string, GroupedWhatsNewItems>();
+  // The local records are mutable (the builder pushes into the item lists);
+  // the returned readonly view exposes them read-only.
+  const labeled: { label: string | null; items: WhatsNewItem[] }[] = [];
+  const byLabel = new Map<string, { label: string | null; items: WhatsNewItem[] }>();
   const loose: WhatsNewItem[] = [];
   for (const item of items) {
     if (item.group !== undefined) {

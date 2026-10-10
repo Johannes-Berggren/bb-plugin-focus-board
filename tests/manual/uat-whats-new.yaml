@@ -1,10 +1,20 @@
-# Operator-assisted E2E: the What's-new gift button and modal.
+# Operator-assisted E2E: the settings modal behind the gear/gift icon.
 #
-# The button is always in the toolbar (the changelog never becomes
-# unreachable); the pulse marks an unseen version, and opening the modal
-# clears it. The harness seeds the stored last-seen version via
-# `?lastSeenVersion=…` — absent, the first visit stamps the running version
-# as seen (a fresh install pulses for nothing).
+# One double-duty icon in the toolbar's trailing cluster: a pulsing What's-new
+# gift while the changelog has unseen content (click deep-links to that tab),
+# a settings gear once caught up (click opens on Behavior). The modal's left
+# rail holds Behavior, What's new, and About; opening What's new marks the
+# feed seen, which flips the icon live — no reload needed.
+#
+# The upgrade state is seeded, not inferred: `?lastSeenVersion=0.4.4` makes a
+# stable running build pulse its version delta, and a prerelease build pulses
+# whenever its [Unreleased] group stands (the version seed is ignored there —
+# one caveat: a prerelease build carrying an empty [Unreleased] group stays
+# quiet, so this step's honest return is either pulse or "nothing new in
+# this tree", and it fails if the tree should have been pulsing). The
+# companion `?lastSeenUnreleased=` seed covers the prerelease fingerprint.
+# Hardcoding the running version anywhere rots on every release bump; the
+# assertions below only name stable UI copy.
 #
 # Run: npm run uat -- tests/manual/uat-whats-new.yaml
 suite: whats-new
@@ -17,50 +27,56 @@ defaults:
 
 steps:
   - id: upgrade-pulses-the-gift
-    title: An upgrade (stored 0.4.4 → running 0.5.0) shows the gift, pulsing
-    goto: "?groupBy=status&lastSeenVersion=0.4.4"
+    title: An update since the stored version shows the gift, pulsing
+    goto: "?groupBy=status&lastSeenVersion=0.4.4&lastSeenUnreleased=zz"
     assert:
-      - whats_new: { icon: true, unseen: true, modal: false }
+      - whats_new: { icon: true, unseen: true }
 
-  - id: opening-shows-the-delta
-    title: Opening the modal lists the entries since the stored version
+  - id: gift-click-deep-links-to-whats-new
+    title: The pulse click opens the modal straight on What's new
     click_aria: { label: "What's new" }
     assert:
-      - whats_new: { modal: true }
-      - text_visible: "Version 0.5.0"
-      - text_visible: "Version 0.4.4"
-      - text_visible: "The open pane now lives in the panel's URL"
+      # Opening the feed marks it seen in the same click, so the costume is
+      # already quiet here — step 3 only confirms the gear label that design
+      # produces.
+      - whats_new: { icon: true, unseen: false, modal: true, tab: "What's new" }
+      - text_visible: "Recent changes since you last looked."
 
   - id: opening-marks-seen
-    title: Having opened it, the pulse clears — but the button stays
-    click_aria: { label: "Got it" }
+    title: Having opened the feed once, the pulse clears — the icon is now a gear
+    press_escape: true
     assert:
       - whats_new: { icon: true, unseen: false, modal: false }
 
-  - id: quiet-button-still-opens-the-list
-    title: The quiet (seen) button still opens the full recent changelog
+  - id: gear-opens-on-behavior
+    title: The caught-up gear opens the modal on Behavior
+    click_aria: { label: "Focus Board settings" }
+    assert:
+      - whats_new: { icon: true, unseen: false, modal: true, tab: "Behavior" }
+      - text_visible: "Thread pane: Escape stops a running thread first"
+
+  - id: rail-tab-whats-new-still-reaches-the-feed
+    title: The What's-new tab stays reachable from the rail, not just the pulse
     click_aria: { label: "What's new" }
     assert:
-      - whats_new: { modal: true }
-      - text_visible: "Version 0.5.0"
+      - whats_new: { modal: true, tab: "What's new" }
+      - text_visible: "Recent changes since you last looked."
+
+  - id: rail-tab-about-shows-identity
+    title: The About tab names the running version and where the source lives
+    click_aria: { label: "About" }
+    assert:
+      - whats_new: { modal: true, tab: "About" }
+      - text_visible: "github.com/cristoslc/bb-plugin-focus-board"
 
   - id: escape-closes-the-modal
-    title: Escape closes the modal; the button remains
+    title: Escape closes the modal; the settings icon remains
     press_escape: true
     assert:
       - whats_new: { icon: true, modal: false }
 
-  - id: fresh-install-pulses-for-nothing
-    title: A fresh install (nothing stored) is stamped seen — no pulse
-    goto: "?groupBy=status"
+  - id: the-icon-never-disappears
+    title: After everything is read, the icon stays — the changelog reaches back
+    click_aria: { label: "Focus Board settings" }
     assert:
-      - whats_new: { icon: true, unseen: false, modal: false }
-
-  - id: up-to-date-is-quiet
-    title: Revisiting at the same version stays quiet
-    # No lastSeenVersion param: the harness leaves the stamp alone, so the
-    # running version counts as already seen and the button stays quiet.
-    # (Hardcoding a lastSeenVersion here rots on every release bump.)
-    goto: "?groupBy=status"
-    assert:
-      - whats_new: { icon: true, unseen: false, modal: false }
+      - whats_new: { icon: true, modal: true, tab: "Behavior" }

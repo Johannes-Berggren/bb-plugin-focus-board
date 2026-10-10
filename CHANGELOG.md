@@ -5,9 +5,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
-_Nothing unreleased — bullets land here as work merges._
-
 ### Added
+
+- **The board's settings live in one gear.** A modal with Behavior, What's new, and About panels replaces the standalone What's-new alert; the toolbar icon is a pulsing gift while there is unseen changelog — its click lands straight on the news — and a settings gear otherwise.
 
 ### Changed
 
