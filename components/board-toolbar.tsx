@@ -475,177 +475,186 @@ export function BoardToolbar({
     .sort((a, b) => a.label.localeCompare(b.label));
   return (
     <div className="flex flex-wrap items-center gap-2 border-b border-border px-3 py-2">
-      {/* Creation leads, at the far left: New thread opens the board
-          composer (components/new-thread-modal, whose header carries the
-          maximize hand-off to bb's main new-thread view). */}
-      <button
-        type="button"
-        onClick={onNewThread}
-        className="inline-flex h-8 items-center gap-1.5 rounded-md bg-primary px-2.5 text-xs font-medium text-primary-foreground transition-colors hover:bg-primary/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-      >
-        <Icon name="Plus" className="size-3.5" aria-hidden />
-        New thread
-      </button>
-      {/* Search sits right after creation; the filter controls abut it. */}
-      <div className="relative min-w-36 flex-1 sm:max-w-64">
-        <Icon
-          name="Search"
-          className="pointer-events-none absolute left-2 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground"
-          aria-hidden
-        />
-        <Input
-          value={search}
-          onChange={(event) => onSearchChange(event.target.value)}
-          placeholder="Search title or id…"
-          aria-label="Search threads"
-          className="h-8 pl-7 text-xs"
-        />
-      </div>
-      {/* Mutually exclusive: picking a grouping replaces the current one. */}
-      <MultiSelectDropdown
-        exclusive
-        label="Group"
-        icon="SlidersHorizontal"
-        selected={new Set([groupBy])}
-        options={groupOptions}
-        summaryFor={() => GROUP_BY_OPTIONS.find((o) => o.value === groupBy)?.label ?? groupBy}
-        onSingleSelect={(value) => onGroupByChange(value as GroupBy)}
-      />
-      {/* R3 "Nest child threads" toggle: lives in the Group control area —
-          it changes how the board structures families, like the grouping. */}
-      <button
-        type="button"
-        role="checkbox"
-        aria-checked={nestingLocked || nestChildren}
-        aria-disabled={nestingLocked || undefined}
-        onClick={() => {
-          if (nestingLocked) return;
-          onNestChildrenChange(!nestChildren);
-        }}
-        className={cn(
-          "inline-flex h-8 items-center gap-1.5 rounded-md px-2 text-xs font-medium text-foreground",
-          "hover:bg-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-          nestingLocked && "cursor-not-allowed opacity-50 hover:bg-transparent",
-        )}
-      >
-        <span
-          className={cn(
-            "flex size-3.5 shrink-0 items-center justify-center rounded-[3px] border",
-            nestChildren
-              ? "border-primary bg-primary text-primary-foreground"
-              : "border-muted-foreground/50 bg-background",
-          )}
-          aria-hidden
-        >
-          {nestingLocked || nestChildren ? <Icon name="Check" className="size-2.5" aria-hidden /> : null}
-        </span>
-        Nest child threads
-      </button>
-      <ProjectDropdown
-        projects={projects.filter((project) => projectIds.has(project.id) || !project.isPersonal)}
-        selected={filter.projects}
-        onToggle={(projectId) => {
-          const next = new Set(filter.projects);
-          if (next.has(projectId)) next.delete(projectId);
-          else next.add(projectId);
-          onFilterChange({ ...filter, projects: next });
-        }}
-        onToggleMany={(projectIds, add) => {
-          const next = new Set(filter.projects);
-          for (const projectId of projectIds) {
-            if (add) next.add(projectId);
-            else next.delete(projectId);
-          }
-          onFilterChange({ ...filter, projects: next });
-        }}
-        onSingleSelect={(projectId) =>
-          onFilterChange({ ...filter, projects: new Set([projectId]) })
-        }
-        onClear={() => onFilterChange({ ...filter, projects: new Set() })}
-        onCreate={onCreateProject}
-      />
-      <MultiSelectDropdown
-        label="Provider"
-        icon="Bot"
-        selected={filter.providers}
-        options={providerOptions}
-        summaryFor={(current) =>
-          current.size === 0
-            ? "All providers"
-            : current.size === 1
-              ? providerNameFor([...current][0])
-              : `${current.size} providers`
-        }
-        onToggle={(providerId) => {
-          const next = new Set(filter.providers);
-          if (next.has(providerId)) next.delete(providerId);
-          else next.add(providerId);
-          onFilterChange({ ...filter, providers: next });
-        }}
-        onToggleMany={(providerIds, add) => {
-          const next = new Set(filter.providers);
-          for (const providerId of providerIds) {
-            if (add) next.add(providerId);
-            else next.delete(providerId);
-          }
-          onFilterChange({ ...filter, providers: next });
-        }}
-        onSingleSelect={(providerId) =>
-          onFilterChange({ ...filter, providers: new Set([providerId]) })
-        }
-        onClear={() => onFilterChange({ ...filter, providers: new Set() })}
-      />
-      <MultiSelectDropdown
-        label="State"
-        icon="FilterHorizontal"
-        selected={filter.states}
-        options={STATE_OPTIONS}
-        summaryFor={(current) =>
-          current.size === 0
-            ? "Any state"
-            : current.size === 1
-              ? (STATE_OPTIONS.find((option) => option.value === [...current][0])?.label ??
-                "1 state")
-              : `${current.size} states`
-        }
-        onToggle={(state) => {
-          const next = new Set(filter.states);
-          if (next.has(state as ThreadState)) next.delete(state as ThreadState);
-          else next.add(state as ThreadState);
-          onFilterChange({ ...filter, states: next });
-        }}
-        onSingleSelect={(state) =>
-          onFilterChange({ ...filter, states: new Set([state as ThreadState]) })
-        }
-        onClear={() => onFilterChange({ ...filter, states: new Set() })}
-      />
-      {anyFilterActive ? (
+      <div className="flex items-center">
+        {/* Creation leads, at the far left: New thread opens the board
+            composer (components/new-thread-modal, whose header carries the
+            maximize hand-off to bb's main new-thread view). */}
         <button
           type="button"
-          onClick={onClearFilters}
-          className="inline-flex h-8 items-center rounded-md px-2 text-xs text-muted-foreground hover:text-foreground"
+          onClick={onNewThread}
+          className="inline-flex h-8 items-center gap-1.5 rounded-md bg-primary px-2.5 text-xs font-medium text-primary-foreground transition-colors hover:bg-primary/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
-          <Icon name="X" className="size-3.5" aria-hidden />
-          Clear
+          <Icon name="Plus" className="size-3.5" aria-hidden />
+          New thread
         </button>
-      ) : null}
-      <span className="ml-auto text-xs text-muted-foreground">{totalCount} threads</span>
-      {/* Always present — the changelog never becomes unreachable. The pulse
-          (and the amber tint) is the only state, and it clears on open. */}
-      <button
-        type="button"
-        onClick={onOpenWhatsNew}
-        aria-label="What's new"
-        title="What's new"
-        className={cn(
-          "inline-flex size-8 items-center justify-center rounded-md transition-colors hover:bg-accent hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-          whatsNewUnseen
-            ? "motion-safe:animate-pulse text-amber-500 hover:text-amber-400"
-            : "text-muted-foreground",
-        )}
-      >
-        <Icon name="Gift" className="size-4" aria-hidden />
-      </button>
+      </div>
+      {/* Search and the filter controls wrap as ONE cluster: on a narrow
+          panel whole controls move onto a continuation line under the
+          search, and the count and gift stay pinned at the right. */}
+      <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
+        {/* Search sits right after creation; the filter controls abut it. */}
+        <div className="relative min-w-36 flex-1 sm:max-w-64">
+          <Icon
+            name="Search"
+            className="pointer-events-none absolute left-2 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground"
+            aria-hidden
+          />
+          <Input
+            value={search}
+            onChange={(event) => onSearchChange(event.target.value)}
+            placeholder="Search title or id…"
+            aria-label="Search threads"
+            className="h-8 pl-7 text-xs"
+          />
+        </div>
+        {/* Mutually exclusive: picking a grouping replaces the current one. */}
+        <MultiSelectDropdown
+          exclusive
+          label="Group"
+          icon="SlidersHorizontal"
+          selected={new Set([groupBy])}
+          options={groupOptions}
+          summaryFor={() => GROUP_BY_OPTIONS.find((o) => o.value === groupBy)?.label ?? groupBy}
+          onSingleSelect={(value) => onGroupByChange(value as GroupBy)}
+        />
+        {/* R3 "Nest child threads" toggle: lives in the Group control area —
+            it changes how the board structures families, like the grouping. */}
+        <button
+          type="button"
+          role="checkbox"
+          aria-checked={nestingLocked || nestChildren}
+          aria-disabled={nestingLocked || undefined}
+          onClick={() => {
+            if (nestingLocked) return;
+            onNestChildrenChange(!nestChildren);
+          }}
+          className={cn(
+            "inline-flex h-8 items-center gap-1.5 rounded-md px-2 text-xs font-medium text-foreground",
+            "hover:bg-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+            nestingLocked && "cursor-not-allowed opacity-50 hover:bg-transparent",
+          )}
+        >
+          <span
+            className={cn(
+              "flex size-3.5 shrink-0 items-center justify-center rounded-[3px] border",
+              nestChildren
+                ? "border-primary bg-primary text-primary-foreground"
+                : "border-muted-foreground/50 bg-background",
+            )}
+            aria-hidden
+          >
+            {nestingLocked || nestChildren ? <Icon name="Check" className="size-2.5" aria-hidden /> : null}
+          </span>
+          Nest child threads
+        </button>
+        <ProjectDropdown
+          projects={projects.filter((project) => projectIds.has(project.id) || !project.isPersonal)}
+          selected={filter.projects}
+          onToggle={(projectId) => {
+            const next = new Set(filter.projects);
+            if (next.has(projectId)) next.delete(projectId);
+            else next.add(projectId);
+            onFilterChange({ ...filter, projects: next });
+          }}
+          onToggleMany={(projectIds, add) => {
+            const next = new Set(filter.projects);
+            for (const projectId of projectIds) {
+              if (add) next.add(projectId);
+              else next.delete(projectId);
+            }
+            onFilterChange({ ...filter, projects: next });
+          }}
+          onSingleSelect={(projectId) =>
+            onFilterChange({ ...filter, projects: new Set([projectId]) })
+          }
+          onClear={() => onFilterChange({ ...filter, projects: new Set() })}
+          onCreate={onCreateProject}
+        />
+        <MultiSelectDropdown
+          label="Provider"
+          icon="Bot"
+          selected={filter.providers}
+          options={providerOptions}
+          summaryFor={(current) =>
+            current.size === 0
+              ? "All providers"
+              : current.size === 1
+                ? providerNameFor([...current][0])
+                : `${current.size} providers`
+          }
+          onToggle={(providerId) => {
+            const next = new Set(filter.providers);
+            if (next.has(providerId)) next.delete(providerId);
+            else next.add(providerId);
+            onFilterChange({ ...filter, providers: next });
+          }}
+          onToggleMany={(providerIds, add) => {
+            const next = new Set(filter.providers);
+            for (const providerId of providerIds) {
+              if (add) next.add(providerId);
+              else next.delete(providerId);
+            }
+            onFilterChange({ ...filter, providers: next });
+          }}
+          onSingleSelect={(providerId) =>
+            onFilterChange({ ...filter, providers: new Set([providerId]) })
+          }
+          onClear={() => onFilterChange({ ...filter, providers: new Set() })}
+        />
+        <MultiSelectDropdown
+          label="State"
+          icon="FilterHorizontal"
+          selected={filter.states}
+          options={STATE_OPTIONS}
+          summaryFor={(current) =>
+            current.size === 0
+              ? "Any state"
+              : current.size === 1
+                ? (STATE_OPTIONS.find((option) => option.value === [...current][0])?.label ??
+                  "1 state")
+                : `${current.size} states`
+          }
+          onToggle={(state) => {
+            const next = new Set(filter.states);
+            if (next.has(state as ThreadState)) next.delete(state as ThreadState);
+            else next.add(state as ThreadState);
+            onFilterChange({ ...filter, states: next });
+          }}
+          onSingleSelect={(state) =>
+            onFilterChange({ ...filter, states: new Set([state as ThreadState]) })
+          }
+          onClear={() => onFilterChange({ ...filter, states: new Set() })}
+        />
+        {anyFilterActive ? (
+          <button
+            type="button"
+            onClick={onClearFilters}
+            className="inline-flex h-8 items-center rounded-md px-2 text-xs text-muted-foreground hover:text-foreground"
+          >
+            <Icon name="X" className="size-3.5" aria-hidden />
+            Clear
+          </button>
+        ) : null}
+      </div>
+      <div className="ml-auto flex items-center gap-2">
+        <span className="text-xs text-muted-foreground">{totalCount} threads</span>
+        {/* Always present — the changelog never becomes unreachable. The pulse
+            (and the amber tint) is the only state, and it clears on open. */}
+        <button
+          type="button"
+          onClick={onOpenWhatsNew}
+          aria-label="What's new"
+          title="What's new"
+          className={cn(
+            "inline-flex size-8 items-center justify-center rounded-md transition-colors hover:bg-accent hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+            whatsNewUnseen
+              ? "motion-safe:animate-pulse text-amber-500 hover:text-amber-400"
+              : "text-muted-foreground",
+          )}
+        >
+          <Icon name="Gift" className="size-4" aria-hidden />
+        </button>
+      </div>
     </div>
   );
 }
