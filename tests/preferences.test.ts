@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   COLLAPSED_FAMILIES_KEY,
   NEST_CHILDREN_KEY,
+  WALLPAPER_KEY,
   collapsedFamiliesStoredValue,
   escStopsRunningFromSetting,
   nestStoredValue,
@@ -9,7 +10,76 @@ import {
   parseGroupStored,
   parseNestStored,
   parseParentLaneOrderStored,
+  parseWallpaperStored,
+  wallpaperLayerOf,
+  wallpaperStoredValue,
 } from "../components/preferences";
+
+describe("wallpaper persistence", () => {
+  it("exposes the localStorage key", () => {
+    expect(WALLPAPER_KEY).toBe("focus-board:wallpaper");
+  });
+
+  it("round-trips a global url and dim", () => {
+    const settings = { version: 1 as const, global: { url: "https://example.com/w.png", dim: 0.4 } };
+    expect(parseWallpaperStored(wallpaperStoredValue(settings))).toEqual(settings);
+    expect(wallpaperStoredValue(settings)).toBe(
+      '{"version":1,"global":{"url":"https://example.com/w.png","dim":0.4}}',
+    );
+  });
+
+  it("round-trips an unset wallpaper", () => {
+    expect(parseWallpaperStored(wallpaperStoredValue({ version: 1, global: null }))).toEqual({
+      version: 1,
+      global: null,
+    });
+  });
+
+  it("defaults to no wallpaper for null / empty / garbage", () => {
+    for (const raw of [null, "", "not json", "123", "null", "[1,2,3]", JSON.stringify(5)]) {
+      expect(parseWallpaperStored(raw)).toEqual({ version: 1, global: null });
+    }
+  });
+
+  it("drops stored shapes it does not understand", () => {
+    expect(parseWallpaperStored(JSON.stringify({ version: 2, global: { url: "https://a", dim: 0 } }))).toEqual({ version: 1, global: null });
+    expect(parseWallpaperStored(JSON.stringify({ version: 1, global: { url: 7, dim: 0 } }))).toEqual({ version: 1, global: null });
+    expect(parseWallpaperStored(JSON.stringify({ version: 1, global: { url: "https://a", dim: "high" } }))).toEqual({ version: 1, global: null });
+    expect(parseWallpaperStored(JSON.stringify({ version: 1, global: { url: "", dim: 0 } }))).toEqual({ version: 1, global: null });
+  });
+
+  it("rejects non-http(s)/data url schemes instead of rendering them", () => {
+    for (const url of [
+      "javascript:alert(1)",
+      "file:///etc/passwd",
+      "chrome://settings",
+      "not-a-url",
+      "ftp://example.com/w.png",
+    ]) {
+      expect(parseWallpaperStored(JSON.stringify({ version: 1, global: { url, dim: 0.3 } }))).toEqual({ version: 1, global: null });
+    }
+  });
+
+  it("accepts https, http, and data urls", () => {
+    const url = "data:image/png;base64,iVBORw0KGgo=";
+    expect(parseWallpaperStored(JSON.stringify({ version: 1, global: { url, dim: 0.3 } })).global?.url).toBe(url);
+    expect(parseWallpaperStored(JSON.stringify({ version: 1, global: { url: "http://intranet/w.jpg", dim: 0.3 } })).global?.url).toBe("http://intranet/w.jpg");
+  });
+
+  it("clamps dim into [0, 0.9] and defaults to 0.35 when absent or invalid", () => {
+    expect(parseWallpaperStored(JSON.stringify({ version: 1, global: { url: "https://a", dim: 2 } })).global?.dim).toBe(0.9);
+    expect(parseWallpaperStored(JSON.stringify({ version: 1, global: { url: "https://a", dim: -1 } })).global?.dim).toBe(0);
+    expect(parseWallpaperStored(JSON.stringify({ version: 1, global: { url: "https://a" } })).global?.dim).toBe(0.35);
+  });
+
+  it("exposes the active layer through wallpaperLayerOf (the future per-project read builds on it)", () => {
+    expect(wallpaperLayerOf({ version: 1, global: null })).toBeNull();
+    expect(wallpaperLayerOf({ version: 1, global: { url: "https://a", dim: 0.4 } })).toEqual({
+      url: "https://a",
+      dim: 0.4,
+    });
+  });
+});
 
 describe("nesting toggle persistence (R3)", () => {
   it("exposes the localStorage key", () => {
@@ -107,6 +177,7 @@ describe("simultaneous corruption (every key garbage at once)", () => {
       expect(parseNestStored(raw)).toBe(true); // default ON
       expect(parseGroupStored(raw)).toBe("status"); // Attention fallback
       expect(parseParentLaneOrderStored(raw)).toBe("recency");
+      expect(parseWallpaperStored(raw)).toEqual({ version: 1, global: null });
       expect(parseCollapsedFamiliesStored(raw)).toBeInstanceOf(Set);
       for (const id of parseCollapsedFamiliesStored(raw)) {
         expect(typeof id).toBe("string");

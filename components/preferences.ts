@@ -88,3 +88,98 @@ export function escStopsRunningFromSetting(
 ): boolean {
   return value !== false;
 }
+
+/**
+ * The board wallpaper's localStorage persistence. Versioned document with a
+ * single GLOBAL layer for now; per-project / per-group overrides extend this
+ * same document (version 2) instead of growing sibling keys, so every scope
+ * keeps one parser.
+ */
+export const WALLPAPER_KEY = "focus-board:wallpaper";
+
+/** One wallpaper layer: where the image lives and how strongly the theme
+ *  background wash covers it. */
+export interface WallpaperLayer {
+  /** http(s) or data URL. Anything else is refused at parse time so a
+   *  javascript:-style string can never reach a CSS url(). */
+  url: string;
+  /** Overlay opacity in [0, 0.9]; 0 = untinted image, high dim keeps cards readable. */
+  dim: number;
+}
+
+export interface WallpaperSettings {
+  version: 1;
+  global: WallpaperLayer | null;
+}
+
+export const NO_WALLPAPER: WallpaperSettings = { version: 1, global: null };
+
+/** Dim bounds and the default for a layer that arrives without one. */
+const WALLPAPER_DIM_MIN = 0;
+const WALLPAPER_DIM_MAX = 0.9;
+const WALLPAPER_DIM_DEFAULT = 0.35;
+
+function clampWallpaperDim(raw: unknown): number {
+  if (typeof raw !== "number" || !Number.isFinite(raw)) return WALLPAPER_DIM_DEFAULT;
+  return Math.min(
+    WALLPAPER_DIM_MAX,
+    Math.max(WALLPAPER_DIM_MIN, raw),
+  );
+}
+
+/** True for http(s) and data image-reference URLs; everything else (a
+ *  javascript:-style scheme, a plain word, an invalid URL) is refused so it
+ *  can never reach a CSS url() or a committed wallpaper document. */
+export function isAllowedWallpaperUrl(url: string): boolean {
+  try {
+    const parsed = new URL(url);
+    return parsed.protocol === "https:" || parsed.protocol === "http:" || parsed.protocol === "data:";
+  } catch {
+    return false;
+  }
+}
+
+function parseWallpaperLayer(raw: unknown): WallpaperLayer | null {
+  if (raw === null || typeof raw !== "object") return null;
+  const record = raw as { url?: unknown; dim?: unknown };
+  if (typeof record.url !== "string") return null;
+  const url = record.url.trim();
+  if (url === "" || !isAllowedWallpaperUrl(url)) return null;
+  // A missing dim takes the default; a garbage-typed dim drops the whole
+  // layer, so no stale image ever renders untinted by accident.
+  if (record.dim === undefined) return { url, dim: WALLPAPER_DIM_DEFAULT };
+  if (typeof record.dim !== "number" || !Number.isFinite(record.dim)) return null;
+  return { url, dim: clampWallpaperDim(record.dim) };
+}
+
+/**
+ * Validate a stored wallpaper document with the same tolerance as every
+ * other stored preference: corruption, a foreign version, or a rejected url
+ * degrades to NO_WALLPAPER rather than a board that fails to load.
+ */
+export function parseWallpaperStored(raw: string | null): WallpaperSettings {
+  if (raw === null || raw === "") return NO_WALLPAPER;
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    if (parsed === null || typeof parsed !== "object") return NO_WALLPAPER;
+    const record = parsed as { version?: unknown; global?: unknown };
+    if (record.version !== 1) return NO_WALLPAPER;
+    if (record.global === null) return NO_WALLPAPER;
+    const layer = parseWallpaperLayer(record.global);
+    return layer === null ? NO_WALLPAPER : { version: 1, global: layer };
+  } catch {
+    return NO_WALLPAPER;
+  }
+}
+
+/** The layer the board currently paints behind itself (null = none). */
+export function wallpaperLayerOf(settings: WallpaperSettings): WallpaperLayer | null {
+  return settings.global;
+}
+
+/** Sorted and trimmed for a stable stored form, like collapsedFamilies. */
+export function wallpaperStoredValue(settings: WallpaperSettings): string {
+  if (settings.global === null) return JSON.stringify({ version: 1, global: null });
+  const layer = parseWallpaperLayer(settings.global) ?? null;
+  return JSON.stringify({ version: 1, global: layer });
+}

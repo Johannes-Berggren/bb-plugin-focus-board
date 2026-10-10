@@ -1,0 +1,103 @@
+// The shipped wallpaper sources: SVG-gradient presets bundled as data urls
+// (offline-first, zero third-party dependency) and the deterministic Picsum
+// seed list for photo shuffles. Every produced url must survive the same
+// validation the store applies, so a preset or thumb can never be typed in
+// a form the wallpaper document would refuse.
+import { describe, expect, it } from "vitest";
+import {
+  PICSUM_SEEDS,
+  WALLPAPER_PRESETS,
+  openverseSearchUrl,
+  parseOpenverseResults,
+  picsumThumbUrl,
+  picsumWallpaperUrl,
+} from "../components/wallpaper-presets";
+import {
+  isAllowedWallpaperUrl,
+  parseWallpaperStored,
+  wallpaperStoredValue,
+} from "../components/preferences";
+
+describe("shipped wallpaper presets", () => {
+  it("every preset url is an allowed data url and survives the store round-trip", () => {
+    for (const preset of WALLPAPER_PRESETS) {
+      expect(isAllowedWallpaperUrl(preset.url)).toBe(true);
+      const roundTripped = parseWallpaperStored(wallpaperStoredValue({ version: 1, global: { url: preset.url, dim: preset.dim } }));
+      expect(roundTripped.global).toEqual({ url: preset.url, dim: preset.dim });
+    }
+  });
+
+  it("ids and labels are unique and dim is in [0, 0.9]", () => {
+    const ids = new Set(WALLPAPER_PRESETS.map((preset) => preset.id));
+    expect(ids.size).toBe(WALLPAPER_PRESETS.length);
+    const labels = new Set(WALLPAPER_PRESETS.map((preset) => preset.label));
+    expect(labels.size).toBe(WALLPAPER_PRESETS.length);
+    for (const preset of WALLPAPER_PRESETS) {
+      expect(preset.dim).toBeLessThanOrEqual(0.9);
+      expect(preset.dim).toBeGreaterThanOrEqual(0);
+    }
+  });
+});
+
+describe("picsum shuffle urls", () => {
+  it("each seed yields a stable 1920x1080 url and a 240x135 thumbnail", () => {
+    expect(PICSUM_SEEDS.length).toBe(8);
+    expect(picsumWallpaperUrl("focus-board-3")).toBe(
+      "https://picsum.photos/seed/focus-board-3/1920/1080",
+    );
+    expect(picsumThumbUrl("focus-board-3")).toBe("https://picsum.photos/seed/focus-board-3/240/135");
+    for (const seed of PICSUM_SEEDS) {
+      expect(isAllowedWallpaperUrl(picsumWallpaperUrl(seed))).toBe(true);
+    }
+  });
+});
+
+describe("openverse search url and result parsing", () => {
+  it("encodes the query into the keyless api url", () => {
+    expect(openverseSearchUrl("mountain lake")).toBe(
+      "https://api.openverse.org/v1/images/?q=mountain%20lake&page_size=12",
+    );
+  });
+
+  it("parses results tolerantly: https-only, thumbs optional, capped at 12", () => {
+    const parsed = parseOpenverseResults({
+      results: [
+        {
+          id: "a",
+          title: "Sunset",
+          url: "https://example.com/a.jpg",
+          thumbnail: "https://api.openverse.org/v1/images/a/thumb/",
+          license: "by",
+          license_version: "2.0",
+          creator: "Ada",
+        },
+        { id: "b", url: "javascript:alert(1)", title: "bad" },
+        { id: "c", url: "https://example.com/c.jpg" },
+        { title: "no url at all (dropped)" },
+      ],
+    });
+    expect(parsed.length).toBe(2);
+    expect(parsed[0]).toEqual({
+      id: "a",
+      title: "Sunset",
+      url: "https://example.com/a.jpg",
+      thumb: "https://api.openverse.org/v1/images/a/thumb/",
+      license: "CC BY 2.0",
+      creator: "Ada",
+    });
+    expect(parsed[1]).toEqual({
+      id: "c",
+      title: "Untitled",
+      url: "https://example.com/c.jpg",
+      thumb: null,
+      license: "unknown license",
+      creator: null,
+    });
+  });
+
+  it("degrades non-array garbage to an empty list", () => {
+    expect(parseOpenverseResults(null)).toEqual([]);
+    expect(parseOpenverseResults({ results: 5 })).toEqual([]);
+    expect(parseOpenverseResults("no")).toEqual([]);
+  });
+});

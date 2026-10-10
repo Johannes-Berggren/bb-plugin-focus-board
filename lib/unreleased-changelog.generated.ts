@@ -12,6 +12,10 @@ export const UNRELEASED_ITEMS: readonly { text: string; children: string[] }[] =
     ]
   },
   {
+    "text": "**The board can wear a wallpaper.** The toolbar's image control opens a picker: eight bundled gradient presets and a deterministic Picsum shuffle strip work offline-first, a keyless Openverse search adds openly licensed photos, and a free-form url field takes anything http(s) or data — all with a dim slider that keeps cards readable. The setting persists per browser and today always applies globally, with the stored document versioned and ready for per-project or per-group overrides later.",
+    "children": []
+  },
+  {
     "text": "**The New thread composer can maximize into the main new-thread view.** A maximize button in the composer's dialog (beside the close) hands off to bb's root compose surface — project and environment seeds plus the prompt text ride along; the board's own draft is kept (a maximize is a close, not a spawn) and the button hides while a child preset is armed since the main view cannot spawn a nested thread.",
     "children": []
   },
