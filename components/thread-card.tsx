@@ -10,6 +10,7 @@ import { DRAG_ID_KEY, rankDragType } from "../lib/rank";
 import { cardTicketRefs, type ThreadLink } from "../lib/link-metadata";
 import { describeWakeAt } from "../lib/snooze";
 import { ThreadCardMenu, type CardMenuAction } from "./thread-card-menu";
+import { useWallpaperActive } from "./wallpaper-contrast";
 
 /**
  * The select-with-modifiers gesture on a sweep-mode card click, reduced to
@@ -437,6 +438,15 @@ export function ThreadCard({
   const snoozeWakeAt = snoozeFor?.(thread.id) ?? null;
   const snoozed = snoozeWakeAt !== null;
 
+  // Surface contrast floor (wallpaper on): muting the WHOLE card with
+  // opacity makes its bg-card surface translucent, so a busy wallpaper
+  // bleeds through the muted text. With a wallpaper active the card keeps
+  // its opaque surface and fades through an under-scrim instead; a
+  // sweep-highlighted card is read by the operator, so it never dims.
+  const wallpaperActive = useWallpaperActive();
+  const fades = isDone || dimmed || snoozed;
+  const dimsByScrim = wallpaperActive && fades && !isSweepHighlighted;
+
   // The card is a container; the anchor (title/body) and the collapse toggle
   // are siblings inside it — a button inside an anchor would be invalid HTML.
   const card = (
@@ -455,9 +465,9 @@ export function ThreadCard({
         isActive
           ? "ring-2 ring-ring"
           : "ring-1 ring-transparent hover:ring-border",
-        isDone && "opacity-50 saturate-50",
-        dimmed && "opacity-50",
-        snoozed && "opacity-50",
+        isDone && (dimsByScrim ? "saturate-50" : "opacity-50 saturate-50"),
+        dimmed && !dimsByScrim && "opacity-50",
+        snoozed && !dimsByScrim && "opacity-50",
         isSweepHighlighted &&
           "ring-2 ring-amber-500 bg-amber-500/10 saturate-100 opacity-100",
         isSweepSelectable && "ring-1 ring-amber-500/40",
@@ -479,6 +489,18 @@ export function ThreadCard({
           data-attention-pulse=""
           aria-hidden
           className="pointer-events-none absolute inset-0 rounded-md border-2 border-amber-500 bg-amber-500/5 motion-safe:animate-pulse"
+        />
+      ) : null}
+      {dimsByScrim ? (
+        // The wallpaper-on contrast floor: a wash of the card's own surface
+        // color over the content, so the faded look never drops the card's
+        // opacity (the wallpaper would bleed through the muted surface).
+        // Plain background paint — no backdrop-filter, mobile-safe, and
+        // pointer-events pass straight through to the content.
+        <span
+          data-card-dim-scrim=""
+          aria-hidden
+          className="pointer-events-none absolute inset-0 z-10 rounded-md bg-card/50"
         />
       ) : null}
       <div className="flex items-stretch">
