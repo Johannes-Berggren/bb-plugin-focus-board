@@ -404,7 +404,14 @@ describe("filterFamilies", () => {
     expect(result.dimmedIds.has("c")).toBe(false);
   });
 
-  it("composes with project filters: a same-family cross-project child still keeps the family", () => {
+  // A project filter is a column gate: a family member in a project the
+  // operator did not select must not surface, dimmed or not — a dim-kept
+  // member grouped by project forms a column for an unselected project
+  // (thr_fx7i95n8qg: selecting Homelab surfaced a Personal parent and a
+  // vikunja-pwa-fork parent because each had a Homelab child). State,
+  // provider, and search misses keep-and-dim inside passing families; a
+  // project miss drops the member outright.
+  it("composes with project filters: a matched child in a selected project does not surface its unselected-project parent", () => {
     const crossChild = thread({
       id: "x",
       parentThreadId: "p",
@@ -418,9 +425,51 @@ describe("filterFamilies", () => {
       { projects: new Set(["proj_b"]), providers: new Set(), states: new Set() },
       "",
     );
-    expect(result.kept.map((t) => t.id).sort()).toEqual(["p", "x"]);
-    expect(result.dimmedIds.has("p")).toBe(true);
-    expect(result.dimmedIds.has("x")).toBe(false);
+    expect(result.kept.map((t) => t.id)).toEqual(["x"]);
+    expect(result.dimmedIds.size).toBe(0);
+  });
+
+  it("composes with project filters: an unselected-project child is dropped from under its selected-project parent", () => {
+    const selectedParent = thread({ id: "p", updatedAt: NOW - HOUR });
+    const crossChild = thread({
+      id: "x",
+      parentThreadId: "p",
+      projectId: "proj_b",
+      isUnread: true,
+      updatedAt: NOW - 2 * HOUR,
+    });
+    const index = buildFamilyIndex([selectedParent, crossChild]);
+    const result = filterFamilies(
+      [selectedParent, crossChild],
+      index,
+      { projects: new Set(["proj_a"]), providers: new Set(), states: new Set() },
+      "",
+    );
+    expect(result.kept.map((t) => t.id)).toEqual(["p"]);
+    expect(result.dimmedIds.size).toBe(0);
+  });
+
+  it("composes with project filters: a member failing the project gate is dropped even when its state miss could dim-keep it", () => {
+    // The parent is idle (a state miss) AND outside the selected project; the
+    // child passes (unread, selected project). The project gate wins: the
+    // parent drops instead of dimming into an unselected project's column.
+    const familyRoot = thread({ id: "p2", updatedAt: NOW - HOUR, status: "idle" as const });
+    const child = thread({
+      id: "c2",
+      parentThreadId: "p2",
+      projectId: "proj_b",
+      isUnread: true,
+      updatedAt: NOW - 2 * HOUR,
+    });
+    const index = buildFamilyIndex([familyRoot, child]);
+    const result = filterFamilies(
+      [parent, child],
+      index,
+      { projects: new Set(["proj_b"]), providers: new Set(), states: new Set(["unread"]) },
+      "",
+    );
+    expect(result.kept.map((t) => t.id)).toEqual(["c2"]);
+    expect(result.dimmedIds.size).toBe(0);
   });
 
   it("composes with provider filters: a same-family cross-provider child still keeps the family", () => {

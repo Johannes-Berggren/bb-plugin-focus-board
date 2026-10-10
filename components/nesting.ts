@@ -722,6 +722,13 @@ function nestedKeys(nested: ReadonlyMap<string, readonly PluginSidebarThread[]>)
  * non-matching members recorded in `dimmedIds` so the board can render them
  * at reduced opacity. A family where nothing matches is dropped whole.
  *
+ * One gate never dim-keeps, though: the project filter. A project filter is
+ * a column gate (project grouping builds a column per kept member's
+ * project), so a member whose project is not selected drops from its passing
+ * family outright — dim-kept context lives only inside columns that pass,
+ * never projecting a column for an unselected project. State, provider, and
+ * search misses keep-and-dim as before.
+ *
  * Archived members are hidden outright: the family index carries none of
  * them, so an archived thread in the input forms its own (parentless)
  * family, and since an archived thread never passes the filters its family
@@ -762,8 +769,20 @@ export function filterFamilies(
     const matching = family.filter(passes);
     if (matching.length === 0) continue;
     for (const thread of family) {
+      if (matching.includes(thread)) {
+        kept.push(thread);
+        continue;
+      }
+      // A project filter is a column gate: a member in a project the
+      // operator did not select never renders, dimmed or not — a dim-kept
+      // member grouped by project forms a column for an unselected project
+      // (the Personal / unselected-family-parent report). State, provider,
+      // and search misses keep-and-dim below, inside columns that pass.
+      if (filter.projects.size > 0 && !filter.projects.has(thread.projectId)) {
+        continue;
+      }
       kept.push(thread);
-      if (!matching.includes(thread)) dimmedIds.add(thread.id);
+      dimmedIds.add(thread.id);
     }
   }
   return { kept, dimmedIds };
