@@ -27,6 +27,7 @@ import { containerSlideX, listScrollY } from "./board-scroll";
 import type { CardMenuAction } from "./thread-card-menu";
 import type { BrowserRevealNotice } from "@/lib/browser-reveal";
 import { Icon } from "@/components/ui/icon";
+import { usePrefersReducedMotion } from "@/components/ui/hooks/use-media-query";
 import { cn } from "@/lib/utils";
 import {
   applyMoveVisible,
@@ -48,8 +49,29 @@ import {
   unitMoveTarget,
   type ColumnRunInfo,
   type GroupBoxMap,
+  type GroupRunItem,
 } from "../components/group-boxes";
 import { displayAfterUnitMove } from "../lib/rank-unit-move";
+import {
+  cardRowGapPx,
+  firstRealCard,
+  ghostCollapseKeyframes,
+  insertGhostSlots,
+  laneSignature,
+  planLaneTransports,
+  TRANSPORT_BATCH_CAP,
+  TRANSPORT_COLLAPSE_MS,
+  TRANSPORT_EASE,
+  TRANSPORT_ROW_GAP_PX,
+  TRANSPORT_WIPE_IN_MS,
+  TRANSPORT_WIPE_OUT_MS,
+  wipeInKeyframes,
+  wipeOutKeyframes,
+  type LaneTransport,
+  type TransportArrivalPhase,
+  type TransportOutPhase,
+  type TransportPlay,
+} from "./card-transport";
 
 /** The group plan absents itself when the caller has no group data. */
 const EMPTY_GROUP_BOXES: GroupBoxMap = new Map();
@@ -538,7 +560,7 @@ export function Board({
     const container = scrollRef.current;
     if (container === null || activeThreadId === null) return;
     const keepActiveCardInView = () => {
-      const card = container.querySelector(`[data-thread-card="${CSS.escape(activeThreadId)}"]`);
+      const card = firstRealCard(container, activeThreadId);
       if (!(card instanceof HTMLElement)) return;
       // Horizontal: the pane opening (or a drag resize) narrows the visible
       // range; slide the card back inside it. Vertical: a lane taller than
@@ -589,7 +611,7 @@ export function Board({
     const claim = revealClaimRef.current;
     const container = scrollRef.current;
     if (claim === null || container === null) return;
-    const card = container.querySelector(`[data-thread-card="${CSS.escape(claim.threadId)}"]`);
+    const card = firstRealCard(container, claim.threadId);
     if (!(card instanceof HTMLElement)) {
       // Not on the board in this commit (a filter may hide the card, or the
       // host state has not landed yet): keep the claim and re-check on the
@@ -604,6 +626,192 @@ export function Board({
     }
     revealClaimRef.current = null;
   }, [reveal, columns]);
+
+  // ── The lane transport dissolve ─────────────────────────────────────────
+  // A card relocating between lanes in one commit does not teleport: its old
+  // lane keeps a GHOST card in the exact old slot while the wipe-out runs,
+  // then the ghost's reserved space collapses; at the destination the card
+  // sits in the flow from wipe-in's first frame (neighbors reflow as the
+  // sweep starts) and dissolves in. Both wipes ease in slightly. Detection
+  // diffs each commit's lane map against the previous one (below); the
+  // planner's rules — vanish, brand-new, multiplicity, the batch cap — live
+  // in components/card-transport.ts.
+  const [transports, setTransports] = useState<readonly TransportPlay[]>([]);
+  // Reduced motion: the phases still run (the layout choreography — ghost
+  // collapse, slot handoff — stays correct for the user reading the board),
+  // but no wipe keyframes start and the arriving card never hides behind
+  // static styles.
+  const prefersReducedMotion = usePrefersReducedMotion();
+  const prevGroupByRef = useRef<GroupBy | null>(null);
+  const prevLaneByThreadRef = useRef<ReadonlyMap<string, string> | null>(null);
+  const prevThreadsRef = useRef<ReadonlyMap<string, PluginSidebarThread>>(new Map());
+  const transportGenRef = useRef(0);
+  const transportTimersRef = useRef(new Map<string, number[]>());
+  // The WAAPI handles per phase key: the phase timers cancel the arrival
+  // wipe at settle and the ghost wipes at removal, so finished animations
+  // never persist on live cards.
+  const transportAnimsRef = useRef(new Map<string, Animation>());
+  // Elements for the WAAPI wipes, keyed per phase generation (a re-located
+  // card mid-flight restarts, so a bare id would swallow the second wipe).
+  const transportElsRef = useRef(new Map<string, HTMLElement | null>());
+  const startedWipesRef = useRef(new Set<string>());
+
+  // Diff the lane map. A grouping change re-derives EVERY lane at once and
+  // reads as a view switch — never a wall of wipes — so it re-seeds the
+  // snapshot without planning. The batch cap catches the other whole-board
+  // re-derivations (a large multi-move commit) the same way.
+  useLayoutEffect(() => {
+    const groupByChanged = prevGroupByRef.current !== groupBy;
+    prevGroupByRef.current = groupBy;
+    const laneByThread = laneSignature(columns);
+    const threadsById = new Map<string, PluginSidebarThread>();
+    for (const column of columns) {
+      for (const card of column.threads) threadsById.set(card.id, card);
+    }
+    const prev = prevLaneByThreadRef.current;
+    const prevThreads = prevThreadsRef.current;
+    prevLaneByThreadRef.current = laneByThread;
+    prevThreadsRef.current = threadsById;
+    if (groupByChanged || prev === null) return;
+    const moves = planLaneTransports(prev, prevThreads, columns);
+    if (moves.length === 0 || moves.length > TRANSPORT_BATCH_CAP) return;
+    // A card already mid-transport re-targets: drop its old play (and its
+    // timers) and start fresh from its CURRENT lane — the old ghost's slot
+    // state is stale the moment the card moves again.
+    const replacements = new Set(moves.map((move) => move.threadId));
+    setTransports((current) => [
+      ...current.filter((play) => !replacements.has(play.threadId)),
+      ...moves.map((move) => {
+        const gen = transportGenRef.current + 1;
+        transportGenRef.current = gen;
+        const play: TransportPlay = {
+          ...move,
+          gen,
+          phase: "wiping-out",
+          arrival: "wiping-in",
+        };
+        scheduleTransportTimers(play);
+        return play;
+      }),
+    ]);
+    // The transports state update re-renders BEFORE paint; the wipes below
+    // start in the same commit's effect so nothing flashes half-drawn.
+  }, [columns]);
+
+  /** Cancel one transport's phase timers (a re-target or unmounting). */
+  const cancelTransportTimers = (threadId: string) => {
+    for (const timer of transportTimersRef.current.get(threadId) ?? []) {
+      clearTimeout(timer);
+    }
+    transportTimersRef.current.delete(threadId);
+    // Its wipes die with the transport — an orphaned WAAPI handle on a
+    // slot the state machine dropped would keep animating to nobody.
+    for (const [key, animation] of transportAnimsRef.current) {
+      if (key.includes(`:${threadId}@`)) {
+        animation.cancel();
+        transportAnimsRef.current.delete(key);
+      }
+    }
+  };
+
+  const scheduleTransportTimers = (transport: TransportPlay) => {
+    cancelTransportTimers(transport.threadId);
+    const timers: number[] = [];
+    const settle = window.setTimeout(() => {
+      // Wipe-in done: the arriving slot loses its hiding styles and the
+      // transport decoration (an ordinary card again), and the wipe's
+      // animation handle is cancelled — its final frame equals the slot's
+      // resting style, so cancelling changes no pixel.
+      transportAnimsRef.current
+        .get(`arrival:${transport.threadId}@${transport.gen}`)
+        ?.cancel();
+      transportAnimsRef.current.delete(
+        `arrival:${transport.threadId}@${transport.gen}`,
+      );
+      setTransports((current) =>
+        current.map((play) =>
+          play.threadId === transport.threadId ? { ...play, arrival: "settled" } : play,
+        ),
+      );
+    }, TRANSPORT_WIPE_IN_MS);
+    const collapse = window.setTimeout(() => {
+      setTransports((current) =>
+        current.map((play) =>
+          play.threadId === transport.threadId ? { ...play, phase: "collapsing" } : play,
+        ),
+      );
+    }, TRANSPORT_WIPE_OUT_MS);
+    const remove = window.setTimeout(() => {
+      cancelTransportTimers(transport.threadId);
+      setTransports((current) => current.filter((play) => play.threadId !== transport.threadId));
+    }, TRANSPORT_WIPE_OUT_MS + TRANSPORT_COLLAPSE_MS);
+    timers.push(settle, collapse, remove);
+    transportTimersRef.current.set(transport.threadId, timers);
+  };
+
+  // Timer cleanup on unmount: a board swap mid-transport must not setState
+  // on an unmounted component.
+  useEffect(() => {
+    return () => {
+      for (const timer of transportTimersRef.current.values()) {
+        for (const id of timer) clearTimeout(id);
+      }
+      transportTimersRef.current.clear();
+      for (const animation of transportAnimsRef.current.values()) animation.cancel();
+      transportAnimsRef.current.clear();
+    };
+  }, []);
+
+  // Start the wipes in the commit that rendered each slot. jsdom (tests)
+  // has no WAAPI; the phase timers carry the state machine there and the
+  // animation start is skipped — the machine, not the visuals, is what the
+  // unit environment pins.
+  useLayoutEffect(() => {
+    if (transports.length === 0 || prefersReducedMotion) return;
+    // `fill: both` keeps the animation's frames winning over the static
+    // styles through its whole window; its handle rides animationsRef so
+    // the phase timers can cancel the wipe the moment its phase ends
+    // (a persisted finished animation on a live card would hold compositor
+    // work for the session's life).
+    const startWipe = (
+      key: string,
+      element: HTMLElement | null | undefined,
+      frames: Keyframe[],
+      durationMs: number,
+    ) => {
+      if (element === null || element === undefined) return;
+      if (startedWipesRef.current.has(key)) return;
+      startedWipesRef.current.add(key);
+      if (typeof element.animate !== "function") return;
+      transportAnimsRef.current.set(
+        key,
+        element.animate(frames, { duration: durationMs, easing: TRANSPORT_EASE, fill: "both" }),
+      );
+    };
+    for (const transport of transports) {
+      const outKey = `out:${transport.threadId}@${transport.gen}`;
+      startWipe(outKey, transportElsRef.current.get(outKey), wipeOutKeyframes(), TRANSPORT_WIPE_OUT_MS);
+      const arrivalKey = `arrival:${transport.threadId}@${transport.gen}`;
+      startWipe(arrivalKey, transportElsRef.current.get(arrivalKey), wipeInKeyframes(), TRANSPORT_WIPE_IN_MS);
+      if (transport.phase === "collapsing") {
+        const collapseKey = `collapse:${transport.threadId}@${transport.gen}`;
+        const ghost = transportElsRef.current.get(outKey);
+        if (ghost !== null && ghost !== undefined) {
+          // Measured: the ghost's live height and its list's real row gap,
+          // so the collapse lands pixel-identical to the ghost's removal.
+          startWipe(
+            collapseKey,
+            ghost,
+            ghostCollapseKeyframes(
+              ghost.getBoundingClientRect().height,
+              cardRowGapPx(ghost.parentElement),
+            ),
+            TRANSPORT_COLLAPSE_MS,
+          );
+        }
+      }
+    }
+  }, [transports, prefersReducedMotion]);
 
   const sweepActive = sweepCandidatesFor !== undefined && onSweepArm !== undefined;
   // Clicking empty board area (anything that is not a card, control, or link)
@@ -1137,6 +1345,14 @@ export function Board({
             !(blockedIds?.has(threadId) ?? false) &&
             !(column.id === "done" && !doneIds.has(threadId));
           const rankKey = columnRankKey(groupBy, column.id);
+          // This lane's transport plays: ghosts ride OUT of `fromColumnId`,
+          // arrivals wipe in under `toColumnId` (the card is in the lane's
+          // own data — arrival needs no slot param).
+          const transportByThread = new Map(
+            transports
+              .filter((play) => play.fromColumnId === column.id || play.toColumnId === column.id)
+              .map((play) => [play.threadId, play]),
+          );
           // Seed on first intent: every card is a reorder target for its OWN
           // lane, whether or not that lane has a stored order yet. The drag
           // itself is the intent, and the first drop writes the order — so a
@@ -1559,6 +1775,11 @@ export function Board({
                   const threadLi = (
                     thread: PluginSidebarThread,
                     boxRole?: "first" | "mid" | "last",
+                    // The transport slots: a ghost keeps the card's old
+                    // visuals in its old lane while the wipe-out runs; the
+                    // arriving side is detected from the transport map (the
+                    // card is in its lane's data).
+                    ghostSlot?: { play: TransportPlay },
                   ) => {
                   // A live thread sitting in the Done column is a family's
                   // projection card: it renders the done portion of the
@@ -1575,10 +1796,66 @@ export function Board({
                   // the cards; per-card fragments clipped at the list's top
                   // edge and never read as one box.
                   const boxDecor = boxRole;
+                  // This card's transport roles: a ghost (when the run
+                  // mapping injected one) and the wipe-in arrival (when the
+                  // card's own lane data says it just landed here).
+                  const ghostPlay = ghostSlot?.play;
+                  const ownPlay = transportByThread.get(thread.id);
+                  const isArriving =
+                    ownPlay !== undefined &&
+                    ownPlay.toColumnId === column.id &&
+                    ownPlay.arrival === "wiping-in";
+                  const arrivalPlay = ghostPlay ? undefined : ownPlay;
                   return (
                   <li
-                    key={thread.id}
-                    data-rank-slot={ranking ? thread.id : undefined}
+                    key={
+                      ghostPlay !== undefined
+                        ? `transport:${thread.id}`
+                        : thread.id
+                    }
+                    aria-hidden={ghostPlay !== undefined ? true : undefined}
+                    {...(ghostPlay !== undefined
+                      ? // React 18 has no typed `inert`; the bare attribute
+                        // renders in both 18 and 19. It kills the ghost's
+                        // focusability alongside pointer-events-none.
+                        ({ inert: "" } as unknown as Record<string, never>)
+                      : {})}
+                    data-transport-ghost={ghostPlay !== undefined ? "" : undefined}
+                    data-transport-out={ghostPlay?.phase}
+                    data-transport-arrival={arrivalPlay !== undefined && isArriving ? "wiping-in" : undefined}
+                    style={
+                      ghostPlay !== undefined && ghostPlay.phase === "collapsing"
+                        ? {
+                            // The static END state of the collapse; a
+                            // WAAPI-capable browser animates the measured
+                            // collapse OVER it (the animation's fill keeps
+                            // its frames winning), and a no-WAAPI
+                            // environment lands here instantly.
+                            maxHeight: "0px",
+                            overflow: "hidden",
+                            marginTop: `-${TRANSPORT_ROW_GAP_PX / 2}px`,
+                            marginBottom: `-${TRANSPORT_ROW_GAP_PX / 2}px`,
+                          }
+                        : isArriving && !prefersReducedMotion
+                          ? // Hidden until the wipe-in's keyframes take over
+                            // (same commit in a browser; the jsdom phase
+                            // timers hold this until the settle phase).
+                            { opacity: 0 }
+                          : undefined
+                    }
+                    ref={(el) => {
+                      if (ghostPlay !== undefined) {
+                        transportElsRef.current.set(`out:${ghostPlay.threadId}@${ghostPlay.gen}`, el);
+                        return;
+                      }
+                      if (isArriving && arrivalPlay !== undefined) {
+                        transportElsRef.current.set(
+                          `arrival:${arrivalPlay.threadId}@${arrivalPlay.gen}`,
+                          el,
+                        );
+                      }
+                    }}
+                    data-rank-slot={ghostPlay !== undefined ? undefined : ranking ? thread.id : undefined}
                     data-group-box-member={
                       boxDecor !== undefined ? (runInfo.get(thread.id)?.boxId ?? undefined) : undefined
                     }
@@ -1915,6 +2192,7 @@ export function Board({
                         }
                         className={cn(
                           "relative",
+                          ghostPlay !== undefined && "pointer-events-none",
                           rankDrop?.columnId === column.id && rankDrop.threadId === thread.id && (
                             rankDrop.zone === "onto"
                               // The nest zone: a ring around the whole card,
@@ -2064,16 +2342,24 @@ export function Board({
                   // there; observed 2026-10-09, "fraction of a label").
                   const columnRuns =
                     runsFromColumns([column], groupBoxOf ?? EMPTY_GROUP_BOXES).get(column.id) ?? [];
-                  return (
-                    <ul className="flex flex-col gap-1.5">
-                      {columnRuns.map((runItem) =>
-                        runItem.kind === "single" ? (
-                          threadLi(runItem.thread)
-                        ) : (
-                          <li
-                            key={`group:${runItem.box.groupId}`}
-                            data-group-box={runItem.box.groupId}
-                            className="relative mt-1.5"
+                  // The transport ghosts ride their OLD slot positions in
+                  // this lane: the planner snapshots the lane's order, and
+                  // insertGhostSlots weaves the ghosts in between the runs
+                  // their slots occupied.
+                  const laneOutGhosts = transports.filter(
+                    (play) => play.fromColumnId === column.id,
+                  );
+                  // One display run's markup (the ghost render maps
+                  // entries through it — every entry that is not a ghost
+                  // is a run of this column).
+                  const renderRun = (runItem: GroupRunItem) =>
+                    runItem.kind === "single" ? (
+                      threadLi(runItem.thread)
+                    ) : (
+                      <li
+                        key={`group:${runItem.box.groupId}`}
+                        data-group-box={runItem.box.groupId}
+                        className="relative mt-1.5"
                             onDragOver={(event) => {
                               if (!ranking || onJoinGroup === undefined) return;
                               // Every surface inside the dashed outline joins:
@@ -2278,7 +2564,20 @@ export function Board({
                               </ul>
                             </div>
                           </li>
-                        ),
+                    );
+                  return (
+                    <ul className="flex flex-col gap-1.5">
+                      {insertGhostSlots(columnRuns, laneOutGhosts).map((entry) =>
+                        entry.kind === "ghost"
+                          ? // The ghost renders through threadLi with the
+                            // planner's PRE-move snapshot: the visuals the
+                            // card had, inert (aria-hidden, inert,
+                            // pointer-events-none) while the wipe-out and
+                            // collapse play over it.
+                            threadLi(entry.ghost.thread, undefined, {
+                              play: entry.ghost,
+                            })
+                          : renderRun(entry.run),
                       )}
                     </ul>
                   );
