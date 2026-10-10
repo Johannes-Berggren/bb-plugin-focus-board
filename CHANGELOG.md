@@ -7,6 +7,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **Toolbar search reaches feature-group names.** Typing the name of a family box's group — e.g. an epic — surfaces its member cards even when no card's title, branch, or project says it; a group hit keeps a nested family or box whole with its non-matching members dimmed, like every other search field.
 - **Groups are manageable from the label and the picker.** Click a family box's label on the board to rename it inline — the editor carries an Ungroup control (one click arms it, the second ungroups everyone; the threads stay on the board) — and use the pencil/trash on any row of the Group picker to rename or delete a group; the shared registry re-labels every member card on a rename, and a delete strips every member's assignment, archived holders included.
 
 - **Sibling threads now join a named family box.** "Group…" in a card menu assigns the thread to a shared named group (created in-line); members render inside one dashed outline with the group name on the border, the whole box moves as one unit by drag or Alt+Arrow, and the group evaporates when its last assignment clears — no parent thread involved.

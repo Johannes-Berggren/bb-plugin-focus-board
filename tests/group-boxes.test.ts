@@ -457,6 +457,21 @@ describe("filterWithGroupBoxes", () => {
     expect(result.dimmedIds).toEqual(new Set(["thr_b"]));
   });
 
+  it("a feature-group name hit keeps the box whole (non-matching member dims)", () => {
+    const groupNameFor = (t: { id: string }): string => (t.id === "thr_a" ? "Auth epic" : "");
+    const result = filterWithGroupBoxes(
+      threads,
+      plan.groupBoxOf,
+      { projects: new Set(), providers: new Set(), states: new Set() },
+      "auth epic",
+      () => "",
+      undefined,
+      groupNameFor,
+    );
+    expect(result.kept.map((t) => t.id)).toEqual(["thr_a", "thr_b"]);
+    expect(result.dimmedIds).toEqual(new Set(["thr_b"]));
+  });
+
   it("a ticket-chip hit keeps an unboxed thread on its own", () => {
     const refsFor = (t: { id: string }) =>
       t.id === "thr_x"

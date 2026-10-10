@@ -404,6 +404,23 @@ describe("filterFamilies", () => {
     expect(result.dimmedIds.has("c")).toBe(false);
   });
 
+  it("a feature-group name hit on a member keeps the family (the miss dims)", () => {
+    const index = buildFamilyIndex([parent, child]);
+    const groupNameFor = (t: { id: string }): string => (t.id === "c" ? "Auth epic" : "");
+    const result = filterFamilies(
+      [parent, child],
+      index,
+      EMPTY_FILTER,
+      "auth epic",
+      undefined,
+      undefined,
+      groupNameFor,
+    );
+    expect(result.kept.map((t) => t.id).sort()).toEqual(["c", "p"]);
+    expect(result.dimmedIds.has("p")).toBe(true);
+    expect(result.dimmedIds.has("c")).toBe(false);
+  });
+
   // A project filter is a column gate: a family member in a project the
   // operator did not select must not surface, dimmed or not — a dim-kept
   // member grouped by project forms a column for an unselected project
