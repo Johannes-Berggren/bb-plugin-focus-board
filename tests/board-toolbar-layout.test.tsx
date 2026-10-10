@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
-// Toolbar layout: New thread leads from the far left, the filter controls
-// abut the search field, and the count/gift cluster anchors whatever space
-// remains.
+// Toolbar layout: New thread leads from the far left; the search field and
+// the filter controls form one wrapping cluster (so a wrap moves whole
+// filters to a continuation line, never stranding the count); the thread
+// count and the What's-new gift form their own right-hand cluster.
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, render, screen } from "@testing-library/react";
 import { BoardToolbar } from "../components/board-toolbar";
@@ -38,13 +39,18 @@ function renderToolbar(
   return view.container.firstElementChild as HTMLElement;
 }
 
-function topChildIndex(root: HTMLElement, element: Element): number {
-  let current: Element | null = element;
-  while (current !== null && current.parentElement !== root) {
-    current = current.parentElement;
+/** True when `b` renders after `a` in DOM order. */
+function follows(a: Element, b: Element): boolean {
+  return (a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0;
+}
+
+/** The closest element that contains both, walking up from `a`. */
+function commonAncestor(a: Element, b: Element): Element | null {
+  let ancestor: Element | null = a.parentElement;
+  while (ancestor !== null && !ancestor.contains(b)) {
+    ancestor = ancestor.parentElement;
   }
-  if (current === null) throw new Error("element is not inside the toolbar root");
-  return [...root.children].indexOf(current);
+  return ancestor;
 }
 
 afterEach(() => {
@@ -52,29 +58,50 @@ afterEach(() => {
 });
 
 describe("BoardToolbar layout", () => {
-  it("leads with New thread, before the search field", () => {
-    const root = renderToolbar();
-    const newThreadIndex = topChildIndex(root, screen.getByText("New thread"));
-    const searchIndex = topChildIndex(root, screen.getByLabelText("Search threads"));
-    expect(newThreadIndex).toBeLessThan(searchIndex);
+  it("orders New thread, search, the five filters, then the count cluster", () => {
+    renderToolbar();
+    const newThread = screen.getByText("New thread");
+    const search = screen.getByLabelText("Search threads");
+    const group = screen.getByText(/Group:/);
+    const project = screen.getByText(/Project:/);
+    const provider = screen.getByText(/Provider:/);
+    const state = screen.getByText(/State:/);
+    const count = screen.getByText("7 threads");
+    expect(follows(newThread, search)).toBe(true);
+    expect(follows(search, group)).toBe(true);
+    expect(follows(group, project)).toBe(true);
+    expect(follows(project, provider)).toBe(true);
+    expect(follows(provider, state)).toBe(true);
+    expect(follows(state, count)).toBe(true);
   });
 
-  it("abuts the filter controls to the search field, count last", () => {
+  it("search and the filters wrap as one cluster, separate from the count", () => {
     const root = renderToolbar();
-    const searchIndex = topChildIndex(root, screen.getByLabelText("Search threads"));
-    const groupIndex = topChildIndex(root, screen.getByText(/Group:/));
-    const stateIndex = topChildIndex(root, screen.getByText(/State:/));
-    const countIndex = topChildIndex(root, screen.getByText("7 threads"));
-    expect(groupIndex).toBeGreaterThan(searchIndex);
-    expect(stateIndex).toBeGreaterThan(groupIndex);
-    expect(countIndex).toBeGreaterThan(stateIndex);
+    const search = screen.getByLabelText("Search threads");
+    const group = screen.getByText(/Group:/);
+    const state = screen.getByText(/State:/);
+    const count = screen.getByText("7 threads");
+    const gift = screen.getByLabelText("What's new");
+    const searchCluster = commonAncestor(search, group);
+    const countCluster = commonAncestor(count, gift);
+    expect(searchCluster).not.toBeNull();
+    expect(countCluster).not.toBeNull();
+    // The two clusters are different subtrees, both inside the toolbar root.
+    expect(searchCluster).not.toBe(root);
+    expect(countCluster).not.toBe(root);
+    expect(searchCluster).not.toBe(countCluster);
+    expect(searchCluster?.contains(state) ?? false).toBe(true);
+    expect(countCluster?.contains(search) ?? true).toBe(false);
   });
 
-  it("places Clear right behind the filters when one is active", () => {
+  it("places Clear inside the search-and-filters cluster when one is active", () => {
     const root = renderToolbar({ anyFilterActive: true, onClearFilters: vi.fn() });
-    const clearIndex = topChildIndex(root, screen.getByText("Clear"));
-    const stateIndex = topChildIndex(root, screen.getByText(/State:/));
-    expect(clearIndex).toBeGreaterThan(stateIndex);
+    const clear = screen.getByText("Clear");
+    const search = screen.getByLabelText("Search threads");
+    const state = screen.getByText(/State:/);
+    const searchCluster = commonAncestor(search, state);
+    expect(follows(state, clear)).toBe(true);
+    expect(searchCluster?.contains(clear) ?? false).toBe(true);
   });
 
   it("carries no maximize button — that lives in the New thread modal", () => {
