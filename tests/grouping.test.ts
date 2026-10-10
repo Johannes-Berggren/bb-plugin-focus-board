@@ -126,6 +126,18 @@ describe("matchesFilter", () => {
     const hosted = thread({ host: { id: "h1", name: "work-laptop" } });
     expect(matchesFilter(hosted, "laptop")).toBe(true);
   });
+
+  it("matches the name of the feature group the thread belongs to", () => {
+    const groupNameFor = (t: { id: string }): string =>
+      t.id === "thr_abc" ? "Search epic" : "";
+    expect(matchesFilter(t, "epic", undefined, undefined, groupNameFor)).toBe(true);
+    expect(matchesFilter(t, "Search Epic", undefined, undefined, groupNameFor)).toBe(true);
+    expect(matchesFilter(t, "nope", undefined, undefined, groupNameFor)).toBe(false);
+  });
+
+  it("an unassigned thread matches no group name (empty resolver value)", () => {
+    expect(matchesFilter(t, "epic", undefined, undefined, () => "")).toBe(false);
+  });
 });
 
 describe("matchesFilter — ticket-chip refs are searchable", () => {

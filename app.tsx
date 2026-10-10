@@ -963,6 +963,16 @@ function BoardPage({ subPath }: { subPath: string }) {
       validatedHrefs,
     });
   }, [repoBaseByProject, linksByThread, validatedHrefs]);
+  // The feature-group name each card renders (registry + per-thread
+  // assignment). Toolbar search matches it: typing a group's name surfaces
+  // its member cards, exactly like typing a project or branch name does.
+  const groupNameFor = useCallback(
+    (thread: PluginSidebarThread): string => {
+      const groupId = groupAssignments[thread.id];
+      return groupId === undefined ? "" : (groupRegistry[groupId]?.name ?? "");
+    },
+    [groupAssignments, groupRegistry],
+  );
   // Family-aware filtering replaces per-thread filtering when nesting is ON:
   // a family passes when any member matches, non-matching members render
   // dimmed (archived members are hidden outright by the family index, so
@@ -976,9 +986,9 @@ function BoardPage({ subPath }: { subPath: string }) {
   const familyFiltered = useMemo(
     () =>
       nestChildren || groupBy === "parent"
-        ? filterFamilies(nonHiddenThreads, familyIndex, filter, search.trim(), projectNameFor, ticketRefsFor)
-        : filterIndividually(nonHiddenThreads, filter, search.trim(), projectNameFor, ticketRefsFor),
-    [nestChildren, groupBy, nonHiddenThreads, familyIndex, filter, search, projectNameFor, ticketRefsFor],
+        ? filterFamilies(nonHiddenThreads, familyIndex, filter, search.trim(), projectNameFor, ticketRefsFor, groupNameFor)
+        : filterIndividually(nonHiddenThreads, filter, search.trim(), projectNameFor, ticketRefsFor, groupNameFor),
+    [nestChildren, groupBy, nonHiddenThreads, familyIndex, filter, search, projectNameFor, ticketRefsFor, groupNameFor],
   );
   // The feature-group plan (the decided family-box design): which groups
   // render a box, which lane each box lands in. Computed over the FULL
@@ -1042,9 +1052,9 @@ function BoardPage({ subPath }: { subPath: string }) {
   const groupBoxFiltered = useMemo(
     () =>
       groupBoxPlanFrozen.active
-        ? filterWithGroupBoxes(familyFiltered.kept, groupBoxPlanFrozen.groupBoxOf, filter, search.trim(), projectNameFor, ticketRefsFor)
+        ? filterWithGroupBoxes(familyFiltered.kept, groupBoxPlanFrozen.groupBoxOf, filter, search.trim(), projectNameFor, ticketRefsFor, groupNameFor)
         : { kept: familyFiltered.kept, dimmedIds: new Set<string>() as ReadonlySet<string> },
-    [groupBoxPlanFrozen, familyFiltered, filter, search, projectNameFor, ticketRefsFor],
+    [groupBoxPlanFrozen, familyFiltered, filter, search, projectNameFor, ticketRefsFor, groupNameFor],
   );
   const dimmedAll = useMemo(
     () => new Set([...familyFiltered.dimmedIds, ...groupBoxFiltered.dimmedIds]),

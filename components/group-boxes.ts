@@ -407,6 +407,7 @@ export function filterWithGroupBoxes(
   searchQuery: string,
   projectNameFor?: (projectId: string) => string,
   ticketRefsFor?: (thread: PluginSidebarThread) => readonly TicketRef[],
+  groupNameFor?: (thread: PluginSidebarThread) => string,
 ): { kept: PluginSidebarThread[]; dimmedIds: ReadonlySet<string> } {
   const passes = (thread: PluginSidebarThread): boolean => {
     if (thread.isArchived) return false;
@@ -415,7 +416,7 @@ export function filterWithGroupBoxes(
     if (filter.states.size > 0 && !filter.states.has(threadState(thread))) return false;
     if (
       searchQuery.trim() !== "" &&
-      !matchesFilter(thread, searchQuery.trim(), projectNameFor, ticketRefsFor)
+      !matchesFilter(thread, searchQuery.trim(), projectNameFor, ticketRefsFor, groupNameFor)
     ) {
       return false;
     }

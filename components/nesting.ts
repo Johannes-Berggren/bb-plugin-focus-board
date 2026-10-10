@@ -756,9 +756,10 @@ export function filterFamilies(
   searchQuery: string,
   projectNameFor?: (projectId: string) => string,
   ticketRefsFor?: (thread: PluginSidebarThread) => readonly TicketRef[],
+  groupNameFor?: (thread: PluginSidebarThread) => string,
 ): FamilyFilterResult {
   const passes = (thread: PluginSidebarThread): boolean =>
-    threadPassesFilter(thread, filter, searchQuery, projectNameFor, ticketRefsFor);
+    threadPassesFilter(thread, filter, searchQuery, projectNameFor, ticketRefsFor, groupNameFor);
 
   // Group visible threads into families by their root, so a parent and its
   // descendants pass or fail together.
@@ -814,6 +815,7 @@ function threadPassesFilter(
   searchQuery: string,
   projectNameFor?: (projectId: string) => string,
   ticketRefsFor?: (thread: PluginSidebarThread) => readonly TicketRef[],
+  groupNameFor?: (thread: PluginSidebarThread) => string,
 ): boolean {
   if (thread.isArchived) return false;
   if (filter.projects.size > 0 && !filter.projects.has(thread.projectId)) return false;
@@ -821,7 +823,7 @@ function threadPassesFilter(
   if (filter.states.size > 0 && !filter.states.has(threadState(thread))) return false;
   if (
     searchQuery.trim() !== "" &&
-    !matchesFilter(thread, searchQuery.trim(), projectNameFor, ticketRefsFor)
+    !matchesFilter(thread, searchQuery.trim(), projectNameFor, ticketRefsFor, groupNameFor)
   ) {
     return false;
   }
@@ -839,10 +841,20 @@ export function filterIndividually(
   searchQuery: string,
   projectNameFor?: (projectId: string) => string,
   ticketRefsFor?: (thread: PluginSidebarThread) => readonly TicketRef[],
+  groupNameFor?: (thread: PluginSidebarThread) => string,
 ): FamilyFilterResult {
   const kept: PluginSidebarThread[] = [];
   for (const thread of threads) {
-    if (threadPassesFilter(thread, filter, searchQuery, projectNameFor, ticketRefsFor)) {
+    if (
+      threadPassesFilter(
+        thread,
+        filter,
+        searchQuery,
+        projectNameFor,
+        ticketRefsFor,
+        groupNameFor,
+      )
+    ) {
       kept.push(thread);
     }
   }

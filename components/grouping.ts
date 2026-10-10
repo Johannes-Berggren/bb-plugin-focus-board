@@ -138,16 +138,23 @@ function ageBucketFor(
  * the card's chip row shows (text refs + store links, cardTicketRefs) are
  * matched by number — "38" and "#38" both hit a #38 chip — by chip label
  * ("proj-142" hits an external label), and by full item URL.
+ *
+ * Feature groups are searchable: when `groupNameFor` is wired, the thread's
+ * assigned feature group's name (registry + per-thread assignment) matches
+ * like any other printed field — typing a group's name surfaces its member
+ * cards, even the ones whose titles never mention it.
  */
 export function matchesFilter(
   thread: PluginSidebarThread,
   query: string,
   projectNameFor?: (projectId: string) => string,
   ticketRefsFor?: (thread: PluginSidebarThread) => readonly TicketRef[],
+  groupNameFor?: (thread: PluginSidebarThread) => string,
 ): boolean {
   const q = query.toLowerCase();
   const project = (projectNameFor?.(thread.projectId) ?? "").toLowerCase();
   const branch = (thread.environment?.branchName ?? thread.host?.name ?? "").toLowerCase();
+  const group = (groupNameFor?.(thread) ?? "").toLowerCase();
   const chipHit = (ref: TicketRef): boolean => {
     if (ref.raw.toLowerCase().includes(q)) return true;
     if (ref.number !== undefined && (q === String(ref.number) || q === `#${ref.number}`)) {
@@ -160,6 +167,7 @@ export function matchesFilter(
     thread.id.toLowerCase().includes(q) ||
     (project !== "" && project.includes(q)) ||
     (branch !== "" && branch.includes(q)) ||
+    (group !== "" && group.includes(q)) ||
     (ticketRefsFor !== undefined && ticketRefsFor(thread).some((ref) => chipHit(ref)))
   );
 }

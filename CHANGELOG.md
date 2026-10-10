@@ -13,6 +13,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   - Rename a group from its box label or a Group-picker row (pencil/trash for rename and delete) and ungroup everyone from the label editor; a rename re-labels every member card, and a delete strips every member's assignment, archived holders included.
   - Boxes render under every per-thread-column grouping — Project, Provider, Machine, and Group join the status views — while the parent-lane view stays unboxed.
 - **"Group" is now its own board grouping.** The View menu's grouping list offers Group next to Parent thread: each feature group becomes its own column, unassigned threads park under No group, and the dashed boxes carry the membership as before.
+- **Toolbar search reaches feature-group names.** Typing the name of a family box's group — e.g. an epic — surfaces its member cards even when no card's title, branch, or project says it; a group hit keeps a nested family or box whole with its non-matching members dimmed, like every other search field.
 - **The board can wear a wallpaper.** The toolbar's image control opens a picker with gradient presets, a shuffle strip, a search over openly licensed photos, and a free-form URL field — all with a dim slider that keeps cards readable. The setting persists per browser and applies globally.
   - Theme-aware: each preset carries a light and a dark palette and the board follows `prefers-color-scheme` live; a wallpaper without a dark variant keeps its light URL everywhere.
   - Letterboxed: wallpapers fit the whole image instead of center-cropping at odd panel shapes, with the letterbox bars in the theme background.
@@ -30,7 +31,6 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
-<<<<<<< HEAD
 - **The toolbar's filter row aligns at any host font size.** Bare `relative` wrappers positioned the dropdown and wallpaper triggers on the text baseline, so bb's own font metrics lifted each trigger up to a pixel above its flex-centred neighbours — the drift that read as an off-kilter filter row. The wrappers now position by flex; the alignment holds across font metric changes and the screenshot harness verifies all controls share one center.
 - **Board alert banners stay bound to the viewport.** The four status banners (rank refusal, sweep notice, browser reveal, sweep refusal) now render above the horizontal scroll surface, so scrolling a wide board can no longer carry a banner offscreen. ([#26](https://github.com/cristoslc/bb-plugin-focus-board/issues/26))
 - **Project filters no longer leak unselected projects into the board.** With nesting on, a family whose only match lived in a selected project kept its dimmed parent on the board; a project miss now drops its member outright, while state, provider, and search misses keep-and-dim inside columns that pass ([#27](https://github.com/cristoslc/bb-plugin-focus-board/issues/27)).

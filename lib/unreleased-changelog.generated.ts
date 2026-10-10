@@ -14,6 +14,10 @@ export const UNRELEASED_ITEMS: readonly { text: string; children: string[] }[] =
     "children": []
   },
   {
+    "text": "**Toolbar search reaches feature-group names.** Typing the name of a family box's group — e.g. an epic — surfaces its member cards even when no card's title, branch, or project says it; a group hit keeps a nested family or box whole with its non-matching members dimmed, like every other search field.",
+    "children": []
+  },
+  {
     "text": "**The board can wear a wallpaper.** The toolbar's image control opens a picker with gradient presets, a shuffle strip, a search over openly licensed photos, and a free-form URL field — all with a dim slider that keeps cards readable. The setting persists per browser and applies globally.",
     "children": [
       "Theme-aware: each preset carries a light and a dark palette and the board follows `prefers-color-scheme` live; a wallpaper without a dark variant keeps its light URL everywhere.",
