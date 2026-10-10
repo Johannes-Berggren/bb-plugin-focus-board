@@ -1,0 +1,28 @@
+{
+  "verdict": "fixed — banner stays viewport-bound while the board scrolls",
+  "before": {
+    "boardClientWidth": 1280,
+    "boardScrollWidth": 2444,
+    "viewportWidth": 1280,
+    "bannerRowMount": true
+  },
+  "afterOverflow": {
+    "boardClientWidth": 1280,
+    "boardScrollWidth": 2444
+  },
+  "atOrigin": {
+    "bannerLeft": 12,
+    "bannerRight": 1268,
+    "textRight": 863.453125,
+    "overflowsViewport": false
+  },
+  "scrolledRight": {
+    "boardScrollLeft": 1164,
+    "bannerLeft": 12,
+    "bannerRight": 1268,
+    "textLeft": 21,
+    "textRight": 863.453125,
+    "textFullyOffscreen": false
+  },
+  "bannerWidthAtOrigin": 1256
+}
