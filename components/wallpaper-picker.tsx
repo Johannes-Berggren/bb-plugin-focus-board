@@ -2,14 +2,12 @@ import { useEffect, useRef, useState } from "react";
 import { Icon } from "@/components/ui/icon";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+import { fetchOpenversePage } from "@/lib/openverse";
 import { isAllowedWallpaperUrl, wallpaperBackgroundStyle, type WallpaperSettings, type WallpaperLayer } from "./preferences";
 import { usePrefersDarkScheme } from "./ui/hooks/use-media-query";
 import {
   PICSUM_SEEDS,
   WALLPAPER_PRESETS,
-  openversePageCount,
-  openverseSearchUrl,
-  parseOpenverseResults,
   picsumThumbUrl,
   picsumWallpaperUrl,
   type OpenverseImage,
@@ -255,11 +253,11 @@ function OpenverseSearch({
     controllerRef.current = controller;
     setState({ status: "loading" });
     try {
-      const response = await fetch(openverseSearchUrl(trimmed, page), { signal: controller.signal });
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      const payload: unknown = await response.json();
-      setState({ status: "done", images: parseOpenverseResults(payload), page });
-      setPaging({ pages: page, pageCount: openversePageCount(payload) });
+      const { images, pageCount } = await fetchOpenversePage(trimmed, page, {
+        signal: controller.signal,
+      });
+      setState({ status: "done", images, page });
+      setPaging({ pages: page, pageCount });
     } catch (error: unknown) {
       if (controller.signal.aborted) return;
       setState({

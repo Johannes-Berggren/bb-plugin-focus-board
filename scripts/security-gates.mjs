@@ -110,18 +110,28 @@ for (const hit of openLines) {
   else report(`window.open with noopener: ${file}:${lineText}`);
 }
 
-// Network: fetch( is allowed ONLY in the loopback daemon client and the
-// tracker_validate fetchImpl seam. The seam is the direct forwarding line
+// Network: fetch( is allowed ONLY in the loopback daemon client, the
+// tracker_validate fetchImpl seam, and the Openverse search client. The
+// seam is the direct forwarding line
 // `(url, init) => fetch(url, init)` that hands the platform fetch into
 // lib/tracker-validate.ts's existence probe; approved by the scoped
 // re-audit docs/security-audit-2026-10-09-1.1.md (https-only zod boundary,
 // loopback/private-host refusal, manual redirects, status-only 2xx read,
-// 10s timeout, TTL-cached results). Any other server.ts fetch site is a
-// violation.
+// 10s timeout, TTL-cached results). The Openverse client is
+// lib/openverse.ts, the wallpaper picker's only search-fetch site;
+// approved by the scoped re-audit docs/security-audit-2026-10-10-openverse-client.md
+// (pinned https api.openverse.org origin built through the url builder,
+// no credentials/referrer, redirects refused, 10s deadline composed with
+// the caller's signal, payload read only through the tolerant parser).
+// Any other fetch site is a violation.
 for (const hit of findLines("\\bfetch\\(")) {
   const forwardingSeam =
     hit.startsWith("server.ts:") && hit.includes("fetchImpl: (url, init) => fetch(url, init)");
-  if (!hit.startsWith("lib/workspace-open.ts:") && !forwardingSeam) {
+  if (
+    !hit.startsWith("lib/workspace-open.ts:") &&
+    !hit.startsWith("lib/openverse.ts:") &&
+    !forwardingSeam
+  ) {
     violation(`fetch( outside the audit-approved loopback daemon client → ${hit}`);
   } else {
     report(`fetch( allowlisted (audited seam): ${hit.split(":").slice(0, 2).join(":")}`);
