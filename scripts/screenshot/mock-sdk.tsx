@@ -543,15 +543,6 @@ export function useSettings(): { values: Record<string, unknown> | null } {
   return { values: null };
 }
 
-/**
- * The mock plugin id (0.6.x): the settings modal's Behavior tab writes the
- * plugin's own settings through `sdk.plugins.updateSettings({ pluginId })`,
- * which the routing annotations below already scope to MOCK_PLUGIN_ID.
- */
-export function experimental_usePluginId(): string {
-  return MOCK_PLUGIN_ID;
-}
-
 interface MockMessage {
   role: "user" | "agent";
   text: string;

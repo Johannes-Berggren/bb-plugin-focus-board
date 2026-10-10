@@ -247,7 +247,6 @@ function BoardPage({ subPath }: { subPath: string }) {
   const pluginId = experimental_usePluginId();
   const actions = experimental_useSidebarThreadActions();
   const { providers } = experimental_useProviders();
-  const pluginId = experimental_usePluginId();
   const navigate = useBbNavigate();
   const rpc = useRpc<typeof rpcContract>();
   const sdk = useSdk();
