@@ -2,16 +2,9 @@ import { type ReactNode, useState } from "react";
 import type { PluginSidebarThread } from "@get-bb/plugin-sdk/app";
 import { Icon } from "@/components/ui/icon";
 import { cn } from "@/lib/utils";
+import type { CardMenuAction } from "@/lib/card-menu";
 
-export interface CardMenuAction {
-  id: string;
-  label: string;
-  icon: string;
-  run: () => void;
-  /** Destructive or state-changing entries draw in the danger tone. */
-  danger?: boolean;
-  dividerAbove?: boolean;
-}
+export type { CardMenuAction };
 
 interface ThreadCardMenuProps {
   anchor: ReactNode;

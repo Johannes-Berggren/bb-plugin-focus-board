@@ -102,6 +102,14 @@ interface ThreadPaneProps {
   onMaximize: () => void;
   onClose: () => void;
   /**
+   * The open thread's controlled browser-tab reveal, the one-step gesture
+   * the board card menu carries (lib/browser-reveal). Offered in the
+   * workspace-open dropdown's thread group; outcome reporting rides the
+   * board banner the caller wires up. Optional: absent leaves the menu
+   * without the entry (render sites with no banner to report on).
+   */
+  onRevealBrowserTab?: () => void;
+  /**
    * Snooze entries for the "More thread actions" menu, already resolved for
    * the open thread: "Snooze…" while unsnoozed, "Edit snooze…" while snoozed
    * (lib/snooze `snoozeMenuActions`). The runs call
@@ -427,6 +435,7 @@ export function ThreadPane({
   onRename,
   onMaximize,
   onClose,
+  onRevealBrowserTab,
   escStopsRunningThread,
   escapeSuppressed = false,
 }: ThreadPaneProps) {
@@ -955,6 +964,7 @@ export function ThreadPane({
               threadId={thread.id}
               threadHref={thread.href}
               onMaximize={onMaximize}
+              onRevealBrowserTab={onRevealBrowserTab}
               showLabel={!isCompact && width >= OPEN_LABEL_MIN_PANE_WIDTH}
             />
           );

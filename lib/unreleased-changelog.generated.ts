@@ -17,7 +17,15 @@ export const UNRELEASED_ITEMS: readonly { text: string; children: string[] }[] =
     "children": []
   },
   {
+    "text": "**The pane's open menu reveals the thread's browser tab.** \"Reveal browser tab\" sits in the dropdown's thread group between \"Open in new window\" and \"Copy thread link\", running the same one-step gesture the card menu carries. Outcomes still report on the board's banner, and render sites without a banner pass no callback and see no entry.",
+    "children": []
+  },
+  {
     "text": "**The board toolbar reads as one line: create, search + View, filters.** New thread leads, the search field pairs with a View chip that names the current view like a mode (no colon label — grouping and the Nest child threads toggle live inside its menu), and Project / Provider / State run with the thread count and What's-new gift as one trailing cluster, so narrow panels wrap them all together instead of stranding the count against an empty edge.",
+    "children": []
+  },
+  {
+    "text": "**The card menu now reads in four groups.** Destinations (new window, reveal browser tab) lead, the organizational block follows with the state toggles and the snooze and group pickers folded in as one block, and lineage (new child, make top-level) plus the lifecycle close (sweep keep, archive, delete) finish the menu — one divider per group head, no more divider between Read and Done.",
     "children": []
   }
 ];

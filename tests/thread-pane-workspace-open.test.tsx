@@ -105,7 +105,7 @@ beforeEach(() => {
 	window.localStorage.clear();
 });
 
-function renderPane() {
+function renderPane(options?: { onRevealBrowserTab?: () => void }) {
 	const onMaximize = vi.fn();
 	render(
 		createElement(ThreadPane, {
@@ -127,6 +127,9 @@ function renderPane() {
 			onMaximize,
 			onClose: () => {},
 			escStopsRunningThread: true,
+			...(options?.onRevealBrowserTab !== undefined
+				? { onRevealBrowserTab: options.onRevealBrowserTab }
+				: {}),
 		}),
 	);
 	return { onMaximize };
@@ -376,5 +379,58 @@ describe("pane header workspace-open menu", () => {
 		await waitFor(() =>
 			expect(screen.getByText(/app is gone/)).toBeTruthy(),
 		);
+	});
+
+	it("Reveal browser tab sits in the thread group between Open in new window and Copy thread link", async () => {
+		renderPane({ onRevealBrowserTab: () => {} });
+		fireEvent.click(
+			await screen.findByRole("button", { name: /more places to open/i }),
+		);
+		const newWindow = screen.getByRole("menuitem", {
+			name: "Open in new window",
+		});
+		const reveal = screen.getByRole("menuitem", {
+			name: "Reveal browser tab",
+		});
+		const copy = screen.getByRole("menuitem", { name: "Copy thread link" });
+		// Same gesture as the card menu, same neighborhood: the reveal is a
+		// thread destination, not a workspace one, so it lands in the thread
+		// group — after the raw window-open, before the copied link.
+		expect(
+			newWindow.compareDocumentPosition(reveal) &
+				Node.DOCUMENT_POSITION_FOLLOWING,
+		).toBeTruthy();
+		expect(
+			reveal.compareDocumentPosition(copy) &
+				Node.DOCUMENT_POSITION_FOLLOWING,
+		).toBeTruthy();
+	});
+
+	it("Reveal browser tab runs the thread's reveal and closes the menu", async () => {
+		const onRevealBrowserTab = vi.fn();
+		renderPane({ onRevealBrowserTab });
+		fireEvent.click(
+			await screen.findByRole("button", { name: /more places to open/i }),
+		);
+		fireEvent.click(
+			screen.getByRole("menuitem", { name: "Reveal browser tab" }),
+		);
+		expect(onRevealBrowserTab).toHaveBeenCalledTimes(1);
+		expect(
+			screen.queryByRole("menu", { name: "More places to open" }),
+		).toBeNull();
+	});
+
+	it("without the reveal callback the menu carries no reveal entry", async () => {
+		// Render sites with no board banner to report outcomes on (older
+		// embeds, the screenshot harness) pass no callback — the entry
+		// disappears rather than firing into silence.
+		renderPane();
+		fireEvent.click(
+			await screen.findByRole("button", { name: /more places to open/i }),
+		);
+		expect(
+			screen.queryByRole("menuitem", { name: "Reveal browser tab" }),
+		).toBeNull();
 	});
 });
