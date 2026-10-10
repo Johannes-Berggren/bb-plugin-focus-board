@@ -32,10 +32,11 @@ import { NewThreadModal } from "./components/new-thread-modal";
 import type { SpawnedThread } from "./components/new-thread-modal";
 import type { CardMenuAction } from "./components/thread-card-menu";
 import { cardMenuActions } from "./lib/card-menu";
-import type { FilterState, GroupBy, ThreadState } from "./components/grouping";
+import type { FilterState, GroupBy, LaneHideOutcome, ThreadState } from "./components/grouping";
 import {
   buildColumns,
   columnFor,
+  filterProjectsWithoutLane,
   matchesFilter,
 } from "./components/grouping";
 import {
@@ -881,6 +882,26 @@ function BoardPage({ subPath }: { subPath: string }) {
     setSearch(value);
     writeStored(SEARCH_KEY, value);
   }, []);
+
+  // The Board's hide-a-lane gesture (Project view): the lane's project
+  // leaves the Project filter — the same write the filter menu's checkbox
+  // for that project would make, so the menu restores the lane. The Board
+  // carries the report; refusals (the board's only project lane, or a lane
+  // standing outside the selection through box overrides) say why.
+  const hideProjectLane = useCallback(
+    (columnId: string): LaneHideOutcome => {
+      const outcome = filterProjectsWithoutLane(
+        filter.projects,
+        projects.map((project) => project.id),
+        columnId,
+      );
+      if (outcome.kind === "hidden") {
+        persistFilter({ ...filter, projects: outcome.next });
+      }
+      return outcome.kind === "hidden" ? { kind: "hidden" } : outcome;
+    },
+    [filter, projects, persistFilter],
+  );
   const persistNestChildren = useCallback((enabled: boolean) => {
     setNestChildren(enabled);
     writeStored(NEST_CHILDREN_KEY, nestStoredValue(enabled));
@@ -2351,6 +2372,7 @@ function BoardPage({ subPath }: { subPath: string }) {
             onClosePane={closeThreadPane}
             onNewTask={openNewThread}
             snoozeFor={snoozeFor}
+            onHideLane={hideProjectLane}
             sweepCandidatesFor={sweepCandidatesFor}
             armedSweep={armedSweep}
             sweepRun={sweepRun}

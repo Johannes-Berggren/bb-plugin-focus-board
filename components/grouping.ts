@@ -184,6 +184,55 @@ export function filterThreads(
   });
 }
 
+/** The board's hide-a-lane gesture's result: the filter write that must
+ *  follow, or why the click changed nothing (the report the banner carries). */
+export type LaneHideOutcome =
+  | { kind: "hidden" }
+  | { kind: "refused"; reason: "sole-lane" | "outside-filter" };
+
+/**
+ * The project selection after hiding the lane `hiddenColumnId` names. The
+ * selection holds the projects that PASS the filter; an EMPTY set shows
+ * every project. So hiding a lane means:
+ * - already filtered (any selection size > 1): the project leaves the set;
+ * - the lane's project is the only checked one (the set is empty, or only
+ *   this project): an empty result would read as "show all" — the exact
+ *   opposite of the click — so the write becomes "every other KNOWN project
+ *   checked, this one out" (the menu row the gesture would have produced);
+ * - the project's lane already sits outside the selection, and the set has
+ *   other entries: nothing to write (a bare lane can still stand on the
+ *   board through box overrides). Refused.
+ * Returns `null`-free: a refusal returns the reason instead.
+ */
+export function filterProjectsWithoutLane(
+  selected: ReadonlySet<string>,
+  knownProjectIds: readonly string[],
+  hiddenColumnId: string,
+): { kind: "hidden"; next: ReadonlySet<string> } | { kind: "refused"; reason: "sole-lane" | "outside-filter" } {
+  if (!selected.has(hiddenColumnId)) {
+    if (selected.size === 0) {
+      const next = new Set(knownProjectIds);
+      next.delete(hiddenColumnId);
+      return next.size === 0
+        ? { kind: "refused", reason: "sole-lane" }
+        : { kind: "hidden", next };
+    }
+    // The lane stands without its project passing the filter (box
+    // overrides): the gesture cannot change what it shows.
+    return { kind: "refused", reason: "outside-filter" };
+  }
+  if (selected.size > 1) {
+    const next = new Set(selected);
+    next.delete(hiddenColumnId);
+    return { kind: "hidden", next: next as ReadonlySet<string> };
+  }
+  const next = new Set(knownProjectIds);
+  next.delete(hiddenColumnId);
+  return next.size === 0
+    ? { kind: "refused", reason: "sole-lane" }
+    : { kind: "hidden", next };
+}
+
 /** The board's derived order: pinned first, then newest-first. This is the
  *  tiebreak under a manual rank AND the whole order for an unranked column.
  *  Exported so the nesting pass sorts a family in the same order its column

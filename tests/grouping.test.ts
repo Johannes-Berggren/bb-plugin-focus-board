@@ -3,6 +3,7 @@ import {
   GROUP_BY_OPTIONS,
   buildColumns,
   columnFor,
+  filterProjectsWithoutLane,
   filterThreads,
   matchesFilter,
   threadState,
@@ -516,5 +517,42 @@ describe("buildColumns", () => {
       const done = columns.find((c) => c.id === "done");
       expect(done?.threads.map((t) => t.id)).toEqual(["pinned-old", "recent"]);
     });
+  });
+});
+
+describe("filterProjectsWithoutLane (the board's hide-a-lane gesture)", () => {
+  it("from no selection (all projects), hiding becomes the other known projects", () => {
+    const next = filterProjectsWithoutLane(new Set(), ["p_a", "p_b", "p_c"], "p_b");
+    if (next.kind !== "hidden") throw new Error(`expected hidden, got ${next.kind}`);
+    expect(next.next).toEqual(new Set(["p_a", "p_c"]));
+  });
+
+  it("from a multi-project selection, the lane's project leaves the set", () => {
+    const next = filterProjectsWithoutLane(new Set(["p_a", "p_b"]), ["p_a", "p_b", "p_c"], "p_b");
+    if (next.kind !== "hidden") throw new Error(`expected hidden, got ${next.kind}`);
+    expect(next.next).toEqual(new Set(["p_a"]));
+  });
+
+  it("hiding the only SELECTED lane adds every other known project instead (the empty set cannot mean 'none')", () => {
+    // The empty set shows ALL projects, so unchecking the only checked
+    // project in the menu would re-show everything. The gesture writes the
+    // menu state the intent means: every other project checked, this one out.
+    const next = filterProjectsWithoutLane(new Set(["p_b"]), ["p_a", "p_b"], "p_b");
+    if (next.kind !== "hidden") throw new Error(`expected hidden, got ${next.kind}`);
+    expect(next.next).toEqual(new Set(["p_a"]));
+  });
+
+  it("hiding the board's ONLY project is refused — an empty result would show everything, the opposite", () => {
+    const refused = filterProjectsWithoutLane(new Set(), ["p_b"], "p_b");
+    expect(refused).toEqual({ kind: "refused", reason: "sole-lane" });
+    const refusedSelected = filterProjectsWithoutLane(new Set(["p_b"]), ["p_b"], "p_b");
+    expect(refusedSelected).toEqual({ kind: "refused", reason: "sole-lane" });
+  });
+
+  it("hiding a project whose lane already sits outside the selection is refused — nothing to write", () => {
+    // Reachable through box overrides: a project column may stand on the
+    // Project board while the filter excludes its project.
+    const refused = filterProjectsWithoutLane(new Set(["p_a"]), ["p_a", "p_b"], "p_b");
+    expect(refused).toEqual({ kind: "refused", reason: "outside-filter" });
   });
 });
