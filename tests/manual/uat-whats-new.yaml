@@ -6,11 +6,15 @@
 # rail holds Behavior, What's new, and About; opening What's new marks the
 # feed seen, which flips the icon live — no reload needed.
 #
-# The harness runs the plugin's dev build, so the running tree carries the
-# [Unreleased] changelog group: without a `?lastSeenVersion=` seed the dev
-# build pulses it, exactly as a fresh dev install does. Steps 1–3 use that
-# standing state instead of simulating an upgrade (hardcoding a
-# lastSeenVersion here rots on every release bump).
+# The upgrade state is seeded, not inferred: `?lastSeenVersion=0.4.4` makes a
+# stable running build pulse its version delta, and a prerelease build pulses
+# whenever its [Unreleased] group stands (the version seed is ignored there —
+# one caveat: a prerelease build carrying an empty [Unreleased] group stays
+# quiet, so this step's honest return is either pulse or "nothing new in
+# this tree", and it fails if the tree should have been pulsing). The
+# companion `?lastSeenUnreleased=` seed covers the prerelease fingerprint.
+# Hardcoding the running version anywhere rots on every release bump; the
+# assertions below only name stable UI copy.
 #
 # Run: npm run uat -- tests/manual/uat-whats-new.yaml
 suite: whats-new
@@ -22,11 +26,9 @@ defaults:
   theme: dark
 
 steps:
-  # A dev tree with a standing [Unreleased] group starts with the gift
-  # pulsing — the same shirt a fresh dev install wears.
-  - id: dev-tree-pulses-its-standing-group
-    title: The standing [Unreleased] group shows the gift, pulsing
-    goto: "?groupBy=status"
+  - id: upgrade-pulses-the-gift
+    title: An update since the stored version shows the gift, pulsing
+    goto: "?groupBy=status&lastSeenVersion=0.4.4&lastSeenUnreleased=zz"
     assert:
       - whats_new: { icon: true, unseen: true }
 
@@ -38,7 +40,6 @@ steps:
       # already quiet here — step 3 only confirms the gear label that design
       # produces.
       - whats_new: { icon: true, unseen: false, modal: true, tab: "What's new" }
-      - text_visible: "Unreleased"
       - text_visible: "Recent changes since you last looked."
 
   - id: opening-marks-seen
@@ -62,11 +63,10 @@ steps:
       - text_visible: "Recent changes since you last looked."
 
   - id: rail-tab-about-shows-identity
-    title: The About tab names the running build and where the source lives
+    title: The About tab names the running version and where the source lives
     click_aria: { label: "About" }
     assert:
       - whats_new: { modal: true, tab: "About" }
-      - text_visible: "dev build"
       - text_visible: "github.com/cristoslc/bb-plugin-focus-board"
 
   - id: escape-closes-the-modal
