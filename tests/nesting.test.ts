@@ -1694,3 +1694,64 @@ describe("nested rows read in the parent column's order (attention children stan
     expect(ids(nested.childrenByParent.get("p"))).toEqual(["u2", "u1", "n"]);
   });
 });
+
+describe("rows read the family's own manual child order (nested-children reorder)", () => {
+  it("a child-rank order leads over the derived order", () => {
+    const parent = thread({ id: "p", updatedAt: NOW - HOUR });
+    const newer = thread({ id: "n", parentThreadId: "p", updatedAt: NOW - 2 * HOUR });
+    const older = thread({ id: "o", parentThreadId: "p", updatedAt: NOW - 3 * HOUR });
+    const threads = [parent, newer, older];
+    const columns = buildColumns(threads, "status", CONTEXT, new Map(), new Set(), NOW);
+    const nested = nestUnderParents(columns, threads, "status", CONTEXT, NOW, undefined, {
+      ranks: { "child:p": ["o", "n"] },
+    });
+    expect(ids(nested.childrenByParent.get("p"))).toEqual(["o", "n"]);
+  });
+
+  it("a family without child ranks keeps the column-order-then-derived sort", () => {
+    const parent = thread({ id: "p", updatedAt: NOW - HOUR });
+    const newer = thread({ id: "n", parentThreadId: "p", updatedAt: NOW - 2 * HOUR });
+    const older = thread({ id: "o", parentThreadId: "p", updatedAt: NOW - 3 * HOUR });
+    const threads = [parent, newer, older];
+    const columns = buildColumns(threads, "status", CONTEXT, new Map(), new Set(), NOW);
+    const nested = nestUnderParents(columns, threads, "status", CONTEXT, NOW, undefined, {
+      ranks: { "child:other": ["o", "n"] },
+    });
+    expect(ids(nested.childrenByParent.get("p"))).toEqual(["n", "o"]);
+  });
+
+  it("a move inside the parent column's order still breaks ties for unranked children", () => {
+    // The old base order survives underneath: an unranked child sorts by the
+    // parent column's rank order / derived order, so prior behavior holds.
+    const parent = thread({ id: "p", updatedAt: NOW - HOUR });
+    const newer = thread({ id: "n", parentThreadId: "p", updatedAt: NOW - 2 * HOUR });
+    const older = thread({ id: "o", parentThreadId: "p", updatedAt: NOW - 3 * HOUR });
+    const threads = [parent, newer, older];
+    const columns = buildColumns(threads, "status", CONTEXT, new Map(), new Set(), NOW, {
+      "status:idle-today": ["o", "n"],
+    });
+    const nested = nestUnderParents(columns, threads, "status", CONTEXT, NOW, undefined, {
+      ranks: { "status:idle-today": ["o", "n"] },
+    });
+    expect(ids(nested.childrenByParent.get("p"))).toEqual(["o", "n"]);
+  });
+
+  it("a done family's rows keep their done-recency order (child ranks do not touch the projection)", () => {
+    const parent = thread({ id: "p", updatedAt: NOW - HOUR });
+    const doneChildA = thread({ id: "da", parentThreadId: "p", updatedAt: NOW - 2 * HOUR });
+    const doneChildB = thread({ id: "db", parentThreadId: "p", updatedAt: NOW - 3 * HOUR });
+    const threads = [parent, doneChildA, doneChildB];
+    const doneIds = new Set(["p", "da", "db"]);
+    const columns = buildColumns(threads, "status", CONTEXT, new Map(), doneIds, NOW);
+    const nested = nestUnderParents(
+      columns,
+      threads,
+      "status",
+      CONTEXT,
+      NOW,
+      undefined,
+      { ranks: { "child:p": ["db", "da"] }, doneIds, doneTimes: new Map([["da", NOW], ["db", NOW - DAY]]) },
+    );
+    expect(ids(nested.childrenByParent.get("p"))).toEqual(["da", "db"]);
+  });
+});

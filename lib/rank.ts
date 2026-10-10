@@ -35,6 +35,23 @@ export function columnRankKey(groupBy: GroupBy, columnId: string): string {
 }
 
 /**
+ * The storage key for ONE family's nested-children order — the order of the
+ * child rows rendering under `parentId`'s card.
+ *
+ * The `child:` prefix is the collision guard: a column key is always a bare
+ * lane name or `${groupBy}:${columnId}`, and no grouping is named "child",
+ * so a thread id can never fork a column's order into a family's rows. A
+ * parent without an id would silently mint a mystery slot; that is a caller
+ * bug, not data to file under "".
+ */
+export const CHILD_RANK_PREFIX = "child:";
+
+export function childRankKey(parentId: string): string {
+  if (parentId === "") throw new Error("childRankKey: parent id is empty");
+  return `${CHILD_RANK_PREFIX}${parentId}`;
+}
+
+/**
  * Parse a stored rank row. Absent (undefined/null) means "no ranks anywhere"
  * → empty store, which is not a failure: a fresh install has no row. A
  * present-but-malformed row THROWS (fail loud, never coerce) — a half-read
