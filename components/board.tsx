@@ -40,6 +40,7 @@ import {
 } from "../lib/rank";
 import { reparentRefusalFromParents } from "../lib/reparent";
 import {
+  canJoinGroup,
   columnRunInfo,
   runsFromColumns,
   unitMoveTarget,
@@ -121,12 +122,21 @@ interface BoardProps {
   /**
    * Thread id → its feature-group family box ({ groupId, name }) — the
    * dashed outline wrapper for sibling threads sharing a named group.
-   * Holds ONLY threads that render inside a box (groups of one, pinned and
-   * done members are absent); undefined/empty when the caller has no group
-   * data and every card renders standalone. The box itself is decoration
-   * only: no dot, no pill, no color — the name is secondary text.
+   * Holds ONLY threads that render inside a box (pinned and done members
+   * are absent — a group of one KEEPS its box, its lone member included);
+   * undefined/empty when the caller has no group data and every card
+   * renders standalone. The box is decoration and the group's drop target:
+   * no dot, no pill, no color — the name is secondary text.
    */
   groupBoxOf?: GroupBoxMap;
+  /**
+   * Join a dragged card to a registry group by dropping it on the group's
+   * box container (the dashed outline's own surface: label, padding, and
+   * the gaps between member cards — a member card's surface keeps its own
+   * edge/nest gestures). The caller runs the group write; the board only
+   * decides eligibility (see canJoinGroup). Unwired → boxes refuse drops.
+   */
+  onJoinGroup?: (droppedId: string, groupId: string) => void;
   /**
    * Rename a registry group from the box label: clicking the label turns it
    * into an inline text input, Enter (or blur) commits the trimmed name,
@@ -407,6 +417,7 @@ export function Board({
   groupBoxOf,
   onRenameGroup,
   onDeleteGroup,
+  onJoinGroup,
   dimmedIds,
   collapsedFamilyIds,
   onFamilyCollapsedChange,
@@ -637,6 +648,8 @@ export function Board({
   // delete pattern, miniaturized).
   const [renamingBoxId, setRenamingBoxId] = useState<string | null>(null);
   const [labelDeleteArmed, setLabelDeleteArmed] = useState(false);
+  /** The group box whose own surface (not a member card) a drag hovers: the drop-to-join promise. */
+  const [joinHoverId, setJoinHoverId] = useState<string | null>(null);
   const renameCommittedRef = useRef(false);
   const startLabelRename = (groupId: string) => {
     renameCommittedRef.current = false;
@@ -1637,8 +1650,12 @@ export function Board({
                             setDragInFlight(id !== null);
                             // A drag that ends anywhere but a successful drop
                             // (Escape, a refused target) must not leave its
-                            // insertion line on screen.
-                            if (id === null) clearRankDrop();
+                            // insertion line — or its join-hover promise — on
+                            // screen.
+                            if (id === null) {
+                              clearRankDrop();
+                              setJoinHoverId(null);
+                            }
                           }}
                         />
                   </li>
@@ -1664,8 +1681,59 @@ export function Board({
                             key={`group:${runItem.box.groupId}`}
                             data-group-box={runItem.box.groupId}
                             className="relative mt-1.5"
+                            onDragOver={(event) => {
+                              if (!ranking || onJoinGroup === undefined) return;
+                              if (!isLaneDrag(event.dataTransfer.types, rankKey)) return;
+                              // Member-card surfaces keep their own gestures
+                              // (insertion edges, the nest zone): only the
+                              // container's own surface — label, padding, and
+                              // the gaps between member cards — joins.
+                              const target = event.target instanceof Element ? event.target : null;
+                              if (target?.closest("[data-group-box-member]") !== null) return;
+                              const droppedId = draggingIdRef.current;
+                              if (droppedId === null || droppedId === "") return;
+                              if (!canJoinGroup(droppedId, runItem.box.groupId, groupBoxOf ?? EMPTY_GROUP_BOXES)) return;
+                              event.preventDefault();
+                              event.dataTransfer.dropEffect = "move";
+                              setJoinHoverId(runItem.box.groupId);
+                            }}
+                            onDragLeave={(event) => {
+                              // Same contains() guard the card slots run: the
+                              // promise dies only when the hover truly left.
+                              const into = event.relatedTarget;
+                              if (into instanceof Node && event.currentTarget.contains(into)) return;
+                              setJoinHoverId((current) => (current === runItem.box.groupId ? null : current));
+                            }}
+                            onDrop={(event) => {
+                              if (!ranking || onJoinGroup === undefined) return;
+                              const target = event.target instanceof Element ? event.target : null;
+                              if (target?.closest("[data-group-box-member]") !== null) return;
+                              const droppedId = draggedIdFor(event, draggingIdRef.current);
+                              if (
+                                droppedId === "" ||
+                                !canJoinGroup(droppedId, runItem.box.groupId, groupBoxOf ?? EMPTY_GROUP_BOXES)
+                              ) {
+                                return; // unclaimed: the column's own drop path decides
+                              }
+                              // Claim the drop so the column's append or
+                              // state-change path stays out of a join write.
+                              event.preventDefault();
+                              event.stopPropagation();
+                              setJoinHoverId(null);
+                              onJoinGroup(droppedId, runItem.box.groupId);
+                            }}
                           >
-                            <div className="relative rounded-lg border border-dashed border-muted-foreground/50 px-1 pt-4 pb-0.5">
+                            <div
+                              data-group-box-join-hover={joinHoverId === runItem.box.groupId ? "" : undefined}
+                              className={cn(
+                                "relative rounded-lg border border-dashed border-muted-foreground/50 px-1 pt-4 pb-0.5",
+                                // The join hover reads amber like the other
+                                // family writes (the nest zone), never like
+                                // the lane-colored insertion line.
+                                joinHoverId === runItem.box.groupId &&
+                                  "ring-2 ring-amber-500/80 border-amber-500/70",
+                              )}
+                            >
                               {renamingBoxId === runItem.box.groupId ? (
                                 <div className="absolute -top-2.5 left-3 z-20 flex items-center gap-0.5 rounded-sm bg-muted px-0.5">
                                   <input
@@ -1743,7 +1811,7 @@ export function Board({
                                 <button
                                   type="button"
                                   data-group-box-label={runItem.box.groupId}
-                                  title={`Feature group “${runItem.box.name}” — click to rename; drag any member to move the whole box`}
+                                  title={`Feature group “${runItem.box.name}” — click to rename; drag any member to move the whole box; drop a card on this box to join the group`}
                                   onClick={() => startLabelRename(runItem.box.groupId)}
                                   className="absolute -top-2 left-3 z-10 max-w-48 truncate rounded-sm bg-muted px-1 text-left text-[10.5px] leading-[14px] text-muted-foreground hover:text-foreground"
                                 >
@@ -1752,7 +1820,7 @@ export function Board({
                               ) : (
                                 <span
                                   data-group-box-label={runItem.box.groupId}
-                                  title={`Feature group “${runItem.box.name}” — drag any member to move the whole box`}
+                                  title={`Feature group “${runItem.box.name}” — drag any member to move the whole box; drop a card on this box to join the group`}
                                   className="absolute -top-2 left-3 z-10 rounded-sm bg-muted px-1 text-[10.5px] leading-[14px] text-muted-foreground"
                                 >
                                   {runItem.box.name}

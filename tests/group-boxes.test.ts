@@ -3,6 +3,7 @@ import type { PluginSidebarThread } from "@get-bb/plugin-sdk/app";
 import { thread } from "./thread-fixture";
 import { buildColumns, doneRecencyCompare } from "../components/grouping";
 import {
+  canJoinGroup,
   columnRunInfo,
   filterWithGroupBoxes,
   flattenRuns,
@@ -48,7 +49,7 @@ describe("planGroupBoxes", () => {
     expect(plan.groupBoxOf.get("thr_a")).toBe(plan.groupBoxOf.get("thr_b"));
   });
 
-  it("a group of one renders nothing: no box, no overrides", () => {
+  it("a group of one keeps its box: the lone member is boxed with its override", () => {
     const threads = [thread({ id: "thr_a" })];
     const plan = planGroupBoxes(
       threads,
@@ -59,9 +60,14 @@ describe("planGroupBoxes", () => {
       new Set(),
       NOW,
     );
-    expect(plan.active).toBe(false);
-    expect(plan.groupBoxOf.size).toBe(0);
-    expect(plan.columnOverrides.size).toBe(0);
+    // The solitary box stays: the outline is the drag-into target, so the
+    // group hides only when its LAST candidate leaves (record GCs at zero).
+    expect(plan.active).toBe(true);
+    const box = plan.groupBoxOf.get("thr_a");
+    expect(box?.groupId).toBe("grp_auth");
+    expect(box?.name).toBe("Auth rework");
+    expect(box?.members.map((t) => t.id)).toEqual(["thr_a"]);
+    expect(plan.columnOverrides.has("thr_a")).toBe(true);
   });
 
   it("boxed members stay out of the plan when done or pinned", () => {
@@ -246,6 +252,28 @@ describe("runsFromColumns", () => {
       (items![1] as { box: { members: PluginSidebarThread[] } }).box.members.map((t) => t.id),
     ).toEqual(["thr_a", "thr_b"]);
   });
+
+  it("a group of one yields a box run around its single member", () => {
+    const solo = [thread({ id: "thr_a", status: "active", updatedAt: NOW - 1000 })];
+      const soloPlan = planGroupBoxes(
+        solo,
+        groupOf({ thr_a: "grp_auth" }),
+        NAMES,
+        "status",
+        context,
+        new Set(),
+        NOW,
+      );
+      const columns = buildColumns(solo, "status", context, new Map(), new Set(), NOW, {}, soloPlan.columnOverrides);
+      const working = columns.find((c) => c.id === "working");
+      const runs = runsFromColumns([working as never], soloPlan.groupBoxOf);
+      const items = (runs as Map<string, readonly unknown[]>).get("working");
+      expect(items).toHaveLength(1);
+      expect(items![0]).toMatchObject({ kind: "box" });
+      expect(
+        (items![0] as { box: { members: PluginSidebarThread[] } }).box.members.map((t) => t.id),
+      ).toEqual(["thr_a"]);
+    });
 
   it("flattenRuns restores the display order", () => {
     const columns = buildColumns(
@@ -477,6 +505,37 @@ describe("reconcileGroupBoxesWithFrozen", () => {
 
   it("no frozen columns: the plan passes through", () => {
     expect(reconcileGroupBoxPlan(plan, new Map())).toBe(plan);
+  });
+});
+
+describe("canJoinGroup (the drop-into-the-box gesture's decision)", () => {
+  const boxes = new Map([
+    ["thr_solo", { groupId: "grp_auth", name: "Auth rework", members: [thread({ id: "thr_solo" })] }],
+    [
+      "thr_boxed",
+      {
+        groupId: "grp_auth",
+        name: "Auth rework",
+        members: [thread({ id: "thr_boxed" }), thread({ id: "thr_other" })],
+      },
+    ],
+  ]);
+
+  it("an unassigned card joins", () => {
+    expect(canJoinGroup("thr_free", "grp_auth", boxes)).toBe(true);
+  });
+
+  it("a card already in the same group is a no-op drop (no change)", () => {
+    expect(canJoinGroup("thr_solo", "grp_auth", boxes)).toBe(false);
+    expect(canJoinGroup("thr_boxed", "grp_auth", boxes)).toBe(false);
+  });
+
+  it("a multi-member box unit cannot join: membership is per-thread", () => {
+    expect(canJoinGroup("thr_boxed", "grp_search", boxes)).toBe(false);
+  });
+
+  it("a lone box member moves to another group (one group per thread)", () => {
+    expect(canJoinGroup("thr_solo", "grp_search", boxes)).toBe(true);
   });
 });
 

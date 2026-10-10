@@ -2218,6 +2218,7 @@ function BoardPage({ subPath }: { subPath: string }) {
             childCountByParent={assembly?.childCountByParent ?? new Map()}
             doneChildrenByParent={assembly?.doneChildrenByParent ?? new Map()}
             groupBoxOf={groupBoxPlanFrozen.groupBoxOf}
+            onJoinGroup={setThreadGroup}
             onRenameGroup={renameGroup}
             onDeleteGroup={deleteGroup}
             collapsedFamilyIds={collapsedFamilies}

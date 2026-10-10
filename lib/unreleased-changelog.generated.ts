@@ -5,8 +5,11 @@ export const UNRELEASED_ITEMS: readonly { text: string; children: string[] }[] =
     "children": []
   },
   {
-    "text": "**Sibling threads now join a named family box.** \"Group…\" in a card menu assigns the thread to a shared named group (created in-line); members render inside one dashed outline with the group name on the border, the whole box moves as one unit by drag or Alt+Arrow, and the group evaporates the moment its last member unassigns — no parent thread involved.",
-    "children": []
+    "text": "**Sibling threads now join a named family box.** \"Group…\" in a card menu assigns the thread to a shared named group (created in-line); members render inside one dashed outline with the group name on the border, the whole box moves as one unit by drag or Alt+Arrow, and the group evaporates when its last assignment clears — no parent thread involved.",
+    "children": [
+      "The box survives a group of one: the solitary outline stays on the board with its name, so the group is never hiding at two-of-three members.",
+      "The outline is the join target: drag a card onto any group box (it rings amber like the nest gesture) and the drop moves the card into that group — a multi-member box dragged as a unit never dissolves."
+    ]
   },
   {
     "text": "**The New thread composer can maximize into the main new-thread view.** A maximize button in the composer's dialog (beside the close) hands off to bb's root compose surface — project and environment seeds plus the prompt text ride along; the board's own draft is kept (a maximize is a close, not a spawn) and the button hides while a child preset is armed since the main view cannot spawn a nested thread.",
