@@ -19,8 +19,9 @@ merging into `dev`, releasing, changelog writing, or tagging.
     must land, it lands on `dev` first and main follows. Git-tag
     distribution means main's tip being slightly stale between releases is
     harmless; divergent history is not.
-  - `dev` is the integration branch: thread branches base on it and merge
-    into it. While unreleased, `dev` carries a provisional prerelease
+  - `dev` is the integration branch: thread branches from it, rebase onto
+    it, and land on it only through a pull request on the remote. While
+    unreleased, `dev` carries a provisional prerelease
     version — the next release candidate + `-dev` (e.g. `0.6.0-dev`) — in
     `package.json` and `APP_VERSION`. The `-dev` suffix marks the number as
     a guess; the finalize commit makes it real.
@@ -29,14 +30,47 @@ merging into `dev`, releasing, changelog writing, or tagging.
   `dev` — that registered path is what the running bb serves, so dev is
   what bb points at. `main` has no permanent local checkout; releases
   create a temporary one (section 4).
-- Only one thread should be finalizing at a time. Read the current version
-  from **`origin/dev`** (or the main checkout on `dev`), not from your
-  working branch, before finalizing — concurrent finals have double-bumped
-  before (two "Release 0.5.3" commits exist in history).
+- **`dev` only ever advances through a pull request on the remote.** Thread
+  branches base on it, rebase onto it, and ship via PR; a thread merging a
+  branch into dev with a local `git merge` (or pushing dev by hand) is the
+  forbidden path now — it once happened alongside a replayed copy of the
+  same patch (2026-10-10), and the doubled CHANGELOG bullets it produced
+  had to be deduplicated before anything went public. The main checkout
+  follows the remote: `git fetch && git merge --ff-only origin/dev` — and
+  with the PR flow in place, that fast-forward is the steady state, so an
+  `--ff-only` refusal means local and remote diverged: stop and reconcile
+  instead of papering over it.
+- Only one thread should be integrating (rebase → PR → merge → pull down →
+  rebuild + reload) at a time. Read the current version from
+  **`origin/dev`** (the main checkout on `dev` reflects it after a pull)
+  before finalizing — concurrent finals have double-bumped before (two
+  "Release 0.5.3" commits exist in history). GitHub serializes the dev
+  writes themselves, but the main checkout's tree is single-real-estate:
+  before touching it, check it is clean and no merge is mid-flight
+  (`.git/MERGE_HEAD` present) — wait for an in-flight foreign merge rather
+  than barging over it (observed live 2026-10-10: a sibling thread's merge
+  sat unresolved in the main checkout for the minute another merge
+  attempted the same tree).
 
-## 1. Merging work into `dev` — the changelog happens here
+## 1. Landing work on `dev` — the PR flow, and the changelog riding it
 
-- Every merge into `dev` that lands user-facing behavior appends bullets to
+- The standard integration flow, one pass per landing:
+  1. Commit the work on the thread branch in its worktree.
+  2. `git fetch origin && git rebase dev` — conflicts resolve with dev's
+     side, keeping the branch's new bullets in place.
+  3. Verify in the worktree: `npm test` (plus `npm run build` / `npm run
+     gates` where the landing ships).
+  4. Push the branch and `gh pr create --base dev` — the PR title carries
+     the one-line behavior summary the old merge-commit subjects held.
+  5. Link the PR to the focus board (`focus_board_link_issue`).
+  6. Merge the PR on the remote with a merge commit (`gh pr merge --merge`
+     — never squash or rebase: the dev lineage's bullet-carrying commits
+     stay real), then delete the merged head branch on both sides.
+  7. Pull down in the main checkout (`git fetch && git merge --ff-only
+     origin/dev`), then rebuild and reload (section 7) when the landing
+     changed anything `dist/` carries.
+- Every PR into `dev` that lands user-facing behavior carries its bullets in
+  its own commits, appending to
   the `[Unreleased]` group at the top of `CHANGELOG.md`, under the matching
   Keep-a-Changelog subsection: **Added** = new capability, **Changed** =
   behavior change to an existing surface, **Fixed** = bug fix.
@@ -57,7 +91,16 @@ merging into `dev`, releasing, changelog writing, or tagging.
   behavior a published version already described, it gets fresh
   `[Unreleased]` bullets saying what the behavior is *now* (the parked-pin
   model revising 0.5.21's lane-exit unpin is the example to remember).
-- A finalize rename sets a changelog trap for the next merge into `dev`: the branch's bullets sit under the heading dev renamed to `[X.Y.Z]`, and git's auto-merge happily files the new bullets into the published section (observed with the 0.6.0 re-arm, 2026-10-03 — "New threads compose inside the board" landed inside `[0.6.0]` until hand-moved). After any dev merge that carries `[Unreleased]` bullets across a finalize boundary, check where they landed and move them into the fresh `[Unreleased]`; resolving the conflict by keeping both sides is exactly the back-edit the bullet above forbids.
+- A finalize rename sets a changelog trap for the next PR into `dev`: the
+  branch's bullets sit under the heading dev renamed to `[X.Y.Z]`, and a
+  rebase against it happily files the new bullets into the published
+  section (observed with the 0.6.0 re-arm, 2026-10-03 — "New threads
+  compose inside the board" landed inside `[0.6.0]` until hand-moved).
+  After any rebase or conflict resolution that carries `[Unreleased]`
+  bullets across a finalize boundary, check where they landed and move them
+  into the fresh `[Unreleased]`; resolving the conflict by keeping both
+  sides is exactly the back-edit the bullet above forbids. The same check
+  applies at the PR-merge/pull-down seam.
 - `lib/whats-new.ts`'s WHATS_NEW array is not maintained by hand anywhere —
   no entries, no churn; the prerelease branch in the whats-new entry test
   keeps the suite green without a placeholder. On dev the modal leads with
@@ -93,10 +136,10 @@ merging into `dev`, releasing, changelog writing, or tagging.
 
 ## 3. Finalize commit (on the dev lineage)
 
-If your branch doesn't contain `origin/dev` yet, merge `dev` in first. One
-commit, subject `Release X.Y.Z: <user-facing summary>` (the summary
+If your branch doesn't contain `origin/dev` yet, rebase it onto `dev` first
+(section 1's flow). One finalize commit, subject `Release X.Y.Z: <user-facing summary>` (the summary
 condenses the changelog's lead item — same wording rules as the What's-new
-entry below):
+entry below), riding its own PR per the standard flow:
 
 1. **Decide the number**: strip the `-dev` suffix and that is the version —
    correct it first if the unreleased work warrants a different bump than
@@ -185,8 +228,9 @@ therefore includes a marketplace check before the cut is reported done:
 
 ## 6. Post-release prep commit (dev-only)
 
-Immediately after promoting, one commit on the dev lineage, subject like
-`Prepare 0.7.0-dev: re-arm the cycle`:
+Immediately after promoting, one commit on the dev lineage (riding its own
+PR per the standard flow — section 1's step list, `npm test` is enough here
+since only version stamps move):
 
 - `package.json`, root `package-lock.json`, and `APP_VERSION` bumped to the
   next release candidate + `-dev`. The guess defaults to one patch bump
@@ -195,11 +239,15 @@ Immediately after promoting, one commit on the dev lineage, subject like
   already there, and no `WHATS_NEW` entry exists for a `-dev` version —
   that is by design.
 
-## 7. Reload the running plugin
+## 7. Pull down, then reload the running plugin
 
 bb runs focus-board from the main checkout (its registered plugin path),
-and that checkout sits on `dev`, so the running plugin serves dev:
+and that checkout sits on `dev`, so the running plugin serves dev. After a
+PR merged on the remote:
 
+0. Pull down in the main checkout: `git fetch && git merge --ff-only
+   origin/dev` — after checking the tree is clean and no merge is
+   mid-flight in it (section 0's coordination rule).
 1. `npm run build` in the main checkout (on `dev`).
 2. `bb plugin reload focus-board`.
 3. Confirm with `bb plugin list` (version reads `X.Y.Z` right after a
@@ -207,14 +255,14 @@ and that checkout sits on `dev`, so the running plugin serves dev:
    What's-new gift button should pulse for the new version after a release
    and stay quiet once the prep commit lands.
 
-This is part of every merge into `dev`, not a release-only step. bb does
+This is part of every landing, not a release-only step. bb does
 not watch the plugin's `dist/` — a rebuilt bundle keeps serving the
 previously loaded code until the reload runs, so a merged-but-unreloaded
-board looks unshipped: new behavior absent and the gift silent even though
+PR looks unshipped: new behavior absent and the gift silent even though
 `[Unreleased]` has bullets. Exactly that happened on 2026-10-03 (the
 new-thread modal merged, the operator saw no pulsing gift, and the fix was
-only the reload). Run steps 1–2 before reporting a dev merge as done, and
-treat a missing pulse after a changelog-carrying merge as the symptom of a
+only the reload). Run steps 0–2 before reporting a landing as done, and
+treat a missing pulse after a changelog-carrying landing as the symptom of a
 stale bundle first, a code bug second.
 
 `bb plugin dev` is the watch-mode alternative for iterating, not for
@@ -245,7 +293,8 @@ fingerprint says which key era produced it).
 ## 8. Release ledger
 
 - `CHANGELOG.md` is the full Keep-a-Changelog record. The `[Unreleased]`
-  group is written during merges into dev; the finalize commit renames it
+  group is written in the PRs that land work on dev; the finalize commit
+  renames it
   to its version. Public sections, newest first, never back-edited. The
   group also embeds into dev builds (scripts/generate-unreleased.mjs) as
   the What's-new modal's headline entry — keep its bullets' opening

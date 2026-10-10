@@ -20,14 +20,32 @@ Never create or retarget a `node_modules` symlink inside this repo's checkouts. 
 
 ## Release
 
-Releasing a new plugin version: work merges into `dev` (the integration
-branch; the main checkout sits on it and that is what bb serves) and
-each such merge appends bullets to `CHANGELOG.md`'s `[Unreleased]` group,
-then rebuilds in the main checkout and runs `bb plugin reload focus-board` —
-bb keeps serving the previously loaded bundle otherwise, so an unreloaded
-merge looks unshipped (no new behavior, silent What's-new gift); also check
-the merge did not misfile new bullets into a renamed published section.
-On every changelog write, audit the whole `[Unreleased]` group in the same edit, never deferred to release: user-facing bullets only (tests, refactors, docs, plumbing earn none), each filed under the matching Added/Changed/Fixed subsection, same-behavior duplicates folded into one bullet with facet sub-bullets, each bullet Slack-punchy — a bold lead plus at most two short sentences, no state-list enumerations; longer detail moves to linked docs or gets cut.
+Landing work on `dev`: **every thread rebases its worktree onto `dev`, then
+ships through a pull request on the remote — no thread merges into `dev`
+directly anymore.** The flow: `git fetch origin && git rebase dev` on the
+thread branch (resolve conflicts with dev's side, keeping your new bullets),
+run `npm test` (and `npm run build` where the bundle matters), push the
+branch, `gh pr create --base dev` (title carries the one-line behavior
+summary the old merge-commit subjects held), link the PR to the focus board
+(`focus_board_link_issue`), merge the PR on the remote (`gh pr merge
+--merge` — a merge commit, never squash/rebase, so the dev lineage's
+bullet-carrying commits stay real), delete the merged head branch, then in
+the main checkout `git fetch && git merge --ff-only origin/dev` and rebuild
++ `bb plugin reload focus-board` — bb keeps serving the previously loaded
+bundle otherwise, so an unreloaded PR looks unshipped (no new behavior,
+silent What's-new gift). Before touching the main checkout, check no other
+thread's merge is in flight in it (`.git/MERGE_HEAD` present) and the tree
+is clean; wait for an in-flight one rather than barging over it.
+The changelog bullets ride the PR's own commits, so the PR carries them;
+audit the whole `[Unreleased]` group in the same edit, never deferred to
+release: user-facing bullets only (tests, refactors, docs, plumbing earn
+none), each filed under the matching Added/Changed/Fixed subsection,
+same-behavior duplicates folded into one bullet with facet sub-bullets, each
+bullet Slack-punchy — a bold lead plus at most two short sentences, no
+state-list enumerations; longer detail moves to linked docs or gets cut.
+The finalize rename sets a bullet-misfile trap for merges that cross it:
+after a rebase or PR conflict resolution, check the bullets did not land
+inside a renamed published section.
 `dev` carries a provisional prerelease version (`next + "-dev"`, e.g.
 `0.6.0-dev`) in package.json/APP_VERSION; `main` is stable and moves only
 by fast-forward. Releasing = one finalize commit on the dev lineage (name
@@ -38,8 +56,11 @@ publish the matching GitHub Release page — title `Focus Board X.Y.Z`, notes
 are that release's changelog section verbatim plus a Full-changelog compare
 link, no binary assets (the tag itself is the package; bb installs it by
 semver range) — then a
-dev-only prep commit bumps to the next `-dev`. Never commit to main
-main-side; never back-edit published changelog sections; never move a
+dev-only prep commit bumps to the next `-dev`. The finalize and prep
+commits ride PRs like everything else that writes `dev`; main itself moves
+only by fast-forward. Never commit to main
+main-side; never push `dev` outside a PR; never back-edit published
+changelog sections; never move a
 tag. Full reference:
 `.agents/agents-md-detail/release.md`
 
