@@ -47,7 +47,7 @@ import {
 import { buildParentLanes } from "./components/parent-lanes";
 import { ParentLaneBoard } from "./components/parent-lane-board";
 import { GroupDialog } from "./components/group-dialog";
-import { filterWithGroupBoxes, planGroupBoxes, reconcileGroupBoxPlan } from "./components/group-boxes";
+import { filterWithGroupBoxes, planGroupBoxes } from "./components/group-boxes";
 import { applyUnitMoveVisible } from "./lib/rank-unit-move";
 import { doneAtToEpochMs } from "./lib/done-metadata";
 import { projectDisplayName } from "./lib/project-name";
@@ -994,13 +994,14 @@ function BoardPage({ subPath }: { subPath: string }) {
   // render a box, which lane each box lands in. Computed over the FULL
   // non-hidden set — a member a search hid is dimmed inside its passing
   // box, never dropped from the group's count.
-  // A member open in the pane holds a FROZEN column (declared just below;
-  // frozen beats the box's lane and would split the pair into two no-box
-  // columns). The box follows the frozen member instead — the family
-  // gathers around the selected card, the way nested children always have.
-  // Declared AFTER frozenColumns, reading it reactively: the ref variant
-  // never invalidated its memo, and the split shipped (2026-10-10 report:
-  // open pane, pair split Working/Idle·Recent, nothing drawing).
+  // The plan's lane also beats the pane's frozen column ("Family wins,
+  // always"): the lane comes from the members' live states — the most
+  // attention-needing member's — so opening a card never teleports its
+  // family into the open card's captured lane. buildColumns applies box
+  // overrides (and R4 family lanes) ahead of any frozen capture; the freeze
+  // keeps owning cards no family lane claims. Because the plan places every
+  // box member, the box is always whole in exactly one column — the split
+  // the 2026-10-10 report drove the pane-follows rule against cannot render.
   const frozenColumns = useMemo(() => {
     const frozen = new Map<string, { id: string; label: string }>();
     if (openThreadId !== null && frozenColumn !== null && frozenColumn.threadId === openThreadId) {
@@ -1039,22 +1040,14 @@ function BoardPage({ subPath }: { subPath: string }) {
       ),
     [liveThreads, groupsByThread, groupContext, groupBy, doneIds],
   );
-  // A member open in the pane holds a frozen column; frozen beats the box's
-  // lane and would split the pair into two no-box columns. The box follows
-  // the frozen member instead — the family gathers around the selected
-  // card, the way nested children always have.
-  const groupBoxPlanFrozen = useMemo(
-    () => reconcileGroupBoxPlan(groupBoxPlan, frozenColumns),
-    [groupBoxPlan, frozenColumns],
-  );
   // Group keep-and-dim applies over the family result (a member a failed
   // family dropped cannot keep its box on the board); the two dim sets merge.
   const groupBoxFiltered = useMemo(
     () =>
-      groupBoxPlanFrozen.active
-        ? filterWithGroupBoxes(familyFiltered.kept, groupBoxPlanFrozen.groupBoxOf, filter, search.trim(), projectNameFor, ticketRefsFor, groupNameFor)
+      groupBoxPlan.active
+        ? filterWithGroupBoxes(familyFiltered.kept, groupBoxPlan.groupBoxOf, filter, search.trim(), projectNameFor, ticketRefsFor, groupNameFor)
         : { kept: familyFiltered.kept, dimmedIds: new Set<string>() as ReadonlySet<string> },
-    [groupBoxPlanFrozen, familyFiltered, filter, search, projectNameFor, ticketRefsFor, groupNameFor],
+    [groupBoxPlan, familyFiltered, filter, search, projectNameFor, ticketRefsFor, groupNameFor],
   );
   const dimmedAll = useMemo(
     () => new Set([...familyFiltered.dimmedIds, ...groupBoxFiltered.dimmedIds]),
@@ -1091,9 +1084,9 @@ function BoardPage({ subPath }: { subPath: string }) {
             nestingEnabled: nestChildren,
             ranks,
             doneTimes,
-            extraColumnOverrides: groupBoxPlanFrozen.columnOverrides,
+            extraColumnOverrides: groupBoxPlan.columnOverrides,
           }),
-    [isParentGroupBy, searched, groupBy, groupContext, frozenColumns, doneIds, nestChildren, ranks, doneTimes, groupBoxPlanFrozen],
+    [isParentGroupBy, searched, groupBy, groupContext, frozenColumns, doneIds, nestChildren, ranks, doneTimes, groupBoxPlan],
   );
   const columns = assembly?.columns ?? [];
   // The map that actually renders as nested rows (nesting rules applied, so a
@@ -2342,7 +2335,7 @@ function BoardPage({ subPath }: { subPath: string }) {
             nestedChildrenByParent={nestedChildrenByParent}
             childCountByParent={assembly?.childCountByParent ?? new Map()}
             doneChildrenByParent={assembly?.doneChildrenByParent ?? new Map()}
-            groupBoxOf={groupBoxPlanFrozen.groupBoxOf}
+            groupBoxOf={groupBoxPlan.groupBoxOf}
             onJoinGroup={setThreadGroup}
             onRenameGroup={renameGroup}
             onDeleteGroup={deleteGroup}

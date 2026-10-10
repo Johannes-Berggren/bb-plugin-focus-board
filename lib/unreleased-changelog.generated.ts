@@ -54,6 +54,10 @@ export const UNRELEASED_ITEMS: readonly { text: string; children: string[] }[] =
     "children": []
   },
   {
+    "text": "**A family box's lane never depends on the open pane.** Opening one member's detail pulled the whole box — a running sibling included — into the lane that card held at open, so an active thread read as idle; the box now always renders in its most attention-needing member's lane, and a lifted parent/child family rides the same rule through an open pane. Cards no family claims keep the open-pane freeze.",
+    "children": []
+  },
+  {
     "text": "**The toolbar's filter row aligns at any host font size.** Bare `relative` wrappers positioned the dropdown and wallpaper triggers on the text baseline, so bb's own font metrics lifted each trigger up to a pixel above its flex-centred neighbours — the drift that read as an off-kilter filter row. The wrappers now position by flex; the alignment holds across font metric changes and the screenshot harness verifies all controls share one center.",
     "children": []
   },
