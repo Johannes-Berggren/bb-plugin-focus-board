@@ -18,16 +18,18 @@ import {
   wallpaperStoredValue,
 } from "../components/preferences";
 
-describe("shipped wallpaper presets", () => {
-  it("every preset url is an allowed data url and survives the store round-trip", () => {
-    for (const preset of WALLPAPER_PRESETS) {
-      expect(isAllowedWallpaperUrl(preset.url)).toBe(true);
-      const roundTripped = parseWallpaperStored(wallpaperStoredValue({ version: 1, global: { url: preset.url, dim: preset.dim } }));
-      expect(roundTripped.global).toEqual({ url: preset.url, dim: preset.dim });
-    }
-  });
-
-  it("ids and labels are unique and dim is in [0, 0.9]", () => {
+describe("shipped Maine-flavored wallpaper presets", () => {
+  it("is exactly the Maine lineup with unique ids and labels", () => {
+    expect(WALLPAPER_PRESETS.map((preset) => preset.label)).toEqual([
+      "Acadia",
+      "Blueberry",
+      "Lobster",
+      "Pine",
+      "Fog",
+      "Tide",
+      "Dawn",
+      "Foliage",
+    ]);
     const ids = new Set(WALLPAPER_PRESETS.map((preset) => preset.id));
     expect(ids.size).toBe(WALLPAPER_PRESETS.length);
     const labels = new Set(WALLPAPER_PRESETS.map((preset) => preset.label));
@@ -35,6 +37,32 @@ describe("shipped wallpaper presets", () => {
     for (const preset of WALLPAPER_PRESETS) {
       expect(preset.dim).toBeLessThanOrEqual(0.9);
       expect(preset.dim).toBeGreaterThanOrEqual(0);
+    }
+  });
+
+  it("every preset carries BOTH variants; both urls allowed and both survive the store round-trip", () => {
+    for (const preset of WALLPAPER_PRESETS) {
+      expect(isAllowedWallpaperUrl(preset.url)).toBe(true);
+      expect(isAllowedWallpaperUrl(preset.darkUrl)).toBe(true);
+      const roundTripped = parseWallpaperStored(
+        wallpaperStoredValue({
+          version: 1,
+          global: { url: preset.url, dim: preset.dim, darkUrl: preset.darkUrl },
+        }),
+      );
+      expect(roundTripped.global).toEqual({ url: preset.url, dim: preset.dim, darkUrl: preset.darkUrl });
+    }
+  });
+
+  it("light and dark palettes differ for every preset", () => {
+    for (const preset of WALLPAPER_PRESETS) {
+      expect(preset.darkUrl).not.toBe(preset.url);
+    }
+  });
+
+  it("dim stays around 0.25 so cards keep doing their own contrast work", () => {
+    for (const preset of WALLPAPER_PRESETS) {
+      expect(preset.dim).toBe(0.25);
     }
   });
 });

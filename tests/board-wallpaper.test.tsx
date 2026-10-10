@@ -6,7 +6,7 @@
 // wallpaper is active) drops it back to global: null. The trigger reads
 // active (amber ink) while a wallpaper renders behind the board.
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { BoardToolbar } from "../components/board-toolbar";
 import { WALLPAPER_PRESETS } from "../components/wallpaper-presets";
 import type { WallpaperSettings } from "../components/preferences";
@@ -140,10 +140,14 @@ describe("toolbar wallpaper control", () => {
     openPopover();
     const count = screen.getAllByRole("button", { name: /Wallpaper preset: / }).length;
     expect(count).toBeGreaterThanOrEqual(8);
-    fireEvent.click(screen.getByRole("button", { name: "Wallpaper preset: Aurora" }));
+    fireEvent.click(screen.getByRole("button", { name: "Wallpaper preset: Acadia" }));
     expect(onWallpaperChange).toHaveBeenCalledWith({
       version: 1,
-      global: { url: expect.stringMatching(/^data:image\/svg\+xml/), dim: 0.35 },
+      global: {
+        url: expect.stringMatching(/^data:image\/svg\+xml/),
+        dim: 0.35,
+        darkUrl: expect.stringMatching(/^data:image\/svg\+xml/),
+      },
     });
   });
 
@@ -157,12 +161,12 @@ describe("toolbar wallpaper control", () => {
     unmount();
 
     cleanup();
-    const aurora = WALLPAPER_PRESETS.find((preset) => preset.label === "Aurora");
-    if (aurora === undefined) throw new Error("missing Aurora preset");
-    renderToolbar({ version: 1, global: { url: aurora.url, dim: 0.35 } });
+    const acadia = WALLPAPER_PRESETS.find((preset) => preset.label === "Acadia");
+    if (acadia === undefined) throw new Error("missing Acadia preset");
+    renderToolbar({ version: 1, global: { url: acadia.url, dim: 0.35, darkUrl: acadia.darkUrl } });
     openPopover();
     expect(
-      screen.getByRole("button", { name: "Wallpaper preset: Aurora" }).getAttribute("aria-pressed"),
+      screen.getByRole("button", { name: "Wallpaper preset: Acadia" }).getAttribute("aria-pressed"),
     ).toBe("true");
   });
 
@@ -189,6 +193,52 @@ describe("toolbar wallpaper control", () => {
       version: 1,
       global: { url: "https://picsum.photos/seed/focus-board-3/1920/1080", dim: 0.6 },
     });
+  });
+  it("the dim slider preserves an active layer's dark variant", () => {
+    const { onWallpaperChange } = renderToolbar({
+      version: 1,
+      global: { url: "https://example.com/w.png", dim: 0.35, darkUrl: "https://example.com/w-dark.png" },
+    });
+    openPopover();
+    fireEvent.change(screen.getByRole("slider", { name: "Wallpaper dim" }), {
+      target: { value: "0.6" },
+    });
+    expect(onWallpaperChange).toHaveBeenCalledWith({
+      version: 1,
+      global: { url: "https://example.com/w.png", dim: 0.6, darkUrl: "https://example.com/w-dark.png" },
+    });
+  });
+
+  it("a preset swatch previews the current scheme's variant and flips live with the OS scheme", () => {
+    const listeners: Array<() => void> = [];
+    const state = { matches: false };
+    vi.stubGlobal("matchMedia", () => ({
+      get matches() {
+        return state.matches;
+      },
+      addEventListener(_type: string, listener: () => void) {
+        listeners.push(listener);
+      },
+      removeEventListener: vi.fn(),
+    }));
+    const acadia = WALLPAPER_PRESETS.find((preset) => preset.label === "Acadia");
+    if (acadia === undefined) throw new Error("missing Acadia preset");
+    renderToolbar(NO_WALLPAPER);
+    openPopover();
+    const swatchStyle = () =>
+      screen.getByRole("button", { name: "Wallpaper preset: Acadia" }).getAttribute("style") ?? "";
+    expect(swatchStyle()).toContain(acadia.url);
+    expect(swatchStyle()).not.toContain(acadia.darkUrl);
+    act(() => {
+      state.matches = true;
+      for (const listener of listeners) listener();
+    });
+    expect(swatchStyle()).toContain(acadia.darkUrl);
+    act(() => {
+      state.matches = false;
+      for (const listener of listeners) listener();
+    });
+    expect(swatchStyle()).not.toContain(acadia.darkUrl);
   });
 });
 
