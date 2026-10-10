@@ -36,6 +36,12 @@ export const UNRELEASED_ITEMS: readonly { text: string; children: string[] }[] =
     "children": []
   },
   {
+    "text": "**New thread starts where the board points, even with no filter armed.** Without a parent preset or single-project filter the composer now seeds from the board's unanimous project, else from the project the board's composer last spawned into (remembered across sessions), so \"No project\" only shows when nothing on the board points anywhere — parent presets and filters keep winning. ([#24](https://github.com/cristoslc/bb-plugin-focus-board/issues/24))",
+    "children": [
+      "The maximize hand-off rides the same seed now, instead of bb's own remembered pick."
+    ]
+  },
+  {
     "text": "**\"Open in new window\" opens the thread in the desktop app.** The gesture now routes through bb's navigate, so a desktop click opens the thread in the app's own browser panel instead of a detached web-browser tab (the raw `window.open` bb's window guard forced); the web board's detached-tab behavior is unchanged.",
     "children": []
   }
