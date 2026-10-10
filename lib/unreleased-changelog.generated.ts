@@ -28,6 +28,10 @@ export const UNRELEASED_ITEMS: readonly { text: string; children: string[] }[] =
     "children": []
   },
   {
+    "text": "**Board cards name personal threads \"No project\", matching the composer's picker.** The card label used the personal project's \"Personal\" name where bb's New-thread picker calls that state \"No project\" ([get-bb/bb#5340](https://github.com/get-bb/bb/issues/5340)), so the board now uses the picker's term, and a filter naming personal seeds that state deliberately. ([#25](https://github.com/cristoslc/bb-plugin-focus-board/issues/25))",
+    "children": []
+  },
+  {
     "text": "**The board toolbar reads as one line: create, search + View, filters.** New thread leads, the search field pairs with a View chip that names the current view like a mode (no colon label — grouping and the Nest child threads toggle live inside its menu), and Project / Provider / State run with the thread count and What's-new gift as one trailing cluster, so narrow panels wrap them all together instead of stranding the count against an empty edge.",
     "children": []
   },
