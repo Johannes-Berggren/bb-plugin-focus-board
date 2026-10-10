@@ -134,6 +134,13 @@ interface BoardProps {
    * card re-labels through the registry (names live in one place).
    */
   onRenameGroup?: (groupId: string, name: string) => void;
+  /**
+   * Delete a registry group from the label editor's trashcan: the editor
+   * arms on the first click (like the picker's two-step delete) and this
+   * callback fires on the confirm click. Server-side, the record AND every
+   * member's assignment go together.
+   */
+  onDeleteGroup?: (groupId: string) => void;
   /** Family members that did not match the active filters; rendered dimmed. */
   dimmedIds: ReadonlySet<string>;
   /**
@@ -399,6 +406,7 @@ export function Board({
   doneChildrenByParent,
   groupBoxOf,
   onRenameGroup,
+  onDeleteGroup,
   dimmedIds,
   collapsedFamilyIds,
   onFamilyCollapsedChange,
@@ -624,12 +632,22 @@ export function Board({
   const [sweepRefusal, setSweepRefusal] = useState<string | null>(null);
   // The box-label rename editor: one box re-labels at a time; the input is
   // uncontrolled (defaultValue seeds the current name) so Enter/Escape/blur
-  // read the settled text straight off the field.
+  // read the settled text straight off the field. The editor also hosts the
+  // box's delete: first click arms, second deletes (the picker's confirmed
+  // delete pattern, miniaturized).
   const [renamingBoxId, setRenamingBoxId] = useState<string | null>(null);
+  const [labelDeleteArmed, setLabelDeleteArmed] = useState(false);
   const renameCommittedRef = useRef(false);
   const startLabelRename = (groupId: string) => {
     renameCommittedRef.current = false;
+    setLabelDeleteArmed(false);
     setRenamingBoxId(groupId);
+  };
+  /** Fold the editor back to the label — no commit, no armed delete. */
+  const closeLabelEditor = () => {
+    renameCommittedRef.current = true;
+    setLabelDeleteArmed(false);
+    setRenamingBoxId(null);
   };
   /** Enter: commit only a valid NEW name; a blank keeps the editor open (fix-up possible, nothing lost). */
   const commitLabelRename = (groupId: string, raw: string, previousName: string) => {
@@ -637,6 +655,7 @@ export function Board({
     const name = raw.trim();
     if (name === "" || name.length > 80 || name === previousName) return;
     renameCommittedRef.current = true;
+    setLabelDeleteArmed(false);
     setRenamingBoxId(null);
     onRenameGroup?.(groupId, name);
   };
@@ -646,12 +665,12 @@ export function Board({
     const name = raw.trim();
     if (name !== "" && name.length <= 80 && name !== previousName) {
       renameCommittedRef.current = true;
+      setLabelDeleteArmed(false);
       setRenamingBoxId(null);
       onRenameGroup?.(groupId, name);
       return;
     }
-    renameCommittedRef.current = true;
-    setRenamingBoxId(null);
+    closeLabelEditor();
   };
   useEffect(() => {
     if (sweepRefusal === null) return;
@@ -1648,25 +1667,25 @@ export function Board({
                           >
                             <div className="relative rounded-lg border border-dashed border-muted-foreground/50 px-1 pt-4 pb-0.5">
                               {renamingBoxId === runItem.box.groupId ? (
-                                <input
-                                  type="text"
-                                  key={`rename:${runItem.box.groupId}`}
-                                  defaultValue={runItem.box.name}
-                                  autoFocus
-                                  data-group-rename-input={runItem.box.groupId}
-                                  aria-label={`Rename group, was ${runItem.box.name}`}
-                                  maxLength={80}
-                                  onKeyDown={(event) => {
-                                    if (event.key === "Enter") {
-                                      commitLabelRename(
-                                        runItem.box.groupId,
-                                        event.currentTarget.value,
-                                        runItem.box.name,
-                                      );
-                                    } else if (event.key === "Escape") {
-                                      renameCommittedRef.current = true;
-                                      setRenamingBoxId(null);
-                                    }
+                                <div className="absolute -top-2.5 left-3 z-20 flex items-center gap-0.5 rounded-sm bg-muted px-0.5">
+                                  <input
+                                    type="text"
+                                    key={`rename:${runItem.box.groupId}`}
+                                    defaultValue={runItem.box.name}
+                                    autoFocus
+                                    data-group-rename-input={runItem.box.groupId}
+                                    aria-label={`Rename group, was ${runItem.box.name}`}
+                                    maxLength={80}
+                                    onKeyDown={(event) => {
+                                      if (event.key === "Enter") {
+                                        commitLabelRename(
+                                          runItem.box.groupId,
+                                          event.currentTarget.value,
+                                          runItem.box.name,
+                                        );
+                                      } else if (event.key === "Escape") {
+                                        closeLabelEditor();
+                                      }
                                   }}
                                   onBlur={(event) =>
                                     blurLabelRename(
@@ -1675,8 +1694,44 @@ export function Board({
                                       runItem.box.name,
                                     )
                                   }
-                                  className="absolute -top-2.5 left-3 z-20 h-[18px] w-40 rounded-sm border border-input bg-muted px-1 text-[10.5px] leading-none outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                                />
+                                  className="h-[18px] w-40 rounded-sm border border-input bg-muted px-1 text-[10.5px] leading-none outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                                  />
+                                  {onDeleteGroup !== undefined ? (
+                                    <button
+                                      type="button"
+                                      data-group-label-delete={runItem.box.groupId}
+                                      data-armed={labelDeleteArmed ? "true" : "false"}
+                                      title={
+                                        labelDeleteArmed
+                                          ? `Click again to delete “${runItem.box.name}” for all members`
+                                          : `Delete group “${runItem.box.name}” for all members`
+                                      }
+                                      // Keep the input focused: a plain mousedown
+                                      // would blur it BEFORE the click lands and
+                                      // the unmounted editor would swallow it.
+                                      onMouseDown={(event) => event.preventDefault()}
+                                      onClick={() => {
+                                        if (!labelDeleteArmed) {
+                                          setLabelDeleteArmed(true);
+                                          return;
+                                        }
+                                        onDeleteGroup(runItem.box.groupId);
+                                        closeLabelEditor();
+                                      }}
+                                      className={cn(
+                                        "flex size-5 items-center justify-center rounded-sm transition-colors",
+                                        labelDeleteArmed
+                                          ? "bg-destructive text-destructive-foreground"
+                                          : "text-muted-foreground hover:text-destructive",
+                                      )}
+                                    >
+                                      <Icon name="Trash2" className="size-3" aria-hidden />
+                                      <span className="sr-only">
+                                        {labelDeleteArmed ? "Confirm delete" : "Delete group"}
+                                      </span>
+                                    </button>
+                                  ) : null}
+                                </div>
                               ) : onRenameGroup !== undefined ? (
                                 <button
                                   type="button"
