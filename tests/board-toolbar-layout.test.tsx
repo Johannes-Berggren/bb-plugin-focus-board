@@ -1,10 +1,11 @@
 // @vitest-environment jsdom
-// Toolbar layout: New thread leads at the far left with the thread count
-// and the What's-new gift stacked directly under it; the search field and
-// the filter controls form one wrapping cluster to the right (so a wrap
-// moves whole filters to a continuation line, never stranding the count).
+// Toolbar layout: New thread leads at the far left with the thread count and
+// the What's-new gift centered under it; the search field pairs with the View
+// menu (grouping + the Nest toggle live inside that menu); the Project /
+// Provider / State controls form their own filter cluster. Wrapping breaks
+// between clusters, never inside the creation stack.
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { BoardToolbar } from "../components/board-toolbar";
 
 type BoardToolbarProps = Parameters<typeof BoardToolbar>[0];
@@ -53,60 +54,118 @@ function commonAncestor(a: Element, b: Element): Element | null {
   return ancestor;
 }
 
+function openViewMenu(): void {
+  const trigger = screen.getByText(/View:/);
+  const button = trigger instanceof HTMLButtonElement ? trigger : trigger.closest("button");
+  if (button === null) throw new Error("View menu trigger not found");
+  fireEvent.click(button);
+}
+
 afterEach(() => {
   cleanup();
 });
 
 describe("BoardToolbar layout", () => {
-  it("stacks count and gift under New thread, before search and the filters", () => {
+  it("stacks count and gift under New thread, before search, View, and filters", () => {
     renderToolbar();
     const newThread = screen.getByText("New thread");
     const count = screen.getByText("7 threads");
     const gift = screen.getByLabelText("What's new");
     const search = screen.getByLabelText("Search threads");
-    const group = screen.getByText(/Group:/);
+    const view = screen.getByText(/View:/);
     const project = screen.getByText(/Project:/);
     const provider = screen.getByText(/Provider:/);
     const state = screen.getByText(/State:/);
     expect(follows(newThread, count)).toBe(true);
     expect(follows(count, gift)).toBe(true);
     expect(follows(newThread, search)).toBe(true);
-    expect(follows(search, group)).toBe(true);
-    expect(follows(group, project)).toBe(true);
+    expect(follows(search, view)).toBe(true);
+    expect(follows(view, project)).toBe(true);
     expect(follows(project, provider)).toBe(true);
     expect(follows(provider, state)).toBe(true);
   });
 
-  it("the creation stack holds count and gift; search and filters wrap separately", () => {
+  it("three clusters: creation stack, search+View pair, then the filter cluster", () => {
     const root = renderToolbar();
     const newThread = screen.getByText("New thread");
     const count = screen.getByText("7 threads");
     const gift = screen.getByLabelText("What's new");
     const search = screen.getByLabelText("Search threads");
-    const group = screen.getByText(/Group:/);
+    const view = screen.getByText(/View:/);
+    const project = screen.getByText(/Project:/);
+    const provider = screen.getByText(/Provider:/);
     const state = screen.getByText(/State:/);
     const creationStack = commonAncestor(newThread, count);
-    const searchCluster = commonAncestor(search, group);
+    const searchCluster = commonAncestor(search, view);
+    const filterCluster = commonAncestor(project, state);
+    // All three clusters are distinct subtrees inside the toolbar root.
     expect(creationStack).not.toBeNull();
     expect(searchCluster).not.toBeNull();
-    // Different clusters, both inside the toolbar root; the count and the
-    // gift never leave the creation stack, whatever wrapping does.
+    expect(filterCluster).not.toBeNull();
     expect(creationStack).not.toBe(root);
     expect(searchCluster).not.toBe(root);
+    expect(filterCluster).not.toBe(root);
     expect(creationStack).not.toBe(searchCluster);
+    expect(searchCluster).not.toBe(filterCluster);
+    // The creation stack holds the gift and never the search.
     expect(creationStack?.contains(gift) ?? false).toBe(true);
     expect(creationStack?.contains(search) ?? true).toBe(false);
-    expect(searchCluster?.contains(state) ?? false).toBe(true);
+    // Search pairs with View, not with the filters.
+    expect(searchCluster?.contains(project) ?? true).toBe(false);
+    // The filter cluster holds all three option controls.
+    expect(filterCluster?.contains(provider) ?? false).toBe(true);
   });
 
-  it("places Clear inside the search-and-filters cluster when one is active", () => {
-    const root = renderToolbar({ anyFilterActive: true, onClearFilters: vi.fn() });
+  it("places Clear inside the filter cluster when one is active", () => {
+    const onClearFilters = vi.fn();
+    renderToolbar({ anyFilterActive: true, onClearFilters });
     const clear = screen.getByText("Clear");
-    const search = screen.getByLabelText("Search threads");
     const state = screen.getByText(/State:/);
-    const searchCluster = commonAncestor(search, state);
+    const project = screen.getByText(/Project:/);
+    const filterCluster = commonAncestor(project, state);
     expect(follows(state, clear)).toBe(true);
-    expect(searchCluster?.contains(clear) ?? false).toBe(true);
+    expect(filterCluster?.contains(clear) ?? false).toBe(true);
+    fireEvent.click(clear);
+    expect(onClearFilters).toHaveBeenCalledTimes(1);
+  });
+
+  it("carries no standalone Nest toggle and no maximize button", () => {
+    renderToolbar();
+    expect(screen.queryByText("Nest child threads")).toBeNull();
+    expect(screen.queryByLabelText("Maximize new thread")).toBeNull();
+  });
+
+  it("the View menu's Nest row toggles nesting", () => {
+    const onNestChildrenChange = vi.fn();
+    renderToolbar({ onNestChildrenChange, nestChildren: false });
+    openViewMenu();
+    const row = screen.getByText("Nest child threads").closest("button");
+    if (row === null) throw new Error("Nest row not rendered");
+    expect(row.getAttribute("aria-checked")).toBe("false");
+    fireEvent.click(row);
+    expect(onNestChildrenChange).toHaveBeenCalledWith(true);
+  });
+
+  it("with nesting locked (parent view), the Nest row reads checked and stays put", () => {
+    const onNestChildrenChange = vi.fn();
+    renderToolbar({ nestingLocked: true, nestChildren: false });
+    openViewMenu();
+    const row = screen
+      .getByText("Nest child threads")
+      ?.closest("button");
+    if (row === null) throw new Error("Nest row not rendered");
+    expect(row.getAttribute("aria-checked")).toBe("true");
+    expect(row.getAttribute("aria-disabled")).toBe("true");
+    fireEvent.click(row);
+    expect(onNestChildrenChange).not.toHaveBeenCalled();
+  });
+
+  it("picking a grouping in the View menu reports the ViewBy value", () => {
+    const onGroupByChange = vi.fn();
+    renderToolbar({ onGroupByChange });
+    openViewMenu();
+    fireEvent.click(screen.getByText("Last activity"));
+    expect(onGroupByChange).toHaveBeenCalledWith("recency");
   });
 
   it("carries no maximize button — that lives in the New thread modal", () => {

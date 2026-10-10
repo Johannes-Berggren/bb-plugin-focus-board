@@ -61,8 +61,15 @@ export function parseRankStore(raw: unknown): RankStore {
       }
     }
     // De-duplicate defensively: a repeat would make index lookups
-    // order-dependent for no benefit.
-    out[columnKey] = [...new Set(value as string[])];
+    // order-dependent for no benefit. Built with defineProperty, never a
+    // plain assignment: a column literally named "__proto__" would
+    // otherwise invoke the prototype setter and silently vanish.
+    Object.defineProperty(out, columnKey, {
+      value: [...new Set(value as string[])],
+      enumerable: true,
+      writable: true,
+      configurable: true,
+    });
   }
   return out;
 }

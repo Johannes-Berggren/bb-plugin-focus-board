@@ -195,9 +195,9 @@ describe("select-all beside the dropdown search bar", () => {
     expect(document.querySelector("[data-select-all]")).toBeNull();
   });
 
-  it("the exclusive Group dropdown, though searchable, has no checkbox", () => {
+  it("the exclusive View dropdown, though searchable, has no checkbox", () => {
     renderToolbar();
-    openMenu(/Group:/);
+    openMenu(/View:/);
     expect(document.querySelector("[data-select-all]")).toBeNull();
   });
 });

@@ -200,6 +200,27 @@ describe("parseRankStore properties", () => {
       }),
     );
   });
+
+  it("round-trips a store with an own '__proto__' column key (regression)", () => {
+    // fast-check found this counterexample in the identity property above:
+    // a column literally named "__proto__" (an own data property) survived
+    // rankRowFromStore but died in parseRankStore's write-back — the plain
+    // `out[key] = order` assignment invokes the prototype setter, so the
+    // column vanished. Columns are built data properties now.
+    const store = {} as Record<string, string[]>;
+    Object.defineProperty(store, "__proto__", {
+      value: ["thr_a", "thr_b"],
+      enumerable: true,
+      writable: true,
+      configurable: true,
+    });
+    const roundTripped = parseRankStore(rankRowFromStore(store as RankStore));
+    expect(Object.keys(roundTripped)).toContain("__proto__");
+    expect(roundTripped.__proto__).toEqual(["thr_a", "thr_b"]);
+    expect(parseRankStore(rankRowFromStore(store as RankStore))).toEqual(
+      JSON.parse(JSON.stringify(store)),
+    );
+  });
 });
 
 describe("preference parser properties (corrupt anything, degrade to documented defaults)", () => {
