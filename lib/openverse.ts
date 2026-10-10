@@ -64,9 +64,6 @@ export function requireOpenverseSearchUrl(url: string): string {
   return url;
 }
 
-/** The deadline marker: rejected errors that read "timed out" are only
- *  ever ours (a caller abort rethrows the caller's own abort error). */
-
 /**
  * Fetch one Openverse search page. Throws on refusal, HTTP status, or the
  * deadline ("Openverse search timed out …"); a caller-aborted signal
