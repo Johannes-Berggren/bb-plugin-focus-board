@@ -143,7 +143,7 @@ describe("hide-a-lane: the Project view's hover affordance on the sweep slot", (
     expect(report?.textContent).toContain("Restore it from the Project filter");
   });
 
-  it("Escape while armed disarms without writing the filter", () => {
+  it("Escape disarms without writing the filter — at the DOCUMENT, not just the focused button", () => {
     const onHideLane = vi.fn((): LaneHideOutcome => ({ kind: "hidden" }));
     projectBoard(
       [
@@ -154,10 +154,39 @@ describe("hide-a-lane: the Project view's hover affordance on the sweep slot", (
     );
     const first = hideButtons()[0];
     fireEvent.click(first);
-    fireEvent.keyDown(first, { key: "Escape" });
+    // Safari leaves a clicked button unfocused, so the honest listener is
+    // document-level: the key lands on the board surface, not the button.
+    fireEvent.keyDown(document, { key: "Escape" });
     expect(first.getAttribute("data-hide-lane-armed")).toBeNull();
     expect(onHideLane).not.toHaveBeenCalled();
     expect(document.querySelector('[data-testid="lane-hide-notice"]')).toBeNull();
+  });
+
+  it("a pointer press outside the armed button disarms; the pressed lane's own icon still arms after", () => {
+    const onHideLane = vi.fn((): LaneHideOutcome => ({ kind: "hidden" }));
+    projectBoard(
+      [
+        thread({ id: "thr_a", projectId: "p1", updatedAt: NOW - 1000 }),
+        thread({ id: "thr_b", projectId: "p2", updatedAt: NOW - 2000 }),
+      ],
+      { onHideLane },
+    );
+    const [first, second] = hideButtons();
+    fireEvent.click(first);
+    expect(first.getAttribute("data-hide-lane-armed")).toBe("");
+    // A press on the board floor (or any non-button surface): the arm dies.
+    fireEvent.pointerDown(document.body);
+    expect(first.getAttribute("data-hide-lane-armed")).toBeNull();
+    expect(onHideLane).not.toHaveBeenCalled();
+    // The armed press is exempt: this column's icon stays armed.
+    fireEvent.click(first);
+    expect(first.getAttribute("data-hide-lane-armed")).toBe("");
+    // Pressing ANOTHER lane's hide icon disarms the armed one before the
+    // new click arms its own column.
+    fireEvent.pointerDown(second);
+    expect(first.getAttribute("data-hide-lane-armed")).toBeNull();
+    fireEvent.click(second);
+    expect(second.getAttribute("data-hide-lane-armed")).toBe("");
   });
 
   it("a refused hide reports why instead of pretending the lane went away", () => {

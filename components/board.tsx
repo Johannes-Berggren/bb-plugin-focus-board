@@ -679,6 +679,33 @@ export function Board({
     return () => clearTimeout(timer);
   }, [hideLaneReport]);
 
+  // While a lane's hide is armed, the arm must not outlive its context:
+  // Escape, or a pointer press outside the armed button, disarms. The
+  // honest listeners are document-level — a clicked button only holds
+  // focus in some browsers (Chromium; Safari leaves it unfocused), so the
+  // armed button's own onKeyDown can never promise an Escape disarm. The
+  // armed button itself is exempt from the press disarm (that press is
+  // the confirm's pointer half); every other surface — cards, other
+  // lanes' icons, the toolbar — drops the arm before its own handling.
+  useEffect(() => {
+    if (hideArmColumn === null) return;
+    const disarm = (): void => setHideArmColumn(null);
+    const onKeyDown = (event: KeyboardEvent): void => {
+      if (event.key === "Escape") disarm();
+    };
+    const onPointerDown = (event: PointerEvent): void => {
+      const armed = document.querySelector("[data-hide-lane-armed]");
+      if (armed !== null && event.target instanceof Node && armed.contains(event.target)) return;
+      disarm();
+    };
+    document.addEventListener("keydown", onKeyDown);
+    document.addEventListener("pointerdown", onPointerDown);
+    return () => {
+      document.removeEventListener("keydown", onKeyDown);
+      document.removeEventListener("pointerdown", onPointerDown);
+    };
+  }, [hideArmColumn]);
+
   // A sweep-mode click on a thread that may not join a sweep (live-child
   // parent) refuses on screen: a click that silently does nothing reads as
   // a board ignoring the operator, the exact failure this board shipped
@@ -1447,7 +1474,9 @@ export function Board({
                       // icon reads as "make this lane invisible", which is
                       // exactly the write — the lane's project (or group)
                       // leaves its filter's selection. First click arms; the
-                      // second writes; Escape disarm. The wording names the
+                      // second writes; Escape or a press outside the armed
+                      // icon (the document-level listeners above) disarms.
+                      // The wording names the
                       // view's filter — each view's menu restores the lane.
                       (() => {
                         const armed = hideArmColumn === column.id;
@@ -1483,11 +1512,6 @@ export function Board({
                                       ? `The "${column.label}" lane is the only ${groupBy === "group" ? "group" : "project"} lane the board knows, so it stays on the board.`
                                       : `"${column.label}" is already outside the ${laneFilterLabel}, so the lane stays as it is.`,
                               });
-                            }}
-                            onKeyDown={(event) => {
-                              if (event.key === "Escape" && armed) {
-                                setHideArmColumn(null);
-                              }
                             }}
                             className={cn(
                               "inline-flex h-5 shrink-0 items-center gap-1 whitespace-nowrap rounded px-1.5 text-[10px] font-medium transition-opacity",
