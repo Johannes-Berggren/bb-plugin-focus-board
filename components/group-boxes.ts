@@ -39,7 +39,7 @@ import type {
   GroupingContext,
   ThreadState,
 } from "./grouping";
-import { columnFor, matchesFilter, threadState } from "./grouping";
+import { columnFor, groupFilterMisses, matchesFilter, threadState } from "./grouping";
 import { STATUS_COLUMN_ORDER } from "./grouping";
 import type { MoveTarget } from "../lib/rank";
 import type { TicketRef } from "../lib/tickets";
@@ -425,12 +425,14 @@ export function filterWithGroupBoxes(
   projectNameFor?: (projectId: string) => string,
   ticketRefsFor?: (thread: PluginSidebarThread) => readonly TicketRef[],
   groupNameFor?: (thread: PluginSidebarThread) => string,
+  groupsByThread?: ReadonlyMap<string, string>,
 ): { kept: PluginSidebarThread[]; dimmedIds: ReadonlySet<string> } {
   const passes = (thread: PluginSidebarThread): boolean => {
     if (thread.isArchived) return false;
     if (filter.projects.size > 0 && !filter.projects.has(thread.projectId)) return false;
     if (filter.providers.size > 0 && !filter.providers.has(thread.providerId)) return false;
     if (filter.states.size > 0 && !filter.states.has(threadState(thread))) return false;
+    if (groupFilterMisses(thread, filter, groupsByThread)) return false;
     if (
       searchQuery.trim() !== "" &&
       !matchesFilter(thread, searchQuery.trim(), projectNameFor, ticketRefsFor, groupNameFor)

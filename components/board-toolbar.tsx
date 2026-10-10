@@ -429,6 +429,56 @@ function ProjectDropdown({
   );
 }
 
+interface GroupDropdownProps {
+  /** The board's group-bucket rows, labels resolved (registry names plus
+   *  the "No group" sentinel; "Unknown group" for a record-less
+   *  assignment) — the hide gesture's restore rows live here too. */
+  options: readonly { id: string; label: string }[];
+  selected: ReadonlySet<string>;
+  onToggle: (groupId: string) => void;
+  onToggleMany: (groupIds: readonly string[], add: boolean) => void;
+  onSingleSelect: (groupId: string) => void;
+  onClear: () => void;
+}
+
+/**
+ * The Group filter, the Project filter's anatomy one bucket over: pick one
+ * or more feature-group buckets (the "No group" sentinel and any
+ * "Unknown group" lanes included) to restrict the board. The Group view's
+ * hide gesture writes through this same selection, so an un-checked row
+ * (the hidden group) restores its lane the moment the operator re-checks
+ * it.
+ */
+function GroupDropdown({
+  options,
+  selected,
+  onToggle,
+  onToggleMany,
+  onSingleSelect,
+  onClear,
+}: GroupDropdownProps) {
+  const labelFor = (id: string): string => options.find((option) => option.id === id)?.label ?? id;
+  return (
+    <MultiSelectDropdown
+      label="Group"
+      icon="Ungroup"
+      selected={selected}
+      options={options.map((option) => ({ value: option.id, label: option.label }))}
+      summaryFor={(current) =>
+        current.size === 0
+          ? "All groups"
+          : current.size === 1
+            ? labelFor([...current][0])
+            : `${current.size} groups`
+      }
+      onToggle={onToggle}
+      onToggleMany={onToggleMany}
+      onSingleSelect={onSingleSelect}
+      onClear={onClear}
+    />
+  );
+}
+
 interface BoardToolbarProps {
   groupBy: GroupBy;
   onGroupByChange: (value: GroupBy) => void;
@@ -449,6 +499,10 @@ interface BoardToolbarProps {
   providerIds: ReadonlySet<string>;
   projects: readonly PluginSidebarProject[];
   providers: readonly { id: string; displayName?: string }[];
+  /** The board's group-bucket options (registry names + the "No group"
+   *  sentinel), labels resolved — the Group filter's rows, and the label
+   *  source the hide gesture's write-through resolves ids by. */
+  groupOptions?: readonly { id: string; label: string }[];
   onCreateProject: (name: string) => Promise<void>;
   totalCount: number;
   onClearFilters: () => void;
@@ -469,6 +523,11 @@ const STATE_OPTIONS: readonly { value: ThreadState; label: string }[] = [
   { value: "idle", label: "Idle" },
 ];
 
+/** The absent persisted group set (a legacy stored filter): nothing
+ *  restricted. Module-level stable so the Group filter's selected-set
+ *  identity holds across renders. */
+const EMPTY_SET: ReadonlySet<string> = new Set();
+
 export function BoardToolbar({
   groupBy,
   onGroupByChange,
@@ -486,6 +545,7 @@ export function BoardToolbar({
   providerIds,
   projects,
   providers,
+  groupOptions = [],
   onCreateProject,
   totalCount,
   onClearFilters,
@@ -494,7 +554,9 @@ export function BoardToolbar({
   whatsNewUnseen,
   onOpenWhatsNew,
 }: BoardToolbarProps) {
-  const groupOptions = GROUP_BY_OPTIONS.map((option) => ({
+  // The View menu's rows (the grouping picker) — named apart from the
+  // Group filter's bucket list, which arrives as a prop.
+  const groupByOptions = GROUP_BY_OPTIONS.map((option) => ({
     value: option.value,
     label: option.label,
   }));
@@ -547,7 +609,7 @@ export function BoardToolbar({
           label="View"
           icon="SlidersHorizontal"
           selected={new Set([groupBy])}
-          options={groupOptions}
+          options={groupByOptions}
           summaryFor={() => GROUP_BY_OPTIONS.find((o) => o.value === groupBy)?.label ?? groupBy}
           onSingleSelect={(value) => onGroupByChange(value as GroupBy)}
           footer={
@@ -610,6 +672,28 @@ export function BoardToolbar({
             }
             onClear={() => onFilterChange({ ...filter, projects: new Set() })}
             onCreate={onCreateProject}
+          />
+          <GroupDropdown
+            options={groupOptions}
+            selected={filter.groups ?? EMPTY_SET}
+            onToggle={(groupId) => {
+              const next = new Set(filter.groups ?? []);
+              if (next.has(groupId)) next.delete(groupId);
+              else next.add(groupId);
+              onFilterChange({ ...filter, groups: next });
+            }}
+            onToggleMany={(groupIds, add) => {
+              const next = new Set(filter.groups ?? []);
+              for (const groupId of groupIds) {
+                if (add) next.add(groupId);
+                else next.delete(groupId);
+              }
+              onFilterChange({ ...filter, groups: next });
+            }}
+            onSingleSelect={(groupId) =>
+              onFilterChange({ ...filter, groups: new Set([groupId]) })
+            }
+            onClear={() => onFilterChange({ ...filter, groups: new Set() })}
           />
           <MultiSelectDropdown
             label="Provider"
