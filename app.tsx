@@ -51,6 +51,7 @@ import { GroupDialog } from "./components/group-dialog";
 import { filterWithGroupBoxes, planGroupBoxes, reconcileGroupBoxPlan } from "./components/group-boxes";
 import { applyUnitMoveVisible } from "./lib/rank-unit-move";
 import { doneAtToEpochMs } from "./lib/done-metadata";
+import { projectDisplayName } from "./lib/project-name";
 import {
   newThreadDerivedProjectId,
   newThreadSeedEnvironment,
@@ -926,11 +927,18 @@ function BoardPage({ subPath }: { subPath: string }) {
     return { projectIds, providerIds };
   }, [liveThreads]);
 
-  // "Personal" is the board card's label for a thread whose project is not in
-  // the sidebar's project list (bb's default personal project).
+  // The board card's label for a thread's project (lib/project-name): rows
+  // from the sidebar's project list render their real name; bb's personal
+  // project and unresolvable ids render "No project" — the term bb's own
+  // New-thread picker uses for that state, so the board-card label and the
+  // composer's picker name the same project state alike. The composer's
+  // label text itself lives in bb core (get-bb/bb#5340).
   const projectNameFor = useCallback(
     (projectId: string) =>
-      projects.find((project) => project.id === projectId)?.name ?? "Personal",
+      projectDisplayName(projectId, {
+        personalProjectId: projects.find((project) => project.isPersonal)?.id,
+        projects,
+      }),
     [projects],
   );
   // The chip row each card shows, exactly as ThreadCard derives it

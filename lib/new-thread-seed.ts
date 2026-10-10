@@ -8,7 +8,15 @@
  * context, each behind a staleness guard:
  *
  * 2. the single-project filter — a filter id naming a project the loaded
- *    picker no longer knows seeds nothing (its original guard, unchanged);
+ *    picker no longer knows seeds nothing (its original guard), EXCEPT the
+ *    personal project: a filter naming personal seeds deliberately, because
+ *    a filter is the operator's explicit non-child intent and the seeded id
+ *    is exactly the state bb's picker renders ("No project"); the composer's
+ *    unseeded default also lands personal, but only by bb's own fallback
+ *    (get-bb/bb#5340), which a deliberate seed must not depend on. The
+ *    sidebar's live view lists the personal row (`isPersonal`), so the
+ *    membership guard is normally how it passes; the explicit personal
+ *    acceptance below keeps the seeding working when the list excludes it;
  * 3. derived — the one project every non-archived thread the board currently
  *    shows belongs to (`newThreadDerivedProjectId`);
  * 4. remembered — the project the board's composer last successfully
@@ -19,10 +27,18 @@
  * list as unloaded, so memory is never wiped by absent data — the composer
  * re-seeds on prop change anyway, and a later-loaded list heals the pick.
  * Rungs 3 and 4 never seed bb's personal project ("No project",
- * `BB_PERSONAL_PROJECT_ID`, also excluded by sidebar `isPersonal`): seeding
- * personal on purpose is bb core's decision, tracked in
- * https://github.com/cristoslc/bb-plugin-focus-board/issues/25 — do not
- * repurpose these rungs to seed it.
+ * `BB_PERSONAL_PROJECT_ID`, also excluded by sidebar `isPersonal`): the
+ * operator's EXPLICIT personal intent — the filter rung — seeds above; a
+ * derived or remembered personal pick would re-seed "No project" without
+ * the operator pointing at it, and the composer's unseeded default already
+ * lands personal by bb's own fallback, so leaving these rungs silent keeps
+ * bb's default in charge (issue #25's policy decision, deliberate in both
+ * directions — tests pin it).
+ * Residual inherited from #24, not made moot by the filter policy: when NO
+ * rung applies at all the board seeds nothing, and the plugin composer then
+ * lands on personal by bb's fallback while the maximize hand-off defers to
+ * bb's remembered pick — a divergence between the two exits that only bb
+ * core can settle (get-bb/bb#5340); not changed here.
  * An unresolvable parent (its row left the board while the dialog is open)
  * falls down the ladder the same way — the spawn still carries
  * `parentThreadId` (the preset is about the parent, not the project).
@@ -52,23 +68,38 @@ export function newThreadSeedProjectId({
   knownProjectsLoaded: boolean;
 }): string | undefined {
   if (parentProjectId !== undefined) return parentProjectId;
-  if (filterProjectId !== undefined && knownProjectIds.includes(filterProjectId)) {
-    return filterProjectId;
+  if (filterProjectId !== undefined) {
+    if (knownProjectIds.includes(filterProjectId)) return filterProjectId;
+    // The filter rung's deliberate personal acceptance (issue #25): the
+    // operator named this state, so an unloaded or personal-excluding list
+    // must not silence the seed the way a mere staleness guard does.
+    if (isPersonalProjectId(filterProjectId, personalProjectId)) {
+      return filterProjectId;
+    }
   }
-  const personal = new Set<string>([BB_PERSONAL_PROJECT_ID]);
-  if (personalProjectId !== undefined) personal.add(personalProjectId);
   for (const candidate of [derivedProjectId, rememberedProjectId]) {
-    if (candidate === undefined || personal.has(candidate)) continue;
+    if (candidate === undefined) continue;
+    if (isPersonalProjectId(candidate, personalProjectId)) continue;
     if (knownProjectsLoaded && !knownProjectIds.includes(candidate)) continue;
     return candidate;
   }
   return undefined;
 }
 
-/** bb's personal project id, shown as "No project" in the picker. Never a
- *  seed from the derived or remembered rungs — that decision belongs to
- *  issue #25 (https://github.com/cristoslc/bb-plugin-focus-board/issues/25). */
+/** bb's personal project id (bb domain's `PERSONAL_PROJECT_ID`): the picking
+ *  state the composer renders as "No project". A seed from the filter rung
+ *  on purpose (issue #25, the operator's stated state); never a seed from
+ *  the derived or remembered rungs. */
 export const BB_PERSONAL_PROJECT_ID = "proj_personal";
+
+/** True for the personal-project picking state: bb's well-known id, or the
+ *  sidebar-declared id (`isPersonal`) when the list has the row. */
+export function isPersonalProjectId(
+  projectId: string,
+  personalProjectId?: string,
+): boolean {
+  return projectId === BB_PERSONAL_PROJECT_ID || projectId === personalProjectId;
+}
 
 /**
  * The board's derived project: the one id every shown non-archived thread
