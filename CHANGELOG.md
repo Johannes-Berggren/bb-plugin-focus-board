@@ -3,45 +3,87 @@
 All notable changes to this project are documented in this file.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-## [Unreleased]
-
 ### Added
 
-- **Restrict the board with a Group filter.** A Group control sits beside the Project filter with a row per feature group — plus "No group" for unassigned threads and "Unknown group" when an assignment outlives its registry record — composing with the Project / Provider / State filters and persisting like them.
-- **Hide a group lane straight from the board.** In the Group view, hovering a column's header shows the same eye-off affordance the Project view hides project lanes with: two clicks write the lane's group out of the Group filter and a banner names the restore path (re-check the row in that filter's menu).
-- **Hide a project lane straight from the board.** In the Project view, hovering a lane's header shows an eye-off icon where the sweep pill sits; two clicks (icon → armed "Hide") write the lane's project out of the Project filter and a banner explains the lane restores from that filter — the board's only project lane refuses with its reason instead of pretending to hide.
-- **Reorder cards inside a family box.** Dropping a box member beside a sibling in the same dashed box moves that member alone — no more box-edge anchor, no refusal banner — while a drop beside anything outside the box still moves the whole box as one unit.
-- **Reorder the nested child rows under a family card.** Drop a child row on a sibling row's edge and the row order under that parent is written per family (`child:<parent>`, its own rank order — never the parent card's column order); Done families keep their done-recency rows, and dragging a row onto the floor still detaches it.
-- **Threads join named family boxes, and the boxes are manageable.** "Group…" in a card menu assigns the thread to a shared named group (created in-line); members render inside one dashed outline with the group name on its border, the whole box moves as one unit by drag or Alt+Arrow, and the group evaporates when its last assignment clears.
-  - The outline is the join target: a drop onto the box or any member card joins the group, while a member card's middle third still nests and same-group drags still reorder — tall members no longer hide the target.
-  - A group of one keeps its named outline on the board, so the group never hides between joins.
-  - Rename a group from its box label or a Group-picker row (pencil/trash for rename and delete) and ungroup everyone from the label editor; a rename re-labels every member card, and a delete strips every member's assignment, archived holders included.
-  - Boxes render under every per-thread-column grouping — Project, Provider, Machine, and Group join the status views — while the parent-lane view stays unboxed.
-- **"Group" is now its own board grouping.** The View menu's grouping list offers Group next to Parent thread: each feature group becomes its own column, unassigned threads park under No group, and the dashed boxes carry the membership as before.
-- **Toolbar search reaches feature-group names.** Typing the name of a family box's group — e.g. an epic — surfaces its member cards even when no card's title, branch, or project says it; a group hit keeps a nested family or box whole with its non-matching members dimmed, like every other search field.
-- **The board can wear a wallpaper.** The toolbar's image control opens a picker with gradient presets, a shuffle strip, a search over openly licensed photos, and a free-form URL field — all with a dim slider that keeps cards readable. The setting persists per browser and applies globally.
-  - Theme-aware: each preset carries a light and a dark palette and the board follows `prefers-color-scheme` live; a wallpaper without a dark variant keeps its light URL everywhere.
+#### Groups and family boxes
+
+- **Threads join named family boxes.** "Group…" in a card menu assigns the thread to a shared named group; members render inside one dashed outline with the group name on its border, and the whole box moves as one unit by drag or Alt+Arrow.
+  - The outline is the join target: a drop onto the box or any member card joins, while a member card's middle third still nests.
+  - A group of one keeps its named outline, and a rename re-labels every member card, archived holders included.
+  - Rename, ungroup, and delete a group from its box label or a Group picker row.
+  - Boxes render under the Project, Provider, Machine, and Group groupings too, while the Parent thread view stays unboxed.
+- **Feature groups can be their own view.** The View menu offers Group next to Parent thread: one column per group, unassigned threads parked under No group.
+- **A Group filter restricts the board by feature group.** It sits beside Project with a row per group plus "No group", composes with the other filters, and persists.
+- **Hide a Project or Group lane straight from the board.** Hovering a column header shows the eye-off icon; two clicks write that lane's project or group out of its filter, a banner names the restore path, and the sole project lane refuses with its reason instead of pretending to hide.
+  - The armed hide disarms: Escape or a press outside the armed icon drops it without writing.
+- **Family members reorder on their own.** Dropping a box member beside a sibling moves that member alone, and the box renders its members in the order the drop wrote. Nested child rows under a family card reorder the same way; Done rows keep their done recency, and a floor drop still detaches.
+- **Toolbar search matches feature-group names.** Typing an epic's name surfaces its member cards; family and box stay whole with non-matching members dimmed, like any other search hit.
+
+#### Wallpaper
+
+- **The board can wear a wallpaper.** The image control opens a picker of gradient presets, a shuffle strip, an openly licensed photo search, or any URL. A dim slider keeps cards readable, and the setting persists per browser, applying board-wide.
+  - Theme-aware: presets carry a light and a dark palette and the board follows `prefers-color-scheme` live.
+  - Letterboxed: wallpapers fit the whole image instead of cropping, with the bars in the theme background.
+  - Done, dimmed, and snoozed cards fade through a wash of their own surface color instead of whole-card opacity.
+
+#### The New thread composer
+
+- **The New thread composer can maximize into the main new-thread view.** Project and environment seeds plus the prompt text ride along, and the board keeps its own draft.
+
+#### The board toolbar
+
+- **`/` jumps to search.** With no pane open, pressing `/` on the board moves focus to the toolbar's search field; panes, dialogs, open dropdowns, and modifier chords keep claiming the key.
+
+#### Cards, menus, and views
+
+- **The pane's open menu reveals the thread's browser tab.** The entry sits between "Open in browser" and "Copy thread link" and runs the same gesture the card menu carries.
 
 ### Changed
 
-- **Board cards name personal threads "No project", matching the composer's picker.** The card label used the personal project's "Personal" name where bb's New-thread picker calls that state "No project" ([get-bb/bb#5340](https://github.com/get-bb/bb/issues/5340)), so the board now uses the picker's term, and a filter naming personal seeds that state deliberately. ([#25](https://github.com/cristoslc/bb-plugin-focus-board/issues/25))
-- **Re-searching an Openverse query now walks the result pages instead of refetching page 1.** A Search click with an unchanged query fetches the next page and a "page N of M" line marks it; editing the query resets, and a click past the last page says so outright.
-- **The board toolbar reads as one line: create, search + View, filters.** New thread leads, the search field pairs with a View chip that names the current view (grouping and the Nest child threads toggle live inside its menu), and Project / Provider / State, the thread count, and the What's-new gift run as one trailing cluster that wraps together on narrow panels.
-- **The card menu now reads in four groups.** Destinations lead, the state toggles with the snooze and group pickers follow as one block, and lineage plus the lifecycle close finish the menu — one divider per group head, no divider between Read and Done.
+- **Board cards name personal threads "No project", matching the composer's picker.** The old label used the personal project's "Personal" name ([get-bb/bb#5340](https://github.com/get-bb/bb/issues/5340)); a filter naming personal seeds that state deliberately. ([#25](https://github.com/cristoslc/bb-plugin-focus-board/issues/25))
+
+#### Wallpaper
+
+- **Re-searching in the wallpaper picker's Openverse search now walks the result pages.** An unchanged query fetches the next page with a "page N of M" marker; editing the query resets, and a click past the last page says so outright.
+
+#### The board toolbar
+
+- **The board toolbar reads as one line: create, search + View, filters.** The search field pairs with a View chip naming the current view, and the Project / Provider / State filters, thread count, and What's-new gift run as one trailing cluster that wraps together on narrow panels.
+
+#### Cards, menus, and views
+
+- **The card menu now reads in four groups.** Destinations lead, then the state and picker block, then lineage, with archive and delete closing the menu; one divider per group, and no divider between Read and Done.
 
 ### Fixed
 
-- **In-box reorder now reorders.** Dropping a family box's member beside a sibling wrote the right column order but the box kept rendering its members in the plan's recency-of-assignment order, so the card snapped back — the box now renders its members in the column's own order, the one the drag wrote.
-- **An armed "Hide" can now be disarmed.** Escape anywhere on the board, or a pointer press outside the armed icon, drops the arm without writing — a clicked button only holds focus in some browsers, so the arm's listeners live at the document level; the armed icon itself still confirms on its second click.
-- **A family box's lane never depends on the open pane.** Opening one member's detail pulled the whole box — a running sibling included — into the lane that card held at open, so an active thread read as idle; the box now always renders in its most attention-needing member's lane, and a lifted parent/child family rides the same rule through an open pane. Cards no family claims keep the open-pane freeze.
-- **The toolbar's filter row aligns at any host font size.** Bare `relative` wrappers positioned the dropdown and wallpaper triggers on the text baseline, so bb's own font metrics lifted each trigger up to a pixel above its flex-centred neighbours — the drift that read as an off-kilter filter row. The wrappers now position by flex; the alignment holds across font metric changes and the screenshot harness verifies all controls share one center.
-- **Board alert banners stay bound to the viewport.** The four status banners (rank refusal, sweep notice, browser reveal, sweep refusal) now render above the horizontal scroll surface, so scrolling a wide board can no longer carry a banner offscreen. ([#26](https://github.com/cristoslc/bb-plugin-focus-board/issues/26))
-- **Project filters no longer leak unselected projects into the board.** With nesting on, a family whose only match lived in a selected project kept its dimmed parent on the board; a project miss now drops its member outright, while state, provider, and search misses keep-and-dim inside columns that pass ([#27](https://github.com/cristoslc/bb-plugin-focus-board/issues/27)).
-- **A pin applied in the Parent view now survives the switch to the Attention view.** Pinning a child card nested it away under its unpinned parent on every other view — the card menu still offered Unpin while the Pinned column showed nothing. A pinned child now stands alone in the Pinned column, Done children keeping their Done-lane placement ([#28](https://github.com/cristoslc/bb-plugin-focus-board/issues/28)).
-- **New thread starts where the board points, even with no filter armed.** Without a parent preset or single-project filter the composer now seeds from the board's unanimous project, else from the project the board's composer last spawned into (remembered across sessions), so "No project" only shows when nothing on the board points anywhere — parent presets and filters keep winning.
-  ([#24](https://github.com/cristoslc/bb-plugin-focus-board/issues/24))
+#### Groups and family boxes
+
+- **A family box's lane no longer depends on the open pane.** Opening one member's detail pulled the whole box into that member's lane, so a running sibling read as idle; the box now always rides its most attention-needing member.
+
+#### The board toolbar
+
+- **The toolbar's dropdown and wallpaper triggers align at any host font size.** They sat on the text baseline and lifted up to a pixel above their neighbours; they now flex-center, and the screenshot harness pins the alignment.
+
+#### Alert banners
+
+- **Board alert banners stay bound to the viewport.** They used to scroll offscreen with a wide board; they now render above the horizontal scroll surface. ([#26](https://github.com/cristoslc/bb-plugin-focus-board/issues/26))
+
+#### The board toolbar
+
+- **Project filters no longer leak unselected projects into the board.** A family whose only match lived in a selected project kept its dimmed parent's project on the board; a project miss now drops the member outright, while other misses keep-and-dim ([#27](https://github.com/cristoslc/bb-plugin-focus-board/issues/27)).
+
+#### Cards, menus, and views
+
+- **A pin applied in the Parent view now survives the switch to the Attention view.** Pinning a child used to nest it away under its unpinned parent; a pinned child now stands alone in the Pinned column, Done children keeping their Done-lane placement ([#28](https://github.com/cristoslc/bb-plugin-focus-board/issues/28)).
+
+#### The New thread composer
+
+- **New thread starts where the board points, even with no filter armed.** The composer seeds from the board's unanimous project, else from the project the board's composer last spawned into; "No project" only shows when nothing on the board points anywhere. ([#24](https://github.com/cristoslc/bb-plugin-focus-board/issues/24))
   - The maximize hand-off rides the same seed now, instead of bb's own remembered pick.
-- **"Open in browser" now means your browser.** Renamed from "Open in new window" — a native second bb window is not plugin-reachable (filed upstream as [get-bb/bb#5342](https://github.com/get-bb/bb/issues/5342)) — and on desktop the gesture hands the thread straight to your system browser instead of the app's in-app browser panel; the web board's detached-tab behavior is unchanged.
+
+#### Cards, menus, and views
+
+- **"Open in browser" now means your browser.** Renamed from "Open in new window": on desktop the gesture hands the thread to your system browser instead of bb's in-app panel (filed upstream as [get-bb/bb#5342](https://github.com/get-bb/bb/issues/5342)), and the web board's detached tab is unchanged.
 
 ## [1.1.0] - 2026-10-09
 

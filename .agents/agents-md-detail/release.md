@@ -80,10 +80,16 @@ merging into `dev`, releasing, changelog writing, or tagging.
   short sentence, at most a second one for texture. A bullet's OPENING
   SENTENCE is its What's-new item (section 5), so the bold lead carries the
   whole behavior and reads standalone; a bare noun phrase ("Parent thread
-  lanes.") is the failure to avoid. Beyond the lead, at most two short
-  sentences; a third, or a state-list chain (the sweep pill's one-time
-  four-label "N → …" string, 2026-10), gets cut or moved to `docs/*.md`
-  (linked). The 2026-10 lane-sweep paragraph ran 11 wrapped lines before
+  lanes.") is the failure to avoid. The lead must also NAME the bullet's
+  feature surface — the modal line has no changelog context around it, so
+  "Re-searching an Openverse query…" (no wallpaper picker named) is the
+  failure: the reader cannot tell what changed or where. New group text is
+  humanizer-clean: the ai-output-humanizer scan exits 0 over the group
+  (zero em dashes in new bullets), prose resolves with no thread memory, and
+  trailing-denial constructions top out at one per bullet. Beyond the lead,
+  at most two short sentences; a third, or a state-list chain (the sweep
+  pill's one-time four-label "N → …" string, 2026-10), gets cut or moved to
+  `docs/*.md` (linked). The 2026-10 lane-sweep paragraph ran 11 wrapped lines before
   this cap — the concrete failure. Bullets covering the same behavior fold
   into one with facet sub-bullets (0.6.0's projection card is the shape);
   sibling top-level bullets for one surface are the failure to avoid.
@@ -112,6 +118,17 @@ merging into `dev`, releasing, changelog writing, or tagging.
   a parse contract — bullets open with `- ` at column zero and wrap with
   two-space continuation lines — exercised in its tests; a bullet that
   violates it simply stops appearing in the dev What's-new modal.
+- **Surface grouping for the What's-new modal.** Optional `#### <surface>`
+  headings inside the `[Unreleased]` group (plain level-4 markdown between
+  bullets, never inside one) tag every following bullet with that surface —
+  persisting across bullets and across `###` Added/Changed/Fixed lines, so
+  one feature's items land together in the modal even when the changelog's
+  subsections split them (the wallpaper picker's Openverse re-search riding
+  beside the wallpaper feature bullets is the shape). The modal merges
+  same-surface items in first-appearance order and renders ungrouped
+  entries flat exactly as before; sections that skip the headings lose
+  nothing. Every new Unreleased bullet earns a surface heading unless the
+  whole group shares one surface.
 - The gift button's pulse on dev keys to the group's CONTENT, not the
   version: the fingerprint is written only when the modal opens, so an
   unopened dev build pulses its standing group (if it has bullets) and
@@ -210,6 +227,11 @@ therefore includes a marketplace check before the cut is reported done:
   first full sentence running through it; "(#N)" references stripped,
   terminal punctuation ensured). Nothing about a new release is
   hand-written: the finalize commit's changelog section IS the entry.
+- Entries render grouped the way the section was written: the section's
+  `#### <surface>` headings ride through as each item's `group` (section 1's
+  surface-grouping bullet), and the modal merges same-surface items across
+  the subsections; sections with no headings render flat, past and future
+  both.
 - The item rules are therefore just the rules for writing a section's
   first sentences: one user-facing sentence (at most two), "surface first,
   then the behavior"; behavior, never implementation — "Child threads now

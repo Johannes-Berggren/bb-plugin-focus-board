@@ -12,7 +12,12 @@
  * Format contract: bullets open with "- " at column zero and wrap with
  * two-space-indent continuation lines; related sub-bullets are
  * two-space-indent "- " lines under their bullet and may wrap the same way
- * (four-space continuation). A bullet ends at the next bullet, a "###"
+ * (four-space continuation). A "#### <surface>" heading tags every following
+ * bullet with an optional "group": the tag persists across bullets and
+ * across "###" subsection lines (so one feature's Added/Changed/Fixed
+ * bullets share a surface) until the next "####" heading or the next "##"
+ * release section. Bullets before any "####" heading carry no group. A
+ * bullet ends at the next bullet, a "###"
  * subsection heading, or a blank line. Bullets keep their raw markdown —
  * the modal distills via `leadFromBullet` (lead sentence for the bullet,
  * each sub-bullet condensed the same way as a child item). The italic
@@ -25,6 +30,8 @@ export interface ParsedUnreleasedBullet {
   text: string;
   /** Sub-bullet texts (indented `- ` lines), joined the same way. */
   children: string[];
+  /** The most recent `#### <surface>` heading, when one is in effect. */
+  group?: string;
 }
 
 export interface ParsedUnreleased {
@@ -38,6 +45,7 @@ export function parseUnreleasedChangelog(markdown: string): ParsedUnreleased {
 
   const items: ParsedUnreleasedBullet[] = [];
   let current: { text: string; children: string[]; child: string | null } | null = null;
+  let surface: string | null = null;
 
   // Soft wraps that split a slash-joined token ("scroll/wheel/\n  touch")
   // carry no separator — join such lines directly, prose gets a space.
@@ -48,13 +56,23 @@ export function parseUnreleasedChangelog(markdown: string): ParsedUnreleased {
 
   const flush = () => {
     if (current !== null) {
-      items.push({ text: current.text.trim(), children: current.children });
+      items.push(
+        surface !== null
+          ? { text: current.text.trim(), children: current.children, group: surface }
+          : { text: current.text.trim(), children: current.children },
+      );
     }
     current = null;
   };
 
   for (const line of lines.slice(start + 1)) {
     if (line.startsWith("## ")) break; // the next release section
+    const h4 = /^#### (.+)$/.exec(line);
+    if (h4 !== null) {
+      flush();
+      surface = h4[1].trim();
+      continue;
+    }
     if (line.startsWith("- ")) {
       flush();
       current = { text: line.slice(2), children: [], child: null };

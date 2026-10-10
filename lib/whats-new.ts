@@ -35,6 +35,8 @@ export interface WhatsNewItem {
   lead: string;
   /** The condensations of the bullet's sub-bullets, when it groups any. */
   children?: readonly string[];
+  /** The `#### <surface>` heading the bullet sat under, when the changelog tagged one. */
+  group?: string;
 }
 
 export interface WhatsNewEntry {
@@ -213,13 +215,58 @@ export function unreleasedFingerprint(texts: readonly string[]): string {
 /**
  * The [Unreleased] group's condensed items: one lead sentence per top-level
  * bullet, each of its sub-bullets condensed the same way as a child. The
- * single seam stays `leadFromBullet`, exactly like the published feed.
+ * single seam stays `leadFromBullet`, exactly like the published feed, and
+ * the bullet's `#### <surface>` heading rides along as the item's group.
  */
 function unreleasedWhatsNewItems(): readonly WhatsNewItem[] {
   return UNRELEASED_ITEMS.map((item) => ({
     lead: leadFromBullet(item.text),
     children: item.children.map(leadFromBullet).filter(Boolean),
+    ...(item.group ? { group: item.group } : {}),
   }));
+}
+
+export interface GroupedWhatsNewItems {
+  /** The `#### <surface>` heading of the group; null renders without a label. */
+  label: string | null;
+  items: readonly WhatsNewItem[];
+}
+
+/**
+ * The modal's item grouping: same-surface items merge across the changelog's
+ * Added/Changed/Fixed subsections, so one feature's additions, changes, and
+ * fixes read together. Groups appear in the order each surface is first
+ * seen and keep the changelog's order inside; entirely ungrouped entries
+ * come back as one null-label group, which the modal renders flat exactly
+ * like it did before surface headings existed.
+ */
+export function groupWhatsNewItems(
+  items: readonly WhatsNewItem[],
+): readonly GroupedWhatsNewItems[] {
+  const labeled: GroupedWhatsNewItems[] = [];
+  const byLabel = new Map<string, GroupedWhatsNewItems>();
+  const loose: WhatsNewItem[] = [];
+  for (const item of items) {
+    if (item.group !== undefined) {
+      let group = byLabel.get(item.group);
+      if (group === undefined) {
+        group = { label: item.group, items: [] };
+        byLabel.set(item.group, group);
+        labeled.push(group);
+      }
+      group.items.push(item);
+    } else {
+      loose.push(item);
+    }
+  }
+  if (labeled.length === 0) {
+    return [{ label: null, items }];
+  }
+  const groups = [...labeled];
+  if (loose.length > 0) {
+    groups.push({ label: null, items: loose });
+  }
+  return groups;
 }
 
 /** Fingerprint of the unreleased group embedded in this build. */

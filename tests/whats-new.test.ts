@@ -12,6 +12,7 @@ import {
   hasUnseenWhatsNew,
   isPrereleaseVersion,
   unreleasedFingerprint,
+  groupWhatsNewItems,
 } from "../lib/whats-new";
 import {
   parseUnreleasedChangelog,
@@ -128,6 +129,33 @@ describe("parseUnreleasedChangelog", () => {
     ]);
   });
 
+  it("attaches #### surface headings to published bullets as groups", () => {
+    // The finalize rename keeps a section's #### surface headings, so the
+    // published What's-new entry groups the same way the dev entry did.
+    const markdown = [
+      "## [1.2.0] - 2026-10-11",
+      "",
+      "### Fixed",
+      "",
+      "#### Wallpaper",
+      "",
+      "- **Openverse paging.** Walk the result pages.",
+      "",
+      "### Changed",
+      "",
+      "#### Wallpaper",
+      "",
+      "- **Dim slider.** Keeps cards readable.",
+    ].join("\n");
+    const parsed = parsePublishedChangelog(markdown);
+    expect(parsed[0].subsections[0].bullets).toEqual([
+      { text: "**Openverse paging.** Walk the result pages.", children: [], group: "Wallpaper" },
+    ]);
+    expect(parsed[0].subsections[1].bullets).toEqual([
+      { text: "**Dim slider.** Keeps cards readable.", children: [], group: "Wallpaper" },
+    ]);
+  });
+
   it("returns nothing for the current committed state if the group is empty", () => {
     expect(parseUnreleasedChangelog(EMPTY_UNRELEASED_FIXTURE).items).toEqual([]);
   });
@@ -143,6 +171,55 @@ describe("parseUnreleasedChangelog", () => {
     expect(parsed.items).toEqual([
       { text: "**New.** Unreleased work", children: [] },
     ]);
+  });
+
+  it("carries #### surface headings as the bullet's group, persisting across subsections", () => {
+    // A `#### <surface>` heading tags every following bullet until the next
+    // such heading; it deliberately persists across ### subsection lines so
+    // one feature's Added/Changed/Fixed bullets end up in one modal group.
+    const markdown = [
+      "## [Unreleased]",
+      "",
+      "### Added",
+      "",
+      "#### Wallpaper",
+      "",
+      "- **Walls.** Paint the board.",
+      "",
+      "### Changed",
+      "",
+      "- **Openverse paging.** Walk the result pages.",
+      "",
+      "#### The composer",
+      "",
+      "- **Maximize.** Hands off to the main view.",
+    ].join("\n");
+    expect(parseUnreleasedChangelog(markdown).items).toEqual([
+      { text: "**Walls.** Paint the board.", children: [], group: "Wallpaper" },
+      { text: "**Openverse paging.** Walk the result pages.", children: [], group: "Wallpaper" },
+      { text: "**Maximize.** Hands off to the main view.", children: [], group: "The composer" },
+    ]);
+  });
+
+  it("leaves bullets before any #### heading ungrouped", () => {
+    const markdown = [
+      "## [Unreleased]",
+      "",
+      "### Added",
+      "",
+      "- **Ungrouped.** No surface heading above me.",
+      "",
+      "#### Wallpaper",
+      "",
+      "- **Tagged.** I follow a surface heading.",
+    ].join("\n");
+    const parsed = parseUnreleasedChangelog(markdown);
+    expect(parsed.items[0]).toEqual({ text: "**Ungrouped.** No surface heading above me.", children: [] });
+    expect(parsed.items[1]).toEqual({
+      text: "**Tagged.** I follow a surface heading.",
+      children: [],
+      group: "Wallpaper",
+    });
   });
 });
 
@@ -227,6 +304,7 @@ describe("whatsNewEntriesFor", () => {
         items: UNRELEASED_ITEMS.map((item) => ({
           lead: leadFromBullet(item.text),
           children: item.children.map(leadFromBullet).filter(Boolean),
+          ...(item.group ? { group: item.group } : {}),
         })),
       };
       expect(whatsNewEntriesFor("0.6.0-dev", true, null)).toEqual([head]);
@@ -369,5 +447,46 @@ describe("entriesSince", () => {
     // Everything is new on a first install; the first visit just records the
     // running version, so no entry qualifies as a delta.
     expect(entriesSince(null)).toEqual([]);
+  });
+});
+
+describe("groupWhatsNewItems", () => {
+  const item = (lead: string, group?: string) => ({ lead, group });
+
+  it("merges same-surface items across subsection order into first-appearance groups", () => {
+    // Added and Changed bullets tagged with the same #### surface heading
+    // land in one modal group, in the order the changelog states them.
+    const groups = groupWhatsNewItems([
+      item("Boxes.", "Groups and family boxes"),
+      item("Wallpaper.", "Wallpaper"),
+      item("Openverse paging.", "Wallpaper"),
+    ]);
+    expect(groups.map((g) => g.label)).toEqual(["Groups and family boxes", "Wallpaper"]);
+    expect(groups[1].items.map((i) => i.lead)).toEqual(["Wallpaper.", "Openverse paging."]);
+  });
+
+  it("keeps a group's item order stable across its later reappearance", () => {
+    const groups = groupWhatsNewItems([
+      item("First.", "A"),
+      item("Mid.", "A"),
+      item("Other.", "B"),
+      item("Later.", "A"),
+    ]);
+    expect(groups[0].items.map((i) => i.lead)).toEqual(["First.", "Mid.", "Later."]);
+  });
+
+  it("keeps ungrouped entries flat: one null-label group", () => {
+    // Legacy published entries carry no groups; the modal renders them
+    // exactly as before.
+    const groups = groupWhatsNewItems([item("One."), item("Two.")]);
+    expect(groups).toHaveLength(1);
+    expect(groups[0].label).toBeNull();
+    expect(groups[0].items.map((i) => i.lead)).toEqual(["One.", "Two."]);
+  });
+
+  it("lands ungrouped items in a trailing unlabeled group when siblings are tagged", () => {
+    const groups = groupWhatsNewItems([item("Tagged.", "A"), item("Loose.")]);
+    expect(groups.map((g) => g.label)).toEqual(["A", null]);
+    expect(groups[1].items.map((i) => i.lead)).toEqual(["Loose."]);
   });
 });

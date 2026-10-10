@@ -21,7 +21,11 @@
  * The [Unreleased] group reader is `unreleased-changelog.ts`; that group has
  * its own parser because its pulse fingerprint digests the WHOLE bullets
  * (any change to the record re-pulses dev), while only the leads reach the
- * modal — the same split the release spoke documents.
+ * modal — the same split the release spoke documents. Both readers also
+ * attach an optional `group` to bullets from `#### <surface>` headings: a
+ * plain markdown level-4 heading between bullets in a section, never inside
+ * one, so the Keep-a-Changelog format stays intact while the modal can
+ * group a feature's Added/Changed/Fixed bullets under its surface name.
  */
 
 export interface PublishedSection {
@@ -38,6 +42,8 @@ export interface ParsedBullet {
   text: string;
   /** Sub-bullet texts (indented `- ` lines), joined the same way. */
   children: string[];
+  /** The most recent `#### <surface>` heading, when one is in effect. */
+  group?: string;
 }
 
 export interface ChangelogSubsection {
@@ -103,6 +109,7 @@ function parseSections(markdown: string): { version: string; date: string | null
   let current: { version: string; date: string | null; subsections: ChangelogSubsection[] } | null = null;
   let subsection: ChangelogSubsection | null = null;
   let bullet: { lines: string[]; children: string[][] } | null = null;
+  let surface: string | null = null;
   // The open sub-bullet's line list; null while the bullet's own prose accumulates.
   let child: string[] | null = null;
 
@@ -111,6 +118,7 @@ function parseSections(markdown: string): { version: string; date: string | null
       subsection.bullets.push({
         text: joinBullet(bullet.lines[0], bullet.lines.slice(1)),
         children: bullet.children.map((lines) => joinBullet(lines[0], lines.slice(1))),
+        ...(surface !== null ? { group: surface } : {}),
       });
     }
     bullet = null;
@@ -129,9 +137,16 @@ function parseSections(markdown: string): { version: string; date: string | null
         subsections: [],
       };
       subsection = null;
+      surface = null;
       continue;
     }
     if (current === null) continue; // intro prose before the first section
+    const h4 = /^#### (.+)$/.exec(line);
+    if (h4 !== null) {
+      flushBullet();
+      surface = h4[1].trim();
+      continue;
+    }
     const sub = H3.exec(line);
     if (sub !== null) {
       flushBullet();

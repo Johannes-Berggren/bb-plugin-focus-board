@@ -7,15 +7,18 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { APP_VERSION, type WhatsNewEntry } from "@/lib/whats-new";
+import { APP_VERSION, type WhatsNewEntry, groupWhatsNewItems } from "@/lib/whats-new";
 
 /**
  * The "What's new" modal behind the toolbar's gift button. Lists the
  * condensed changelog entries — either the delta since the stored last-seen
  * version (after an update) or every recent entry (opened unprompted from
  * the quiet button). Each item is a bullet's condensed lead sentence, with a
- * grouped bullet's related sub-bullets nested underneath it. Opening marks
- * the version seen; the button stays.
+ * grouped bullet's related sub-bullets nested underneath it. When the
+ * changelog tagged bullets with `#### <surface>` headings, same-surface
+ * items render together under that label (Added, Changed, and Fixed merge);
+ * untagged entries render flat as always. Opening marks the version seen;
+ * the button stays.
  */
 export function WhatsNewModal({
   open,
@@ -43,20 +46,29 @@ export function WhatsNewModal({
               <h3 className="mb-1 text-xs font-semibold text-foreground">
                 {entry.unreleased ? `Unreleased ${entry.version}` : `Version ${entry.version}`}
               </h3>
-              <ul className="list-disc space-y-1 pl-4 text-xs leading-relaxed text-muted-foreground">
-                {entry.items.map((item) => (
-                  <li key={item.lead}>
-                    {item.lead}
-                    {item.children && item.children.length > 0 && (
-                      <ul className="list-disc mt-1 space-y-1 pl-4">
-                        {item.children.map((child) => (
-                          <li key={child}>{child}</li>
-                        ))}
-                      </ul>
-                    )}
-                  </li>
-                ))}
-              </ul>
+              {groupWhatsNewItems(entry.items).map((group, groupIndex) => (
+                <div key={group.label ?? `group-${groupIndex}`}>
+                  {group.label !== null && (
+                    <div className="mb-1 mt-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground first:mt-0">
+                      {group.label}
+                    </div>
+                  )}
+                  <ul className="list-disc space-y-1 pl-4 text-xs leading-relaxed text-muted-foreground">
+                    {group.items.map((item) => (
+                      <li key={item.lead}>
+                        {item.lead}
+                        {item.children && item.children.length > 0 && (
+                          <ul className="list-disc mt-1 space-y-1 pl-4">
+                            {item.children.map((child) => (
+                              <li key={child}>{child}</li>
+                            ))}
+                          </ul>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
             </section>
           ))}
         </div>
