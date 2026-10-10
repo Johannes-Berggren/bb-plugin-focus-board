@@ -1,0 +1,5 @@
+right-click: { ok: true }
+menu click: { ok: true, item: 'Pin' }
+in parent view: { pinIcon: true, outside: true }
+in attention view: { cardPresent: true, pinIcon: false, columnId: 'working' }
+menu in attention view: {"PinOrUnpin":"Unpin","items":["Open thread","Copy link to thread","Open in browser","Reveal browser tab","Unpin","Mark Unread","Mark Done","Snooze…","Group…","New child thread…","Make Top-Level","Keep from sweep","Archive","Delete…"]}

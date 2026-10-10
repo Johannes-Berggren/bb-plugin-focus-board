@@ -353,6 +353,20 @@ function childPlacement(
   if (doneIds.has(child.id)) {
     return doneIds.has(parent.id) ? "nest" : "done";
   }
+  if (doneIds.has(child.id)) {
+    return doneIds.has(parent.id) ? "nest" : "done";
+  }
+  // A pinned child stands alone, the same way an attention child does: the
+  // pin is the operator's own intent and the Pinned column is its place
+  // (buildColumns leads every board with Pinned, exactly as bb's sidebar
+  // does). Nesting the child away would fold the pin into a quiet row under
+  // its unpinned parent — the pin badge is not rendered on nested rows —
+  // so a card pinned anywhere (the Parent view's row cells included) lost
+  // its pin on the next attention pass. The done check stays first: Done
+  // precedes the pin, the same as buildColumns' own split.
+  if (child.isPinned) {
+    return "flat";
+  }
   // Attention children stand alone, ahead of every nesting rule: the family
   // card may be collapsed (a persisted fold), and a child that needs the
   // operator must surface as its own actionable card, not hide behind a

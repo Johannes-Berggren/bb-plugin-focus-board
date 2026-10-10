@@ -748,6 +748,53 @@ describe("assembleBoard — family columns (R4: the family moves as one unit)", 
     expect(ids(result.nestedChildrenByParent.get("p") ?? [])).toEqual(["c"]);
   });
 
+  // Pinning a child card (the Parent view's row cells are where children are
+  // pinned) must not dissolve on the next Attention-view pass: the pin is
+  // the operator's intent and the Pinned column is its place. Repro
+  // 2026-10-10: pin a child in the Parent view, switch to Attention — the
+  // card nested away under its unpinned parent, badge gone, Pinned column
+  // blind to it while the card menu still offered Unpin.
+  it("a pinned child stands alone in the Pinned column instead of nesting under its unpinned parent", () => {
+    const parent = thread({ id: "p", status: "active", updatedAt: NOW - HOUR });
+    const pinnedChild = thread({
+      id: "c",
+      parentThreadId: "p",
+      isPinned: true,
+      updatedAt: NOW - 2 * HOUR,
+    });
+    const result = assembleBoard([parent, pinnedChild], "status", CONTEXT, new Map(), new Set(), NOW);
+    expect(idsIn(result.columns, "pinned")).toEqual(["c"]);
+    expect(idsIn(result.columns, "working")).toEqual(["p"]);
+    expect(result.nestedChildrenByParent.has("p")).toBe(false);
+  });
+
+  it("a pinned child flattens alone; its unpinned siblings still nest under the parent", () => {
+    const parent = thread({ id: "p", status: "active", updatedAt: NOW - HOUR });
+    const pinnedChild = thread({
+      id: "c",
+      parentThreadId: "p",
+      isPinned: true,
+      updatedAt: NOW - 2 * HOUR,
+    });
+    const sibling = thread({
+      id: "d",
+      parentThreadId: "p",
+      status: "active",
+      updatedAt: NOW - 3 * HOUR,
+    });
+    const result = assembleBoard(
+      [parent, pinnedChild, sibling],
+      "status",
+      CONTEXT,
+      new Map(),
+      new Set(),
+      NOW,
+    );
+    expect(idsIn(result.columns, "pinned")).toEqual(["c"]);
+    expect(idsIn(result.columns, "working")).toEqual(["p"]);
+    expect(ids(result.nestedChildrenByParent.get("p") ?? [])).toEqual(["d"]);
+  });
+
   it("archived and done children do not lift the family column", () => {
     const parent = thread({ id: "p", updatedAt: NOW - 2 * DAY }); // idle-earlier
     const archivedChild = thread({

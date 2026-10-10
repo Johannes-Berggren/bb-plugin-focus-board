@@ -149,6 +149,11 @@ export function useBbNavigate(): unknown {
   };
 }
 
+/** The plugin id the real SDK resolves from the host registration. */
+export function experimental_usePluginId(): string {
+  return MOCK_PLUGIN_ID;
+}
+
 export function experimental_useSidebarThreads(): unknown {
   return {
     status: "ready",
@@ -175,6 +180,9 @@ let simThreads: readonly SimThread[] = DEMO_MODE
 /** Threads archived in the harness; `threads.list({ archived: true })` serves these. */
 let simArchived: readonly SimThread[] = [];
 
+/** Ticket-chip store links (the app's link_list): none in the simulation. */
+const simLinks: Record<string, unknown> = {};
+
 /** Realtime subscribers (the app subscribes with `{ event, callback }`). */
 type MockSubscribeArgs = { event: string; callback: (event: { entity: string; changes: string[] }) => void };
 const mockSubscribers = new Set<MockSubscribeArgs>();
@@ -189,6 +197,11 @@ export function experimental_useSidebarThreadActions(): unknown {
     open: () => {},
     openNewThread: () => {},
     setPinned: async (threadId: string, pinned: boolean) => {
+      (globalThis as unknown as { __pinLog?: Array<{ threadId: string; pinned: boolean }> }).__pinLog =
+        [
+          ...((globalThis as unknown as { __pinLog?: Array<{ threadId: string; pinned: boolean }> }).__pinLog ?? []),
+          { threadId, pinned },
+        ];
       const before = simThreads.length;
       simThreads = simThreads.map((candidate) =>
         candidate.id === threadId ? { ...candidate, isPinned: pinned } : candidate,
@@ -376,6 +389,9 @@ const rpcCall = async (method: string, args?: unknown): Promise<unknown> => {
   // ("chat-imagegent") around the two active threads by default, and its
   // group writes mutate the module map + re-render, the way thread_reparent
   // does — the real app code renders unmodified against the simulation.
+  if (method === "link_list") {
+    return { links: structuredClone(simLinks) };
+  }
   if (method === "groups_list") {
     return {
       groups: simGroupRegistry,
