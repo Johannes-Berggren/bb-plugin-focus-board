@@ -10,6 +10,7 @@
 import { execFileSync } from "node:child_process";
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
+import { seamForFetch } from "./security-seams.mjs";
 
 let failed = false;
 const report = (line) => console.log(line);
@@ -110,31 +111,31 @@ for (const hit of openLines) {
   else report(`window.open with noopener: ${file}:${lineText}`);
 }
 
-// Network: fetch( is allowed ONLY in the loopback daemon client, the
-// tracker_validate fetchImpl seam, and the Openverse search client. The
-// seam is the direct forwarding line
-// `(url, init) => fetch(url, init)` that hands the platform fetch into
-// lib/tracker-validate.ts's existence probe; approved by the scoped
-// re-audit docs/security-audit-2026-10-09-1.1.md (https-only zod boundary,
-// loopback/private-host refusal, manual redirects, status-only 2xx read,
-// 10s timeout, TTL-cached results). The Openverse client is
-// lib/openverse.ts, the wallpaper picker's only search-fetch site;
-// approved by the scoped re-audit docs/security-audit-2026-10-10-openverse-client.md
-// (pinned https api.openverse.org origin built through the url builder,
-// no credentials/referrer, redirects refused, 10s deadline composed with
-// the caller's signal, payload read only through the tolerant parser).
-// Any other fetch site is a violation.
+// Network: fetch( is allowed ONLY in the audit-approved seams below —
+// never as a general fetch() allowance. The seam table lives ONCE, in
+// scripts/security-seams.mjs (APPROVED_FETCH_SEAMS + seamForFetch);
+// it is the single source of truth consumed here AND by the suite-level
+// backstop tests/security-fetch-seams.test.ts, so the gate and the suite
+// can never drift apart on a rename, a deletion, or a re-landed fetch
+// (which happened twice on 2026-10-10 — see
+// docs/incidents/2026-10-10-red-security-gate-on-dev.md).
+//
+// The seam pattern an entry must satisfy: the request url comes from a
+// FIXED host constant (no operator-controlled base or path; the Openverse
+// client additionally refuses any non-pinned origin at call time), untrusted
+// input reaches the request only through safe encoding into bounded
+// params, redirects are followed nowhere, the request is timeout-bounded,
+// and the response body is read only through a schema-filtered parser.
+// A new seam must be added to the table WITH a comment naming the audit
+// that approved it; a seam's `text` pin (exact allowed forwarding line)
+// is used when the file may legitimately contain other fetch-shaped text.
 for (const hit of findLines("\\bfetch\\(")) {
-  const forwardingSeam =
-    hit.startsWith("server.ts:") && hit.includes("fetchImpl: (url, init) => fetch(url, init)");
-  if (
-    !hit.startsWith("lib/workspace-open.ts:") &&
-    !hit.startsWith("lib/openverse.ts:") &&
-    !forwardingSeam
-  ) {
+  const [file, lineNo, ...rest] = hit.split(":");
+  const lineText = rest.join(":").trim();
+  if (seamForFetch(file ?? "", lineText) === null) {
     violation(`fetch( outside the audit-approved loopback daemon client → ${hit}`);
   } else {
-    report(`fetch( allowlisted (audited seam): ${hit.split(":").slice(0, 2).join(":")}`);
+    report(`fetch( allowlisted (audited seam): ${file}:${lineNo}`);
   }
 }
 
