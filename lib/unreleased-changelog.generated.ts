@@ -17,7 +17,7 @@ export const UNRELEASED_ITEMS: readonly { text: string; children: string[] }[] =
     "children": []
   },
   {
-    "text": "**The toolbar's controls follow the creation lead.** New thread and the search field sit at the far left and the Group / Nest / Project / Provider / State controls abut the search field; the thread count and What's-new gift stack under the New thread button.",
+    "text": "**The board toolbar reads as one line: create, search + View, filters.** New thread leads, the search field pairs with a View chip that names the current view like a mode (no colon label — grouping and the Nest child threads toggle live inside its menu), and Project / Provider / State run with the thread count and What's-new gift as one trailing cluster, so narrow panels wrap them all together instead of stranding the count against an empty edge.",
     "children": []
   }
 ];

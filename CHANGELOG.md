@@ -15,7 +15,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
-- **The board toolbar reads left-to-right: create, search + View, then filters.** New thread leads with its thread count and What's-new gift centered beneath; the search field pairs with the renamed View menu — the grouping pick, plus the Nest child threads toggle which moved off the row and into the menu — and Project / Provider / State abut as their own cluster, so a narrow panel wraps whole control groups instead of scattering controls.
+- **The board toolbar reads as one line: create, search + View, filters.** New thread leads, the search field pairs with a View chip that names the current view like a mode (no colon label — grouping and the Nest child threads toggle live inside its menu), and Project / Provider / State run with the thread count and What's-new gift as one trailing cluster, so narrow panels wrap them all together instead of stranding the count against an empty edge.
 
 ## [1.1.0] - 2026-10-09
 
