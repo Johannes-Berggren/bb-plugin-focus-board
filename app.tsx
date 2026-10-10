@@ -672,7 +672,7 @@ function BoardPage({ subPath }: { subPath: string }) {
     parseGroupStored(
       readStored(
         GROUP_BY_KEY,
-        ["none", "status", "recency", "project", "provider", "machine", "parent"],
+        ["none", "status", "recency", "project", "provider", "machine", "parent", "group"],
         "status",
       ),
     ),
@@ -998,18 +998,36 @@ function BoardPage({ subPath }: { subPath: string }) {
     }
     return frozen;
   }, [openThreadId, frozenColumn]);
+  // The grouping context, extended once with the feature-group maps: under
+  // the "group" grouping `columnFor` resolves a thread's column from its
+  // assignment (and the box plan rides the same maps, so its column
+  // overrides agree with the natural buckets). Other groupings ignore the
+  // extra fields.
+  const groupsByThread = useMemo(
+    () => new Map<string, string>(Object.entries(groupAssignments)),
+    [groupAssignments],
+  );
+  const groupContext = useMemo(
+    () => ({
+      projects,
+      providers,
+      groupsByThread,
+      groupNames: new Map(Object.entries(groupRegistry).map(([id, group]) => [id, group.name])),
+    }),
+    [projects, providers, groupsByThread, groupRegistry],
+  );
   const groupBoxPlan = useMemo(
     () =>
       planGroupBoxes(
         liveThreads,
-        new Map(Object.entries(groupAssignments)),
-        new Map(Object.entries(groupRegistry).map(([id, group]) => [id, group.name])),
+        groupsByThread,
+        groupContext.groupNames,
         groupBy,
-        { projects, providers },
+        groupContext,
         doneIds,
         Date.now(),
       ),
-    [liveThreads, groupAssignments, groupRegistry, groupBy, projects, providers, doneIds],
+    [liveThreads, groupsByThread, groupContext, groupBy, doneIds],
   );
   // A member open in the pane holds a frozen column; frozen beats the box's
   // lane and would split the pair into two no-box columns. The box follows
@@ -1059,13 +1077,13 @@ function BoardPage({ subPath }: { subPath: string }) {
     () =>
       isParentGroupBy
         ? null
-        : assembleBoard(searched, groupBy, { projects, providers }, frozenColumns, doneIds, Date.now(), {
+        : assembleBoard(searched, groupBy, groupContext, frozenColumns, doneIds, Date.now(), {
             nestingEnabled: nestChildren,
             ranks,
             doneTimes,
             extraColumnOverrides: groupBoxPlanFrozen.columnOverrides,
           }),
-    [isParentGroupBy, searched, groupBy, projects, providers, frozenColumns, doneIds, nestChildren, ranks, doneTimes, groupBoxPlanFrozen],
+    [isParentGroupBy, searched, groupBy, groupContext, frozenColumns, doneIds, nestChildren, ranks, doneTimes, groupBoxPlanFrozen],
   );
   const columns = assembly?.columns ?? [];
   // The map that actually renders as nested rows (nesting rules applied, so a
@@ -1494,7 +1512,7 @@ function BoardPage({ subPath }: { subPath: string }) {
           ? null
           : {
               threadId,
-              column: columnFor(thread, groupBy, { projects, providers }),
+              column: columnFor(thread, groupBy, groupContext),
             },
       );
       if (rejected && openThreadId !== threadId) {
@@ -1503,7 +1521,7 @@ function BoardPage({ subPath }: { subPath: string }) {
         setFallbackPaneThreadId(threadId);
       }
     },
-    [navigate, openThreadId, threads, groupBy, projects, providers],
+    [navigate, openThreadId, threads, groupBy, groupContext],
   );
 
   // The composer modal resolved a spawn: remember the project it landed in
@@ -1558,14 +1576,14 @@ function BoardPage({ subPath }: { subPath: string }) {
           ? current
           : {
               threadId: paneThreadId,
-              column: columnFor(thread, groupBy, { projects, providers }),
+              column: columnFor(thread, groupBy, groupContext),
             };
       });
     } else {
       setFallbackPaneThreadId(null);
       setFrozenColumn(null);
     }
-  }, [paneThreadId, threads, groupBy, projects, providers]);
+  }, [paneThreadId, threads, groupBy, groupContext]);
 
   // Project creation needs a host checkout path; the personal workspace's
   // host hosts every project, so create under the first known host.

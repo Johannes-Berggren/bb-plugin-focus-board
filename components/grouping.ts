@@ -15,11 +15,13 @@ export type GroupBy =
   | "project"
   | "provider"
   | "machine"
-  | "parent";
+  | "parent"
+  | "group";
 
 export const GROUP_BY_OPTIONS: readonly { value: GroupBy; label: string }[] = [
   { value: "status", label: "Attention" },
   { value: "parent", label: "Parent thread" },
+  { value: "group", label: "Group" },
   { value: "recency", label: "Last activity" },
   { value: "project", label: "Project" },
   { value: "provider", label: "Provider" },
@@ -47,6 +49,10 @@ export interface BoardColumn {
 export interface GroupingContext {
   projects: readonly PluginSidebarProject[];
   providers: readonly { id: string; displayName?: string }[];
+  /** Feature-group assignments (thread id → group id), read under the "group" grouping. */
+  groupsByThread?: ReadonlyMap<string, string>;
+  /** Feature-group registry names (group id → name), read under the "group" grouping. */
+  groupNames?: ReadonlyMap<string, string>;
 }
 
 export function threadState(thread: PluginSidebarThread): ThreadState {
@@ -234,6 +240,14 @@ export function columnFor(
   if (groupBy === "recency") {
     const age = now - thread.updatedAt;
     return ageBucketFor(age, AGE_BUCKETS);
+  }
+  // Feature groups are an assignment lookup: the column is the group the
+  // thread belongs to (registry name for the label). Assignments ride the
+  // optional context fields, so every other grouping is untouched.
+  if (groupBy === "group") {
+    const groupId = context.groupsByThread?.get(thread.id);
+    if (groupId === undefined) return { id: "none", label: "No group" };
+    return { id: groupId, label: context.groupNames?.get(groupId) ?? "Unknown group" };
   }
   // Machine comes from the thread payload itself: the SDK resolves the host's
   // display name for us, so no context lookup is needed.

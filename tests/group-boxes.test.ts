@@ -246,6 +246,29 @@ describe("planGroupBoxes", () => {
     expect(plan.groupBoxOf.size).toBe(0);
   });
 
+  it("boxes stay on under the group grouping and land in the group's own column", () => {
+    const threads = [
+      thread({ id: "thr_a", updatedAt: NOW - 1000 }),
+      thread({ id: "thr_b", updatedAt: NOW - 2000 }),
+    ];
+    const plan = planGroupBoxes(
+      threads,
+      groupOf({ thr_a: "grp_auth", thr_b: "grp_auth" }),
+      NAMES,
+      "group",
+      {
+        ...context,
+        groupsByThread: groupOf({ thr_a: "grp_auth", thr_b: "grp_auth" }),
+        groupNames: NAMES,
+      },
+      new Set(),
+      NOW,
+    );
+    expect(plan.active).toBe(true);
+    expect(plan.columnOverrides.get("thr_a")).toEqual({ id: "grp_auth", label: "Auth rework" });
+    expect(plan.columnOverrides.get("thr_b")).toEqual({ id: "grp_auth", label: "Auth rework" });
+  });
+
   it("under recency, the box lands in the freshest member's bucket", () => {
     const threads = [
       thread({ id: "thr_old", updatedAt: NOW - 8 * 24 * 60 * 60 * 1000 }),

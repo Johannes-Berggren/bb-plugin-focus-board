@@ -195,6 +195,72 @@ describe("columnFor", () => {
     expect(result).toEqual({ id: "proj_a", label: "Alpha" });
   });
 
+  it("routes an assigned thread to its feature group's column", () => {
+    const withGroups = {
+      ...context,
+      groupsByThread: new Map([["t1", "grp_auth"]]),
+      groupNames: new Map([["grp_auth", "Auth rework"]]),
+    };
+    expect(columnFor(thread({ id: "t1" }), "group", withGroups, NOW)).toEqual({
+      id: "grp_auth",
+      label: "Auth rework",
+    });
+  });
+
+  it("parks unassigned threads under No group", () => {
+    const withGroups = {
+      ...context,
+      groupsByThread: new Map<string, string>(),
+      groupNames: new Map([["grp_auth", "Auth rework"]]),
+    };
+    expect(columnFor(thread({ id: "t9" }), "group", withGroups, NOW)).toEqual({
+      id: "none",
+      label: "No group",
+    });
+  });
+
+  it("falls back to Unknown group when the registry record is gone", () => {
+    const withGroups = {
+      ...context,
+      groupsByThread: new Map([["t1", "grp_ghost"]]),
+      groupNames: new Map<string, string>(),
+    };
+    expect(columnFor(thread({ id: "t1" }), "group", withGroups, NOW)).toEqual({
+      id: "grp_ghost",
+      label: "Unknown group",
+    });
+  });
+
+  it("builds one column per group, unassigned threads under No group", () => {
+    const withGroups = {
+      ...context,
+      groupsByThread: new Map([
+        ["a", "grp_auth"],
+        ["b", "grp_auth"],
+        ["c", "grp_search"],
+      ]),
+      groupNames: new Map([
+        ["grp_auth", "Auth rework"],
+        ["grp_search", "Search v2"],
+      ]),
+    };
+    const columns = buildColumns(
+      [
+        thread({ id: "a", updatedAt: DAY }),
+        thread({ id: "b", updatedAt: 2 * DAY }),
+        thread({ id: "c", updatedAt: 3 * DAY }),
+        thread({ id: "d", updatedAt: 4 * DAY }),
+      ],
+      "group",
+      withGroups,
+    );
+    expect(columns.map((column) => [column.label, column.threads.length])).toEqual([
+      ["Auth rework", 2],
+      ["No group", 1],
+      ["Search v2", 1],
+    ]);
+  });
+
   it("recency grouping buckets every thread by age", () => {
     expect(columnFor(thread({ updatedAt: NOW - 2 * HOUR }), "recency", context, NOW).id).toBe("today");
     expect(columnFor(thread({ updatedAt: NOW - 2 * DAY }), "recency", context, NOW).id).toBe("earlier");
@@ -208,6 +274,10 @@ describe("GROUP_BY_OPTIONS", () => {
     expect(GROUP_BY_OPTIONS.find((option) => option.value === "status")?.label).toBe(
       "Attention",
     );
+  });
+
+  it("labels the feature-group grouping Group", () => {
+    expect(GROUP_BY_OPTIONS.find((option) => option.value === "group")?.label).toBe("Group");
   });
 });
 
