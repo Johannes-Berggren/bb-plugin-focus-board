@@ -55,6 +55,7 @@ const validInputs: Record<Method, unknown> = {
   group_create: { name: "Auth rework" },
   group_rename: { groupId: "grp_x", name: "Auth rework" },
   group_set: { threadId: "thr_x", groupId: null },
+  group_delete: { groupId: "grp_x" },
 };
 
 const nullInputMethods: Method[] = [

@@ -549,6 +549,45 @@ function BoardPage({ subPath }: { subPath: string }) {
     },
     [rpc, refetchGroups, setThreadGroup],
   );
+  /**
+   * Rename a registry group in place. Optimistic (the shared record means
+   * one write re-labels every member card); the group-changed refetch
+   * settles the truth.
+   */
+  const renameGroup = useCallback(
+    (groupId: string, name: string) => {
+      setGroupRegistry((current) =>
+        current[groupId] === undefined
+          ? current
+          : { ...current, [groupId]: { ...current[groupId], name } },
+      );
+      rpc.call("group_rename", { groupId, name }).catch(() => refetchGroups());
+    },
+    [rpc, refetchGroups],
+  );
+  /**
+   * Delete a registry group outright: the record AND every member's
+   * assignment go server-side (archived holders included). Optimistic like
+   * the rename; assignments to the dead id leave the board's state up front.
+   */
+  const deleteGroup = useCallback(
+    (groupId: string) => {
+      setGroupRegistry((current) => {
+        const next = { ...current };
+        delete next[groupId];
+        return next;
+      });
+      setGroupAssignments((current) => {
+        const next: Record<string, string> = {};
+        for (const [threadId, assigned] of Object.entries(current)) {
+          if (assigned !== groupId) next[threadId] = assigned;
+        }
+        return next;
+      });
+      rpc.call("group_delete", { groupId }).catch(() => refetchGroups());
+    },
+    [rpc, refetchGroups],
+  );
 
   // The sidebar view refreshes over its own realtime subscription, but
   // archive/unarchive changes also bump the pane's button state and the
@@ -2233,6 +2272,7 @@ function BoardPage({ subPath }: { subPath: string }) {
             childCountByParent={assembly?.childCountByParent ?? new Map()}
             doneChildrenByParent={assembly?.doneChildrenByParent ?? new Map()}
             groupBoxOf={groupBoxPlanFrozen.groupBoxOf}
+            onRenameGroup={renameGroup}
             collapsedFamilyIds={collapsedFamilies}
             onFamilyCollapsedChange={setFamilyCollapsed}
             dimmedIds={dimmedIds}
@@ -2484,6 +2524,8 @@ function BoardPage({ subPath }: { subPath: string }) {
               setThreadGroup(dialogThread.id, null);
               setGroupDialogFor(null);
             }}
+            onRename={renameGroup}
+            onDelete={deleteGroup}
             onCancel={() => setGroupDialogFor(null)}
           />
         );

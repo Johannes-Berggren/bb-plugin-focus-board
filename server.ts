@@ -542,6 +542,17 @@ export const rpcContract = defineRpcContract({
     input: z.object({ threadId: z.string().min(1), groupId: z.string().min(1).nullable() }),
     output: z.object({ threadId: z.string().min(1), groupId: z.string().min(1).nullable() }),
   },
+  /**
+   * Delete a group outright: the registry record goes AND every member's
+   * "group" metadata clears (live AND archived rows) — without the sweep the
+   * dead id would survive as orphaned per-thread metadata forever. The GC
+   * path (prune-on-last-unassign) covers drift; this covers a deliberate
+   * operator delete from the picker.
+   */
+  group_delete: {
+    input: z.object({ groupId: z.string().min(1) }),
+    output: z.object({ groupId: z.string().min(1) }),
+  },
 });
 
 /**
@@ -2085,6 +2096,30 @@ export default async function plugin(bb: BbPluginApi) {
       await pruneGroupsToMembers();
       bb.realtime.publish(GROUP_CHANGED, { threadId });
       return { threadId, groupId };
+    },
+    group_delete: async ({ groupId }) => {
+      const store = await readGroupsStore();
+      if (store[groupId] === undefined) throw unknownGroupError(groupId);
+      // Strip the assignment from every member first: live AND archived rows
+      // (an archived member keeps its metadata, so it would outlive the
+      // record as an orphan pointing at a group groups_list can never name).
+      const [liveRows, archivedRows] = await Promise.all([
+        bb.sdk.threads.list({}),
+        bb.sdk.threads.list({ archived: true, limit: 200 }),
+      ]);
+      let lastCleared: string | null = null;
+      for (const row of [...liveRows, ...archivedRows]) {
+        const record = await readGroupAssignment(row.id);
+        if (record?.groupId !== groupId) continue;
+        await writeGroupAssignment(row.id, null);
+        lastCleared = row.id;
+      }
+      const { [groupId]: _removed, ...rest } = store;
+      await writeGroupsStore(rest);
+      // One signal carries both halves (assignment clears + row removal);
+      // the realtime surface refetches everything group-shaped from it.
+      bb.realtime.publish(GROUP_CHANGED, { threadId: lastCleared });
+      return { groupId };
     },
   });
 
