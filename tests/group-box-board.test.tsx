@@ -3,10 +3,11 @@
 // mockups.html) pinned on the Board seam: members render inside ONE dashed
 // container li, whose label rides the container's top margin (inside the
 // scrollport at any position — the first per-card fragment attempt
-// truncated the label at the list's top edge, observed 2026-10-09). A lone
-// member renders a plain card with no box of one.
+// truncated the label at the list's top edge, observed 2026-10-09). A group
+// of one KEEPS its box — the solitary outline is the drag-into target, and
+// a group hides only when its last candidate leaves.
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render } from "@testing-library/react";
+import { cleanup, createEvent, fireEvent, render } from "@testing-library/react";
 import type { PluginSidebarThread } from "@get-bb/plugin-sdk/app";
 import { Board } from "../components/board";
 import { buildColumns } from "../components/grouping";
@@ -81,14 +82,20 @@ describe("the family box renders as one container around its members", () => {
     expect(label?.textContent).toBe("Auth rework");
   });
 
-  it("a single member renders as a plain card: no box, no label", () => {
+  it("a lone member keeps its box: one dashed container, its label, one card slot", () => {
     const solo = thread({ id: "thr_a", status: "active", updatedAt: NOW - 1000 });
     renderBoard(
       [solo],
       new Map([["thr_a", { groupId: "grp_1", name: "Auth rework", members: [solo] }]]),
     );
-    expect(document.querySelector('[data-group-box]')).toBeNull();
-    expect(document.querySelector('[data-group-box-label]')).toBeNull();
+    // The solitary box is the drag-into target: the group stays visible (and
+    // joinable) until its last member is gone.
+    const box = document.querySelector('[data-group-box="grp_1"]');
+    expect(box).not.toBeNull();
+    expect(box?.querySelectorAll('[data-group-box-member="grp_1"]')).toHaveLength(1);
+    expect(document.querySelector('[data-group-box-label="grp_1"]')?.textContent).toBe(
+      "Auth rework",
+    );
   });
 
   it("an unassigned card renders with no box decoration", () => {
@@ -285,5 +292,114 @@ describe("delete from the label editor (arm → confirm)", () => {
     fireEvent.click(document.querySelector('[data-group-box-label="grp_1"]') as HTMLButtonElement);
     const fresh = document.querySelector('[data-group-label-delete="grp_1"]') as HTMLButtonElement;
     expect(fresh.getAttribute("data-armed")).toBe("false");
+  });
+});
+
+describe("drop-to-join: the box container takes a dragged card into the group", () => {
+  const solo = thread({ id: "thr_solo", status: "active", updatedAt: NOW - 5000 });
+  const other = thread({ id: "thr_free", status: "active", updatedAt: NOW - 1000 });
+  const boxes = new Map([
+    ["thr_solo", { groupId: "grp_1", name: "Auth rework", members: [solo] }],
+  ]);
+
+  function makeDataTransfer() {
+    const payload = new Map<string, string>();
+    const types: string[] = [];
+    return {
+      get types() {
+        return [...types];
+      },
+      setData(type: string, value: string) {
+        if (!types.includes(type)) types.push(type);
+        payload.set(type, value);
+      },
+      getData(type: string) {
+        return payload.get(type) ?? "";
+      },
+      effectAllowed: "move",
+      dropEffect: "none",
+    };
+  }
+
+  function renderJoinableBoard(
+    onJoinGroup: ((threadId: string, groupId: string) => void) | undefined,
+  ) {
+    const props = {
+      groupBy: "status" as const,
+      columns: buildColumns([solo, other], "status", context, new Map(), new Set<string>(), NOW, {}),
+      activeThreadId: null,
+      doneIds: new Set<string>(),
+      nestedChildrenByParent: new Map(),
+      doneChildrenByParent: new Map(),
+      childCountByParent: new Map(),
+      dimmedIds: new Set<string>(),
+      rankStore: {},
+      onRankMove: () => {},
+      groupBoxOf: boxes,
+      onJoinGroup,
+      projectNameFor: () => "",
+      repoBaseFor: () => null,
+      onOpenThread: () => {},
+      onNewTask: () => {},
+      onDropDone: () => {},
+      onDropUnread: () => {},
+      onDropPinned: () => {},
+      menuActionsFor: () => [],
+    } as unknown as BoardProps;
+    render(<Board {...props} />);
+  }
+
+  function dragFromCardToBox(fromId: string, groupId: string) {
+    const anchor = document.querySelector(`[data-thread-card="${fromId}"] a[draggable]`);
+    if (!(anchor instanceof HTMLElement)) throw new Error(`missing draggable card ${fromId}`);
+    const box = document.querySelector(`[data-group-box="${groupId}"]`);
+    if (!(box instanceof HTMLElement)) throw new Error(`missing box ${groupId}`);
+    const dt = makeDataTransfer();
+    fireEvent.dragStart(anchor, { dataTransfer: dt });
+    const over = createEvent.dragOver(box, { dataTransfer: dt });
+    fireEvent(box, over);
+    const drop = createEvent.drop(box, { dataTransfer: dt });
+    fireEvent(box, drop);
+    return over;
+  }
+
+  it("dragging an unassigned card over the box claims the drop (preventDefault)", () => {
+    renderJoinableBoard(vi.fn());
+    const anchor = document.querySelector('[data-thread-card="thr_free"] a[draggable]') as HTMLElement;
+    const box = document.querySelector('[data-group-box="grp_1"]') as HTMLElement;
+    const dt = makeDataTransfer();
+    fireEvent.dragStart(anchor, { dataTransfer: dt });
+    const over = createEvent.dragOver(box, { dataTransfer: dt });
+    fireEvent(box, over);
+    expect(over.defaultPrevented).toBe(true);
+  });
+
+  it("the drop joins the group through onJoinGroup and clears the hover ring", () => {
+    const onJoinGroup = vi.fn();
+    renderJoinableBoard(onJoinGroup);
+    dragFromCardToBox("thr_free", "grp_1");
+    expect(onJoinGroup).toHaveBeenCalledTimes(1);
+    expect(onJoinGroup).toHaveBeenCalledWith("thr_free", "grp_1");
+  });
+
+  it("dropping a card already in this group does not reassign it", () => {
+    const onJoinGroup = vi.fn();
+    renderJoinableBoard(onJoinGroup);
+    dragFromCardToBox("thr_solo", "grp_1");
+    expect(onJoinGroup).not.toHaveBeenCalled();
+  });
+
+  it("without onJoinGroup wired, a drop on the container does nothing (no crash)", () => {
+    renderJoinableBoard(undefined);
+    const anchor = document.querySelector('[data-thread-card="thr_free"] a[draggable]') as HTMLElement;
+    const box = document.querySelector('[data-group-box="grp_1"]') as HTMLElement;
+    const dt = makeDataTransfer();
+    fireEvent.dragStart(anchor, { dataTransfer: dt });
+    const over = createEvent.dragOver(box, { dataTransfer: dt });
+    expect(() => fireEvent(box, over)).not.toThrow();
+    const drop = createEvent.drop(box, { dataTransfer: dt });
+    expect(() => fireEvent(box, drop)).not.toThrow();
+    // No join promise was ever shown, and no join write exists to fire.
+    expect(document.querySelector("[data-group-box-join-hover]")).toBeNull();
   });
 });

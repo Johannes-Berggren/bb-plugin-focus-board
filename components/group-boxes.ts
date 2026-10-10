@@ -4,12 +4,14 @@
 // The rules, all derived here so the board renders and the RPC/tests share
 // one source of truth:
 //
-// - A group exists on the board ONLY while at least two of its assigned
-//   threads are visible, live, not done, and not pinned. A group of one
-//   renders as a plain card with no box (the box is withheld, the record
-//   is the assignment that remains); a group whose members drift into
-//   Pinned or Done simply loses those members from the box — they keep
-//   their own lanes, the same way a family's done children leave the nest.
+// - A group exists on the board while AT LEAST ONE of its assigned threads
+//   is visible, live, not done, and not pinned. A group of one renders its
+//   dashed box too (one card inside) — the outline is the drag-into target,
+//   so the group stays visible and joinable until its last candidate leaves
+//   (the record itself only GCs when every assignment clears). A group whose
+//   members drift into Pinned or Done simply loses those members from the
+//   box — they keep their own lanes, the same way a family's done children
+//   leave the nest.
 // - The whole box lands in ONE column: the lane of its most
 //   attention-needing member (status grouping), or — under recency — the
 //   recency bucket of that member. This is the family placement rule
@@ -59,7 +61,8 @@ export interface GroupBoxPlan {
   /**
    * Thread id → the box it renders in. Holds EXACTLY the threads inside
    * boxes; a thread absent from it renders standalone even when assigned
-   * (group of one, pinned/done member, axis grouping).
+   * (pinned/done member, axis grouping — a group of one boxes its lone
+   * member these days).
    */
   groupBoxOf: ReadonlyMap<string, GroupBox>;
   /**
@@ -96,8 +99,9 @@ export function planGroupBoxes(
   }
   // Candidates: live members only — done members keep the Done lane's
   // placement, pinned members keep the Pinned lane's, archived never pass
-  // through here. A group below two candidates stays unassigned-looking:
-  // that is the "group of one renders plain" rule.
+  // through here. A group below one candidate has no box: its members sit
+  // in their own lanes (the record survives — the group returns when a
+  // member comes back).
   const candidatesByGroup = new Map<string, PluginSidebarThread[]>();
   for (const thread of threads) {
     if (thread.isArchived || doneIds.has(thread.id) || thread.isPinned) continue;
@@ -108,7 +112,10 @@ export function planGroupBoxes(
     else members.push(thread);
   }
   for (const [groupId, members] of candidatesByGroup) {
-    if (members.length < 2) continue;
+    // A group of one keeps its box: the solitary dashed outline is the
+    // drag-into target, so the group stays visible and joinable with a
+    // single member (the "evaporates at last assignment cleared" rule
+    // lives in the RPC GC, not the board render).
     const box: GroupBox = { groupId, name: groupNames.get(groupId) as string, members: [] };
     // The box lands in the most attention-needing member's lane — the same
     // smallest-state rule the family overrides run. Idle members tie on
@@ -132,7 +139,7 @@ export function planGroupBoxes(
       box.members.push(member);
     }
   }
-  return { groupBoxOf, columnOverrides, active: groupBoxOf.size >= 2 };
+  return { groupBoxOf, columnOverrides, active: groupBoxOf.size >= 1 };
 }
 
 /**
@@ -168,9 +175,11 @@ function stateIndexOf(state: ThreadState): number {
  * Wrap each column's display order into runs: box members gather into one
  * contiguous box item at the position of the FIRST member in the column's
  * own order, preserving relative member order; standalone cards keep their
- * slots. A member that landed in a different column (a frozen selection,
- * or a caller that skipped the overrides) renders plain there — the box
- * renders in the column holding at least two of its members in this path.
+ * slots. A group of one yields a box run around its single member (the
+ * solitary outline stays). A member that landed in a different column (a
+ * frozen selection, or a caller that skipped the overrides) renders plain
+ * there — the box renders in the column holding at least two of a
+ * multi-member box's members in this path.
  */
 export function runsFromColumns(
   columns: readonly BoardColumn[],
@@ -190,10 +199,11 @@ export function runsFromColumns(
       const members = box.members.filter((member) =>
         column.threads.some((candidate) => candidate.id === member.id),
       );
-      // A lone member in THIS column (its box split by a frozen selection
-      // or a caller that skipped the overrides) renders plain — a box of
-      // one card is the "group of one" rule applied per column.
-      if (members.length < 2) {
+      // A lone member of a MULTI-member box in THIS column (its box split
+      // by a frozen selection or a caller that skipped the overrides)
+      // renders plain — a split pair never becomes two boxes of one. A
+      // group whose WHOLE membership is this one member keeps its box.
+      if (members.length < 2 && box.members.length > 1) {
         items.push({ kind: "single", thread });
         continue;
       }
@@ -234,9 +244,11 @@ export function reconcileGroupBoxPlan(
 /**
  * One card's box run membership within a single column's display list.
  * `role` is the card's position in ITS box's run — absent (`null`) when the
- * card renders plain (unassigned, or the group's lone member in this
- * column). `memberIds` lists the run's members in the column's own order
- * (self included when boxed): the unit a drag moves.
+ * card drags as plain (unassigned, or a multi-member box's split lone
+ * member in this column; a group of one keeps its container but its member
+ * drags as a plain card, since a run of one is no unit). `memberIds` lists
+ * the run's members in the column's own order (self included when boxed):
+ * the unit a drag moves.
  */
 export interface ColumnRunInfo {
   boxId: string;
@@ -253,6 +265,26 @@ export type GroupBoxRef = Pick<GroupBox, "groupId" | "name">;
 export type GroupBoxMap = ReadonlyMap<string, GroupBoxRef & Pick<GroupBox, "members">>;
 
 /**
+ * The drop-into-the-box decision, shared by the container's dragover and
+ * drop: a dragged card joins `targetGroupId` when it is unassigned, or a
+ * member of ANOTHER group (one group per thread — joining moves it). The
+ * refuse cases: dropping a thread back onto its own group (nothing to
+ * change), and dragging a multi-member box unit (membership is per-thread;
+ * the unit keeps moving as an order unit, never dissolves into a group).
+ * A lone box member is still a single named card, so it may move.
+ */
+export function canJoinGroup(
+  droppedId: string,
+  targetGroupId: string,
+  groupBoxOf: GroupBoxMap,
+): boolean {
+  const droppedRun = groupBoxOf.get(droppedId);
+  if (droppedRun === undefined) return true;
+  if (droppedRun.groupId === targetGroupId) return false;
+  return droppedRun.members.length <= 1;
+}
+
+/**
  * Run membership per thread of ONE column: members of the same group that
  * landed (by the overrides or otherwise) in the same column take box roles
  * in display order; a member alone in its column renders plain (role
@@ -261,7 +293,7 @@ export type GroupBoxMap = ReadonlyMap<string, GroupBoxRef & Pick<GroupBox, "memb
  */
 export function columnRunInfo(
   columnThreads: readonly PluginSidebarThread[],
-  groupBoxOf: ReadonlyMap<string, GroupBoxRef>,
+  groupBoxOf: GroupBoxMap,
 ): ReadonlyMap<string, ColumnRunInfo> {
   const info = new Map<string, ColumnRunInfo>();
   if (groupBoxOf.size === 0) return info;
@@ -277,7 +309,11 @@ export function columnRunInfo(
     const box = groupBoxOf.get(thread.id);
     if (box === undefined) continue;
     const memberIds = byGroup.get(box.groupId) ?? [];
-    if (memberIds.length < 2) continue; // a lone member in this column: plain card
+    // A lone member of a MULTI-member box in this column (a split) drags
+    // plain. A group-of-one's member IS its run: role "solo" — it keeps the
+    // container decoration and its data attributes, and drags as a plain
+    // card (a run of one is no unit).
+    if (memberIds.length < 2 && box.members.length > 1) continue;
     const at = memberIds.indexOf(thread.id);
     const role: ColumnRunInfo["role"] =
       memberIds.length === 1 ? "solo" : at === 0 ? "first" : at === memberIds.length - 1 ? "last" : "mid";
@@ -351,7 +387,7 @@ export function flattenRuns(
  * Group-aware filtering, the family keep rule restricted to boxes: a box
  * passes when ANY member passes a filter or the search, whole — and
  * non-matching members of a passing box are recorded in `dimmedIds`. A
- * thread NOT in a box (even when assigned to a group of one) keeps its own
+ * thread NOT in a box (pinned/done members, axis groupings) keeps its own
  * pass/fail. Apply AFTER the family/individual filter: input here is the
  * already-kept list, so a member a failed family dropped cannot keep its
  * box on the board.
