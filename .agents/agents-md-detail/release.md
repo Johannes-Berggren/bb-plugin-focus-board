@@ -107,6 +107,19 @@ merging into `dev`, releasing, changelog writing, or tagging.
   into the fresh `[Unreleased]`; resolving the conflict by keeping both
   sides is exactly the back-edit the bullet above forbids. The same check
   applies at the PR-merge/pull-down seam.
+- **A heading line is bullet zero: never let a resolution eat one.** A
+  conflict resolution that splices bullet-prose must re-carry every heading
+  it sat between; the 2026-10-10 cut's resolution spliced `[Unreleased]`
+  content without the `## [Unreleased]` H2 (dev parsed the standing group
+  as empty), and the finalize's anchor replace consumed `[1.2.0]`'s opening
+  `### Added`, leaving six Added bullets section-less, silently dropped by
+  the parser, and missing from the release feed (both fixed same-day by PRs
+  #35's follow-up and #38). The check is mechanical: after any changelog
+  splice, grep the section for `^## \[` and `^### ` — the fresh group
+  carries its H2 with its three H3 subsections, and the renamed section
+  opens with Added/Changed/Fixed under its own H2. Green tests cannot catch
+  a missing heading (no heading simply parses as nothing), so verify the
+  derived entry by item count.
 - `lib/whats-new.ts`'s WHATS_NEW array is not maintained by hand anywhere —
   no entries, no churn; the prerelease branch in the whats-new entry test
   keeps the suite green without a placeholder. On dev the modal leads with
