@@ -54,6 +54,12 @@ export function NewThreadModal({
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /**
+   * Seeds the composer's project picker (lib/new-thread-seed's ladder: the
+   * preset parent's project, else the single filter-selected project, else
+   * the board's unanimous project, else the remembered last-spawn project;
+   * absent seeds nothing and the host resolves its own pick).
+   */
   defaultProjectId?: string;
   /**
    * Seeds the composer's environment picker (from the preset parent's
