@@ -7,6 +7,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **Reorder cards inside a family box.** Dropping a box member beside a sibling in the same dashed box moves that member alone — no more box-edge anchor, no refusal banner — while a drop beside anything outside the box still moves the whole box as one unit.
+- **Reorder the nested child rows under a family card.** Drop a child row on a sibling row's edge and the row order under that parent is written per family (`child:<parent>`, its own rank order — never the parent card's column order); Done families keep their done-recency rows, and dragging a row onto the floor still detaches it.
 - **Groups are manageable from the label and the picker.** Click a family box's label on the board to rename it inline — the editor carries an Ungroup control (one click arms it, the second ungroups everyone; the threads stay on the board) — and use the pencil/trash on any row of the Group picker to rename or delete a group; the shared registry re-labels every member card on a rename, and a delete strips every member's assignment, archived holders included.
 
 - **Sibling threads now join a named family box.** "Group…" in a card menu assigns the thread to a shared named group (created in-line); members render inside one dashed outline with the group name on the border, the whole box moves as one unit by drag or Alt+Arrow, and the group evaporates when its last assignment clears — no parent thread involved.

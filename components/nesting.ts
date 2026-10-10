@@ -16,6 +16,7 @@ import {
   threadState,
 } from "./grouping";
 import {
+  childRankKey,
   columnRankKey,
   compareByRank,
   orderForColumn,
@@ -714,11 +715,18 @@ function sortNestedByColumnRank(
       children.sort(doneRecencyCompare(doneTimes));
       continue;
     }
-    const order =
+    // The family's own manual child order leads (the reorder-rows gesture
+    // writes child:<parentId> keys — never the column's order, which the
+    // parent card shares with the whole column). The column order and then
+    // the derived order break ties underneath, so a family nobody has
+    // reordered (and every child rank does not name) keeps the sort the
+    // board has always shown.
+    const base =
       columnId === undefined
         ? []
         : orderForColumn(ranks, columnRankKey(groupBy, columnId));
-    children.sort(compareByRank(order, derivedCompare));
+    const childOrder = orderForColumn(ranks, childRankKey(parentId));
+    children.sort(compareByRank(childOrder, compareByRank(base, derivedCompare)));
   }
 }
 

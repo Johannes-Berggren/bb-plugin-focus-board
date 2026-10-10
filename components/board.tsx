@@ -30,6 +30,7 @@ import { Icon } from "@/components/ui/icon";
 import { cn } from "@/lib/utils";
 import {
   applyMoveVisible,
+  childRankKey,
   columnIsRanked,
   columnRankKey,
   displayAfterMove,
@@ -42,6 +43,7 @@ import { reparentRefusalFromParents } from "../lib/reparent";
 import {
   canJoinGroup,
   columnRunInfo,
+  inBoxMoveTarget,
   runsFromColumns,
   unitMoveTarget,
   type ColumnRunInfo,
@@ -478,6 +480,22 @@ export function Board({
     threadId: string;
     zone: DropZone;
   } | null>(null);
+  /**
+   * The nested row showing an insertion line for a same-family reorder: the
+   * drop writes the family's own child rank order (`child:<parentId>`), never
+   * the parent card's column order — those are two different orders and only
+   * one of them means "row order under this parent". Cleared with every
+   * other drag promise on dragend, dragleave, and after a commit.
+   */
+  const [childDrop, setChildDrop] = useState<{
+    parentId: string;
+    childId: string;
+    zone: Half;
+  } | null>(null);
+
+  function clearChildDrop(): void {
+    setChildDrop(null);
+  }
 
   // The shift-click anchor: the last card clicked without Shift in the armed
   // column. Shift extends the selection from it (it stays put — standard
@@ -1069,6 +1087,84 @@ export function Board({
               ? { threadId: below.id, zone: "before" }
               : { threadId: run.memberIds[run.memberIds.length - 1], zone: "after" };
           };
+          /**
+           * The nested-row reorder gesture, shared by a child row's dragover
+           * and drop. Scope, on purpose: only a SAME-family sibling row is a
+           * target — a row of another family (or an unrelated card dragged
+           * over one) falls through untouched, keeping every gesture the
+           * rows already participate in (nest-under-this-parent through the
+           * card's surface, the detach floor). The write goes to the
+           * family's own child rank order (`child:<parentId>`): the column
+           * order the parent card shares with other cards must never decide
+           * where the rows sit under their own parent.
+           *
+           * Only the row list the parent currently renders can be reordered
+           * (attention and pinned children stand alone; a Done family's rows
+           * keep their recency order), which `childRowsOf` already reflects.
+           */
+          const childRowsOf = (parentId: string): readonly PluginSidebarThread[] =>
+            nestedChildrenByParent.get(parentId) ?? [];
+          const childRowTarget = (
+            parent: PluginSidebarThread,
+            hoverChildId: string,
+            draggedId: string,
+            event: React.DragEvent,
+          ): { beforeId: string | null; toEnd: boolean } | null => {
+            if (!isLaneDrag(event.dataTransfer.types, rankKey)) return null;
+            if (liveParentOf(draggedId) !== parent.id || draggedId === hoverChildId) return null;
+            const rowIds = childRowsOf(parent.id).map((child) => child.id);
+            const rect = event.currentTarget.getBoundingClientRect();
+            const edge: Half = event.clientY - rect.top < rect.height / 2 ? "before" : "after";
+            return moveTargetFor(rowIds, hoverChildId, edge, draggedId);
+          };
+          const childRankDragOver = (
+            parent: PluginSidebarThread,
+            hoverChildId: string,
+            event: React.DragEvent,
+          ): void => {
+            if (!ranking) return;
+            const draggedId = draggingIdRef.current;
+            if (draggedId === null || draggedId === "" || draggedId === hoverChildId) return;
+            // Only a same-family lane drag reorders; anything else leaves the
+            // row's handlers unclaimed so the parent card's gestures run.
+            const target = childRowTarget(parent, hoverChildId, draggedId, event);
+            if (target === null) return;
+            event.preventDefault();
+            event.stopPropagation();
+            event.dataTransfer.dropEffect = "move";
+            const rect = event.currentTarget.getBoundingClientRect();
+            const zone: Half = event.clientY - rect.top < rect.height / 2 ? "before" : "after";
+            setChildDrop((current) =>
+              current?.parentId === parent.id &&
+              current?.childId === hoverChildId &&
+              current?.zone === zone
+                ? current
+                : { parentId: parent.id, childId: hoverChildId, zone },
+            );
+          };
+          const childRankDrop = (
+            parent: PluginSidebarThread,
+            hoverChildId: string,
+            event: React.DragEvent,
+          ): void => {
+            if (!ranking) return;
+            const droppedId = draggedIdFor(event, draggingIdRef.current);
+            if (droppedId === "") return;
+            // Guards re-run on the payload's id: the dragover's ref can name
+            // a card the drop contradicts.
+            const target = childRowTarget(parent, hoverChildId, droppedId, event);
+            if (target === null) return;
+            event.preventDefault();
+            event.stopPropagation();
+            setChildDrop(null);
+            setRankError(null);
+            const rowIds = childRowsOf(parent.id).map((child) => child.id);
+            onRankMove?.(childRankKey(parent.id), droppedId, target.beforeId, target.toEnd, rowIds);
+            const after = displayAfterMove(rowIds, droppedId, target.beforeId, target.toEnd);
+            setAnnouncement(
+              `Moved to position ${after.indexOf(droppedId) + 1} of ${after.length} within ${parent.displayTitle}.`,
+            );
+          };
           return (
             <section
               key={column.id}
@@ -1404,14 +1500,45 @@ export function Board({
                               return;
                             }
                             // Same-run hover (a member of the dragged card's
-                            // own box, either side) is a no-op: the box
-                            // cannot land inside itself.
+                            // own box, either side): the EDGES reorder inside
+                            // the box — the member moves alone, never the run
+                            // (inBoxMoveTarget answers; the box-edge
+                            // normalization stays unitMoveTarget's job). The
+                            // middle third keeps the nest zone below.
                             const dragUnit =
                               draggingIdRef.current !== null && draggingIdRef.current !== ""
                                 ? unitOf(draggingIdRef.current)
                                 : undefined;
                             if (dragUnit !== undefined && dragUnit.includes(thread.id)) {
-                              clearRankDrop();
+                              if (zone === "onto") {
+                                const rep = rankRepFor(thread.id, zone);
+                                setRankDrop((current) =>
+                                  current?.columnId === column.id &&
+                                  current?.threadId === rep.threadId &&
+                                  current?.zone === rep.zone
+                                    ? current
+                                    : { columnId: column.id, threadId: rep.threadId, zone: rep.zone },
+                                );
+                                return;
+                              }
+                              const inBoxTarget = inBoxMoveTarget(
+                                shownThreads.map((candidate) => candidate.id),
+                                thread.id,
+                                zone,
+                                draggingIdRef.current as string,
+                                runInfo,
+                              );
+                              if (inBoxTarget === null) {
+                                clearRankDrop();
+                                return;
+                              }
+                              setRankDrop((current) =>
+                                current?.columnId === column.id &&
+                                current?.threadId === thread.id &&
+                                current?.zone === zone
+                                  ? current
+                                  : { columnId: column.id, threadId: thread.id, zone },
+                              );
                               return;
                             }
                             const rep = rankRepFor(thread.id, zone);
@@ -1505,13 +1632,34 @@ export function Board({
                             event.stopPropagation();
                             clearRankDrop();
                             if (droppedId === "") return;
-                            const target = unitMoveTarget(
-                              shownThreads.map((candidate) => candidate.id),
-                              thread.id,
-                              edge,
-                              droppedId,
-                              runInfo,
-                            );
+                            // A hover inside the dragged member's own box
+                            // reorders WITHIN the family: the member moves
+                            // alone (no unit ids), into the slot the line
+                            // showed. Every hover outside the box keeps the
+                            // box-edge unit move.
+                            const dropRun = runInfo.get(droppedId);
+                            const hoverRun = runInfo.get(thread.id);
+                            const sameBox =
+                              dropRun !== undefined &&
+                              dropRun.role !== "solo" &&
+                              hoverRun !== undefined &&
+                              hoverRun.role !== "solo" &&
+                              dropRun.boxId === hoverRun.boxId;
+                            const target = sameBox
+                              ? inBoxMoveTarget(
+                                  shownThreads.map((candidate) => candidate.id),
+                                  thread.id,
+                                  edge,
+                                  droppedId,
+                                  runInfo,
+                                )
+                              : unitMoveTarget(
+                                  shownThreads.map((candidate) => candidate.id),
+                                  thread.id,
+                                  edge,
+                                  droppedId,
+                                  runInfo,
+                                );
                             if (target === null) {
                               reportRefusal(
                                 `the drop position in ${column.label} resolved to no move.`,
@@ -1524,7 +1672,7 @@ export function Board({
                               target.beforeId,
                               target.toEnd,
                               shownThreads.map((candidate) => candidate.id),
-                              unitOf(droppedId),
+                              sameBox ? undefined : unitOf(droppedId),
                             );
                           }
                         }
@@ -1713,6 +1861,28 @@ export function Board({
                           onOpen={() => onOpenThread(thread.id)}
                           onOpenThread={onOpenThread}
                           childMenuActions={menuActionsFor}
+                          childRankDrag={
+                            ranking &&
+                            onRankMove !== undefined &&
+                            // Done keeps its recency order — rows under a
+                            // Done card (a done parent's or a family
+                            // projection's) sort by when the work finished,
+                            // and a child-rank write there would never show.
+                            column.id !== "done" &&
+                            childRowsOf(thread.id).length > 1
+                              ? {
+                                  onDragOver: (hoverChildId, event) =>
+                                    childRankDragOver(thread, hoverChildId, event),
+                                  onDrop: (hoverChildId, event) =>
+                                    childRankDrop(thread, hoverChildId, event),
+                                  onDragLeave: () => clearChildDrop(),
+                                  line:
+                                    childDrop !== null && childDrop.parentId === thread.id
+                                      ? { childId: childDrop.childId, zone: childDrop.zone }
+                                      : undefined,
+                                }
+                              : undefined
+                          }
                           rankKey={ranking ? rankKey : undefined}
                           onRankDragStart={(id) => {
                             draggingIdRef.current = id;
@@ -1727,6 +1897,7 @@ export function Board({
                             if (id === null) {
                               clearRankDrop();
                               setJoinHoverId(null);
+                              clearChildDrop();
                             }
                           }}
                         />
