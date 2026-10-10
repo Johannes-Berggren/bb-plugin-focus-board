@@ -32,6 +32,10 @@ export const UNRELEASED_ITEMS: readonly { text: string; children: string[] }[] =
     "children": []
   },
   {
+    "text": "**Re-searching an Openverse query now walks the result pages instead of refetching page 1.** A Search click with an unchanged query fetches the next page and a small \"page N of M\" line marks it; editing the query resets, and the click past the results' last page says so outright instead of refetching.",
+    "children": []
+  },
+  {
     "text": "**The board toolbar reads as one line: create, search + View, filters.** New thread leads, the search field pairs with a View chip that names the current view like a mode (no colon label — grouping and the Nest child threads toggle live inside its menu), and Project / Provider / State run with the thread count and What's-new gift as one trailing cluster, so narrow panels wrap them all together instead of stranding the count against an empty edge.",
     "children": []
   },

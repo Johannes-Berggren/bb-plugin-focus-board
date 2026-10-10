@@ -7,6 +7,7 @@ import { describe, expect, it } from "vitest";
 import {
   PICSUM_SEEDS,
   WALLPAPER_PRESETS,
+  openversePageCount,
   openverseSearchUrl,
   parseOpenverseResults,
   picsumThumbUrl,
@@ -53,10 +54,24 @@ describe("picsum shuffle urls", () => {
 });
 
 describe("openverse search url and result parsing", () => {
-  it("encodes the query into the keyless api url", () => {
+  it("encodes the query and requested page into the keyless api url", () => {
     expect(openverseSearchUrl("mountain lake")).toBe(
-      "https://api.openverse.org/v1/images/?q=mountain%20lake&page_size=12",
+      "https://api.openverse.org/v1/images/?q=mountain%20lake&page_size=12&page=1",
     );
+    expect(openverseSearchUrl("mountain lake", 3)).toBe(
+      "https://api.openverse.org/v1/images/?q=mountain%20lake&page_size=12&page=3",
+    );
+  });
+
+  it("reads the response's page_count tolerantly (missing or garbage degrades to null)", () => {
+    expect(openversePageCount({ page_count: 80 })).toBe(80);
+    expect(openversePageCount({ results: [] })).toBeNull();
+    expect(openversePageCount({ page_count: 0 })).toBeNull();
+    expect(openversePageCount({ page_count: -2 })).toBeNull();
+    expect(openversePageCount({ page_count: 1.5 })).toBeNull();
+    expect(openversePageCount({ page_count: "3" })).toBeNull();
+    expect(openversePageCount(null)).toBeNull();
+    expect(openversePageCount("no")).toBeNull();
   });
 
   it("parses results tolerantly: https-only, thumbs optional, capped at 12", () => {

@@ -193,42 +193,44 @@ describe("toolbar wallpaper control", () => {
 });
 
 describe("Openverse search in the wallpaper picker", () => {
-  function mockFetch(behavior: "ok" | "empty" | "reject"): ReturnType<typeof vi.fn> {
-    const fetchMock = vi.fn((_url: unknown, _init?: unknown) => {
-      if (behavior === "reject") return Promise.reject(new Error("network gone"));
-      if (behavior === "empty") {
-        return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({ results: [] }) });
-      }
-      return Promise.resolve({
-        ok: true,
-        status: 200,
-        json: () =>
-          Promise.resolve({
-            results: [
-              {
-                id: "ov-1",
-                title: "Sunset Beach",
-                url: "https://example.com/sunset.jpg",
-                thumbnail: "https://api.openverse.org/v1/images/ov-1/thumb/",
-                license: "by",
-                license_version: "2.0",
-                creator: "Ada",
-              },
-              {
-                id: "ov-2",
-                title: "Not an image",
-                url: "not-a-url",
-                thumbnail: null,
-                license: "",
-                license_version: "",
-                creator: "",
-              },
-            ],
-          }),
-      });
+  type SearchEntry =
+    | { ok: true; body: unknown }
+    | { fail: number }
+    | { reject: string };
+
+  // The mocked Openverse endpoint answers per requested page, read off the
+  // url, so re-search and reset tests can distinguish pages from each other.
+  function mockFetch(script: SearchEntry | ((url: string) => SearchEntry)): ReturnType<typeof vi.fn> {
+    const fetchMock = vi.fn((url: unknown, _init?: unknown) => {
+      const entry = typeof script === "function" ? script(String(url)) : script;
+      if ("reject" in entry) return Promise.reject(new Error(entry.reject));
+      if ("fail" in entry) return Promise.resolve({ ok: false, status: entry.fail });
+      return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(entry.body) });
     });
     vi.stubGlobal("fetch", fetchMock);
     return fetchMock;
+  }
+
+  function openverseBody(page: number, titles: readonly string[], pageCount = 20): unknown {
+    return {
+      page,
+      page_count: pageCount,
+      results: titles.map((title, index) => ({
+        id: `ov-${page}-${index}`,
+        title,
+        url: `https://example.com/page-${page}-${index}.jpg`,
+        thumbnail: `https://api.openverse.org/v1/images/ov-${page}-${index}/thumb/`,
+        license: "by",
+        license_version: "2.0",
+        creator: "Ada",
+      })),
+    };
+  }
+
+  /** The page a mocked Openverse url asks for (1 when the param is absent). */
+  function requestedPage(url: string): number {
+    const match = /[?&]page=(\d+)/.exec(url);
+    return match === null ? 1 : Number(match[1]);
   }
 
   afterEach(() => {
@@ -236,7 +238,33 @@ describe("Openverse search in the wallpaper picker", () => {
   });
 
   it("searching hits api.openverse.org and renders clickable results (bad urls dropped)", async () => {
-    const fetchMock = mockFetch("ok");
+    const fetchMock = mockFetch((url) => ({
+      ok: true,
+      body: {
+        page: requestedPage(url),
+        page_count: 20,
+        results: [
+          {
+            id: "ov-1",
+            title: "Sunset Beach",
+            url: "https://example.com/sunset.jpg",
+            thumbnail: "https://api.openverse.org/v1/images/ov-1/thumb/",
+            license: "by",
+            license_version: "2.0",
+            creator: "Ada",
+          },
+          {
+            id: "ov-2",
+            title: "Not an image",
+            url: "not-a-url",
+            thumbnail: null,
+            license: "",
+            license_version: "",
+            creator: "",
+          },
+        ],
+      },
+    }));
     const { onWallpaperChange } = renderToolbar(NO_WALLPAPER);
     openPopover();
     fireEvent.change(screen.getByRole("textbox", { name: "Search Openverse" }), {
@@ -247,9 +275,10 @@ describe("Openverse search in the wallpaper picker", () => {
       expect(screen.getByRole("button", { name: "Sunset Beach (CC BY 2.0)" })).toBeTruthy(),
     );
     expect(fetchMock).toHaveBeenCalledWith(
-      "https://api.openverse.org/v1/images/?q=mountain%20lake&page_size=12",
+      "https://api.openverse.org/v1/images/?q=mountain%20lake&page_size=12&page=1",
       expect.anything(),
     );
+    expect(screen.getByText("page 1 of 20")).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Not an image (unknown license)" })).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Sunset Beach (CC BY 2.0)" }));
     expect(onWallpaperChange).toHaveBeenCalledWith({
@@ -258,8 +287,106 @@ describe("Openverse search in the wallpaper picker", () => {
     });
   });
 
+  it("a same-query re-search fetches the next page and replaces the list", async () => {
+    const fetchMock = mockFetch((url) => {
+      const page = requestedPage(url);
+      return { ok: true, body: openverseBody(page, [page === 1 ? "Sunset Beach" : "Forest Fog"]) };
+    });
+    renderToolbar(NO_WALLPAPER);
+    openPopover();
+    fireEvent.change(screen.getByRole("textbox", { name: "Search Openverse" }), {
+      target: { value: "mountain lake" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Search" }));
+    await waitFor(() => expect(screen.getByRole("button", { name: "Sunset Beach (CC BY 2.0)" })).toBeTruthy());
+    expect(screen.queryByRole("button", { name: "Forest Fog (CC BY 2.0)" })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Search" }));
+    await waitFor(() => expect(screen.getByRole("button", { name: "Forest Fog (CC BY 2.0)" })).toBeTruthy());
+    expect(screen.queryByRole("button", { name: "Sunset Beach (CC BY 2.0)" })).toBeNull();
+    expect(screen.getByText("page 2 of 20")).toBeTruthy();
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(fetchMock).toHaveBeenLastCalledWith(
+      "https://api.openverse.org/v1/images/?q=mountain%20lake&page_size=12&page=2",
+      expect.anything(),
+    );
+  });
+
+  it("editing the query resets re-search to page 1", async () => {
+    const fetchMock = mockFetch((url) => {
+      const page = requestedPage(url);
+      return { ok: true, body: openverseBody(page, [`Result P${page}`]) };
+    });
+    renderToolbar(NO_WALLPAPER);
+    openPopover();
+    fireEvent.change(screen.getByRole("textbox", { name: "Search Openverse" }), {
+      target: { value: "one lake" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Search" }));
+    await waitFor(() => expect(screen.getByRole("button", { name: "Result P1 (CC BY 2.0)" })).toBeTruthy());
+    fireEvent.click(screen.getByRole("button", { name: "Search" }));
+    await waitFor(() => expect(screen.getByRole("button", { name: "Result P2 (CC BY 2.0)" })).toBeTruthy());
+    fireEvent.change(screen.getByRole("textbox", { name: "Search Openverse" }), {
+      target: { value: "two lake" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Search" }));
+    await waitFor(() => expect(screen.getByRole("button", { name: "Result P1 (CC BY 2.0)" })).toBeTruthy());
+    expect(screen.getByText("page 1 of 20")).toBeTruthy();
+    expect(fetchMock).toHaveBeenLastCalledWith(
+      "https://api.openverse.org/v1/images/?q=two%20lake&page_size=12&page=1",
+      expect.anything(),
+    );
+  });
+
+  it("a failed next-page search keeps the page, so a retry re-attempts it (still advancing)", async () => {
+    const fetchMock = mockFetch((url) =>
+      requestedPage(url) === 1
+        ? { ok: true, body: openverseBody(1, ["Sunset Beach"]) }
+        : { reject: "too far" },
+    );
+    const { onWallpaperChange } = renderToolbar(NO_WALLPAPER);
+    openPopover();
+    fireEvent.change(screen.getByRole("textbox", { name: "Search Openverse" }), {
+      target: { value: "mountain lake" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Search" }));
+    await waitFor(() => expect(screen.getByRole("button", { name: "Sunset Beach (CC BY 2.0)" })).toBeTruthy());
+    fireEvent.click(screen.getByRole("button", { name: "Search" }));
+    await waitFor(() => expect(screen.getByText(/Openverse search failed: too far/)).toBeTruthy());
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    fireEvent.click(screen.getByRole("button", { name: "Search" }));
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3));
+    expect(fetchMock).toHaveBeenLastCalledWith(
+      "https://api.openverse.org/v1/images/?q=mountain%20lake&page_size=12&page=2",
+      expect.anything(),
+    );
+    expect(screen.getByText(/Openverse search failed: too far/)).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Sunset Beach (CC BY 2.0)" })).toBeNull();
+    expect(onWallpaperChange).not.toHaveBeenCalled();
+  });
+
+  it("a click past the response's last page refuses the fetch and marks the end of results", async () => {
+    const fetchMock = mockFetch((url) => ({
+      ok: true,
+      body: openverseBody(requestedPage(url), ["Sunset Beach"], 2),
+    }));
+    renderToolbar(NO_WALLPAPER);
+    openPopover();
+    fireEvent.change(screen.getByRole("textbox", { name: "Search Openverse" }), {
+      target: { value: "mountain lake" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Search" }));
+    await waitFor(() => expect(screen.getByRole("button", { name: "Sunset Beach (CC BY 2.0)" })).toBeTruthy());
+    fireEvent.click(screen.getByRole("button", { name: "Search" }));
+    await waitFor(() => expect(screen.getByText("page 2 of 2")).toBeTruthy());
+    fireEvent.click(screen.getByRole("button", { name: "Search" }));
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(screen.getByText("page 2 of 2 (last page)")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Sunset Beach (CC BY 2.0)" })).toBeTruthy();
+    expect(screen.queryByText(/Openverse search failed/)).toBeNull();
+  });
+
   it("an empty result set renders a visible no-results line", async () => {
-    mockFetch("empty");
+    mockFetch({ ok: true, body: { results: [] } });
     renderToolbar(NO_WALLPAPER);
     openPopover();
     fireEvent.change(screen.getByRole("textbox", { name: "Search Openverse" }), {
@@ -270,7 +397,7 @@ describe("Openverse search in the wallpaper picker", () => {
   });
 
   it("a failed search renders the failure (with the reason) and commits nothing", async () => {
-    mockFetch("reject");
+    mockFetch({ reject: "network gone" });
     const { onWallpaperChange } = renderToolbar(NO_WALLPAPER);
     openPopover();
     fireEvent.change(screen.getByRole("textbox", { name: "Search Openverse" }), {

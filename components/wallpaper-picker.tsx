@@ -6,6 +6,7 @@ import { isAllowedWallpaperUrl, type WallpaperSettings } from "./preferences";
 import {
   PICSUM_SEEDS,
   WALLPAPER_PRESETS,
+  openversePageCount,
   openverseSearchUrl,
   parseOpenverseResults,
   picsumThumbUrl,
@@ -181,13 +182,28 @@ export function WallpaperDropdown({
 type OpenverseSearchState =
   | { status: "idle" }
   | { status: "loading" }
-  | { status: "done"; images: readonly OpenverseImage[] }
+  | { status: "done"; images: readonly OpenverseImage[]; page: number }
+  | { status: "end"; images: readonly OpenverseImage[]; page: number; pageCount: number }
   | { status: "error"; message: string };
 
 /**
+ * How far the current query's paging has advanced: successfully fetched
+ * pages and the response's page_count (null until a response carries it).
+ * Reset when the query text changes; a failed fetch touches neither field,
+ * so a retry re-attempts the same page (never skipping an unseen page).
+ */
+interface OpenversePaging {
+  pages: number;
+  pageCount: number | null;
+}
+
+/**
  * The Openverse panel of the picker: type a query, press Search, click a
- * result. Network failures render their reason (the picker never hides a
- * failed search behind an empty grid) and commit nothing.
+ * result. A Search click with an unchanged query fetches the next page;
+ * editing the query resets to page 1. Network failures render their reason
+ * (the picker never hides a failed search behind an empty grid) and commit
+ * nothing; a click past the response's last page re-renders the last
+ * results with an end mark instead of a fetch the API would refuse.
  */
 function OpenverseSearch({
   onPick,
@@ -195,6 +211,7 @@ function OpenverseSearch({
   onPick: (url: string) => void;
 }) {
   const [query, setQuery] = useState("");
+  const [paging, setPaging] = useState<OpenversePaging>({ pages: 0, pageCount: null });
   const [state, setState] = useState<OpenverseSearchState>({ status: "idle" });
   const controllerRef = useRef<AbortController | null>(null);
   useEffect(() => {
@@ -207,15 +224,26 @@ function OpenverseSearch({
   const runSearch = async () => {
     const trimmed = query.trim();
     if (trimmed === "") return;
+    const page = paging.pages + 1;
+    if (paging.pageCount !== null && page > paging.pageCount) {
+      // End of results: Openverse only serves page_count pages (for the
+      // keyless client this is its pagination-depth cap), so re-render the
+      // last page with an end mark rather than a fetch it refuses (HTTP
+      // 401). The paging position is kept, retrying here repeats the mark.
+      const images = state.status === "done" || state.status === "end" ? state.images : [];
+      setState({ status: "end", images, page: paging.pages, pageCount: paging.pageCount });
+      return;
+    }
     controllerRef.current?.abort();
     const controller = new AbortController();
     controllerRef.current = controller;
     setState({ status: "loading" });
     try {
-      const response = await fetch(openverseSearchUrl(trimmed), { signal: controller.signal });
+      const response = await fetch(openverseSearchUrl(trimmed, page), { signal: controller.signal });
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       const payload: unknown = await response.json();
-      setState({ status: "done", images: parseOpenverseResults(payload) });
+      setState({ status: "done", images: parseOpenverseResults(payload), page });
+      setPaging({ pages: page, pageCount: openversePageCount(payload) });
     } catch (error: unknown) {
       if (controller.signal.aborted) return;
       setState({
@@ -229,7 +257,11 @@ function OpenverseSearch({
       <div className="flex items-center gap-1">
         <Input
           value={query}
-          onChange={(event) => setQuery(event.target.value)}
+          onChange={(event) => {
+            setQuery(event.target.value);
+            // Any edit retargets the search: the next click fetches page 1.
+            setPaging({ pages: 0, pageCount: null });
+          }}
           onKeyDown={(event) => {
             if (event.key === "Enter") {
               event.preventDefault();
@@ -255,7 +287,19 @@ function OpenverseSearch({
       {state.status === "error" ? (
         <div className="mt-1 text-[10px] text-destructive">Openverse search failed: {state.message}</div>
       ) : null}
-      {state.status === "done" ? (
+      {state.status === "done" || state.status === "end" ? (
+        <div className="mt-1 flex items-center justify-between text-[10px] text-muted-foreground">
+          <span>
+            {state.status === "end"
+              ? `page ${state.page} of ${state.pageCount} (last page)`
+              : paging.pageCount === null
+                ? `page ${state.page}`
+                : `page ${state.page} of ${paging.pageCount}`}
+          </span>
+          {state.status === "end" ? <span>no further results</span> : null}
+        </div>
+      ) : null}
+      {state.status === "done" || state.status === "end" ? (
         state.images.length === 0 ? (
           <div className="mt-1 text-[10px] text-muted-foreground">No images found for “{query.trim()}”.</div>
         ) : (
