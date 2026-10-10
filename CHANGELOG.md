@@ -29,6 +29,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- **Project filters no longer leak unselected projects into the board.** With nesting on, a family whose only match lived in a selected project kept its dimmed parent on the board, so filtering to 4 projects still showed Personal and vikunja-pwa-fork columns; a project miss now drops its member outright while state, provider, and search misses keep-and-dim inside columns that pass ([#27](https://github.com/cristoslc/bb-plugin-focus-board/issues/27)).
 - **Drop a card anywhere on a group box to join it — member cards included.** A card dropped on the dashed area used to land on the member inside, which kept its reorder and nest gestures and never joined; a parent-family member left almost none of the box reachable. A joining drag over a member's card now joins, while its middle third still nests, same-group drags still reorder, and card drags from another column arm the join ring too.
 - **New thread starts where the board points, even with no filter armed.** Without a parent preset or single-project filter the composer now seeds from the board's unanimous project, else from the project the board's composer last spawned into (remembered across sessions), so "No project" only shows when nothing on the board points anywhere — parent presets and filters keep winning.
   ([#24](https://github.com/cristoslc/bb-plugin-focus-board/issues/24))

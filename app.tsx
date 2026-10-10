@@ -966,7 +966,9 @@ function BoardPage({ subPath }: { subPath: string }) {
   // Family-aware filtering replaces per-thread filtering when nesting is ON:
   // a family passes when any member matches, non-matching members render
   // dimmed (archived members are hidden outright by the family index, so
-  // they never appear here at all).
+  // they never appear here at all) — except a project-filter miss, which
+  // drops the member outright: project selection is a column gate, so a
+  // dim-kept member in an unselected project never projects a column.
   // Nesting OFF means a fully flat board — per-thread filtering again. The
   // "parent" grouping overrides that (D11): the nesting toggle is inert
   // there, and lane mode always filters family-first (D10 keep-and-dim).
