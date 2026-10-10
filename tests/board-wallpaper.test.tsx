@@ -6,8 +6,9 @@
 // wallpaper is active) drops it back to global: null. The trigger reads
 // active (amber ink) while a wallpaper renders behind the board.
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { BoardToolbar } from "../components/board-toolbar";
+import { WALLPAPER_PRESETS } from "../components/wallpaper-presets";
 import type { WallpaperSettings } from "../components/preferences";
 import type { FilterState } from "../components/grouping";
 
@@ -18,17 +19,16 @@ const PROVIDERS = [
 
 type BoardToolbarProps = Parameters<typeof BoardToolbar>[0];
 
-function renderToolbar(
+function toolbarProps(
   wallpaper: WallpaperSettings,
   overrides: Partial<BoardToolbarProps> = {},
-): { onWallpaperChange: ReturnType<typeof vi.fn> } {
-  const onWallpaperChange = vi.fn();
+): BoardToolbarProps {
   const filter: FilterState = {
     projects: new Set(),
     providers: new Set(),
     states: new Set(),
   };
-  const props: BoardToolbarProps = {
+  return {
     groupBy: "status",
     onGroupByChange: vi.fn(),
     nestChildren: false,
@@ -50,9 +50,17 @@ function renderToolbar(
     whatsNewUnseen: false,
     onOpenWhatsNew: vi.fn(),
     wallpaper,
-    onWallpaperChange,
+    onWallpaperChange: vi.fn(),
     ...overrides,
   };
+}
+
+function renderToolbar(
+  wallpaper: WallpaperSettings,
+  overrides: Partial<BoardToolbarProps> = {},
+): { onWallpaperChange: ReturnType<typeof vi.fn> } {
+  const props = toolbarProps(wallpaper, overrides);
+  const onWallpaperChange = props.onWallpaperChange as unknown as ReturnType<typeof vi.fn>;
   render(<BoardToolbar {...props} />);
   return { onWallpaperChange };
 }
@@ -125,5 +133,151 @@ describe("toolbar wallpaper control", () => {
     openPopover();
     fireEvent.click(screen.getByRole("button", { name: "Remove wallpaper" }));
     expect(onWallpaperChange).toHaveBeenCalledWith({ version: 1, global: null });
+  });
+
+  it("renders the shipped preset swatches and commits one on click, keeping the shown dim", () => {
+    const { onWallpaperChange } = renderToolbar(NO_WALLPAPER);
+    openPopover();
+    const count = screen.getAllByRole("button", { name: /Wallpaper preset: / }).length;
+    expect(count).toBeGreaterThanOrEqual(8);
+    fireEvent.click(screen.getByRole("button", { name: "Wallpaper preset: Aurora" }));
+    expect(onWallpaperChange).toHaveBeenCalledWith({
+      version: 1,
+      global: { url: expect.stringMatching(/^data:image\/svg\+xml/), dim: 0.35 },
+    });
+  });
+
+  it("marks the active preset (aria-pressed) so the stored url is visible in the grid", () => {
+    // No wallpaper: nothing pressed.
+    const { unmount } = render(<BoardToolbar {...toolbarProps(NO_WALLPAPER)} />);
+    openPopover();
+    for (const button of screen.getAllByRole("button", { name: /Wallpaper preset: / })) {
+      expect(button.getAttribute("aria-pressed")).toBe("false");
+    }
+    unmount();
+
+    cleanup();
+    const aurora = WALLPAPER_PRESETS.find((preset) => preset.label === "Aurora");
+    if (aurora === undefined) throw new Error("missing Aurora preset");
+    renderToolbar({ version: 1, global: { url: aurora.url, dim: 0.35 } });
+    openPopover();
+    expect(
+      screen.getByRole("button", { name: "Wallpaper preset: Aurora" }).getAttribute("aria-pressed"),
+    ).toBe("true");
+  });
+
+  it("renders Picsum thumbnails; clicking one commits its 1920x1080 url", () => {
+    const { onWallpaperChange } = renderToolbar(NO_WALLPAPER);
+    openPopover();
+    const expected = screen.getAllByRole("button", { name: /Picsum: / }).length;
+    expect(expected).toBe(8);
+    fireEvent.click(screen.getByRole("button", { name: "Picsum: focus-board-3" }));
+    expect(onWallpaperChange).toHaveBeenCalledWith({
+      version: 1,
+      global: { url: "https://picsum.photos/seed/focus-board-3/1920/1080", dim: 0.35 },
+    });
+  });
+
+  it("an active dim is kept when a preset or Picsum thumb commits (not the 0.35 default)", () => {
+    const { onWallpaperChange } = renderToolbar({
+      version: 1,
+      global: { url: "https://example.com/w.png", dim: 0.6 },
+    });
+    openPopover();
+    fireEvent.click(screen.getByRole("button", { name: "Picsum: focus-board-3" }));
+    expect(onWallpaperChange).toHaveBeenCalledWith({
+      version: 1,
+      global: { url: "https://picsum.photos/seed/focus-board-3/1920/1080", dim: 0.6 },
+    });
+  });
+});
+
+describe("Openverse search in the wallpaper picker", () => {
+  function mockFetch(behavior: "ok" | "empty" | "reject"): ReturnType<typeof vi.fn> {
+    const fetchMock = vi.fn((_url: unknown, _init?: unknown) => {
+      if (behavior === "reject") return Promise.reject(new Error("network gone"));
+      if (behavior === "empty") {
+        return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({ results: [] }) });
+      }
+      return Promise.resolve({
+        ok: true,
+        status: 200,
+        json: () =>
+          Promise.resolve({
+            results: [
+              {
+                id: "ov-1",
+                title: "Sunset Beach",
+                url: "https://example.com/sunset.jpg",
+                thumbnail: "https://api.openverse.org/v1/images/ov-1/thumb/",
+                license: "by",
+                license_version: "2.0",
+                creator: "Ada",
+              },
+              {
+                id: "ov-2",
+                title: "Not an image",
+                url: "not-a-url",
+                thumbnail: null,
+                license: "",
+                license_version: "",
+                creator: "",
+              },
+            ],
+          }),
+      });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    return fetchMock;
+  }
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("searching hits api.openverse.org and renders clickable results (bad urls dropped)", async () => {
+    const fetchMock = mockFetch("ok");
+    const { onWallpaperChange } = renderToolbar(NO_WALLPAPER);
+    openPopover();
+    fireEvent.change(screen.getByRole("textbox", { name: "Search Openverse" }), {
+      target: { value: "mountain lake" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Search" }));
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Sunset Beach (CC BY 2.0)" })).toBeTruthy(),
+    );
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://api.openverse.org/v1/images/?q=mountain%20lake&page_size=12",
+      expect.anything(),
+    );
+    expect(screen.queryByRole("button", { name: "Not an image (unknown license)" })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Sunset Beach (CC BY 2.0)" }));
+    expect(onWallpaperChange).toHaveBeenCalledWith({
+      version: 1,
+      global: { url: "https://example.com/sunset.jpg", dim: 0.35 },
+    });
+  });
+
+  it("an empty result set renders a visible no-results line", async () => {
+    mockFetch("empty");
+    renderToolbar(NO_WALLPAPER);
+    openPopover();
+    fireEvent.change(screen.getByRole("textbox", { name: "Search Openverse" }), {
+      target: { value: "nothing matches" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Search" }));
+    await waitFor(() => expect(screen.getByText("No images found for “nothing matches”.")));
+  });
+
+  it("a failed search renders the failure (with the reason) and commits nothing", async () => {
+    mockFetch("reject");
+    const { onWallpaperChange } = renderToolbar(NO_WALLPAPER);
+    openPopover();
+    fireEvent.change(screen.getByRole("textbox", { name: "Search Openverse" }), {
+      target: { value: "mountain lake" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Search" }));
+    await waitFor(() => expect(screen.getByText(/Openverse search failed/)).toBeTruthy());
+    expect(onWallpaperChange).not.toHaveBeenCalled();
   });
 });

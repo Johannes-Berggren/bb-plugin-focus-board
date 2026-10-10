@@ -5,7 +5,7 @@ export const UNRELEASED_ITEMS: readonly { text: string; children: string[] }[] =
     "children": []
   },
   {
-    "text": "**The board can wear a wallpaper.** The toolbar's image control takes any http(s) or data image url with a dim slider that keeps cards readable; the setting persists per browser and today always applies globally, with the stored document versioned and ready for per-project or per-group overrides later.",
+    "text": "**The board can wear a wallpaper.** The toolbar's image control opens a picker: eight bundled gradient presets and a deterministic Picsum shuffle strip work offline-first, a keyless Openverse search adds openly licensed photos, and a free-form url field takes anything http(s) or data — all with a dim slider that keeps cards readable. The setting persists per browser and today always applies globally, with the stored document versioned and ready for per-project or per-group overrides later.",
     "children": []
   },
   {

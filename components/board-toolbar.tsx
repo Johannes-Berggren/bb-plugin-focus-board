@@ -9,9 +9,9 @@ import {
   filterDropdownOptions,
   shouldShowDropdownSearch,
 } from "./dropdown-search";
-import {
-  isAllowedWallpaperUrl,
-  type WallpaperSettings,
+import { WallpaperDropdown } from "./wallpaper-picker";
+import type {
+  WallpaperSettings,
 } from "./preferences";
 import type { FilterState, GroupBy, ThreadState } from "./grouping";
 import { GROUP_BY_OPTIONS } from "./grouping";
@@ -452,131 +452,6 @@ const STATE_OPTIONS: readonly { value: ThreadState; label: string }[] = [
   { value: "unread", label: "Unread" },
   { value: "idle", label: "Idle" },
 ];
-
-/**
- * Board wallpaper control: an Image trigger opens a small popover with the
- * image-url input and the dim-wash slider. Edits apply immediately (like the
- * search box) and ride up as the versioned settings document; the Remove row
- * renders only while a wallpaper is active. Global scope today — per-project
- * or per-group overrides would join the same stored document, and this
- * control then grows a scope picker over the same fields.
- */
-function WallpaperDropdown({
-  wallpaper,
-  onWallpaperChange,
-}: {
-  wallpaper: WallpaperSettings;
-  onWallpaperChange: (next: WallpaperSettings) => void;
-}) {
-  const active = wallpaper.global;
-  const [open, setOpen] = useState(false);
-  const [query, setQuery] = useState<string>(active?.url ?? "");
-  const [dim, setDim] = useState<number>(active?.dim ?? 0.35);
-  // Follows the committed state when a commit lands elsewhere too
-  // (Remove writes through); the scratch pad only matters mid-edit.
-  useEffect(() => {
-    setQuery(active?.url ?? "");
-    setDim(active?.dim ?? 0.35);
-  }, [active?.url, active?.dim, open]);
-  const close = () => {
-    setOpen(false);
-  };
-  const commitUrl = (nextUrl: string, nextDim: number) => {
-    const url = nextUrl.trim();
-    if (url === "") {
-      // Clearing the input while a wallpaper is active removes it; with no
-      // active wallpaper a cleared scratch pad commits nothing.
-      if (active !== null) onWallpaperChange({ version: 1, global: null });
-      return;
-    }
-    onWallpaperChange({ version: 1, global: { url, dim: nextDim } });
-  };
-  return (
-    <div
-      className="relative"
-      onKeyDown={(event) => {
-        if (!open || event.key !== "Escape") return;
-        event.stopPropagation();
-        close();
-      }}
-    >
-      <button
-        type="button"
-        aria-haspopup="dialog"
-        aria-expanded={open}
-        aria-label="Wallpaper"
-        title="Wallpaper"
-        onClick={() => setOpen((current) => !current)}
-        className={cn(
-          "inline-flex size-8 items-center justify-center rounded-md transition-colors hover:bg-accent hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-          active !== null ? "text-foreground" : "text-muted-foreground",
-        )}
-      >
-        <Icon name="Image" className="size-4" aria-hidden />
-      </button>
-      {open ? (
-        <>
-          <div className="fixed inset-0 z-40" onClick={close} aria-hidden />
-          <div className="absolute right-0 top-9 z-50 w-64 rounded-md border border-border bg-popover p-2 shadow-md">
-            <Input
-              value={query}
-              onChange={(event) => {
-                const nextUrl = event.target.value;
-                setQuery(nextUrl);
-                const trimmed = nextUrl.trim();
-                const allowed = isAllowedWallpaperUrl(trimmed);
-                if (trimmed === "" || allowed) {
-                  commitUrl(trimmed, dim);
-                }
-              }}
-              aria-label="Wallpaper image url"
-              aria-invalid={
-                query.trim() !== "" && !isAllowedWallpaperUrl(query.trim())
-                  ? "true"
-                  : undefined
-              }
-              placeholder="Image url (https://…)"
-              className="h-7 text-xs"
-            />
-            <label className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
-              <span className="shrink-0">Dim</span>
-              <input
-                type="range"
-                role="slider"
-                aria-label="Wallpaper dim"
-                min={0}
-                max={0.9}
-                step={0.05}
-                value={dim}
-                onChange={(event) => {
-                  const nextDim = Number(event.target.value);
-                  setDim(nextDim);
-                  const url = (active?.url ?? query.trim()) || "";
-                  if (url !== "" && active !== null) {
-                    onWallpaperChange({ version: 1, global: { url, dim: nextDim } });
-                  }
-                }}
-                className="flex-1 accent-[var(--primary)]"
-              />
-            </label>
-            {active !== null ? (
-              <button
-                type="button"
-                onClick={() => {
-                  onWallpaperChange({ version: 1, global: null });
-                }}
-                className="mt-2 flex w-full items-center gap-1.5 rounded-sm px-2 py-1.5 text-left text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-              >
-                <Icon name="X" className="size-3.5 shrink-0" aria-hidden />
-                Remove wallpaper
-              </button>
-            ) : null}
-          </div>
-        </>
-      ) : null}
-    </div>
-  );
-}
 
 export function BoardToolbar({
   groupBy,
