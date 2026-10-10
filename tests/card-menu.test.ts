@@ -1,0 +1,213 @@
+// @vitest-environment jsdom
+// The board card's right-click menu is assembled by a pure builder
+// (lib/card-menu.ts) so the grouping — the UX itself — can be pinned
+// without rendering the app. The order IS the design: the flat list
+// mixed navigation, state toggles, lineage and lifecycle entries in one
+// block, and "Reveal browser tab" read as a sibling of state actions
+// instead of a destination. These tests pin group order, the exact
+// divider heads (a divider opens each group, nothing else), the
+// state-driven label/icon flips, and that Delete stays the only danger
+// entry.
+import { afterEach, describe, expect, it, vi } from "vitest";
+import {
+	cardMenuActions,
+	type CardMenuHandlers,
+	type CardMenuInputs,
+} from "../lib/card-menu";
+
+const noop = () => {};
+
+function makeHandlers(): CardMenuHandlers {
+	return {
+		togglePinned: vi.fn(noop),
+		toggleRead: vi.fn(noop),
+		toggleDone: vi.fn(noop),
+		toggleSweepKeep: vi.fn(noop),
+		makeTopLevel: vi.fn(noop),
+		archive: vi.fn(noop),
+		requestDelete: vi.fn(noop),
+		revealBrowserTabs: vi.fn(noop),
+		clearSnooze: vi.fn(noop),
+		openSnoozePicker: vi.fn(noop),
+		openNewChild: vi.fn(noop),
+	};
+}
+
+function makeInputs(overrides?: {
+	thread?: Partial<CardMenuInputs["thread"]>;
+	isDone?: boolean;
+	isSnoozed?: boolean;
+	isKept?: boolean;
+}): CardMenuInputs {
+	return {
+		thread: {
+			id: "thr_1",
+			href: "/threads/thr_1",
+			isPinned: false,
+			isUnread: false,
+			isArchived: false,
+			parentThreadId: null,
+			...overrides?.thread,
+		},
+		isDone: overrides?.isDone ?? false,
+		isSnoozed: overrides?.isSnoozed ?? false,
+		isKept: overrides?.isKept ?? false,
+	};
+}
+
+function action(inputs: CardMenuInputs, id: string, handlers = makeHandlers()) {
+	const actions = cardMenuActions(inputs, handlers);
+	const found = actions.find((entry) => entry.id === id);
+	expect(found, `menu carries ${id}`).toBeTruthy();
+	return found!;
+}
+
+describe("card menu grouping", () => {
+	it("the base thread's actions sit in the group order: destinations, state, lineage, lifecycle", () => {
+		const ids = cardMenuActions(makeInputs(), makeHandlers()).map((entry) => entry.id);
+		expect(ids).toEqual([
+			"open-new-window",
+			"reveal-browser-tab",
+			"pin",
+			"read",
+			"done",
+			"snooze",
+			"new-child",
+			"sweep-keep",
+			"archive",
+			"delete",
+		]);
+	});
+
+	it("dividers open exactly the four group heads — nothing else carries one", () => {
+		const actions = cardMenuActions(makeInputs(), makeHandlers());
+		const byId = Object.fromEntries(actions.map((entry) => [entry.id, entry]));
+		expect(byId["open-new-window"].dividerAbove).toBe(true);
+		expect(byId["reveal-browser-tab"].dividerAbove).toBeUndefined();
+		expect(byId["pin"].dividerAbove).toBe(true);
+		expect(byId["read"].dividerAbove).toBeUndefined();
+		expect(byId["done"].dividerAbove).toBeUndefined();
+		// Snooze folds into the state group here; the pane's actions menu
+		// keeps the shared snooze builder's own divider above it.
+		expect(byId["snooze"].dividerAbove).toBeUndefined();
+		expect(byId["new-child"].dividerAbove).toBe(true);
+		expect(byId["sweep-keep"].dividerAbove).toBe(true);
+		expect(byId["archive"].dividerAbove).toBeUndefined();
+		expect(byId["delete"].dividerAbove).toBeUndefined();
+	});
+
+	it("a nested thread carries Make Top-Level right after New child thread…, inside the lineage group", () => {
+		const actions = cardMenuActions(
+			makeInputs({ thread: { parentThreadId: "thr_parent" } }),
+			makeHandlers(),
+		);
+		const ids = actions.map((entry) => entry.id);
+		expect(ids.indexOf("unnest")).toBe(ids.indexOf("new-child") + 1);
+		expect(ids.indexOf("unnest")).toBeLessThan(ids.indexOf("sweep-keep"));
+	});
+
+	it("Delete is the only danger entry", () => {
+		const actions = cardMenuActions(makeInputs(), makeHandlers());
+		const dangerous = actions.filter((entry) => entry.danger).map((entry) => entry.id);
+		expect(dangerous).toEqual(["delete"]);
+	});
+
+	it("Open in new window opens the thread href detached with noopener", () => {
+		const openSpy = vi.spyOn(window, "open").mockImplementation(() => null);
+		try {
+			const entry = action(makeInputs(), "open-new-window");
+			entry.run();
+			expect(openSpy).toHaveBeenCalledWith(
+				`${window.location.origin}/threads/thr_1`,
+				"_blank",
+				"noopener",
+			);
+		} finally {
+			openSpy.mockRestore();
+		}
+	});
+
+	it("every state and lineage entry runs its handler", () => {
+		const handlers = makeHandlers();
+		const actions = cardMenuActions(makeInputs(), handlers);
+		const run = (id: string) => actions.find((entry) => entry.id === id)!.run();
+		run("reveal-browser-tab");
+		run("pin");
+		run("read");
+		run("done");
+		run("snooze");
+		run("new-child");
+		run("sweep-keep");
+		run("archive");
+		run("delete");
+		expect(handlers.revealBrowserTabs).toHaveBeenCalledTimes(1);
+		expect(handlers.togglePinned).toHaveBeenCalledTimes(1);
+		expect(handlers.toggleRead).toHaveBeenCalledTimes(1);
+		expect(handlers.toggleDone).toHaveBeenCalledTimes(1);
+		expect(handlers.openSnoozePicker).toHaveBeenCalledTimes(1);
+		expect(handlers.openNewChild).toHaveBeenCalledTimes(1);
+		expect(handlers.toggleSweepKeep).toHaveBeenCalledTimes(1);
+		expect(handlers.archive).toHaveBeenCalledTimes(1);
+		expect(handlers.requestDelete).toHaveBeenCalledTimes(1);
+	});
+});
+
+describe("card menu state-driven labels and icons", () => {
+	it("a pinned card offers Unpin (PinOff); an unpinned one offers Pin", () => {
+		const pinned = action(makeInputs({ thread: { isPinned: true } }), "pin");
+		expect(pinned.label).toBe("Unpin");
+		expect(pinned.icon).toBe("PinOff");
+		const unpinned = action(makeInputs(), "pin");
+		expect(unpinned.label).toBe("Pin");
+		expect(unpinned.icon).toBe("Pin");
+	});
+
+	it("an unread card offers Mark Read (MailOpen); a read one offers Mark Unread", () => {
+		const unread = action(makeInputs({ thread: { isUnread: true } }), "read");
+		expect(unread.label).toBe("Mark Read");
+		expect(unread.icon).toBe("MailOpen");
+		const read = action(makeInputs(), "read");
+		expect(read.label).toBe("Mark Unread");
+		expect(read.icon).toBe("Mail");
+	});
+
+	it("a done card offers Mark Not Done (CircleCheck); an open one Mark Done", () => {
+		const done = action(makeInputs({ isDone: true }), "done");
+		expect(done.label).toBe("Mark Not Done");
+		expect(done.icon).toBe("CircleCheck");
+		const open = action(makeInputs(), "done");
+		expect(open.label).toBe("Mark Done");
+		expect(open.icon).toBe("Check");
+	});
+
+	it("a snoozed card edits its snooze; an unsnoozed one opens the picker", () => {
+		const snoozed = action(makeInputs({ isSnoozed: true }), "snooze-edit");
+		expect(snoozed.label).toBe("Edit snooze…");
+		expect(snoozed.icon).toBe("ClockArrowUp");
+		const unsnoozed = action(makeInputs(), "snooze");
+		expect(unsnoozed.label).toBe("Snooze…");
+		expect(unsnoozed.icon).toBe("Clock");
+	});
+
+	it("a kept card offers Allow sweep (Archive); a swept one Keep from sweep (Pin)", () => {
+		const kept = action(makeInputs({ isKept: true }), "sweep-keep");
+		expect(kept.label).toBe("Allow sweep");
+		expect(kept.icon).toBe("Archive");
+		const swept = action(makeInputs(), "sweep-keep");
+		expect(swept.label).toBe("Keep from sweep");
+		expect(swept.icon).toBe("Pin");
+	});
+
+	it("an archived card offers Unarchive (ArchiveRestore); a live one Archive", () => {
+		const archived = action(makeInputs({ thread: { isArchived: true } }), "archive");
+		expect(archived.label).toBe("Unarchive");
+		expect(archived.icon).toBe("ArchiveRestore");
+		const live = action(makeInputs(), "archive");
+		expect(live.label).toBe("Archive");
+		expect(live.icon).toBe("Archive");
+	});
+});
+
+afterEach(() => {
+	vi.restoreAllMocks();
+});

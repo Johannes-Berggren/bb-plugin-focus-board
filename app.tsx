@@ -28,6 +28,7 @@ import type { ThreadPaneThread } from "./components/thread-pane";
 import { NewThreadModal } from "./components/new-thread-modal";
 import type { SpawnedThread } from "./components/new-thread-modal";
 import type { CardMenuAction } from "./components/thread-card-menu";
+import { cardMenuActions } from "./lib/card-menu";
 import type { FilterState, GroupBy, ThreadState } from "./components/grouping";
 import {
   buildColumns,
@@ -1780,7 +1781,11 @@ function BoardPage({ subPath }: { subPath: string }) {
   // thread with no controlled tab, a listing failure) land on the board
   // banner; success says nothing, the side panel IS it.
   const runBrowserReveal = useCallback(
-    async (thread: PluginSidebarThread) => {
+    // Param surface narrowed to the facts the orchestrator consumes, so both
+    // entry points (card menu, pane open menu) can hand the thread straight
+    // through whatever shape they hold — PluginSidebarThread and the pane's
+    // ThreadPaneThread both satisfy it.
+    async (thread: { id: string; displayTitle: string }) => {
       setBrowserNotice(null);
       const ports = buildBrowserRevealPorts(sdk, navigate);
       let result: BrowserRevealResult;
@@ -1806,39 +1811,28 @@ function BoardPage({ subPath }: { subPath: string }) {
   );
 
   const menuActionsFor = useCallback(
-    (thread: PluginSidebarThread): CardMenuAction[] => {
+    (thread: PluginSidebarThread): readonly CardMenuAction[] => {
       const isThreadDone = doneIds.has(thread.id);
+      const isThreadSnoozed = snoozedIds.has(thread.id);
+      const isThreadKept = doneAgeSource.kept(thread.id);
       // Current intent: any state-changing gesture on a snoozed card lifts
       // the snooze first — the wake recipe (read → unread later) would fire
       // under a read/pin/done/archive write that has already superseded it.
       const liftSnooze = () => {
         if (snoozedIds.has(thread.id)) clearSnooze(thread.id);
       };
-      const snoozeEntries: SnoozeMenuAction[] = snoozeMenuActions({
-        snoozed: snoozedIds.has(thread.id),
-        clearSnooze: () => clearSnooze(thread.id),
-        openPicker: () => setSnoozeDialogFor(thread.id),
-      });
-      return [
+      // app.tsx keeps the side effects; lib/card-menu owns the order,
+      // labels, icons and dividers (the grouping contract the card-menu
+      // tests pin). Bodies are the pre-extraction run code, verbatim.
+      return cardMenuActions(
         {
-          id: "open-new-window",
-          label: "Open in new window",
-          icon: "NewTab",
-          run: () => {
-            // noopener: the opened tab must not reach back through
-            // window.opener into this board.
-            window.open(
-              new URL(thread.href, window.location.origin).toString(),
-              "_blank",
-              "noopener",
-            );
-          },
+          thread,
+          isDone: isThreadDone,
+          isSnoozed: isThreadSnoozed,
+          isKept: isThreadKept,
         },
         {
-          id: "reveal-browser-tab",
-          label: "Reveal browser tab",
-          icon: "Browser",
-          run: () => {
+          revealBrowserTabs: () => {
             // Discover → focus → reveal → verify happens in
             // lib/browser-reveal; the board banner reports anything the
             // operator must hear about — even a throw, so the click never
@@ -1847,18 +1841,8 @@ function BoardPage({ subPath }: { subPath: string }) {
               setBrowserNotice({ message: browserReachFailure(error) });
             });
           },
-        },
-        {
-          id: "new-child",
-          label: "New child thread…",
-          icon: "Fork",
-          run: () => openNewChildThread(thread.id),
-        },
-        {
-          id: "pin",
-          label: thread.isPinned ? "Unpin" : "Pin",
-          icon: thread.isPinned ? "PinOff" : "Pin",
-          run: () => {
+          openNewChild: () => openNewChildThread(thread.id),
+          togglePinned: () => {
             liftSnooze();
             // Live intent beats the parked value: a park this gesture's
             // write supersedes must not resurrect on a later Mark Not Done
@@ -1874,12 +1858,7 @@ function BoardPage({ subPath }: { subPath: string }) {
             });
             void actions.setPinned(thread.id, !thread.isPinned);
           },
-        },
-        {
-          id: "read",
-          label: thread.isUnread ? "Mark Read" : "Mark Unread",
-          icon: thread.isUnread ? "MailOpen" : "Mail",
-          run: () => {
+          toggleRead: () => {
             liftSnooze();
             // Arm the reveal claim first — setRead also rides the host
             // bridge, and the requested observable state is the toggle's
@@ -1900,12 +1879,7 @@ function BoardPage({ subPath }: { subPath: string }) {
               void actions.setRead(thread.id, false);
             }
           },
-        },
-        {
-          id: "done",
-          label: isThreadDone ? "Mark Not Done" : "Mark Done",
-          icon: isThreadDone ? "CircleCheck" : "Check",
-          run: () => {
+          toggleDone: () => {
             liftSnooze();
             setDoneIds((current) => {
               const next = new Set(current);
@@ -1935,32 +1909,19 @@ function BoardPage({ subPath }: { subPath: string }) {
               restoreParkedPin(thread.id);
             }
           },
-        },
-        ...snoozeEntries,
-        ...(thread.parentThreadId !== null && thread.parentThreadId !== ""
-          ? [
-              {
-                id: "unnest",
-                label: "Make Top-Level",
-                icon: "FolderMinus",
-                run: () => {
-                  // The drop-onto gesture's undo: detach from the family.
-                  // Failure mirrors the neighbors — silent — because bb's
-                  // own action errors ride the host toast, and a missed
-                  // detach write leaves the card exactly as it rendered.
-                  void rpc
-                    .call("thread_reparent", { threadId: thread.id, parentThreadId: null })
-                    .catch(() => {});
-                },
-              } satisfies CardMenuAction,
-            ]
-          : []),
-        {
-          id: "sweep-keep",
-          label: doneAgeSource.kept(thread.id) ? "Allow sweep" : "Keep from sweep",
-          icon: doneAgeSource.kept(thread.id) ? "Archive" : "Pin",
-          run: () => {
-            const nextKeep = !doneAgeSource.kept(thread.id);
+          clearSnooze: () => clearSnooze(thread.id),
+          openSnoozePicker: () => setSnoozeDialogFor(thread.id),
+          makeTopLevel: () => {
+            // The drop-onto gesture's undo: detach from the family.
+            // Failure mirrors the neighbors — silent — because bb's
+            // own action errors ride the host toast, and a missed
+            // detach write leaves the card exactly as it rendered.
+            void rpc
+              .call("thread_reparent", { threadId: thread.id, parentThreadId: null })
+              .catch(() => {});
+          },
+          toggleSweepKeep: () => {
+            const nextKeep = !isThreadKept;
             setDoneExtras((current) => ({
               ...current,
               [thread.id]: { ...current[thread.id], keep: nextKeep },
@@ -1977,13 +1938,7 @@ function BoardPage({ subPath }: { subPath: string }) {
                 }));
               });
           },
-        },
-        {
-          id: "archive",
-          label: thread.isArchived ? "Unarchive" : "Archive",
-          icon: thread.isArchived ? "ArchiveRestore" : "Archive",
-          dividerAbove: true,
-          run: () => {
+          archive: () => {
             liftSnooze();
             if (thread.isArchived) {
               sdk.threads.unarchive({ threadId: thread.id }).catch(() => {});
@@ -1991,17 +1946,11 @@ function BoardPage({ subPath }: { subPath: string }) {
               actions.archive(thread.id);
             }
           },
+          requestDelete: () => actions.requestDelete(thread.id),
         },
-        {
-          id: "delete",
-          label: "Delete…",
-          icon: "Trash2",
-          danger: true,
-          run: () => actions.requestDelete(thread.id),
-        },
-      ];
+      );
     },
-    [actions, applyUnreadStateEffects, clearParkPin, clearSnooze, doneAgeSource, doneIds, exitPinnedLane, openNewChildThread, requestReveal, restoreParkedPin, runBrowserReveal, rpc, setDoneExtras, setDoneIds, setSnoozeDialogFor, snoozeUntil, snoozedIds, sdk],
+    [actions, applyUnreadStateEffects, clearParkPin, clearSnooze, doneAgeSource, doneIds, exitPinnedLane, openNewChildThread, pendingStateClaimsRef, requestReveal, restoreParkedPin, runBrowserReveal, rpc, setBrowserNotice, setDoneExtras, setDoneIds, setSnoozeDialogFor, snoozedIds, sdk],
   );
 
   if (status === "loading" && threads.length === 0) {
@@ -2242,6 +2191,14 @@ function BoardPage({ subPath }: { subPath: string }) {
             openPicker: () => setSnoozeDialogFor(openThread.id),
           })}
           onNewChildThread={() => openNewChildThread(openThread.id)}
+          onRevealBrowserTab={() => {
+            // The card menu's same gesture (app.tsx menuActionsFor), wired to
+            // the open thread; outcome reporting rides the board banner, the
+            // single home both entry points share.
+            runBrowserReveal(openThread).catch((error) => {
+              setBrowserNotice({ message: browserReachFailure(error) });
+            });
+          }}
           onToggleUnread={() => {
             if (openThreadId === null || openThreadActive === null) return;
             // Current intent: a state change lifts any snooze first.

@@ -1,7 +1,8 @@
 // The thread pane header's workspace-open control, the pane's take on the
 // main thread view's open button: an icon that opens the thread's workspace
 // in the preferred editor, plus an attached chevron whose dropdown lists the
-// other destinations — file explorer, terminal, new window, copy link.
+// other destinations — file explorer, terminal, new window, reveal browser
+// tab, copy link.
 //
 // The daemon conversation lives server-side (lib/workspace-open.ts via the
 // workspace_open_* RPCs); this component only picks targets and renders.
@@ -31,6 +32,17 @@ interface WorkspaceOpenMenuProps {
 	 * in the dropdown's thread group beside the new-window entry.
 	 */
 	onMaximize: () => void;
+	/**
+	 * The thread's controlled browser-tab reveal, the one-step gesture the
+	 * board card menu carries (lib/browser-reveal). A thread destination on
+	 * this surface, not a workspace ask, so it joins the thread group;
+	 * success feedback is the side panel itself — anything the operator must
+	 * hear about (no controlled tab, a listing failure) lands on the board
+	 * banner, the outcome's single home shared with the card menu. Optional:
+	 * render sites with no banner to report on pass nothing and the entry
+	 * disappears rather than firing into silence.
+	 */
+	onRevealBrowserTab?: () => void;
 	/**
 	 * Show the "Open in editor" text beside the primary icon. The pane turns
 	 * this on only when it is wide enough to afford the label without
@@ -110,6 +122,7 @@ export function WorkspaceOpenMenu({
 	threadId,
 	threadHref,
 	onMaximize,
+	onRevealBrowserTab,
 	showLabel = false,
 }: WorkspaceOpenMenuProps) {
 	const rpc = useRpc<typeof rpcContract>();
@@ -226,6 +239,16 @@ export function WorkspaceOpenMenu({
 			// window.opener into this board.
 			run: () => window.open(absoluteHref, "_blank", "noopener"),
 		},
+		...(onRevealBrowserTab !== undefined
+			? [
+					{
+						id: "reveal-browser-tab",
+						label: "Reveal browser tab",
+						icon: "Browser",
+						run: onRevealBrowserTab,
+					},
+				]
+			: []),
 		{
 			id: "copy-link",
 			label: "Copy thread link",

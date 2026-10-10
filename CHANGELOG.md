@@ -5,6 +5,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+
+- **The pane's open menu reveals the thread's browser tab.** "Reveal browser tab" sits in the dropdown's thread group between "Open in new window" and "Copy thread link", running the same one-step gesture the card menu carries. Outcomes still report on the board's banner, and render sites without a banner pass no callback and see no entry.
+
+### Changed
+
+- **The card menu now reads in four groups.** Destinations (new window, reveal browser tab) lead, the state toggles come as one block with snooze folded in, lineage (new child, make top-level) and the lifecycle block (sweep keep, archive, delete) close the menu — one divider per group head, no more divider between Read and Done.
+
 ## [1.1.0] - 2026-10-09
 
 ### Added
