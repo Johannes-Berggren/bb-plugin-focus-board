@@ -7,7 +7,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
-- **Groups are manageable from the label and the picker.** Click a family box's label on the board to rename it inline, and use the pencil/trash on any row of the Group picker to rename or delete a group — the shared registry re-labels every member card on a rename, and a delete strips every member's assignment, archived holders included.
+- **Groups are manageable from the label and the picker.** Click a family box's label on the board to rename it inline — the editor carries its own trashcan (one click arms, the second deletes) — and use the pencil/trash on any row of the Group picker to rename or delete a group; the shared registry re-labels every member card on a rename, and a delete strips every member's assignment, archived holders included.
 
 - **Sibling threads now join a named family box.** "Group…" in a card menu assigns the thread to a shared named group (created in-line); members render inside one dashed outline with the group name on the border, the whole box moves as one unit by drag or Alt+Arrow, and the group evaporates the moment its last member unassigns — no parent thread involved.
 - **The New thread composer can maximize into the main new-thread view.** A maximize button in the composer's dialog (beside the close) hands off to bb's root compose surface — project and environment seeds plus the prompt text ride along; the board's own draft is kept (a maximize is a close, not a spawn) and the button hides while a child preset is armed since the main view cannot spawn a nested thread.

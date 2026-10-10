@@ -200,3 +200,78 @@ describe("click-to-rename on the group box label", () => {
     expect(document.querySelector('[data-group-box-label="grp_1"]')?.textContent).toBe("Auth rework");
   });
 });
+
+describe("delete from the label editor (arm → confirm)", () => {
+  const members = [
+    thread({ id: "thr_a", status: "active", updatedAt: NOW - 1000 }),
+    thread({ id: "thr_b", status: "active", updatedAt: NOW - 2000 }),
+  ];
+  const boxes = new Map([
+    ["thr_a", { groupId: "grp_1", name: "Auth rework", members }],
+    ["thr_b", { groupId: "grp_1", name: "Auth rework", members }],
+  ] as const);
+
+  function renderEditor(onDeleteGroup: (groupId: string) => void, onRenameGroup = vi.fn()) {
+    const props = {
+      groupBy: "status" as const,
+      columns: buildColumns(members, "status", context, new Map(), new Set<string>(), NOW, {}),
+      activeThreadId: null,
+      doneIds: new Set<string>(),
+      nestedChildrenByParent: new Map(),
+      doneChildrenByParent: new Map(),
+      childCountByParent: new Map<number, never>(),
+      dimmedIds: new Set<string>(),
+      rankStore: {},
+      onRankMove: () => {},
+      groupBoxOf: boxes,
+      onRenameGroup,
+      onDeleteGroup,
+      projectNameFor: () => "",
+      repoBaseFor: () => null,
+      onOpenThread: () => {},
+      onNewTask: () => {},
+      onDropDone: () => {},
+      onDropUnread: () => {},
+      onDropPinned: () => {},
+      menuActionsFor: () => [],
+    } as unknown as BoardProps;
+    render(<Board {...props} />);
+    fireEvent.click(document.querySelector('[data-group-box-label="grp_1"]') as HTMLButtonElement);
+  }
+
+  it("the editor hosts a trash control; the first click only arms it", () => {
+    const onDeleteGroup = vi.fn();
+    renderEditor(onDeleteGroup);
+    const trash = document.querySelector('[data-group-label-delete="grp_1"]') as HTMLButtonElement;
+    expect(trash).not.toBeNull();
+    fireEvent.click(trash);
+    expect(onDeleteGroup).not.toHaveBeenCalled();
+    // The armed state is visible on the same control.
+    expect(trash.getAttribute("data-armed")).toBe("true");
+  });
+
+  it("the second click deletes and closes the editor", () => {
+    const onDeleteGroup = vi.fn();
+    renderEditor(onDeleteGroup);
+    const trash = document.querySelector('[data-group-label-delete="grp_1"]') as HTMLButtonElement;
+    fireEvent.click(trash);
+    fireEvent.click(trash);
+    expect(onDeleteGroup).toHaveBeenCalledTimes(1);
+    expect(onDeleteGroup).toHaveBeenCalledWith("grp_1");
+    expect(document.querySelector('[data-group-rename-input="grp_1"]')).toBeNull();
+  });
+
+  it("Escape (or a re-opened edit) disarms; the armed control never deletes without a second click", () => {
+    const onDeleteGroup = vi.fn();
+    renderEditor(onDeleteGroup);
+    const trash = document.querySelector('[data-group-label-delete="grp_1"]') as HTMLButtonElement;
+    fireEvent.click(trash);
+    const input = document.querySelector('[data-group-rename-input="grp_1"]') as HTMLInputElement;
+    fireEvent.keyDown(input, { key: "Escape" });
+    expect(onDeleteGroup).not.toHaveBeenCalled();
+    // Re-opening starts UNARMED again (no leaked armed state).
+    fireEvent.click(document.querySelector('[data-group-box-label="grp_1"]') as HTMLButtonElement);
+    const fresh = document.querySelector('[data-group-label-delete="grp_1"]') as HTMLButtonElement;
+    expect(fresh.getAttribute("data-armed")).toBe("false");
+  });
+});
