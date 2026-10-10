@@ -7,6 +7,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **Hide a project lane straight from the board.** In the Project view, hovering a lane's header shows an eye-off icon where the sweep pill sits; two clicks (icon → armed "Hide") write the lane's project out of the Project filter and a banner explains the lane restores from that filter — the board's only project lane refuses with its reason instead of pretending to hide.
+
 - **Groups are manageable from the label and the picker.** Click a family box's label on the board to rename it inline — the editor carries an Ungroup control (one click arms it, the second ungroups everyone; the threads stay on the board) — and use the pencil/trash on any row of the Group picker to rename or delete a group; the shared registry re-labels every member card on a rename, and a delete strips every member's assignment, archived holders included.
 
 - **Sibling threads now join a named family box.** "Group…" in a card menu assigns the thread to a shared named group (created in-line); members render inside one dashed outline with the group name on the border, the whole box moves as one unit by drag or Alt+Arrow, and the group evaporates when its last assignment clears — no parent thread involved.

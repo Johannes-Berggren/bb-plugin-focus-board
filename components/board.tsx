@@ -7,7 +7,7 @@ import {
   type MouseEvent,
 } from "react";
 import type { PluginSidebarThread } from "@get-bb/plugin-sdk/app";
-import type { BoardColumn, GroupBy } from "./grouping";
+import type { BoardColumn, GroupBy, LaneHideOutcome } from "./grouping";
 import { threadState } from "./grouping";
 import {
   SWEEP_DESTINATION_LABELS,
@@ -230,6 +230,13 @@ interface BoardProps {
    */
   onDropPinned?: (threadId: string) => void;
   /**
+   * The Project view's hide-a-lane write: the caller turns the lane's
+   * project out of the Project filter and the Board renders the report the
+   * outcome carries (or the refused "why"). Absent, no lane offers the
+   * affordance — there is nothing the gesture could write.
+   */
+  onHideLane?: (columnId: string) => LaneHideOutcome;
+  /**
    * One-shot lane-reveal request from a menu action that relocates a card
    * (see the reveal effect inside `Board`). Seq-numbered so the board can
    * consume each request exactly once; optional because only app.tsx issues
@@ -436,6 +443,7 @@ export function Board({
   onDropDone,
   onDropUnread,
   onDropPinned,
+  onHideLane,
   reveal = null,
   menuActionsFor,
   snoozeFor,
@@ -598,6 +606,15 @@ export function Board({
   // leaves the sighted operator with a drag that silently does nothing, which
   // is exactly how the last version of this shipped.
   const [rankError, setRankError] = useState<string | null>(null);
+
+  // The hide-a-lane gesture's report (Project view): a lane the Project
+  // filter wrote out says so on the board — a silent write reads the way
+  // every other silent action here reads, as being ignored. Refusals
+  // report too (the sole-lane corner, or a lane the filter already shows
+  // without). One lane armed at a time: the first click arms Hide, the
+  // second confirms.
+  const [hideLaneReport, setHideLaneReport] = useState<{ message: string } | null>(null);
+  const [hideArmColumn, setHideArmColumn] = useState<string | null>(null);
   // Bumped on every refusal so the auto-dismiss timer restarts even when the
   // new message is identical to the old one — React would otherwise bail out
   // on the same string and let the stale clock cut the repeat refusal short.
@@ -635,6 +652,14 @@ export function Board({
     );
     return () => clearTimeout(timer);
   }, [browserNotice, onDismissBrowserNotice]);
+
+  // The lane-hide's report expires the same way: a dead banner would squat
+  // on the board pretending to matter.
+  useEffect(() => {
+    if (hideLaneReport === null) return;
+    const timer = setTimeout(() => setHideLaneReport(null), RANK_ERROR_AUTO_DISMISS_MS);
+    return () => clearTimeout(timer);
+  }, [hideLaneReport]);
 
   // A sweep-mode click on a thread that may not join a sweep (live-child
   // parent) refuses on screen: a click that silently does nothing reads as
@@ -969,6 +994,24 @@ export function Board({
             </button>
           </div>
         ) : null}
+        {hideLaneReport !== null ? (
+          <div
+            role="status"
+            data-testid="lane-hide-notice"
+            className="mx-3 mb-1 flex items-center justify-between gap-2 rounded border border-amber-500/40 bg-amber-500/10 px-2 py-1 text-[11px] text-amber-700 dark:text-amber-400"
+          >
+            <p className="min-w-0">{hideLaneReport.message}</p>
+            <button
+              type="button"
+              onClick={() => setHideLaneReport(null)}
+              aria-label="Dismiss lane notice"
+              title="Dismiss"
+              className="rounded p-0.5 text-amber-700/70 transition-colors hover:bg-amber-500/10 hover:text-amber-700 focus-visible:outline focus-visible:outline-1 focus-visible:outline-amber-600 dark:text-amber-400/70 dark:hover:text-amber-400"
+            >
+              <Icon name="X" className="size-3" aria-hidden />
+            </button>
+          </div>
+        ) : null}
         {sweepRefusal !== null ? (
           <div
             role="status"
@@ -1004,6 +1047,17 @@ export function Board({
           const dropHandler = dropHandlerFor(column.id);
           const isDropTarget = dropHandler !== null;
           const sweepKind = sweepColumnKind(column.id);
+          // The Project view's hide-a-lane affordance: a real project lane
+          // (no machine-less "none" lane — the filter menu cannot restore
+          // an unlisted id; no fixed Pinned/Done lanes either — they are
+          // board furniture, not a project's slice). No sweep kind applies
+          // to a project lane, so the header's sweep slot is free here.
+          const hideLaneHere =
+            groupBy === "project" &&
+            onHideLane !== undefined &&
+            column.id !== "none" &&
+            column.id !== "pinned" &&
+            column.id !== "done";
           // The sweep-family contract is arm-scoped: only the arms whose
           // action removes the thread from the live board (archive, Done)
           // refuse live-child parents. Unpinning and marking read leave the
@@ -1179,7 +1233,8 @@ export function Board({
             >
               <header
                 className={cn(
-                  "flex items-baseline gap-1.5 px-1 pb-1.5 transition-colors",
+                  // `group` lights the hover-revealed hide-lane icon.
+                  "group flex items-baseline gap-1.5 px-1 pb-1.5 transition-colors",
                   // Grow the hit strip only while a drag flies, and grow it
                   // with negated margins so no card moves beneath the cursor:
                   // +4px each side here, -4px back from the content flow.
@@ -1251,38 +1306,101 @@ export function Board({
                     <Icon name="SortingOneNine" className="size-3" aria-hidden />
                   </span>
                 ) : null}
-                {sweepActive && sweepKind !== null ? (
+                {(sweepActive && sweepKind !== null) || hideLaneHere ? (
                   <span className="ml-auto flex items-center gap-0.5">
-                    <SweepButton
-                      eligibleCount={eligible.length}
-                      isArmed={isArmed}
-                      run={
-                        runHere === null
-                          ? null
-                          : { done: runHere.done, total: runHere.total }
-                      }
-                      destination={sweepDestination(column.id) ?? "archive"}
-                      onArm={() => onSweepArm?.(column.id)}
-                      onConfirm={() => onSweepConfirm?.(column.id)}
-                    />
-                    {isArmed || runHere !== null ? (
-                      <button
-                        type="button"
-                        data-sweep-cancel=""
-                        aria-label={runHere !== null ? "Cancel sweep" : "Exit sweep mode"}
-                        title={
-                          runHere !== null
-                            ? "Cancel: the current thread finishes, nothing else is swept"
-                            : "Exit sweep mode"
-                        }
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          onSweepCancel?.();
-                        }}
-                        className="inline-flex size-5 items-center justify-center rounded text-muted-foreground/70 transition-colors hover:bg-accent/60 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                      >
-                        <Icon name="X" className="size-3" aria-hidden />
-                      </button>
+                    {sweepActive && sweepKind !== null ? (
+                      <>
+                        <SweepButton
+                          eligibleCount={eligible.length}
+                          isArmed={isArmed}
+                          run={
+                            runHere === null
+                              ? null
+                              : { done: runHere.done, total: runHere.total }
+                          }
+                          destination={sweepDestination(column.id) ?? "archive"}
+                          onArm={() => onSweepArm?.(column.id)}
+                          onConfirm={() => onSweepConfirm?.(column.id)}
+                        />
+                        {isArmed || runHere !== null ? (
+                          <button
+                            type="button"
+                            data-sweep-cancel=""
+                            aria-label={runHere !== null ? "Cancel sweep" : "Exit sweep mode"}
+                            title={
+                              runHere !== null
+                                ? "Cancel: the current thread finishes, nothing else is swept"
+                                : "Exit sweep mode"
+                            }
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              onSweepCancel?.();
+                            }}
+                            className="inline-flex size-5 items-center justify-center rounded text-muted-foreground/70 transition-colors hover:bg-accent/60 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                          >
+                            <Icon name="X" className="size-3" aria-hidden />
+                          </button>
+                        ) : null}
+                      </>
+                    ) : null}
+                    {hideLaneHere ? (
+                      // Hover-revealed at the sweep pill's slot: the eye-off
+                      // icon reads as "make this lane's project invisible",
+                      // which is exactly the write — the lane's project
+                      // leaves the Project filter's selection. First click
+                      // arms; the second writes; Escape disarm.
+                      (() => {
+                        const armed = hideArmColumn === column.id;
+                        return (
+                          <button
+                            type="button"
+                            data-hide-lane=""
+                            data-hide-lane-armed={armed ? "" : undefined}
+                            aria-label={
+                              armed
+                                ? `Hide the ${column.label} lane: its project leaves the Project filter's selection`
+                                : `Hide the ${column.label} lane (click again to confirm)`
+                            }
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              if (!armed) {
+                                setHideArmColumn(column.id);
+                                return;
+                              }
+                              setHideArmColumn(null);
+                              const outcome =
+                                onHideLane?.(column.id) ??
+                                ({ kind: "refused", reason: "sole-lane" } as const);
+                              setHideLaneReport({
+                                message:
+                                  outcome.kind === "hidden"
+                                    ? `Hid the "${column.label}" lane. Restore it from the Project filter in the toolbar.`
+                                    : outcome.reason === "sole-lane"
+                                      ? `The "${column.label}" lane is the only project lane the board knows, so it stays on the board.`
+                                      : `"${column.label}" is already outside the Project filter, so the lane stays as it is.`,
+                              });
+                            }}
+                            onKeyDown={(event) => {
+                              if (event.key === "Escape" && armed) {
+                                setHideArmColumn(null);
+                              }
+                            }}
+                            className={cn(
+                              "inline-flex h-5 shrink-0 items-center gap-1 whitespace-nowrap rounded px-1.5 text-[10px] font-medium transition-opacity",
+                              "focus:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                              armed
+                                ? "bg-amber-500/90 text-amber-950 opacity-100 hover:bg-amber-500"
+                                : cn(
+                                    "transition-colors text-muted-foreground/70 hover:bg-accent/60 hover:text-foreground",
+                                    "opacity-0 group-hover:opacity-100 group-focus-within:opacity-100",
+                                  ),
+                            )}
+                          >
+                            <Icon name="EyeOff" className="size-3" aria-hidden />
+                            {armed ? "Hide" : null}
+                          </button>
+                        );
+                      })()
                     ) : null}
                   </span>
                 ) : null}
