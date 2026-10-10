@@ -15,7 +15,7 @@ _Nothing unreleased — bullets land here as work merges._
 
 ## [1.2.0] - 2026-10-10
 
-
+### Added
 
 #### Groups and family boxes
 

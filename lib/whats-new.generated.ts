@@ -4,6 +4,62 @@ export const DERIVED_WHATS_NEW: readonly { version: string; items: readonly { le
     "version": "1.2.0",
     "items": [
       {
+        "lead": "Threads join named family boxes.",
+        "children": [
+          "The outline is the join target: a drop onto the box or any member card joins, while a member card's middle third still nests."
+        ],
+        "group": "Groups and family boxes"
+      },
+      {
+        "lead": "Feature groups can be their own view.",
+        "children": [],
+        "group": "Groups and family boxes"
+      },
+      {
+        "lead": "A Group filter restricts the board by feature group.",
+        "children": [],
+        "group": "Groups and family boxes"
+      },
+      {
+        "lead": "Hide a Project or Group lane straight from the board.",
+        "children": [
+          "The armed hide disarms: Escape or a press outside the armed icon drops it without writing."
+        ],
+        "group": "Groups and family boxes"
+      },
+      {
+        "lead": "Family members reorder on their own.",
+        "children": [],
+        "group": "Groups and family boxes"
+      },
+      {
+        "lead": "Toolbar search matches feature-group names.",
+        "children": [],
+        "group": "Groups and family boxes"
+      },
+      {
+        "lead": "The board can wear a wallpaper.",
+        "children": [
+          "Theme-aware: presets carry a light and a dark palette and the board follows `prefers-color-scheme` live."
+        ],
+        "group": "Wallpaper"
+      },
+      {
+        "lead": "The New thread composer can maximize into the main new-thread view.",
+        "children": [],
+        "group": "The New thread composer"
+      },
+      {
+        "lead": "`/` jumps to search.",
+        "children": [],
+        "group": "The board toolbar"
+      },
+      {
+        "lead": "The pane's open menu reveals the thread's browser tab.",
+        "children": [],
+        "group": "Cards, menus, and views"
+      },
+      {
         "lead": "Board cards name personal threads \"No project\", matching the composer's picker.",
         "children": [],
         "group": "Cards, menus, and views"
