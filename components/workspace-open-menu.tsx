@@ -17,7 +17,6 @@ import { Icon } from "@/components/ui/icon";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { HEADER_ICON_BUTTON_CLASS } from "@/lib/pane-chrome";
-import { useOpenHrefInBrowser } from "@/lib/open-in-browser";
 
 type WorkspaceOpenTargets = z.infer<
 	(typeof rpcContract)["workspace_open_targets"]["output"]
@@ -127,7 +126,6 @@ export function WorkspaceOpenMenu({
 	showLabel = false,
 }: WorkspaceOpenMenuProps) {
 	const rpc = useRpc<typeof rpcContract>();
-	const openHrefInBrowser = useOpenHrefInBrowser();
 	const [state, setState] = useState<WorkspaceOpenTargets | null>(null);
 	const [open, setOpen] = useState(false);
 	const [error, setError] = useState<string | null>(null);
@@ -237,10 +235,13 @@ export function WorkspaceOpenMenu({
 			id: "in-browser",
 			label: "Open in browser",
 			icon: "NewTab",
-			// Routing is the host's (lib/open-in-browser): the desktop
-			// app's in-app browser on desktop, the same _blank detached tab
-			// the raw window.open produced on the web.
-			run: () => openHrefInBrowser(absoluteHref),
+			// A raw open on purpose: on the desktop app bb's main-process
+			// window guard funnels it to the user's system browser
+			// (shell.openExternal), nowhere near the in-app browser panel
+			// that openUrl() would pick; on the web it is a detached tab.
+			run: () => {
+				void window.open(absoluteHref, "_blank", "noopener");
+			},
 		},
 		...(onRevealBrowserTab !== undefined
 			? [

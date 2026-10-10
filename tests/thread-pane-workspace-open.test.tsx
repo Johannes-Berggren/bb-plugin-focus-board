@@ -11,10 +11,9 @@ import { ThreadPane } from "../components/thread-pane";
 
 type RpcCall = (method: string, args?: unknown) => Promise<unknown>;
 
-const { rpcCallMock, toThreadMock, openUrlMock } = vi.hoisted(() => ({
+const { rpcCallMock, toThreadMock } = vi.hoisted(() => ({
 	rpcCallMock: vi.fn<RpcCall>(() => async () => ({})),
 	toThreadMock: vi.fn(),
-	openUrlMock: vi.fn(() => true),
 }));
 
 let settingsValues: Record<string, string | number | boolean> | undefined;
@@ -31,7 +30,7 @@ vi.mock("@get-bb/plugin-sdk/app", () => ({
 		subscribe: () => () => {},
 	}),
 	useRpc: () => ({ call: rpcCallMock }),
-	useBbNavigate: () => ({ toThread: toThreadMock, openUrl: openUrlMock }),
+	useBbNavigate: () => ({ toThread: toThreadMock }),
 	useSettings: () => ({ values: settingsValues, isLoading: false }),
 }));
 
@@ -288,33 +287,8 @@ describe("pane header workspace-open menu", () => {
 		);
 	});
 
-	it("Open in browser asks the host navigate to open the absolute href (the desktop-app route)", async () => {
+	it("Open in browser opens a detached noopener tab with the absolute href", async () => {
 		const openSpy = vi.spyOn(window, "open").mockImplementation(() => null);
-		try {
-			renderPane();
-			openUrlMock.mockClear();
-			fireEvent.click(
-				await screen.findByRole("button", { name: /more places to open/i }),
-			);
-			fireEvent.click(
-				screen.getByRole("menuitem", { name: "Open in browser" }),
-			);
-			// The host owns where a URL opens: the desktop app's in-app
-			// browser on desktop, a detached tab on the web. A true return
-			// means the host took the URL, so the raw window.open never
-			// runs side by side with it.
-			expect(openUrlMock).toHaveBeenCalledWith(
-				`${window.location.origin}/threads/thr_1`,
-			);
-			expect(openSpy).not.toHaveBeenCalled();
-		} finally {
-			openSpy.mockRestore();
-		}
-	});
-
-	it("Open in browser falls back to a detached noopener tab when the host declines the URL", async () => {
-		const openSpy = vi.spyOn(window, "open").mockImplementation(() => null);
-		openUrlMock.mockReturnValue(false);
 		try {
 			renderPane();
 			fireEvent.click(
@@ -323,6 +297,10 @@ describe("pane header workspace-open menu", () => {
 			fireEvent.click(
 				screen.getByRole("menuitem", { name: "Open in browser" }),
 			);
+			// The raw open is the point: on the desktop app bb's main-process
+			// window guard routes it to the user's system browser, and on the
+			// web this is the detached tab itself. noopener: the opened tab
+			// must not reach back through window.opener into this board.
 			expect(openSpy).toHaveBeenCalledWith(
 				`${window.location.origin}/threads/thr_1`,
 				"_blank",
@@ -330,7 +308,6 @@ describe("pane header workspace-open menu", () => {
 			);
 		} finally {
 			openSpy.mockRestore();
-			openUrlMock.mockReturnValue(true);
 		}
 	});
 

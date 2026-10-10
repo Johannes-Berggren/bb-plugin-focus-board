@@ -58,11 +58,10 @@ target an application window at all, from either surface of the plugin SDK:
   it is panes in the current window — the same ceiling.
 
 What we ship meanwhile (workaround, not a fix): the entry now reads "Open in browser"
-and calls `useBbNavigate().openUrl(threadUrl)`, which opens the thread as an in-app
-browser tab — a full webview of
-`http://127.0.0.1:<port>/projects/<id>/threads/<id>` rendered inside a browser tab,
-duplicating the app chrome the user already has. It is native-ish but lands in the
-wrong surface; the rename keeps the label honest until the window ask lands.
+and hands the thread URL to a raw `window.open`. On the desktop client that is exactly
+what the deny → `openExternalUrl` guard turns into a system-browser open, so the
+destination is real — the user's own browser, not an in-app webview. But a browser tab
+is not a window of bb itself, and that gap is this issue.
 
 ## What you would expect
 
@@ -105,8 +104,9 @@ osascript System Events menu click cannot help because the new window lands on t
 server root (`currentWindowUrl`) and `threads.open` cannot target that new window.
 
 Reach: any plugin that wants to hand a thread a detached surface (boards, pipelines,
-task views, dashboards). The openUrl workaround exists but delivers the thread in an
-in-app browser webview, which users already told us reads as broken.
+task views, dashboards). The raw `window.open` workaround delivers the thread to the
+system browser, which is a real destination but not a bb window — users still ask for
+the second-window feel.
 
 I can prototype option 2 against a fork after sign-off, per the issue-first rule.
 

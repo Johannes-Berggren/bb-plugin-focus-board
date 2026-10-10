@@ -32,7 +32,6 @@ import { NewThreadModal } from "./components/new-thread-modal";
 import type { SpawnedThread } from "./components/new-thread-modal";
 import type { CardMenuAction } from "./components/thread-card-menu";
 import { cardMenuActions } from "./lib/card-menu";
-import { useOpenHrefInBrowser } from "./lib/open-in-browser";
 import type { FilterState, GroupBy, ThreadState } from "./components/grouping";
 import {
   buildColumns,
@@ -2055,8 +2054,6 @@ function BoardPage({ subPath }: { subPath: string }) {
     [navigate, sdk],
   );
 
-  const openHrefInBrowser = useOpenHrefInBrowser();
-
   const menuActionsFor = useCallback(
     (thread: PluginSidebarThread): readonly CardMenuAction[] => {
       const isThreadDone = doneIds.has(thread.id);
@@ -2089,7 +2086,15 @@ function BoardPage({ subPath }: { subPath: string }) {
               setBrowserNotice({ message: browserReachFailure(error) });
             });
           },
-          openInBrowser: () => openHrefInBrowser(thread.href),
+          openInBrowser: () => {
+            // A raw open on purpose: on the desktop app bb's main-process
+            // window guard denies the popup and funnels the http(s) URL to
+            // the user's system browser (shell.openExternal), which is the
+            // destination "Open in browser" names. openUrl() was tried for
+            // this and lands in the app's in-app browser panel instead.
+            const url = new URL(thread.href, window.location.origin).toString();
+            void window.open(url, "_blank", "noopener");
+          },
           openNewChild: () => openNewChildThread(thread.id),
           togglePinned: () => {
             liftSnooze();
@@ -2200,7 +2205,7 @@ function BoardPage({ subPath }: { subPath: string }) {
         },
       );
     },
-    [actions, applyUnreadStateEffects, clearParkPin, clearSnooze, doneAgeSource, doneIds, exitPinnedLane, groupAssignments, openHrefInBrowser, openNewChildThread, pendingStateClaimsRef, requestReveal, restoreParkedPin, runBrowserReveal, rpc, setBrowserNotice, setDoneExtras, setDoneIds, setGroupDialogFor, setSnoozeDialogFor, snoozedIds, sdk],
+    [actions, applyUnreadStateEffects, clearParkPin, clearSnooze, doneAgeSource, doneIds, exitPinnedLane, groupAssignments, openNewChildThread, pendingStateClaimsRef, requestReveal, restoreParkedPin, runBrowserReveal, rpc, setBrowserNotice, setDoneExtras, setDoneIds, setGroupDialogFor, setSnoozeDialogFor, snoozedIds, sdk],
   );
 
   if (sidebarStatus === "loading" && threads.length === 0) {

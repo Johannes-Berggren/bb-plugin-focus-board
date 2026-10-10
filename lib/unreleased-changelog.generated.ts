@@ -58,7 +58,7 @@ export const UNRELEASED_ITEMS: readonly { text: string; children: string[] }[] =
     ]
   },
   {
-    "text": "**\"Open in browser\" opens the thread in the desktop app.** Renamed from \"Open in new window\" because a native second window is not plugin-reachable (upstream request drafted at `docs/upstream/bb-feature-request-thread-window.md`). The gesture routes through bb's navigate, so a desktop click opens the thread in the app's own browser panel instead of a detached web-browser tab (the raw `window.open` bb's window guard forced); the web board's detached-tab behavior is unchanged.",
+    "text": "**\"Open in browser\" now means your browser.** Renamed from \"Open in new window\" — a native second bb window is not plugin-reachable (filed upstream as [get-bb/bb#5342](https://github.com/get-bb/bb/issues/5342)) — and on desktop the gesture hands the thread straight to your system browser instead of the app's in-app browser panel; the web board's detached-tab behavior is unchanged.",
     "children": []
   }
 ];

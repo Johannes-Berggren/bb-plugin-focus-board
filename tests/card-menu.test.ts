@@ -122,9 +122,9 @@ describe("card menu grouping", () => {
 	it("Open in browser routes through the shared open handler with the card's href", () => {
 		const handlers = makeHandlers();
 		action(makeInputs({ thread: { href: "/threads/thr_9" } }), "open-in-browser", handlers).run();
-		// The builder owns order and labels only; where the URL opens is the
-		// host-routed shared handler (lib/open-in-browser), so the raw
-		// window.open never appears here.
+		// The builder owns order and labels only; the handler performs the
+		// one open gesture — the raw window.open the desktop window guard
+		// routes to the system browser.
 		expect(handlers.openInBrowser).toHaveBeenCalledWith("/threads/thr_9");
 	});
 

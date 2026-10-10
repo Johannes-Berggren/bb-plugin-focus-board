@@ -73,8 +73,8 @@ export interface CardMenuHandlers {
   openNewChild: () => void;
   /**
    * The thread's fresh-surface open, run with the card's app-relative
-   * href (lib/open-in-browser owns where the host routes it: the
-   * desktop app's in-app browser on desktop, a detached tab on the web).
+   * href (the host's window guard routes the raw open to the user's
+   * browser: the system browser on desktop, a detached tab on the web).
    */
   openInBrowser: (href: string) => void;
 }
