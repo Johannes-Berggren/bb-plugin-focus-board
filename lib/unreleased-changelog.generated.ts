@@ -38,18 +38,6 @@ export const UNRELEASED_ITEMS: readonly { text: string; children: string[] }[] =
     "children": []
   },
   {
-    "text": "**Reorder cards inside a family box.** Dropping a box member beside a sibling in the same dashed box moves that member alone — no more box-edge anchor, no refusal banner — while a drop beside anything outside the box still moves the whole box as one unit.",
-    "children": []
-  },
-  {
-    "text": "**Reorder the nested child rows under a family card.** Drop a child row on a sibling row's edge and the row order under that parent is written per family (`child:<parent>`, its own rank order — never the parent card's column order); Done families keep their done-recency rows, and dragging a row onto the floor still detaches it.",
-    "children": []
-  },
-  {
-    "text": "**Hide a project lane straight from the board.** In the Project view, hovering a lane's header shows an eye-off icon where the sweep pill sits; two clicks (icon → armed \"Hide\") write the lane's project out of the Project filter and a banner explains the lane restores from that filter — the board's only project lane refuses with its reason instead of pretending to hide.",
-    "children": []
-  },
-  {
     "text": "**The board can wear a wallpaper.** The toolbar's image control opens a picker with gradient presets, a shuffle strip, a search over openly licensed photos, and a free-form URL field — all with a dim slider that keeps cards readable. The setting persists per browser and applies globally.",
     "children": [
       "Theme-aware: each preset carries a light and a dark palette and the board follows `prefers-color-scheme` live; a wallpaper without a dark variant keeps its light URL everywhere."
