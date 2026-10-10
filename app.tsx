@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   definePluginApp,
+  experimental_usePluginId,
   experimental_useProviders,
   experimental_useSidebarThreadActions,
   experimental_useSidebarThreads,
@@ -50,7 +51,14 @@ import { GroupDialog } from "./components/group-dialog";
 import { filterWithGroupBoxes, planGroupBoxes, reconcileGroupBoxPlan } from "./components/group-boxes";
 import { applyUnitMoveVisible } from "./lib/rank-unit-move";
 import { doneAtToEpochMs } from "./lib/done-metadata";
-import { newThreadSeedEnvironment, newThreadSeedProjectId } from "./lib/new-thread-seed";
+import {
+  newThreadDerivedProjectId,
+  newThreadSeedEnvironment,
+  newThreadSeedProjectId,
+  parseRememberedProjectStored,
+  rememberedProjectStorageKey,
+  rememberedProjectStoredValue,
+} from "./lib/new-thread-seed";
 import { maximizeComposerToMainView } from "./lib/compose-maximize";
 import { SnoozeDialog } from "./components/snooze-dialog";
 import {
@@ -220,7 +228,12 @@ function browserReachFailure(error: unknown): string {
 }
 
 function BoardPage({ subPath }: { subPath: string }) {
-  const { status, threads: sidebarThreads, projects } = experimental_useSidebarThreads();
+  const {
+    status: sidebarStatus,
+    threads: sidebarThreads,
+    projects,
+  } = experimental_useSidebarThreads();
+  const pluginId = experimental_usePluginId();
   const actions = experimental_useSidebarThreadActions();
   const { providers } = experimental_useProviders();
   const navigate = useBbNavigate();
@@ -1297,17 +1310,33 @@ function BoardPage({ subPath }: { subPath: string }) {
   }, [newThreadParentId, newThreadParent]);
   // The composer's project seed (lib/new-thread-seed): a child preset copies
   // its PARENT'S project, so the family keeps landing in one place; without
-  // a preset the single filter-selected project seeds, stale ids guarded
-  // (they fall back to bb's default project pick).
+  // a preset the rungs descend the ladder — the single filter-selected
+  // project, then the board's unanimous project (the threads already here),
+  // then the project this board's composer last spawned into (remembered,
+  // plugin-scoped localStorage). Only a LOADED picker list may reject a
+  // derived or remembered id — a slow project query never wipes the memory,
+  // and the composer re-seeds on prop change when the list heals.
+  const rememberedProjectKey = rememberedProjectStorageKey(pluginId);
+  const [rememberedProjectId, setRememberedProjectId] = useState<
+    string | undefined
+  >(() => parseRememberedProjectStored(window.localStorage.getItem(rememberedProjectKey)));
   const newThreadProjectId = useMemo(
     () =>
       newThreadSeedProjectId({
         parentProjectId: newThreadParent?.projectId,
         filterProjectId:
           filter.projects.size === 1 ? [...filter.projects][0] : undefined,
+        derivedProjectId: newThreadDerivedProjectId(
+          searched
+            .filter((thread) => !thread.isArchived)
+            .map((thread) => thread.projectId),
+        ),
+        rememberedProjectId,
+        personalProjectId: projects.find((project) => project.isPersonal)?.id,
         knownProjectIds: projects.map((project) => project.id),
+        knownProjectsLoaded: sidebarStatus === "ready",
       }),
-    [newThreadParent, filter.projects, projects],
+    [newThreadParent, filter.projects, searched, rememberedProjectId, projects, sidebarStatus],
   );
   // The composer's environment seed: a parent whose checkout is a worktree
   // seeds the `reuse` variant so the child starts in the parent's checkout
@@ -1447,10 +1476,15 @@ function BoardPage({ subPath }: { subPath: string }) {
     [navigate, openThreadId, threads, groupBy, projects, providers],
   );
 
-  // The composer modal resolved a spawn: file the provisional row, then open
-  // the new thread in the pane (route push + frozen column as usual).
+  // The composer modal resolved a spawn: remember the project it landed in
+  // (the remembered rung of the seed ladder, fed from the submit success
+  // path — a failed spawn never writes), file the provisional row, then
+  // open the new thread in the pane (route push + frozen column as usual).
   const handleSpawnedThread = useCallback(
     (thread: SpawnedThread) => {
+      const key = rememberedProjectStorageKey(pluginId);
+      window.localStorage.setItem(key, rememberedProjectStoredValue(thread.projectId));
+      setRememberedProjectId(thread.projectId);
       setProvisionalSpawn({
         id: thread.id,
         displayTitle: thread.title ?? thread.titleFallback ?? thread.id,
@@ -1458,7 +1492,7 @@ function BoardPage({ subPath }: { subPath: string }) {
       });
       openThreadCard(thread.id);
     },
-    [openThreadCard],
+    [pluginId, openThreadCard],
   );
 
   const closeThreadPane = useCallback(() => {
@@ -2140,14 +2174,14 @@ function BoardPage({ subPath }: { subPath: string }) {
     [actions, applyUnreadStateEffects, clearParkPin, clearSnooze, doneAgeSource, doneIds, exitPinnedLane, groupAssignments, openHrefInNewWindow, openNewChildThread, pendingStateClaimsRef, requestReveal, restoreParkedPin, runBrowserReveal, rpc, setBrowserNotice, setDoneExtras, setDoneIds, setGroupDialogFor, setSnoozeDialogFor, snoozedIds, sdk],
   );
 
-  if (status === "loading" && threads.length === 0) {
+  if (sidebarStatus === "loading" && threads.length === 0) {
     return (
       <div className="p-4">
         <EmptyState>Loading threads…</EmptyState>
       </div>
     );
   }
-  if (status === "error") {
+  if (sidebarStatus === "error") {
     return (
       <div className="p-4">
         <EmptyState>Could not load threads. Reload the panel to retry.</EmptyState>

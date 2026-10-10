@@ -49,6 +49,7 @@ export function NewThreadModal({
   parentThreadId,
   parentThreadTitle,
   onMaximize,
+  rememberProjectId,
   onSpawned,
 }: {
   open: boolean;
@@ -74,6 +75,13 @@ export function NewThreadModal({
    * when the hand-off exists.
    */
   onMaximize?: () => void;
+  /**
+   * Feed for the board's remembered-project seed rung: called with the
+   * spawned thread's project on submit success (the spawn result carries
+   * `projectId`), never on failure. Absent (the tests' stub flows) skips
+   * the remember — the composer works exactly as before.
+   */
+  rememberProjectId?: (projectId: string) => void;
   onSpawned: (thread: SpawnedThread) => void;
 }) {
   const sdk = useSdk();
@@ -99,6 +107,7 @@ export function NewThreadModal({
         : request;
       try {
         const thread = await sdk.threads.spawn(spawnArgs);
+        rememberProjectId?.(thread.projectId);
         onOpenChange(false);
         onSpawned(thread);
       } catch (error) {
@@ -106,7 +115,7 @@ export function NewThreadModal({
         throw error;
       }
     },
-    [sdk, onOpenChange, onSpawned, parentThreadId],
+    [sdk, onOpenChange, onSpawned, rememberProjectId, parentThreadId],
   );
 
   return (
