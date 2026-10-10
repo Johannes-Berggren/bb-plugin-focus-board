@@ -847,7 +847,12 @@ describe("assembleBoard — family columns (R4: the family moves as one unit)", 
     expect(idsIn(result.columns, "done")).toEqual(["p"]);
   });
 
-  it("a frozen column keeps a lifted family's parent where it was frozen", () => {
+  it("a lifted family's parent rides the family lane even when frozen in the pane", () => {
+    // The pane's frozen capture must not demote the family: a frozen
+    // Idle·Earlier parent card with a working child rides the family lane
+    // (R4), the same rule the group-box plan's lane follows. The freeze keeps
+    // guarding cards with no lane of their own (a quiet family keeps the
+    // parent's own bucket — see "a quiet family with no lane of its own").
     const parent = thread({ id: "p", updatedAt: NOW - 2 * DAY }); // idle-earlier
     const child = thread({
       id: "c",
@@ -864,8 +869,55 @@ describe("assembleBoard — family columns (R4: the family moves as one unit)", 
       new Set(),
       NOW,
     );
-    expect(idsIn(result.columns, "idle-earlier")).toEqual(["p"]);
+    expect(idsIn(result.columns, "working")).toEqual(["p"]);
     expect(ids(result.nestedChildrenByParent.get("p") ?? [])).toEqual(["c"]);
+    expect(idsIn(result.columns, "idle-earlier")).toEqual([]);
+  });
+
+  it("a group box lands in its plan lane even when a member is open in the pane", () => {
+    // Live repro (2026-10-10 screenshot): the relay thread was active, the
+    // parent idle for an hour. Opening the parent froze Idle·Today and (under
+    // the pane-follows rule) dragged the running member into it. Family wins,
+    // always: the plan lane (strongest member → Working) beats the capture.
+    const parent = thread({ id: "p", updatedAt: NOW - HOUR });
+    const relay = thread({ id: "r", status: "active", updatedAt: NOW - HOUR / 4 });
+    const boxLane = { id: "working", label: "Working" };
+    const extraColumnOverrides = new Map([["p", boxLane], ["r", boxLane]]);
+    const frozenColumns = new Map([["p", { id: "idle-today", label: "Idle · Today" }]]);
+    const result = assembleBoard(
+      [parent, relay],
+      "status",
+      CONTEXT,
+      frozenColumns,
+      new Set(),
+      NOW,
+      { extraColumnOverrides },
+    );
+    expect(idsIn(result.columns, "working")).toContain("p");
+    expect(idsIn(result.columns, "working")).toContain("r");
+    expect(idsIn(result.columns, "idle-today")).toEqual([]);
+  });
+
+  it("a quiet family with no lane of its own keeps the frozen bucket", () => {
+    // All-idle families get no lane entry (every idle member ties), so the
+    // open card's frozen bucket survives: the anti-slide contract still owns
+    // cards the state rules say nothing about.
+    const parent = thread({ id: "p", updatedAt: NOW - HOUR });
+    const child = thread({
+      id: "c",
+      parentThreadId: "p",
+      updatedAt: NOW - 2 * HOUR,
+    });
+    const frozenColumns = new Map([["p", { id: "idle-today", label: "Idle · Today" }]]);
+    const result = assembleBoard(
+      [parent, child],
+      "status",
+      CONTEXT,
+      frozenColumns,
+      new Set(),
+      NOW,
+    );
+    expect(idsIn(result.columns, "idle-today")).toEqual(["p"]);
   });
 
   it("a Done parent's family does not relocate: live children still promote", () => {

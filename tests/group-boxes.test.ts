@@ -8,7 +8,6 @@ import {
   filterWithGroupBoxes,
   flattenRuns,
   planGroupBoxes,
-  reconcileGroupBoxPlan,
   runsFromColumns,
   unitMoveTarget,
 } from "../components/group-boxes";
@@ -583,10 +582,16 @@ describe("columnRunInfo and unitMoveTarget", () => {
   });
 });
 
-describe("reconcileGroupBoxesWithFrozen", () => {
+describe("the box plan's lane beats the pane's frozen column", () => {
+  // The pane-follows exception shipped 2026-10-10 pulled a whole box into the
+  // open card's stale lane — a working sibling rode an idle parent's capture
+  // into Idle·Today the moment the pane opened. The operator's rule: the
+  // family's lane priority never depends on the pane. The plan covers EVERY
+  // box member, so the override wins and a split box is structurally
+  // impossible (there is no second lane to split into).
   const threads = [
-    thread({ id: "thr_a", updatedAt: NOW - 1000 }),
-    thread({ id: "thr_b", status: "active", updatedAt: NOW - 2000 }),
+    thread({ id: "thr_a", updatedAt: NOW - 1000 }), // idle — the card open in the pane
+    thread({ id: "thr_b", status: "active", updatedAt: NOW - 2000 }), // working
   ];
   const plan = planGroupBoxes(
     threads,
@@ -597,25 +602,40 @@ describe("reconcileGroupBoxesWithFrozen", () => {
     new Set(),
     NOW,
   );
+  const frozen = new Map([["thr_a", { id: "idle-today", label: "Idle · Today" }]]);
 
-  it("a member frozen in another column pulls its WHOLE box to that column", () => {
-    // The member is open in the pane: its column is frozen (the open card
-    // must never slide). The box follows it — the family gathers around
-    // the selected card, exactly as nested children do.
-    const frozen = new Map([["thr_a", { id: "idle-today", label: "Idle · Today" }]]);
-    const reconciled = reconcileGroupBoxPlan(plan, frozen);
-    expect(reconciled.columnOverrides.get("thr_b")).toEqual({ id: "idle-today", label: "Idle · Today" });
-    expect(reconciled.columnOverrides.get("thr_a")).toEqual({ id: "idle-today", label: "Idle · Today" });
+  it("an open member's frozen lane never moves the box: the plan lane wins", () => {
+    const columns = buildColumns(
+      threads,
+      "status",
+      context,
+      frozen,
+      new Set(),
+      NOW,
+      {},
+      plan.columnOverrides,
+    );
+    const working = columns.find((column) => column.id === "working");
+    expect(working?.threads.map((entry) => entry.id) ?? []).toEqual(
+      expect.arrayContaining(["thr_a", "thr_b"]),
+    );
+    expect(columns.some((column) => column.id === "idle-today")).toBe(false);
   });
 
-  it("frozen ids outside any box leave the plan untouched", () => {
-    const frozen = new Map([["thr_x", { id: "working", label: "Working" }]]);
-    const reconciled = reconcileGroupBoxPlan(plan, frozen);
-    expect(reconciled).toBe(plan);
-  });
-
-  it("no frozen columns: the plan passes through", () => {
-    expect(reconcileGroupBoxPlan(plan, new Map())).toBe(plan);
+  it("a frozen thread the plan says nothing about keeps its frozen lane", () => {
+    // The pane freeze still owns cards with no lane of their own — the
+    // anti-slide contract survives wherever the family has no claim.
+    const columns = buildColumns(
+      [thread({ id: "1", status: "active" })],
+      "status",
+      context,
+      new Map([["1", { id: "unread", label: "Unread" }]]),
+      new Set(),
+      NOW,
+      {},
+      new Map(),
+    );
+    expect(columns.some((column) => column.id === "unread")).toBe(true);
   });
 });
 

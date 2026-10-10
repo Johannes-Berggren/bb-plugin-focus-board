@@ -224,32 +224,6 @@ export function runsFromColumns(
 }
 
 /**
- * A member frozen in an off-box column (open in the pane: its column is
- * frozen at selection) would otherwise split its box — each column then
- * sees one member and both render plain. The FAMILY follows the frozen
- * member instead: every member of its box takes the frozen column's lane,
- * exactly the way nested children follow their parent card wherever it
- * sits. Returns the INPUT plan unchanged when no frozen id is a box member
- * (identity, so callers can memoize cheaply).
- */
-export function reconcileGroupBoxPlan(
-  plan: GroupBoxPlan,
-  frozenColumns: ReadonlyMap<string, { id: string; label: string }>,
-): GroupBoxPlan {
-  if (frozenColumns.size === 0 || plan.groupBoxOf.size === 0) return plan;
-  const overrides = new Map(plan.columnOverrides);
-  let changed = false;
-  for (const [threadId, column] of frozenColumns) {
-    const box = plan.groupBoxOf.get(threadId);
-    if (box === undefined) continue;
-    changed = true;
-    for (const member of box.members) overrides.set(member.id, column);
-  }
-  if (!changed) return plan;
-  return { ...plan, columnOverrides: overrides };
-}
-
-/**
  * One card's box run membership within a single column's display list.
  * `role` is the card's position in ITS box's run — absent (`null`) when the
  * card drags as plain (unassigned, or a multi-member box's split lone

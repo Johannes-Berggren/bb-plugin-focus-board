@@ -311,16 +311,18 @@ export function buildColumns(
   const pinned = active.filter((thread) => thread.isPinned);
 
   // A thread whose column was frozen at selection time (because it is open in
-  // the pane) keeps that column until it is deselected — state or age changes
-  // must not slide the card the user is looking at to another column. R4:
-  // next the family-column override (the family lands in its most
-  // attention-requiring member's column), then the thread's own assignment.
+  // the pane) keeps that column UNTIL a lane of its own says otherwise: R4
+  // family and group-box overrides are computed from live member states, and
+  // "Family wins, always" — the family's lane priority never depends on the
+  // pane. The pane freeze therefore only owns cards no family lane claims
+  // (a quiet family keeps the parent's own bucket — the all-idle family
+  // override is empty). The freeze remains meaningful there: state or age
+  // changes must not slide the card the user is looking at.
   const assignments = new Map<string, { id: string; label: string }>();
   for (const thread of unpinned) {
-    const frozen = frozenColumns.get(thread.id);
     assignments.set(
       thread.id,
-      frozen ?? columnOverrides.get(thread.id) ?? columnFor(thread, groupBy, context, now),
+      columnOverrides.get(thread.id) ?? frozenColumns.get(thread.id) ?? columnFor(thread, groupBy, context, now),
     );
   }
 
