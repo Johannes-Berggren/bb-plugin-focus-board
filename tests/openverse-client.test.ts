@@ -60,9 +60,11 @@ describe("the Openverse search url pin", () => {
   });
 
   it("the client always fetches the pinned origin it builds (https, exact host)", async () => {
-    const { fetchImpl } = hangingFetch();
-    const attempt = fetchOpenversePage("mtn", 1, {}, deps(fetchImpl, 500));
-    await expect(attempt).rejects.toThrow();
+    const fetchImpl = vi.fn(() => respond({ page_count: 1, results: [] }));
+    // A query that looks like a retarget attempt encodes into the pinned url.
+    await fetchOpenversePage("https://evil.example/?q=escape", 1, {}, deps(fetchImpl as typeof fetch));
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+    expect(fetchImpl).toHaveBeenCalledWith("https://api.openverse.org/v1/images/?q=https%3A%2F%2Fevil.example%2F%3Fq%3Descape&page_size=12&page=1", expect.anything());
   });
 });
 
