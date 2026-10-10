@@ -60,6 +60,10 @@ export const UNRELEASED_ITEMS: readonly { text: string; children: string[] }[] =
     "children": []
   },
   {
+    "text": "**In-box reorder now reorders.** Dropping a family box's member beside a sibling wrote the right column order but the box kept rendering its members in the plan's recency-of-assignment order, so the card snapped back — the box now renders its members in the column's own order, the one the drag wrote.",
+    "children": []
+  },
+  {
     "text": "**An armed \"Hide\" can now be disarmed.** Escape anywhere on the board, or a pointer press outside the armed icon, drops the arm without writing — a clicked button only holds focus in some browsers, so the arm's listeners live at the document level; the armed icon itself still confirms on its second click.",
     "children": []
   },

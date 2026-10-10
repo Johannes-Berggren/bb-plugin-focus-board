@@ -31,6 +31,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- **In-box reorder now reorders.** Dropping a family box's member beside a sibling wrote the right column order but the box kept rendering its members in the plan's recency-of-assignment order, so the card snapped back — the box now renders its members in the column's own order, the one the drag wrote.
 - **An armed "Hide" can now be disarmed.** Escape anywhere on the board, or a pointer press outside the armed icon, drops the arm without writing — a clicked button only holds focus in some browsers, so the arm's listeners live at the document level; the armed icon itself still confirms on its second click.
 - **A family box's lane never depends on the open pane.** Opening one member's detail pulled the whole box — a running sibling included — into the lane that card held at open, so an active thread read as idle; the box now always renders in its most attention-needing member's lane, and a lifted parent/child family rides the same rule through an open pane. Cards no family claims keep the open-pane freeze.
 - **The toolbar's filter row aligns at any host font size.** Bare `relative` wrappers positioned the dropdown and wallpaper triggers on the text baseline, so bb's own font metrics lifted each trigger up to a pixel above its flex-centred neighbours — the drift that read as an off-kilter filter row. The wrappers now position by flex; the alignment holds across font metric changes and the screenshot harness verifies all controls share one center.

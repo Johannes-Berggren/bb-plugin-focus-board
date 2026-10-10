@@ -204,9 +204,18 @@ export function runsFromColumns(
         items.push({ kind: "single", thread });
         continue;
       }
-      const members = box.members.filter((member) =>
-        column.threads.some((candidate) => candidate.id === member.id),
-      );
+      // The box's members in THIS COLUMN'S OWN DISPLAY ORDER — read off
+      // `column.threads` as they appear, never from the plan's `box.members`
+      // (which planGroupBoxes collected in recency-iteration order). The
+      // rank contract keeps a boxed run contiguous in the column order, so
+      // the walk reproduces that order exactly — and an in-box reorder,
+      // whose write reorders the members inside the run's span, actually
+      // STICKS: rendering from the plan's recency order instead un-renders
+      // every in-box reorder the moment the store updates (reproduced live
+      // 2026-10-10 — the box read reordered ranks and displayed the old
+      // sequence, looking exactly like "reorder not working").
+      const memberIds = new Set(box.members.map((member) => member.id));
+      const members = column.threads.filter((candidate) => memberIds.has(candidate.id));
       // A lone member of a MULTI-member box in THIS column (its box split
       // by a frozen selection or a caller that skipped the overrides)
       // renders plain — a split pair never becomes two boxes of one. A
