@@ -25,6 +25,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- **Board alert banners stay bound to the viewport.** The four status banners (rank refusal, sweep notice, browser reveal, sweep refusal) now render above the horizontal scroll surface, so scrolling a wide board can no longer carry a banner — its message and dismiss control included — offscreen. ([#26](https://github.com/cristoslc/bb-plugin-focus-board/issues/26))
+
 - **New thread starts where the board points, even with no filter armed.** Without a parent preset or single-project filter the composer now seeds from the board's unanimous project, else from the project the board's composer last spawned into (remembered across sessions), so "No project" only shows when nothing on the board points anywhere — parent presets and filters keep winning.
   ([#24](https://github.com/cristoslc/bb-plugin-focus-board/issues/24))
   - The maximize hand-off rides the same seed now, instead of bb's own remembered pick.
