@@ -1,11 +1,14 @@
 import { describe, expect, it } from "vitest";
 import {
   GROUP_BY_OPTIONS,
+  STATE_FILTER_OPTIONS,
   buildColumns,
   columnFor,
   filterProjectsWithoutLane,
   filterThreads,
+  isStateFilterValue,
   matchesFilter,
+  parseStoredStateFilter,
   threadState,
 } from "../components/grouping";
 import type { TicketRef } from "../lib/tickets";
@@ -81,6 +84,111 @@ describe("filterThreads", () => {
       { projects: empty(), providers: empty(), states: new Set(["unread"]) },
     );
     expect(result.map((t) => t.id)).toEqual(["a"]);
+  });
+
+  it("an idle-bucket value passes only the idle threads in that bucket", () => {
+    const idle = [
+      thread({ id: "recent", updatedAt: NOW - 5 * 60 * 1000 }),
+      thread({ id: "today", updatedAt: NOW - 2 * HOUR }),
+      thread({ id: "earlier", updatedAt: NOW - 2 * DAY }),
+      thread({ id: "awhile", updatedAt: NOW - 10 * DAY }),
+    ];
+    const result = filterThreads(
+      idle,
+      { projects: empty(), providers: empty(), states: new Set(["idle-today"]) },
+      undefined,
+      NOW,
+    );
+    expect(result.map((t) => t.id)).toEqual(["today"]);
+  });
+
+  it("idle buckets compose with the plain states in one selection", () => {
+    const mixed = [
+      thread({ id: "recent", updatedAt: NOW - 5 * 60 * 1000 }),
+      thread({ id: "today", updatedAt: NOW - 2 * HOUR }),
+      thread({ id: "reader", isUnread: true }),
+    ];
+    const result = filterThreads(
+      mixed,
+      { projects: empty(), providers: empty(), states: new Set(["idle-recent", "unread"]) },
+      undefined,
+      NOW,
+    );
+    expect(result.map((t) => t.id).sort()).toEqual(["reader", "recent"]);
+  });
+
+  it("the legacy bare Idle value still passes every idle thread", () => {
+    const idle = [
+      thread({ id: "recent", updatedAt: NOW - 5 * 60 * 1000 }),
+      thread({ id: "awhile", updatedAt: NOW - 10 * DAY }),
+    ];
+    const result = filterThreads(
+      idle,
+      { projects: empty(), providers: empty(), states: new Set(["idle"]) },
+      undefined,
+      NOW,
+    );
+    expect(result).toHaveLength(2);
+  });
+
+  it("a checked idle bucket is exactly that Attention lane", () => {
+    const idle = [
+      thread({ id: "recent", updatedAt: NOW - 5 * 60 * 1000 }),
+      thread({ id: "today", updatedAt: NOW - 2 * HOUR }),
+    ];
+    const kept = filterThreads(
+      idle,
+      { projects: empty(), providers: empty(), states: new Set(["idle-today"]) },
+      undefined,
+      NOW,
+    );
+    const columns = buildColumns(
+      kept,
+      "status",
+      { projects: [], providers: [] },
+      new Map(),
+      new Set(),
+      NOW,
+    );
+    expect(columns.map((c) => c.id)).toEqual(["working", "idle-today"]);
+  });
+});
+
+describe("STATE_FILTER_OPTIONS", () => {
+  it("splits Idle into one checkbox per idle lane, board lane labels included", () => {
+    expect(STATE_FILTER_OPTIONS.map((option) => option.label)).toEqual([
+      "Working",
+      "Needs you",
+      "Unread",
+      "Idle · Recent",
+      "Idle · Today",
+      "Idle · Earlier",
+      "Idle · A while ago",
+    ]);
+  });
+
+  it("every option value survives the stored-filter round trip", () => {
+    const values = STATE_FILTER_OPTIONS.map((option) => option.value);
+    for (const value of values) expect(isStateFilterValue(value)).toBe(true);
+    expect(parseStoredStateFilter(values)).toEqual(values);
+  });
+});
+
+describe("parseStoredStateFilter", () => {
+  it("expands the legacy bare Idle value into all four idle buckets", () => {
+    expect(parseStoredStateFilter(["idle"])).toEqual([
+      "idle-awhile",
+      "idle-earlier",
+      "idle-today",
+      "idle-recent",
+    ]);
+  });
+
+  it("keeps known values and drops unknown ones", () => {
+    expect(parseStoredStateFilter(["working", "idle-today", "bogus"])).toEqual([
+      "working",
+      "idle-today",
+    ]);
   });
 });
 

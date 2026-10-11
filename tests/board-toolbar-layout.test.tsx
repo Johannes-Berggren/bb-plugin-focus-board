@@ -229,6 +229,40 @@ describe("BoardToolbar layout", () => {
   });
 });
 
+describe("BoardToolbar State filter: idle buckets", () => {
+  it("lists one checkbox per idle lane with the board's labels — no bare Idle row", () => {
+    renderToolbar();
+    const trigger = screen.getByText(/State:/).closest("button");
+    if (trigger === null) throw new Error("State trigger not found");
+    fireEvent.click(trigger);
+    const listbox = screen.getByRole("listbox", { name: "State" });
+    const rows = [...listbox.querySelectorAll('[role="option"]')].map(
+      (row) => row.textContent,
+    );
+    expect(rows).toEqual([
+      "Working",
+      "Needs you",
+      "Unread",
+      "Idle · Recent",
+      "Idle · Today",
+      "Idle · Earlier",
+      "Idle · A while ago",
+    ]);
+  });
+
+  it("checking an idle-bucket row filters the board to that bucket", () => {
+    const onFilterChange = vi.fn();
+    renderToolbar({ onFilterChange });
+    const trigger = screen.getByText(/State:/).closest("button");
+    if (trigger === null) throw new Error("State trigger not found");
+    fireEvent.click(trigger);
+    fireEvent.click(screen.getByRole("option", { name: "Idle · Today" }));
+    expect(onFilterChange).toHaveBeenCalledWith(
+      expect.objectContaining({ states: new Set(["idle-today"]) }),
+    );
+  });
+});
+
 describe("BoardToolbar settings icon: gear/gift double duty", () => {
   it("when caught up, the icon is a plain settings gear opening on Behavior", () => {
     const onOpenSettings = vi.fn();

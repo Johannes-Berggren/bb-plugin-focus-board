@@ -3,8 +3,10 @@
 // enough to grow a search bar also grows a checkbox to the left of that
 // search bar: clicking selects every row the search currently shows (and
 // keeps the menu open), clicking again deselects them, and a partial
-// selection reports mixed. Dropdowns without a search bar (State) and the
-// exclusive Group control get no checkbox — there is nothing to add to.
+// selection reports mixed. The exclusive View control gets no checkbox —
+// there is nothing to add to. State crossed the threshold (seven rows)
+// when Idle split into one row per idle bucket, so it grew the search bar
+// and checkbox like the other filters.
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render } from "@testing-library/react";
 import { BoardToolbar } from "../components/board-toolbar";
@@ -194,10 +196,29 @@ describe("select-all beside the dropdown search bar", () => {
     });
   });
 
-  it("the non-searchable State dropdown has no checkbox", () => {
+  it("the State menu crossed the search threshold when Idle split into buckets", () => {
     renderToolbar();
     openMenu(/State:/);
-    expect(document.querySelector("[data-select-all]")).toBeNull();
+    expect(document.querySelector("[data-select-all]")).not.toBeNull();
+  });
+
+  it("State's select-all checks every state row, the idle buckets included", () => {
+    const { props } = renderToolbar();
+    openMenu(/State:/);
+    fireEvent.click(selectAllBox());
+    expect(props.onFilterChange).toHaveBeenCalledWith({
+      projects: new Set(),
+      providers: new Set(),
+      states: new Set([
+        "working",
+        "attention",
+        "unread",
+        "idle-recent",
+        "idle-today",
+        "idle-earlier",
+        "idle-awhile",
+      ]),
+    });
   });
 
   it("the exclusive View dropdown, though searchable, has no checkbox", () => {
