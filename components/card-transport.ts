@@ -13,18 +13,19 @@ import type { GroupBoxMap } from "./group-boxes";
  */
 
 /** Wipe-out: the old lane keeps the ghost this long, then collapses. */
-export const TRANSPORT_WIPE_OUT_MS = 260;
+export const TRANSPORT_WIPE_OUT_MS = 420;
 /** Wipe-in: the arriving slot is unhidden before the wipe-out ends. */
-export const TRANSPORT_WIPE_IN_MS = 240;
+export const TRANSPORT_WIPE_IN_MS = 380;
 /** The old slot's reserved space closing after the wipe-out. */
-export const TRANSPORT_COLLAPSE_MS = 180;
+export const TRANSPORT_COLLAPSE_MS = 200;
 
 /**
- * "Slight ease-in": the sweep starts gently and accelerates into its end —
- * a fixed-velocity slide reads mechanical, and a full ease-in cubic
- * hesitates too long for a 240ms wipe.
+ * "Ease-in", tuned longer at the operator's request: the sweep's first half
+ * now crawls (y1 = 0), so the dissolve lingers where the card sat before
+ * accelerating into its exit — a slower read than the original slight
+ * curve, but still not a full ease-in cubic's hang.
  */
-export const TRANSPORT_EASE = "cubic-bezier(0.42, 0.08, 0.6, 0.5)";
+export const TRANSPORT_EASE = "cubic-bezier(0.5, 0, 0.6, 0.4)";
 
 /**
  * Lane moves over this count in ONE commit (a grouping change re-deriving
@@ -372,6 +373,89 @@ export function ghostCollapseKeyframes(
       offset: 0,
     },
     { maxHeight: "0px", marginTop: gapHalf, marginBottom: gapHalf },
+  ];
+}
+
+/**
+ * The shimmer's glint field: a transporter's beam does not wipe alone — a
+ * field of glints rides the sweep, twinkling in and fading as they drift
+ * upward. Deterministic per seed (same seed, same layout), so a re-render
+ * mid-sweep never reshuffles the sparkle, and every glint's whole life
+ * (delay + duration) fits inside its phase, so nothing keeps sparkling
+ * after the transport machine moved on.
+ */
+export const TRANSPORT_SPARK_COUNT = 14;
+
+/** One glint's place and life inside a phase's shimmer. */
+export interface TransportSpark {
+  /** Across the slot's width, in % (0..100). */
+  leftPct: number;
+  /** Down the slot's height, in % (0..100) — the glint's start line. */
+  topPct: number;
+  delayMs: number;
+  durationMs: number;
+  /** The upward drift in px: a glint rises as it twinkles out. */
+  driftPx: number;
+  widthPx: number;
+  heightPx: number;
+  /** The twinkle's peak opacity. */
+  peak: number;
+}
+
+/** A tiny seeded LCG: the field must be identical across re-renders. */
+function sparkRng(seed: number): () => number {
+  let state = seed >>> 0;
+  return () => {
+    state = (state + 0x6d2b79f5) | 0;
+    let t = Math.imul(state ^ (state >>> 15), 1 | state);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+export function shimmerSparks(
+  phaseMs: number,
+  count: number = TRANSPORT_SPARK_COUNT,
+  seed: number = 20126,
+): TransportSpark[] {
+  const rng = sparkRng(seed);
+  const sparks: TransportSpark[] = [];
+  for (let index = 0; index < count; index += 1) {
+    const durationMs = Math.max(80, Math.round(phaseMs * (0.25 + rng() * 0.3)));
+    // Start late enough that the whole life ends inside the phase: a glint
+    // fades out before the sweep's final frame, never after it.
+    const delayMs = Math.min(
+      Math.round(rng() * phaseMs * 0.55),
+      Math.max(0, phaseMs - durationMs),
+    );
+    sparks.push({
+      leftPct: 4 + rng() * 92,
+      topPct: 2 + rng() * 86,
+      delayMs,
+      durationMs,
+      driftPx: 6 + rng() * 8,
+      widthPx: 1.5 + rng() * 1.5,
+      heightPx: 5 + rng() * 7,
+      peak: 0.55 + rng() * 0.4,
+    });
+  }
+  return sparks;
+}
+
+/**
+ * One glint's twinkle: rise to its peak, then fade while drifting upward —
+ * energy leaving the card, not dust settling onto it.
+ */
+export function sparkKeyframes(spark: TransportSpark): Keyframe[] {
+  const drift = `${spark.driftPx.toFixed(1)}px`;
+  return [
+    {
+      opacity: 0,
+      transform: `translateY(${(spark.driftPx / 2).toFixed(1)}px) scaleY(0.4)`,
+      offset: 0,
+    },
+    { opacity: spark.peak, transform: "translateY(0px) scaleY(1)", offset: 0.45 },
+    { opacity: 0, transform: `translateY(-${drift}) scaleY(0.5)` },
   ];
 }
 
