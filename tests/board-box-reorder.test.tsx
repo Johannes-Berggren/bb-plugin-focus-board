@@ -40,6 +40,12 @@ function cardAnchor(fromId: string): HTMLElement {
   return anchor;
 }
 
+function boxLabel(groupId: string): HTMLElement {
+  const label = document.querySelector(`[data-group-box-label="${groupId}"]`);
+  if (!(label instanceof HTMLElement)) throw new Error(`missing group box label ${groupId}`);
+  return label;
+}
+
 function cardSlot(id: string): HTMLElement {
   const slot = document.querySelector(`[data-rank-slot="${id}"]`);
   if (!(slot instanceof HTMLElement)) throw new Error(`missing rank slot ${id}`);
@@ -71,15 +77,32 @@ function dragOnto(fromId: string, targetId: string, clientY: number) {
   return { dropAllowed: over.defaultPrevented };
 }
 
+/** The same gesture, started from the box's LABEL instead of a member card. */
+function labelDragOnto(groupId: string, targetId: string, clientY: number) {
+  const dt = makeDataTransfer();
+  fireEvent.dragStart(boxLabel(groupId), { dataTransfer: dt });
+  const slot = cardSlot(targetId);
+  withRect(slot);
+  const over = createEvent.dragOver(slot, { dataTransfer: dt });
+  Object.defineProperty(over, "clientY", { value: clientY });
+  fireEvent(slot, over);
+  const drop = createEvent.drop(slot, { dataTransfer: dt });
+  Object.defineProperty(drop, "clientY", { value: clientY });
+  fireEvent(slot, drop);
+  return { dropAllowed: over.defaultPrevented };
+}
+
 afterEach(cleanup);
 
+const membersFixture = [
+  thread({ id: "thr_a", status: "active", updatedAt: NOW - 1000 }),
+  thread({ id: "thr_b", status: "active", updatedAt: NOW - 2000 }),
+  thread({ id: "thr_c", status: "active", updatedAt: NOW - 3000 }),
+  thread({ id: "thr_x", status: "active", updatedAt: NOW - 4000 }),
+];
+
 function renderBoxedBoard(overrides: Partial<BoardProps> = {}) {
-  const members = [
-    thread({ id: "thr_a", status: "active", updatedAt: NOW - 1000 }),
-    thread({ id: "thr_b", status: "active", updatedAt: NOW - 2000 }),
-    thread({ id: "thr_c", status: "active", updatedAt: NOW - 3000 }),
-    thread({ id: "thr_x", status: "active", updatedAt: NOW - 4000 }),
-  ];
+  const members = membersFixture;
   const groupBoxOf = new Map([
     [
       "thr_b",
@@ -144,5 +167,55 @@ describe("the reorder-inside-a-family-box gesture", () => {
       ["thr_a", "thr_b", "thr_c", "thr_x"],
       ["thr_b", "thr_c"],
     );
+  });
+});
+
+describe("dragging a family box by its LABEL", () => {
+  it("the label drags the whole box: a drop at a plain card's edge moves the unit", () => {
+    const props = renderBoxedBoard();
+    const { dropAllowed } = labelDragOnto("grp_auth", "thr_x", 10); // box before thr_x
+    expect(dropAllowed).toBe(true);
+    expect(props.onRankMove).toHaveBeenCalledTimes(1);
+    expect(props.onRankMove).toHaveBeenCalledWith(
+      "status:working",
+      "thr_b",
+      "thr_x",
+      false,
+      ["thr_a", "thr_b", "thr_c", "thr_x"],
+      ["thr_b", "thr_c"],
+    );
+  });
+
+  it("a group of one's label drags its lone member plain (no unit ids)", () => {
+    const props = renderBoxedBoard({
+      groupBoxOf: new Map<string, { groupId: string; name: string; members: unknown[] }>([
+        [
+          "thr_b",
+          { groupId: "grp_auth", name: "Auth rework", members: [membersFixture[1], membersFixture[2]] },
+        ],
+        [
+          "thr_c",
+          { groupId: "grp_auth", name: "Auth rework", members: [membersFixture[1], membersFixture[2]] },
+        ],
+        ["thr_x", { groupId: "grp_one", name: "Lone rider", members: [membersFixture[3]] }],
+      ]) as unknown as BoardProps["groupBoxOf"],
+    });
+    const { dropAllowed } = labelDragOnto("grp_one", "thr_a", 10); // thr_x before thr_a
+    expect(dropAllowed).toBe(true);
+    expect(props.onRankMove).toHaveBeenCalledTimes(1);
+    expect(props.onRankMove).toHaveBeenCalledWith(
+      "status:working",
+      "thr_x",
+      "thr_a",
+      false,
+      ["thr_a", "thr_b", "thr_c", "thr_x"],
+    );
+  });
+
+  it("a sleeping lead member refuses the label drag outright", () => {
+    renderBoxedBoard({ snoozeFor: (id: string) => (id === "thr_b" ? NOW + 600_000 : null) });
+    const start = createEvent.dragStart(boxLabel("grp_auth"), { dataTransfer: makeDataTransfer() });
+    fireEvent(boxLabel("grp_auth"), start);
+    expect(start.defaultPrevented).toBe(true);
   });
 });

@@ -13,6 +13,11 @@ export const UNRELEASED_ITEMS: readonly { text: string; children: string[]; grou
     "children": []
   },
   {
+    "text": "**A family box drags by its label.** Grabbing the group name moves the whole box and ranks it wherever the drop lands, the same move grabbing a member card already made. A snoozed lead member still refuses to drag, and a click without the drag still renames.",
+    "children": [],
+    "group": "Groups and family boxes"
+  },
+  {
     "text": "**A right-click on a family box offers the group's actions in one menu.** New thread in group… opens the composer preset to the group, Rename group… opens the label editor, and Ungroup all members keeps its click-again confirm.",
     "children": [
       "The spawned thread lands with the majority of the members' settings: the most common project and the most common provider/model pair seeded into the composer, each member's model resolved through its own settings.",
