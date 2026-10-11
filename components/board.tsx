@@ -2666,6 +2666,15 @@ export function Board({
                           linkedIssues={linkedIssuesFor?.(thread.id)}
                           validatedHrefs={validatedHrefs}
                           menuActions={menuActionsFor(thread)}
+                          // The hover checkbox shares the menu's "done"
+                          // action run (one done recipe); done cards and the
+                          // Done family projections get no checkbox.
+                          onMarkDone={
+                            doneIds.has(thread.id) || isDoneProjection
+                              ? undefined
+                              : menuActionsFor(thread).find((action) => action.id === "done")
+                                  ?.run
+                          }
                           childThreads={
                             isDoneProjection
                               ? projectionChildren

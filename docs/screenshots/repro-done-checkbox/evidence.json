@@ -1,0 +1,20 @@
+{
+  "cardId": "thr_ship_release",
+  "hoverReveal": {
+    "opacity": "1"
+  },
+  "armed": {
+    "armed": true,
+    "tag": "Mark Done"
+  },
+  "done": {
+    "cardStillRendered": true,
+    "cardInDoneLane": true,
+    "lanes": [
+      "pinned",
+      "done"
+    ],
+    "checkboxOnCard": false
+  },
+  "totalCheckboxesBeforeHover": 20
+}
