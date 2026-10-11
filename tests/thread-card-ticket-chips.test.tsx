@@ -177,21 +177,25 @@ describe("ticket chip icons — issue vs PR glyph", () => {
     expect(idSpan?.getAttribute("class") ?? "").toContain("opacity-60");
   });
 
-  it("each id sits in a roomy cell and enlarges on hover by transform", () => {
+  it("ids render in a three-track grid and enlarge on hover by transform", () => {
     renderCard("#101 #102 #103 #104 #105 #106 #107 #108 resolve");
+    const grid = chip().querySelector("[data-ticket-chip] > [class*='grid-cols']");
+    expect(grid).not.toBeNull();
+    expect(grid?.className).toContain("grid-cols-[repeat(3,max-content)]");
     const ids = chip().querySelectorAll("[data-ticket-id]");
     expect(ids.length).toBeGreaterThanOrEqual(4);
     const anchor = ids[0];
-    expect(anchor.getAttribute("class") ?? "").toContain("min-w-12");
     expect(anchor.getAttribute("class") ?? "").toContain("hover:scale-110");
+    expect(anchor.getAttribute("class") ?? "").toContain("origin-left");
     expect(anchor.getAttribute("class") ?? "").not.toContain("hover:text-");
   });
 
   it("a chip with many ids wraps onto extra lines instead of overflowing", () => {
     renderCard("#101 #102 #103 #104 #105 #106 #107 #108 resolve");
     const chipEl = chip();
-    expect(chipEl.className).toContain("flex-wrap");
-    expect(chipEl.className).toContain("min-h-5");
+    const gridEl = chipEl.querySelector("[data-ticket-chip] > [class*='grid-cols']");
+    expect(gridEl?.className).toContain("grid-cols-[repeat(3,max-content)]");
+    expect(chipEl.className).not.toContain("flex-wrap");
   });
 
   it("live closed-PR status swaps in the closed-PR glyph muted", async () => {
