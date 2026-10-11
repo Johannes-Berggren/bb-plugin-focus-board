@@ -9,6 +9,10 @@ export const UNRELEASED_ITEMS: readonly { text: string; children: string[]; grou
     "children": []
   },
   {
+    "text": "**The lane move gains a zoom transport.** A board playing the zoom sends a moved card shrinking into its old lane's slot while that slot's space closes with it, then the card grows from small to full in its new lane as the slot's space opens on the same clock, so the space and the card land together. The transporter dissolve stays the default.",
+    "children": []
+  },
+  {
     "text": "**The board's settings live in one gear.** A modal with Behavior, What's new, and About panels replaces the standalone What's-new alert; the toolbar icon is a pulsing gift while there is unseen changelog — its click lands straight on the news — and a settings gear otherwise.",
     "children": []
   },

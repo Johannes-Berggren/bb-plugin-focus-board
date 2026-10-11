@@ -29,6 +29,15 @@ import {
   sparkKeyframes,
   TRANSPORT_BATCH_CAP,
   TRANSPORT_SPARK_COUNT,
+  TRANSPORT_VARIANT,
+  TRANSPORT_ZOOM_IN_EASE,
+  TRANSPORT_ZOOM_IN_MS,
+  TRANSPORT_ZOOM_MIN_SCALE,
+  TRANSPORT_ZOOM_OUT_EASE,
+  TRANSPORT_ZOOM_OUT_MS,
+  transportPhasePlan,
+  zoomInKeyframes,
+  zoomOutKeyframes,
 } from "../components/card-transport";
 import { thread } from "./thread-fixture";
 
@@ -542,7 +551,6 @@ describe("sparkKeyframes", () => {
     // The drift: the end frame sits HIGHER than the start (negative Y).
     expect(String(frames[frames.length - 1].transform)).toContain("-");
   });
-
   it("an arrival glint mirrors the motion: it falls from above its peak", () => {
     const spark = shimmerSparks(400, 14, undefined, "down")[0]!;
     const frames = sparkKeyframes(spark);
@@ -552,5 +560,70 @@ describe("sparkKeyframes", () => {
     const last = String(frames[frames.length - 1].transform);
     expect(last).toContain("translateY(");
     expect(last).not.toContain("translateY(-");
+  });
+});
+
+describe("the zoom transport variant (shrink out / grow in)", () => {
+  it("defaults the board to the dissolve, with zoom a named selectable variant (additive, not a replacement)", () => {
+    expect(TRANSPORT_VARIANT).toBe("dissolve");
+    // The seam: the board reads a plan per variant, keyed by name.
+    expect(transportPhasePlan("dissolve")).not.toEqual(transportPhasePlan("zoom"));
+  });
+
+  it("the dissolve's phase plan stays the operator-tuned one (the zoom changes nothing there)", () => {
+    const plan = transportPhasePlan("dissolve");
+    expect(plan.settleMs).toBe(TRANSPORT_WIPE_IN_MS);
+    expect(plan.collapseStartMs).toBe(TRANSPORT_WIPE_OUT_MS);
+    expect(plan.removeMs).toBe(TRANSPORT_WIPE_OUT_MS + TRANSPORT_COLLAPSE_MS);
+  });
+
+  it("pins the zoom's clocks exactly (deliberate retune, same rule as the sweep anchors)", () => {
+    expect(TRANSPORT_ZOOM_OUT_MS).toBe(320);
+    expect(TRANSPORT_ZOOM_IN_MS).toBe(320);
+  });
+
+  it("the zoom is symmetric — the card shrinks out and grows in at the same rate", () => {
+    expect(TRANSPORT_ZOOM_OUT_MS).toBe(TRANSPORT_ZOOM_IN_MS);
+  });
+
+  it("the old slot's space collapses IN TIME WITH the shrink, never after it", () => {
+    // The dissolve waits for its wipe-out to finish before collapsing; the
+    // zoom starts its slot close the moment the shrink starts (clock 0).
+    const plan = transportPhasePlan("zoom");
+    expect(plan.collapseStartMs).toBe(0);
+    expect(plan.removeMs).toBe(TRANSPORT_ZOOM_OUT_MS);
+  });
+
+  it("the arrival's space grows on the SAME clock as the card's growth, so space and card land together", () => {
+    const plan = transportPhasePlan("zoom");
+    expect(plan.settleMs).toBe(TRANSPORT_ZOOM_IN_MS);
+  });
+
+  it("the recede accelerates away; the arrival eases out and settles", () => {
+    expect(TRANSPORT_ZOOM_OUT_EASE).toBe("cubic-bezier(0.45, 0, 0.85, 0.6)");
+    expect(TRANSPORT_ZOOM_IN_EASE).toBe("cubic-bezier(0.2, 0.65, 0.3, 1)");
+    expect(TRANSPORT_ZOOM_OUT_EASE).not.toBe(TRANSPORT_ZOOM_IN_EASE);
+  });
+
+  it("zoom-out recedes: the whole card shrinks toward the portal scale and fades out (no directional clip)", () => {
+    const frames = zoomOutKeyframes();
+    for (const frame of frames) expect(frame.clipPath).toBeUndefined();
+    expect(frames[0]).toMatchObject({ opacity: 1, transform: "scale(1)" });
+    expect(Number(frames[frames.length - 1].opacity)).toBe(0);
+    expect(frames[frames.length - 1].transform).toBe(`scale(${TRANSPORT_ZOOM_MIN_SCALE})`);
+  });
+
+  it("zoom-in grows: the card grows from the portal scale to full size and lands opaque (no directional clip)", () => {
+    const frames = zoomInKeyframes();
+    for (const frame of frames) expect(frame.clipPath).toBeUndefined();
+    expect(frames[0]).toMatchObject({ opacity: 0, transform: `scale(${TRANSPORT_ZOOM_MIN_SCALE})` });
+    expect(Number(frames[frames.length - 1].opacity)).toBe(1);
+    expect(frames[frames.length - 1].transform).toBe("scale(1)");
+  });
+
+  it("both directions meet at the same portal scale (the shrink-out and grow-in read as one opening)", () => {
+    expect(TRANSPORT_ZOOM_MIN_SCALE).toBe(0.2);
+    expect(TRANSPORT_ZOOM_MIN_SCALE).toBeGreaterThan(0);
+    expect(TRANSPORT_ZOOM_MIN_SCALE).toBeLessThan(0.5);
   });
 });
