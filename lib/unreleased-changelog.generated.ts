@@ -87,7 +87,7 @@ export const UNRELEASED_ITEMS: readonly { text: string; children: string[]; grou
     "group": "Card placement"
   },
   {
-    "text": "**A card's chips group by provider, at most two to a row.** All of a provider's issue ids share one chip and its pull ids another, with the provider mark at the head linking to that kind's list page: the repo's filtered page when the repo is known, GitHub's global one otherwise; long id lists wrap onto extra lines. Each id keeps its own item link inside a three-track grid sized to each track's widest id and enlarges slightly on hover without moving its neighbors; merged ids strike through dimmed grey with the merged glyph reading uncolored, every id's state answers on its hover title, and a kindless `#N` whose status names a PR swaps to the pull glyph.",
+    "text": "**A card's chips group by provider, at most two to a row.** All of a provider's issue ids share one chip and its pull ids another, with the provider mark at the head linking to that kind's list page: the repo's filtered page when the repo is known, GitHub's global one otherwise; long id lists wrap onto extra lines. Each id keeps its own item link inside a three-track grid sized to each track's widest id and enlarges slightly on hover without moving its neighbors, and a hover bubble repeats the id above the cell so a pointer resting on it never hides the text; merged ids strike through dimmed grey with the merged glyph reading uncolored, every id's state answers on its hover title, and a kindless `#N` whose status names a PR swaps to the pull glyph.",
     "children": [],
     "group": "Card ticket chips"
   },
