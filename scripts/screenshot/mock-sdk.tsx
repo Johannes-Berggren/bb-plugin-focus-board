@@ -41,9 +41,12 @@ export function definePluginApp(setup: (app: unknown) => void): unknown {
         registeredNavPanel.path = config.path;
         registeredNavPanel.component = config.component;
       },
-      // The sidebar-footer settings gear (0.5.21): no sidebar is rendered in
-      // the harness, so the registration just has to be accepted.
-      sidebarFooterAction: (_config: { id: string }) => undefined,
+      // The sidebar-footer settings gear (0.5.21): no sidebar renders in
+      // the harness, but the registration is captured so the verify script
+      // can assert the title (the "configuration" noun rule).
+      sidebarFooterAction: (config: { id: string; title: string }) => {
+        registeredSidebarFooterAction = { ...config };
+      },
     },
     // The brand-icon registration (app.tsx FocusBoardAppIcon): no host
     // surface renders icons in the harness, so accept and drop it.
@@ -369,6 +372,9 @@ let simSettings: Record<string, string | number | boolean> = {};
 export function seedSimSettings(seed: Record<string, string | number | boolean>) {
   simSettings = { ...seed };
 }
+// The sidebar-footer action's captured registration (its title is the
+ // "configuration" noun the verify script asserts).
+let registeredSidebarFooterAction: Record<string, unknown> | null = null;
 // Feature groups: the registry (id → name stamps) and the per-thread
 // assignments, module state mutated by group_* writes. The default box
 // wraps the two active threads ("chat-imagegent", the live report's group).
@@ -385,6 +391,12 @@ let simGroupAssignments: Record<string, string> = {
   },
   ranks: () => structuredClone(simRanks),
   calls: () => structuredClone(uatCalls),
+  sidebarFooterAction: () => {
+    const registration = registeredSidebarFooterAction;
+    if (registration === null) return null;
+    const { id, title } = registration as { id: unknown; title: unknown };
+    return { id, title };
+  },
   resetCalls: () => {
     uatCalls.length = 0;
   },
@@ -545,11 +557,16 @@ export function useRealtime(_channel: string, _handler: (payload: unknown) => vo
 }
 
 /**
- * Stub for the SDK's reactive plugin-settings hook (0.5.21): the harness has
- * no host settings surface, so values stay null — the app treats null
- * settings as the documented default (escape-stops-running stays ON).
+ * The reactive plugin-settings hook: the harness simulates the host's
+ * declared-settings store — `updateSettings` merges into `simSettings`, and
+ * this hook reads it back so a write re-renders through the app. `?settings=`
+ * (main.tsx) seeds the store, so a verify run can prove the modal renders
+ * previously-written values. An empty store shows every setting's default.
  */
-export function useSettings(): { values: Record<string, unknown> | null } {
+export function useSettings(): {
+  values: Record<string, unknown> | null;
+  isLoading: boolean;
+} {
   return { values: structuredClone(simSettings), isLoading: false };
 }
 

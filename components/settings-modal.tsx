@@ -395,7 +395,7 @@ function ChoiceRow({
 }
 
 /** The two sweep arms' label copy, mirroring the declared descriptors' labels. */
-const SWEEP_ARMS: Record<string, { label: string; description: string }> = {
+const SWEEP_ARMS: Record<"done" | "idle", { label: string; description: string }> = {
   done: {
     label: "Sweep: archive Done threads after",
     description:
@@ -468,6 +468,9 @@ function SweepThresholdRow({
 
   const commitUnit = (next: ArchiveUnit) => {
     if (next === unit) return;
+    // The count field commits first: its pending edit rides along with the
+    // unit change instead of dying uncommitted when the modal closes.
+    commitValue();
     setSaveError(null);
     Promise.resolve(onSet({ key: unitKey, value: next })).catch(
       (error: unknown) => {

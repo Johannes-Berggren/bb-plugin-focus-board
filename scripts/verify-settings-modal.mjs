@@ -189,50 +189,50 @@ const selectedTab = (page) =>
   // The Behavior tab's Sweep block: both arms at the 2-days defaults.
   const countField = 'input[aria-label="Sweep: archive Done threads after count"]';
   const sweepDefaults = await page.evaluate(() => ({
-      done: document.querySelector('input[aria-label="Sweep: archive Done threads after count"]')?.value ?? null,
-      idle: document.querySelector('input[aria-label="Sweep: mark long-idle threads Done after count"]')?.value ?? null,
-      doneUnit: document.querySelector('select[aria-label="Sweep: archive Done threads after unit"]')?.value ?? null,
-    }));
-    if (sweepDefaults.done === "2" && sweepDefaults.idle === "2" && sweepDefaults.doneUnit === "days") {
-      ok("Sweep rows render the 2-days defaults with unit selects");
-    } else fail(`Sweep rows wrong: ${JSON.stringify(sweepDefaults)}`);
+    done: document.querySelector('input[aria-label="Sweep: archive Done threads after count"]')?.value ?? null,
+    idle: document.querySelector('input[aria-label="Sweep: mark long-idle threads Done after count"]')?.value ?? null,
+    doneUnit: document.querySelector('select[aria-label="Sweep: archive Done threads after unit"]')?.value ?? null,
+  }));
+  if (sweepDefaults.done === "2" && sweepDefaults.idle === "2" && sweepDefaults.doneUnit === "days") {
+    ok("Sweep rows render the 2-days defaults with unit selects");
+  } else fail(`Sweep rows wrong: ${JSON.stringify(sweepDefaults)}`);
 
-    // An out-of-range count writes nothing and shows the failure inline.
-    await page.click(countField);
-    await page.keyboard.press("End");
-    await page.keyboard.down("Shift");
-    await page.keyboard.press("Home");
-    await page.keyboard.up("Shift");
-    await page.keyboard.type("0");
-    await page.keyboard.press("Tab");
-    await new Promise((resolve) => setTimeout(resolve, 300));
-    const outOfRange = await page.$eval('[role="tabpanel"]', (el) => (el.textContent ?? "").includes("Expected an integer between 1 and 365"));
-    if (outOfRange) ok("out-of-range sweep count: inline failure, no write");
-    else fail("out-of-range sweep count surfaced no inline error");
+  // An out-of-range count writes nothing and shows the failure inline.
+  await page.click(countField);
+  await page.keyboard.press("End");
+  await page.keyboard.down("Shift");
+  await page.keyboard.press("Home");
+  await page.keyboard.up("Shift");
+  await page.keyboard.type("0");
+  await page.keyboard.press("Tab");
+  await new Promise((resolve) => setTimeout(resolve, 300));
+  const outOfRange = await page.$eval('[role="tabpanel"]', (el) => (el.textContent ?? "").includes("Expected an integer between 1 and 365"));
+  if (outOfRange) ok("out-of-range sweep count: inline failure, no write");
+  else fail("out-of-range sweep count surfaced no inline error");
 
-    // A valid edit records the declared-key patch — React's onChange fires
-    // on the input event, and the mock's simulated settings store merges it.
-    await page.click(countField);
-    await page.keyboard.press("End");
-    await page.keyboard.down("Shift");
-    await page.keyboard.press("Home");
-    await page.keyboard.up("Shift");
-    await page.keyboard.type("5");
-    await page.keyboard.press("Tab");
-    await new Promise((resolve) => setTimeout(resolve, 300));
-    const sweepWrites = await page.evaluate(() => {
-      const uat = globalThis.__uat;
-      const patch = (uat?.calls() ?? []).find((c) =>
-        String(c.method).includes("updateSettings") &&
-        JSON.stringify(c.args?.values ?? {}).includes("doneArchiveValue"));
-      return patch === undefined ? null : JSON.stringify(patch.args.values);
-    });
-    if (sweepWrites !== null && sweepWrites.includes('"doneArchiveValue":5')) {
-      ok("a valid sweep edit wrote the declared key through updateSettings");
-    } else fail(`no doneArchiveValue:5 patch recorded (got: ${sweepWrites})`);
-    const sweepError = await page.$eval('[role="tabpanel"]', (el) => (el.textContent ?? "").includes("Saving failed"));
-    if (sweepError) fail("a successful sweep edit surfaced an inline error");
-    else ok("successful sweep edit shows no inline error");
+  // A valid edit records the declared-key patch — React's onChange fires
+  // on the input event, and the mock's simulated settings store merges it.
+  await page.click(countField);
+  await page.keyboard.press("End");
+  await page.keyboard.down("Shift");
+  await page.keyboard.press("Home");
+  await page.keyboard.up("Shift");
+  await page.keyboard.type("5");
+  await page.keyboard.press("Tab");
+  await new Promise((resolve) => setTimeout(resolve, 300));
+  const sweepWrites = await page.evaluate(() => {
+    const uat = globalThis.__uat;
+    const patch = (uat?.calls() ?? []).find((c) =>
+      String(c.method).includes("updateSettings") &&
+      JSON.stringify(c.args?.values ?? {}).includes("doneArchiveValue"));
+    return patch === undefined ? null : JSON.stringify(patch.args.values);
+  });
+  if (sweepWrites !== null && sweepWrites.includes('"doneArchiveValue":5')) {
+    ok("a valid sweep edit wrote the declared key through updateSettings");
+  } else fail(`no doneArchiveValue:5 patch recorded (got: ${sweepWrites})`);
+  const sweepError = await page.$eval('[role="tabpanel"]', (el) => (el.textContent ?? "").includes("Saving failed"));
+  if (sweepError) fail("a successful sweep edit surfaced an inline error");
+  else ok("successful sweep edit shows no inline error");
   }
   await page.close();
 }
@@ -252,8 +252,19 @@ const selectedTab = (page) =>
     unit: document.querySelector('select[aria-label="Sweep: archive Done threads after unit"]')?.value ?? null,
   }));
   if (seeded.done === "5" && seeded.unit === "weeks") {
-    ok("the modal renders previously-written sweep values over one reload");
+    ok("a fresh page seeded with a written patch renders the written values");
   } else fail(`round-trip read failed: ${JSON.stringify(seeded)}`);
+
+  // The sidebar footer gear's registration: captured by the mock, the title
+  // must sit on the "configuration" noun (the board's own gear keeps
+  // "settings").
+  const footer = await page.evaluate(() => {
+    const uat = globalThis.__uat;
+    return uat?.sidebarFooterAction?.() ?? null;
+  });
+  if (footer !== null && footer.title === "Focus Board configuration") {
+    ok("footer gear registration titled Focus Board configuration");
+  } else fail(`footer gear registration wrong: ${JSON.stringify(footer)}`);
   await page.close();
 }
 
