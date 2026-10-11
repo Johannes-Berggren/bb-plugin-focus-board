@@ -53,14 +53,13 @@ import { ParentLaneBoard } from "./components/parent-lane-board";
 import {
   applyLaneFreezes,
   capturesEqual,
-  columnPlacementOf,
+  captureColumnAttention,
   compileAttentionFreezes,
   laneCaptureOf,
   stripCapturedIds,
   EMPTY_ATTENTION_FREEZE,
   type AttentionCapture,
   type AttentionOrigin,
-  type AttentionSlot,
   type LaneCapture,
 } from "./components/attention-freeze";
 import { GroupDialog } from "./components/group-dialog";
@@ -974,51 +973,15 @@ function BoardPage({ subPath }: { subPath: string }) {
     parentOf: ReadonlyMap<string, string>;
     groupBoxOf: ReadonlyMap<string, GroupBox>;
   } | null>(null);
-  // Capture one attention on the column board: the focus card's rendered
-  // lane and slot, its family root's card, and every member of its group
-  // box (a half-pinned box would render split across lanes).
+  // Capture one attention on the column board (components/attention-freeze's
+  // captureColumnAttention): the focus card's rendered lane and slot, its
+  // family root's card, and every member of whichever group box holds either
+  // (a half-pinned box would render split across lanes).
   const captureThreadAttention = useCallback(
     (threadId: string, origin: AttentionOrigin): AttentionCapture | null => {
       const input = attentionInputRef.current;
-      if (input === null || input.parent) return null;
-      const assembly = input.assembly;
-      if (assembly === null) return null;
-      const slots: AttentionSlot[] = [];
-      const focusSlot = columnPlacementOf(assembly.columns, threadId);
-      if (focusSlot !== null) slots.push(focusSlot);
-      // The family root's card: the family does not re-lane while its
-      // member is attended (the R4 override's "family wins" rule resumes
-      // when the attention releases).
-      let rootId = threadId;
-      while (input.parentOf.has(rootId)) rootId = input.parentOf.get(rootId) as string;
-      if (rootId !== threadId) {
-        const rootSlot = columnPlacementOf(assembly.columns, rootId);
-        if (rootSlot !== null) slots.push(rootSlot);
-      }
-      const box = input.groupBoxOf.get(threadId);
-      if (box !== undefined) {
-        for (const member of box.members) {
-          if (slots.some((slot) => slot.threadId === member.id)) continue;
-          const slot = columnPlacementOf(assembly.columns, member.id);
-          if (slot !== null) slots.push(slot);
-        }
-      }
-      let rowPin: AttentionCapture["rowPin"] = null;
-      if (focusSlot === null) {
-        // Not rendered standalone: a nested child row (or a done child under
-        // the family's Done projection card). Pin its row slot instead.
-        const parentId = input.parentOf.get(threadId);
-        if (parentId === undefined) return null;
-        for (const rows of [assembly.nestedChildrenByParent.get(parentId), assembly.doneChildrenByParent.get(parentId)]) {
-          if (rows === undefined) continue;
-          const index = rows.findIndex((card) => card.id === threadId);
-          if (index === -1) continue;
-          rowPin = { parentId, childId: threadId, index };
-          break;
-        }
-      }
-      if (slots.length === 0 && rowPin === null) return null;
-      return { origin, view: input.view, focusId: threadId, slots, rowPin, capturedAt: Date.now() };
+      if (input === null) return null;
+      return captureColumnAttention(threadId, input, origin, Date.now());
     },
     [],
   );

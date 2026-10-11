@@ -87,7 +87,12 @@ export const UNRELEASED_ITEMS: readonly { text: string; children: string[]; grou
     "group": "Card placement"
   },
   {
-    "text": "**A card's chips group by provider, at most two to a row.** All of a provider's issue ids share one chip and its pull ids another, with the provider mark at the head linking to that kind's list page: the repo's filtered page when the repo is known, GitHub's global one otherwise; long id lists wrap onto extra lines. Each id keeps its own item link in a roomy cell and enlarges slightly on hover without moving its neighbors; merged ids strike through dimmed grey with the merged glyph reading uncolored, every id's state answers on its hover title, and a kindless `#N` whose status names a PR swaps to the pull glyph.",
+    "text": "**A card's chips group by provider, at most two to a row.** All of a provider's issue ids share one chip and its pull ids another, with the provider mark at the head linking to that kind's list page: the repo's filtered page when the repo is known, GitHub's global one otherwise; long id lists wrap onto extra lines. Each id keeps its own item link inside a three-track grid sized to each track's widest id and enlarges slightly on hover without moving its neighbors; merged ids strike through dimmed grey with the merged glyph reading uncolored, every id's state answers on its hover title, and a kindless `#N` whose status names a PR swaps to the pull glyph.",
+    "children": [],
+    "group": "Card ticket chips"
+  },
+  {
+    "text": "**A group box never splits across lanes while its family card is attended.** Opening the pane on a child of a boxed parent used to freeze only the parent's card: another member's status change then re-laned the box without it, leaving the family in one lane and the group in another until the pane closed. The attention capture now pins the parent's whole box alongside the family, and the box moves together again when the attention releases.",
     "children": [],
     "group": "Card ticket chips"
   },
