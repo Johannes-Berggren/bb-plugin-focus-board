@@ -7,7 +7,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
-- **Cards teleport with the transporter dissolve.** A card moving between lanes dissolves away in its old spot (the slot holds until the dissolve finishes, then the lane closes) and materializes into the new one as its space opens quickly around it; both sweeps ease in slowly, bloom brighter as they travel, and carry a shimmer of rising blue-white sparkle glints. A view switch or a whole-board batch move keeps the plain reflow.
+- **Cards teleport with the transporter dissolve.** A card moving between lanes dissolves away in its old spot (the slot holds until the dissolve finishes, then the lane closes) and materializes into the new one as its space opens quickly around it; both sweeps ease in slowly and bloom brighter as they travel, each carrying its own shimmer — silver glints rising from the bottom as the card departs, amber glints descending from the top as it arrives. A view switch or a whole-board batch move keeps the plain reflow.
 - **Family boxes teleport as one unit.** A dashed box relocating between lanes dissolves as the whole container, slot hold and collapse included, instead of a scatter of per-card ghosts, and it holds its true old slot in the lane even when it sat mid-lane. A box whose membership changes while it moves keeps the plain reflow.
 - **The board's settings live in one gear.** A modal with Behavior, What's new, and About panels replaces the standalone What's-new alert; the toolbar icon is a pulsing gift while there is unseen changelog — its click lands straight on the news — and a settings gear otherwise.
 
