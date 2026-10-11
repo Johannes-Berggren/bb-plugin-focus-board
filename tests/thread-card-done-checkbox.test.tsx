@@ -1,12 +1,12 @@
 // @vitest-environment jsdom
-// The title-row Mark Done checkbox: a checkbox sits LEFT OF THE THREAD TITLE
-// in a reserved gutter (the title never reflows on hover — only arming
-// pushes, adding the inline label so the title wraps in the narrower
-// space). The first click ARMS, the second click fires the write. Done
-// cards mirror it: a CHECKED box that arms "Mark Not Done". This file pins
-// the behavior the operator actually sees: placement (title row, not the
-// corner), arm, confirm, disarm-on-leave, the done mirror, and the gates
-// (unwired surfaces and sweep-selecting mode render nothing).
+// The status-dot swap: on hover, the card's state dot yields its exact
+// slot to the done checkbox — empty on not-done cards, checked on done —
+// so the reveal moves NOTHING on the card. The first click ARMS (the
+// label joins the header row inline), the second click fires the write,
+// and hovering away disarms. This file pins the behavior the operator
+// actually sees: the dot-to-checkbox swap, arm, confirm, disarm, the done
+// mirror, and the gates (unwired surfaces and sweep-selecting keep the
+// plain dot).
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render } from "@testing-library/react";
 import { ThreadCard } from "../components/thread-card";
@@ -22,7 +22,7 @@ function card(props: {
   return render(
     <ThreadCard
       thread={thread({ id: "thr_check", displayTitle: "Wired thread", updatedAt: 1 })}
-      stateDot={null}
+      stateDot={<span data-state-dot="" />}
       isActive={false}
       isDone={props.isDone ?? false}
       projectName="Proj"
@@ -40,35 +40,49 @@ function checkbox(): HTMLElement {
   return node;
 }
 
-describe("the title-row Mark Done checkbox", () => {
-  it("sits in the title row, left of the title, reserving the gutter", () => {
+describe("the status-dot done checkbox", () => {
+  it("occupies the state dot's slot: the dot is wrapped to yield on hover", () => {
     card({ onMarkDone: () => {} });
     const node = checkbox();
-    // Structural placement contract: the checkbox's flex sibling is the
-    // title paragraph, so the box reads left of the title and the armed
-    // label grows in-flow (pushing the title right), never floating over
-    // the corner.
-    const row = node.parentElement;
-    if (!(row instanceof HTMLElement)) throw new Error("missing title row");
-    expect(row.className).toContain("flex");
-    const title = row.querySelector("p");
-    if (!(title instanceof HTMLElement)) throw new Error("missing title");
-    expect(title.className).toContain("flex-1");
-    expect(node.nextElementSibling).toBe(title);
-    // Idle: the empty checkbox glyph, unarmed, no label text.
+    // The checkbox is centered over the dot's fixed slot, not a sibling of
+    // the title and not a corner overlay.
+    const slot = node.parentElement;
+    if (!(slot instanceof HTMLElement)) throw new Error("missing dot slot");
+    expect(slot.className).toContain("relative");
+    const dotWrap = slot.querySelector("[data-state-dot]")?.parentElement;
+    if (!(dotWrap instanceof HTMLElement)) throw new Error("missing dot wrapper");
+    // The dot fades out on hover (the swap).
+    expect(dotWrap.className).toContain("group-hover:opacity-0");
+    // Idle: the empty checkbox glyph, unarmed, no label in the header row.
     expect(node.hasAttribute("data-done-armed")).toBe(false);
     expect(node.querySelector("[data-icon]")?.getAttribute("data-icon")).toBe("Checkbox");
-    expect(node.textContent).not.toContain("Mark Done");
+    expect(document.querySelector("[data-done-armed-tag]")).toBeNull();
   });
 
-  it("arms on the first click without firing the write, label pushing the title", () => {
+  it("keeps the plain dot when the surface is unwired or sweep-selecting", () => {
+    card({});
+    expect(document.querySelector("[data-done-checkbox]")).toBeNull();
+    const dot = document.querySelector('[data-thread-card="thr_check"] [data-state-dot]');
+    if (!(dot instanceof HTMLElement)) throw new Error("missing state dot");
+    // The dot renders bare (no yielding wrapper) when there is no checkbox.
+    expect(dot.parentElement?.className).not.toContain("group-hover:opacity-0");
+    card({ onMarkDone: () => {}, isSweepSelecting: true });
+    expect(document.querySelector("[data-done-checkbox]")).toBeNull();
+  });
+
+  it("arms on the first click: the label joins the header row, no write", () => {
     const onMarkDone = vi.fn();
     card({ onMarkDone });
     const node = checkbox();
     fireEvent.click(node);
     expect(node.hasAttribute("data-done-armed")).toBe(true);
-    expect(node.textContent).toContain("Mark Done");
     expect(node.querySelector("[data-icon]")?.getAttribute("data-icon")).toBe("CheckboxChecked");
+    // The armed label is a header-row sibling AFTER the dot slot (inline,
+    // not inside the button, not over the title).
+    const tag = document.querySelector('[data-thread-card="thr_check"] [data-done-armed-tag]');
+    if (!(tag instanceof HTMLElement)) throw new Error("missing armed tag");
+    expect(tag.textContent).toBe("Mark Done");
+    expect(node.parentElement?.nextElementSibling).toBe(tag);
     expect(onMarkDone).not.toHaveBeenCalled();
   });
 
@@ -80,6 +94,7 @@ describe("the title-row Mark Done checkbox", () => {
     fireEvent.click(node);
     expect(onMarkDone).toHaveBeenCalledTimes(1);
     expect(node.hasAttribute("data-done-armed")).toBe(false);
+    expect(document.querySelector("[data-done-armed-tag]")).toBeNull();
   });
 
   it("disarms when the pointer leaves the card, without firing the write", () => {
@@ -101,25 +116,16 @@ describe("the title-row Mark Done checkbox", () => {
     const node = checkbox();
     // Idle done card: the CHECKED glyph, no label.
     expect(node.querySelector("[data-icon]")?.getAttribute("data-icon")).toBe("CheckboxChecked");
-    expect(node.textContent).not.toContain("Mark Not Done");
-    // Armed: the "Mark Not Done" label joins in-flow.
+    expect(document.querySelector("[data-done-armed-tag]")).toBeNull();
+    // Armed: the "Mark Not Done" label joins the header row.
     fireEvent.click(node);
-    expect(node.hasAttribute("data-done-armed")).toBe(true);
-    expect(node.textContent).toContain("Mark Not Done");
+    const tag = document.querySelector('[data-thread-card="thr_check"] [data-done-armed-tag]');
+    if (!(tag instanceof HTMLElement)) throw new Error("missing armed tag");
+    expect(tag.textContent).toBe("Mark Not Done");
     expect(onMarkDone).not.toHaveBeenCalled();
-    // Confirm: the write fires (the handler flips done off its own state).
+    // Confirm: the write fires once (the handler flips done off its own state).
     fireEvent.click(node);
     expect(onMarkDone).toHaveBeenCalledTimes(1);
     expect(node.hasAttribute("data-done-armed")).toBe(false);
-  });
-
-  it("does not render when the surface gives no handler", () => {
-    card({});
-    expect(document.querySelector("[data-done-checkbox]")).toBeNull();
-  });
-
-  it("does not render in sweep-selecting mode (the click there curates the sweep)", () => {
-    card({ onMarkDone: () => {}, isSweepSelecting: true });
-    expect(document.querySelector("[data-done-checkbox]")).toBeNull();
   });
 });

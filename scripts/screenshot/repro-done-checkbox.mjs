@@ -1,8 +1,8 @@
-// One-shot headless repro for the title-row Mark Done checkbox: a non-done
-// card shows an empty checkbox LEFT OF THE TITLE on hover, the first click
-// arms it ("Mark Done" inline, pushing the title right), the second click
-// moves the card to Done. A done card mirrors: a checked box that arms
-// "Mark Not Done" with the same push. Dumps structural evidence to
+// One-shot headless repro for the status-dot done checkbox: on hover the
+// card's state dot swaps to the checkbox (nothing else moves), the first
+// click arms it (the label joins the header row), the second click moves
+// the card to Done; a done card mirrors with a checked box arming "Mark
+// Not Done". Dumps structural evidence to
 // docs/screenshots/repro-done-checkbox/evidence.json and captures
 // hover.png / armed.png / done-armed.png. Run the vite harness first:
 //   npm run build && npx vite --config scripts/screenshot/vite.config.ts
@@ -42,34 +42,38 @@ const cardId = await page.$eval(cardSel, (el) => el.getAttribute("data-thread-ca
 await cardHandle.scrollIntoView();
 evidence.cardId = cardId;
 
-// 1. Hover the card: the checkbox is visible (opacity 1) and idle-armed.
+// Title width with no hover, for the nothing-moves contract.
+const titleBoxIdle = await page.$eval(`${cardSel} [data-title]`, (el) => el.getBoundingClientRect().width);
+
+// 1. Hover the card: the checkbox is visible (opacity 1) at the dot slot —
+// top-left of the card body, level with the timestamp row — and the title
+// keeps its exact idle width (the swap moves nothing).
 await cardHandle.hover();
 await new Promise((r) => setTimeout(r, 300));
 const hoverStyle = await page.$eval(checkboxSel, (el) => {
   const s = getComputedStyle(el);
+  const card = el.closest("[data-thread-card]").getBoundingClientRect();
   const box = el.getBoundingClientRect();
-  const title = el.nextElementSibling?.getBoundingClientRect();
   return {
     opacity: s.opacity,
-    // Left of the title: the box's right edge sits at or before the
-    // title's left edge.
-    leftOfTitle: title === undefined ? null : box.right <= title.left + 1,
+    // Dot slot: within the card's header area, at its left edge.
+    inHeaderLeft: box.top < card.top + 40 && box.left < card.left + 40,
   };
 });
-evidence.hoverReveal = hoverStyle;
+const titleBoxHover = await page.$eval(`${cardSel} [data-title]`, (el) => el.getBoundingClientRect().width);
+evidence.hoverReveal = { ...hoverStyle, titleWidthIdle: titleBoxIdle, titleWidthHover: titleBoxHover };
 await page.screenshot({ path: path.join(outDir, "hover.png") });
 
-// 2. Click 1: arms. The label joins in-flow and the title's box narrows
-// (the push), reporting both the armed state and the title shift.
-const titleBoxBefore = await page.$eval(`${cardSel} [data-title]`, (el) => el.getBoundingClientRect().width);
+// 2. Click 1: arms. The label joins the header row and the title keeps its
+// width (the arm pushes nothing out of the title).
 await page.click(checkboxSel);
 await new Promise((r) => setTimeout(r, 200));
-evidence.armed = await page.$eval(checkboxSel, (el) => ({
-  armed: el.hasAttribute("data-done-armed"),
-  tag: el.querySelector('[data-done-armed-tag]')?.textContent ?? null,
-}));
-const titleBoxAfter = await page.$eval(`${cardSel} [data-title]`, (el) => el.getBoundingClientRect().width);
-evidence.armed.titlePush = { titleWidthBefore: titleBoxBefore, titleWidthAfter: titleBoxAfter };
+const titleBoxArmed = await page.$eval(`${cardSel} [data-title]`, (el) => el.getBoundingClientRect().width);
+evidence.armed = {
+  ...(await page.$eval(checkboxSel, (el) => ({ armed: el.hasAttribute("data-done-armed") }))),
+  tag: await page.$eval(`${cardSel} [data-done-armed-tag]`, (el) => el.textContent),
+  titleWidthArmed: titleBoxArmed,
+};
 await page.screenshot({ path: path.join(outDir, "armed.png") });
 
 // 3. Click 2: marks done — the card lands in the Done lane, and its idle
@@ -90,12 +94,11 @@ evidence.done = await page.evaluate((id) => {
   };
 }, cardId);
 
-// 4. The done card mirrors: hover arms "Mark Not Done" with the same push.
-const doneCardHandle = await page.evaluateHandle((id) => {
+// 4. The done card mirrors: hover arms "Mark Not Done".
+const doneEl = await page.evaluateHandle((id) => {
   const doneLane = document.querySelector('[data-column-id="done"]');
   return [...doneLane.querySelectorAll(`[data-thread-card="${id}"]`)][0];
-}, cardId);
-const doneEl = doneCardHandle.asElement();
+}, cardId).then((h) => h.asElement());
 if (doneEl === null) throw new Error("done card not found in Done lane");
 await doneEl.scrollIntoView();
 await doneEl.hover();
@@ -104,10 +107,11 @@ await page.click(`[data-column-id="done"] [data-thread-card="${cardId}"] [data-d
 await new Promise((r) => setTimeout(r, 200));
 evidence.doneArmed = await page.$eval(
   `[data-column-id="done"] [data-thread-card="${cardId}"] [data-done-checkbox]`,
-  (el) => ({
-    armed: el.hasAttribute("data-done-armed"),
-    tag: el.querySelector('[data-done-armed-tag]')?.textContent ?? null,
-  }),
+  (el) => ({ armed: el.hasAttribute("data-done-armed") }),
+);
+evidence.doneArmed.tag = await page.$eval(
+  `[data-column-id="done"] [data-thread-card="${cardId}"] [data-done-armed-tag]`,
+  (el) => el.textContent,
 );
 await page.screenshot({ path: path.join(outDir, "done-armed.png") });
 

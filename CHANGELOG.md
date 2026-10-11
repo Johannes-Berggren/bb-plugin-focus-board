@@ -12,7 +12,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **The lane move gains a zoom transport.** A board playing the zoom sends a moved card shrinking into its old lane's slot while that slot's space closes with it, then the card grows from small to full in its new lane as the slot's space opens on the same clock, so the space and the card land together. The transporter dissolve stays the default.
 - **The board's settings live in one gear.** A modal with Behavior, What's new, and About panels replaces the standalone What's-new alert; the toolbar icon is a pulsing gift while there is unseen changelog — its click lands straight on the news — and a settings gear otherwise.
   - **Appearance joins the tabs.** Card animations pick the transporter read (None snaps into place, Teleport dissolves, Zoom out / in waits visibly), motion can force quieter or fuller animation than the OS setting, and the wallpaper picker lives here; the rail marks the read tab with an accent bar, and What's-new lines fresh on dev tint amber.
-- **A title checkbox settles threads.** Hovering a card shows a checkbox left of its title, empty on not-done cards and checked on done; the first click arms it ("Mark Done" or "Mark Not Done" inline, pushing the title to wrap) and the second click writes, with hovering away disarming so a stray pointer settles nothing.
+- **A status-dot checkbox settles threads.** Hovering a card swaps its state dot for a checkbox, empty on not-done cards and checked on done; the first click arms it ("Mark Done" or "Mark Not Done" joins the header row) and the second click writes, with hovering away disarming so a stray pointer settles nothing.
 
 #### Settings
 

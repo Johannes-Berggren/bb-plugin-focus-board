@@ -616,61 +616,65 @@ export function ThreadCard({
   const fades = isDone || dimmed || snoozed;
   const dimsByScrim = wallpaperActive && fades && !isSweepHighlighted;
 
-  // The two-click Mark Done checkbox, sitting LEFT OF THE THREAD TITLE in a
-  // reserved gutter (the title never reflows on hover — only ARMING pushes,
-  // adding the inline label so the title wraps in the narrower space).
-  // Done cards mirror it: a checked box that arms "Mark Not Done". The
-  // first click arms, the second fires `onMarkDone`; hovering away disarms,
-  // so an armed card never survives a stray pointer into a later
-  // accidental settle. Sweeps are modal: while this card's column curates
-  // a sweep the checkbox cedes every click to the selection gesture.
+  // The two-click Mark Done checkbox, swapped INTO THE STATE DOT'S SLOT: on
+  // hover the dot fades and the checkbox centers over its exact pixels —
+  // empty on not-done cards, checked on done — so the reveal moves nothing
+  // on the card. Arming joins the label ("Mark Done" / "Mark Not Done")
+  // inline in the header row, right of the slot. The first click arms, the
+  // second fires `onMarkDone`; hovering away disarms, so an armed card
+  // never survives a stray pointer into a later accidental settle. Sweeps
+  // are modal: while this card's column curates a sweep the dot stays a
+  // dot and every click stays with the selection gesture.
   const [armedDone, setArmedDone] = useState(false);
   const showDoneCheckbox = onMarkDone !== undefined && !isSweepSelecting;
   const doneLabel = isDone ? "Mark Not Done" : "Mark Done";
-  const doneCheckbox = showDoneCheckbox ? (
-    <button
-      type="button"
-      data-done-checkbox=""
-      data-done-armed={armedDone ? "" : undefined}
-      aria-label={armedDone ? doneLabel : `Arm ${doneLabel}`}
-      title={armedDone ? "Click again to confirm" : "Click to arm"}
-      onClick={(event) => {
-        // The checkbox lives inside the card's anchor — the ticket-chip
-        // precedent (interactive content in the anchor's flow). The stop
-        // keeps the anchor's own activation (open the pane, the sweep
-        // toggle, the native href) from firing under the checkbox's click.
-        event.preventDefault();
-        event.stopPropagation();
-        if (armedDone) {
-          setArmedDone(false);
-          onMarkDone();
-        } else {
-          setArmedDone(true);
-        }
-      }}
-      className={cn(
-        "mt-px flex shrink-0 items-center gap-1 rounded-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-        armedDone
-          ? "text-amber-600"
-          : "text-muted-foreground/50 opacity-0 group-hover:opacity-100 focus-visible:opacity-100",
-      )}
-    >
-      <Icon
-        name={armedDone || isDone ? "CheckboxChecked" : "Checkbox"}
-        className="size-3.5 shrink-0"
-        aria-hidden
-      />
-      {armedDone ? (
-        <span
-          data-done-armed-tag=""
+  const doneDotSlot = showDoneCheckbox ? (
+    <span className="relative flex size-1.5 shrink-0 items-center justify-center">
+      <span
+        className={cn(
+          "flex items-center transition-opacity",
+          armedDone
+            ? "opacity-0"
+            : "opacity-100 group-hover:opacity-0 group-focus-within:opacity-0",
+        )}
+      >
+        {stateDot}
+      </span>
+      <button
+        type="button"
+        data-done-checkbox=""
+        data-done-armed={armedDone ? "" : undefined}
+        aria-label={armedDone ? doneLabel : `Arm ${doneLabel}`}
+        title={armedDone ? "Click again to confirm" : "Click to arm"}
+        onClick={(event) => {
+          // The checkbox lives inside the card's anchor — the ticket-chip
+          // precedent (interactive content in the anchor's flow). The stop
+          // keeps the anchor's own activation (open the pane, the sweep
+          // toggle, the native href) from firing under the checkbox's click.
+          event.preventDefault();
+          event.stopPropagation();
+          if (armedDone) {
+            setArmedDone(false);
+            onMarkDone();
+          } else {
+            setArmedDone(true);
+          }
+        }}
+        className={cn(
+          "absolute left-1/2 top-1/2 flex -translate-x-1/2 -translate-y-1/2 items-center rounded-sm p-0.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+          armedDone
+            ? "text-amber-600 opacity-100"
+            : "text-muted-foreground/50 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100",
+        )}
+      >
+        <Icon
+          name={armedDone || isDone ? "CheckboxChecked" : "Checkbox"}
+          className="size-3.5 shrink-0"
           aria-hidden
-          className="whitespace-nowrap text-[10px] font-medium leading-none"
-        >
-          {doneLabel}
-        </span>
-      ) : null}
-    </button>
-  ) : null;
+        />
+      </button>
+    </span>
+  ) : stateDot;
 
   // The card is a container; the anchor (title/body) and the collapse toggle
   // are siblings inside it — a button inside an anchor would be invalid HTML.
@@ -795,7 +799,16 @@ export function ThreadCard({
           )}
         >
           <div className="flex items-center gap-1.5 pl-1.5">
-            {stateDot}
+            {doneDotSlot}
+            {showDoneCheckbox && armedDone ? (
+              <span
+                data-done-armed-tag=""
+                aria-hidden
+                className="whitespace-nowrap text-[10px] font-medium leading-none text-amber-600"
+              >
+                {doneLabel}
+              </span>
+            ) : null}
             {thread.isPinned ? (
               <Icon name="Pin" className="size-3 text-muted-foreground/70" aria-hidden />
             ) : null}
@@ -838,14 +851,7 @@ export function ThreadCard({
               {relativeTime(thread.updatedAt, now)}
             </span>
           </div>
-          {doneCheckbox === null ? (
-            <p data-title="" className={cn("mt-0.5 line-clamp-2 pl-1.5 leading-snug", compact ? "text-[11px]" : "text-[13px]")}>{thread.displayTitle}</p>
-          ) : (
-            <div className="mt-0.5 flex items-start gap-1.5 pl-1.5">
-              {doneCheckbox}
-              <p data-title="" className={cn("min-w-0 flex-1 line-clamp-2 leading-snug", compact ? "text-[11px]" : "text-[13px]")}>{thread.displayTitle}</p>
-            </div>
-          )}
+          <p data-title="" className={cn("mt-0.5 line-clamp-2 pl-1.5 leading-snug", compact ? "text-[11px]" : "text-[13px]")}>{thread.displayTitle}</p>
           <p className="mt-0.5 truncate pl-1.5 text-[11px] text-muted-foreground/70">
             {projectName}
             {branch === "" ? null : <span className="text-muted-foreground/40"> · {branch}</span>}
