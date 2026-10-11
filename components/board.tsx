@@ -40,6 +40,7 @@ import {
   DRAG_ID_KEY,
   isLaneDrag,
   moveTargetFor,
+  rankDragType,
   type RankStore,
 } from "../lib/rank";
 import { reparentRefusalFromParents } from "../lib/reparent";
@@ -1210,6 +1211,27 @@ export function Board({
   function clearRankDrop(): void {
     setRankDrop(null);
   }
+
+  /**
+   * The shared rank-drag lifecycle, moved out of the card's `onRankDragStart`
+   * so the group-box labels start (and end) the same drag state: the dragged
+   * card id, the column headers' in-flight growth, and the promise cleanup a
+   * drag that ends anywhere but a successful drop owes the board.
+   */
+  const rankDragLifecycle = (id: string | null): void => {
+    draggingIdRef.current = id;
+    // Any drag in flight is the board's signal to grow the column headers (they
+    // are detach targets the whole time a family drag lives).
+    setDragInFlight(id !== null);
+    // A drag that ends anywhere but a successful drop (Escape, a refused
+    // target) must not leave its insertion line — or its join-hover promise —
+    // on screen.
+    if (id === null) {
+      clearRankDrop();
+      setJoinHoverId(null);
+      clearChildDrop();
+    }
+  };
 
   /**
    * Report a reorder that cannot complete, naming the reason.
@@ -2546,22 +2568,7 @@ export function Board({
                               : undefined
                           }
                           rankKey={ranking ? rankKey : undefined}
-                          onRankDragStart={(id) => {
-                            draggingIdRef.current = id;
-                            // Any drag in flight is the board's signal to grow
-                            // the column headers (they are detach targets the
-                            // whole time a family drag lives).
-                            setDragInFlight(id !== null);
-                            // A drag that ends anywhere but a successful drop
-                            // (Escape, a refused target) must not leave its
-                            // insertion line — or its join-hover promise — on
-                            // screen.
-                            if (id === null) {
-                              clearRankDrop();
-                              setJoinHoverId(null);
-                              clearChildDrop();
-                            }
-                          }}
+                          onRankDragStart={rankDragLifecycle}
                         />
                         {/* The shimmer rides both sweeps: the ghost's
                             glints twinkle out over the OLD visuals, the
@@ -2660,6 +2667,33 @@ export function Board({
                       play.arrival === "wiping-in"
                       ? play
                       : undefined;
+                  };
+                  /**
+                   * The group-box label is a drag source for the whole box: it
+                   * carries the LEAD member's id (the payload every drop path
+                   * already reads) plus this lane's rank-drag type, and hands
+                   * the shared lifecycle the lead's id — from here the unit
+                   * move math, the column-floor append, and the join
+                   * affordances all run exactly as they do for a member card
+                   * grab.
+                   */
+                  const beginBoxLabelDrag = (
+                    event: React.DragEvent,
+                    box: { members: readonly PluginSidebarThread[] },
+                  ): void => {
+                    const lead = box.members[0];
+                    if (lead === undefined) return;
+                    // A sleeping card refuses drag everywhere; the label is
+                    // no exception.
+                    if ((snoozeFor?.(lead.id) ?? null) !== null) {
+                      event.preventDefault();
+                      return;
+                    }
+                    event.dataTransfer.setData(DRAG_ID_KEY, lead.id);
+                    if (ranking) {
+                      event.dataTransfer.setData(rankDragType(rankKey), "");
+                      rankDragLifecycle(lead.id);
+                    }
                   };
                   const renderRun = (runItem: GroupRunItem) =>
                     runItem.kind === "single" ? (
@@ -2891,7 +2925,10 @@ export function Board({
                                 <button
                                   type="button"
                                   data-group-box-label={runItem.box.groupId}
-                                  title={`Feature group “${runItem.box.name}” — click to rename; drag any member to move the whole box; drop a card on this box to join the group`}
+                                  title={`Feature group “${runItem.box.name}” — click to rename; drag this label or any member to move the whole box; drop a card on this box to join the group`}
+                                  draggable
+                                  onDragStart={(event) => beginBoxLabelDrag(event, runItem.box)}
+                                  onDragEnd={() => rankDragLifecycle(null)}
                                   onClick={() => startLabelRename(runItem.box.groupId)}
                                   className="absolute -top-2 left-3 z-10 max-w-48 truncate rounded-sm bg-muted px-1 text-left text-[10.5px] leading-[14px] text-muted-foreground hover:text-foreground"
                                 >
@@ -2900,7 +2937,10 @@ export function Board({
                               ) : (
                                 <span
                                   data-group-box-label={runItem.box.groupId}
-                                  title={`Feature group “${runItem.box.name}” — drag any member to move the whole box; drop a card on this box to join the group`}
+                                  title={`Feature group “${runItem.box.name}” — drag this label or any member to move the whole box; drop a card on this box to join the group`}
+                                  draggable
+                                  onDragStart={(event) => beginBoxLabelDrag(event, runItem.box)}
+                                  onDragEnd={() => rankDragLifecycle(null)}
                                   className="absolute -top-2 left-3 z-10 rounded-sm bg-muted px-1 text-[10.5px] leading-[14px] text-muted-foreground"
                                 >
                                   {runItem.box.name}
