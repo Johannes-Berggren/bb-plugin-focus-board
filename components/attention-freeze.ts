@@ -26,6 +26,7 @@
 import type { PluginSidebarThread } from "@get-bb/plugin-sdk/app";
 import type { BoardColumn, GroupBy } from "./grouping";
 import type { ParentLane } from "./parent-lanes";
+import type { GroupBoxMap } from "./group-boxes";
 
 /** What opened a freeze: the pointer, the open thread pane, or an open
  *  card context menu (the popover is a portal outside the card's DOM, so
@@ -232,6 +233,102 @@ export function laneCaptureOf(
     }
   }
   return null;
+}
+
+/**
+ * The bridge the caller builds once per render and the capture reads at
+ * attention-event time (app.tsx's `attentionInputRef` shape, stated
+ * structurally so this module never imports the board assembly type).
+ */
+export interface ColumnAttentionInput {
+  /** True only on the parent lane view, whose captures are LaneCaptures. */
+  parent: boolean;
+  /** The grouping the capture is taken under; a capture from another
+   *  grouping must not pin into this one. */
+  view: GroupBy;
+  /** The assembled column board (columns plus nesting maps), null on the
+   *  parent lane view. */
+  assembly: {
+    columns: readonly BoardColumn[];
+    nestedChildrenByParent: ReadonlyMap<string, readonly PluginSidebarThread[]>;
+    doneChildrenByParent: ReadonlyMap<string, readonly PluginSidebarThread[]>;
+  } | null;
+  parentOf: ReadonlyMap<string, string>;
+  groupBoxOf: GroupBoxMap;
+}
+
+/**
+ * Capture one attention on the column board: a pure statement of the slot
+ * set an attended placement must pin (app.tsx reads this at attention-event
+ * time). The slots cover:
+ *
+ * - the focus card itself (absent when the focus renders as a nested row —
+ *   the caller pins its row slot instead),
+ * - its family root's card — the family does not re-lane while its member is
+ *   attended,
+ * - the focus's OWN group box, whole (a half-pinned box would render split
+ *   across lanes),
+ * - the family root's group box, whole: the attended focus can be a nested
+ *   child the box has never boxed, while the root card it cloned IS a box
+ *   member. Without this pass the box's other members re-lane around the
+ *   frozen root on the next status change — the root holds its lane, the
+ *   rest land elsewhere, and the box renders split (reproduced live
+ *   2026-10-10: a pane opened on a family child froze the parent card in
+ *   Unread while the chat-imagegen box re-laned to Working without it).
+ *
+ * Returns null when nothing renders (no assembly, parent view, a focus a
+ * column and no row both miss).
+ */
+export function captureColumnAttention(
+  focusId: string,
+  input: ColumnAttentionInput,
+  origin: AttentionOrigin,
+  capturedAt: number = Date.now(),
+): AttentionCapture | null {
+  if (input.parent) return null;
+  const assembly = input.assembly;
+  if (assembly === null) return null;
+  const slots: AttentionSlot[] = [];
+  const pinThread = (threadId: string): void => {
+    const slot = columnPlacementOf(assembly.columns, threadId);
+    if (slot !== null) slots.push(slot);
+  };
+  // The group box a thread renders in pins WHOLE: every member at its
+  // rendered placement, already-pinned members skipped.
+  const pinBoxOf = (threadId: string): void => {
+    const box = input.groupBoxOf.get(threadId);
+    if (box === undefined) return;
+    for (const member of box.members) {
+      if (slots.some((slot) => slot.threadId === member.id)) continue;
+      pinThread(member.id);
+    }
+  };
+  pinThread(focusId);
+  // The family root's card: the family does not re-lane while its member is
+  // attended (the R4 override's "family wins" rule resumes when the attention
+  // releases).
+  let rootId = focusId;
+  while (input.parentOf.has(rootId)) rootId = input.parentOf.get(rootId) as string;
+  if (rootId !== focusId) pinThread(rootId);
+  pinBoxOf(rootId);
+  pinBoxOf(focusId);
+  let rowPin: AttentionCapture["rowPin"] = null;
+  const focusSlot = slots.find((slot) => slot.threadId === focusId);
+  if (focusSlot === undefined) {
+    // Not rendered standalone: a nested child row (or a done child under
+    // the family's Done projection card). Pin its row slot instead.
+    const parentId = input.parentOf.get(focusId);
+    if (parentId === undefined) return null;
+    for (const rows of [assembly.nestedChildrenByParent.get(parentId), assembly.doneChildrenByParent.get(parentId)]) {
+      if (rows === undefined) continue;
+      const index = rows.findIndex((card) => card.id === focusId);
+      if (index === -1) continue;
+      rowPin = { parentId, childId: focusId, index };
+      break;
+    }
+  }
+  if (slots.length === 0 && rowPin === null) return null;
+  return { origin, view: input.view, focusId, slots, rowPin, capturedAt };
 }
 
 /**
