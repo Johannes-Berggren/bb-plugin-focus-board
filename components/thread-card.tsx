@@ -226,7 +226,7 @@ function ProviderTicketChip({
   const isGithub = row.provider === "github";
   const markHref = ticketChipIconHref(row, chip.kind);
   const className =
-    "inline-flex min-h-5 flex-wrap items-center gap-x-1 gap-y-0.5 rounded bg-muted px-1 py-0.5 font-mono text-[10px] leading-none text-muted-foreground";
+    "inline-flex min-h-5 items-start gap-x-1 rounded bg-muted px-1 py-0.5 font-mono text-[10px] leading-none text-muted-foreground";
   const mark =
     isGithub ? (
       <Icon name="GithubMark" className="size-3 shrink-0" aria-hidden />
@@ -295,16 +295,15 @@ function ProviderTicketChip({
     // The kind glyph keeps the state shape (and open's emerald); merged and
     // closed glyphs and all id text read plain. A merged id dims grey and
     // strikes through so it reads as done, with no color on hover. Each id
-    // sits in a roomy fixed-width cell and enlarges on hover by transform,
-    // so the enlargement never reflows a neighbor.
+    // enlarges on hover by transform — never a layout change, so no id ever
+    // bumps a neighbor.
     const status =
       isGithub && ref.number !== undefined
         ? statusFor?.(ticketStatusRepo(ref, projectRepo), ref.number)
         : undefined;
     const title = status === undefined ? undefined : `${status.kind} ${status.state}`;
     const text = ticketChipIdText(ref);
-    const cell =
-      "inline-flex min-w-12 justify-center transition-transform hover:scale-110";
+    const cell = "inline-flex origin-left transition-transform hover:scale-110";
     const body = (
       <span className={status?.state === "MERGED" ? "line-through opacity-60" : undefined}>
         {text}
@@ -333,7 +332,13 @@ function ProviderTicketChip({
     <span className={className} data-ticket-chip="">
       {markElement}
       {kindGlyph}
-      {ids}
+      {/* The ids sit in a real grid, three left-aligned tracks per line
+          sized to each track's widest id, so every wrapped line shares the
+          same columns (the mark and glyph anchor the top-left corner and
+          never join the id flow to shorten the first line). */}
+      <span className="grid grid-cols-[repeat(3,max-content)] justify-items-start gap-x-2 gap-y-0.5">
+        {ids}
+      </span>
     </span>
   );
 }
