@@ -204,6 +204,32 @@ describe("ticket chip icons — issue vs PR glyph", () => {
     expect(anchor.getAttribute("class") ?? "").not.toContain("hover:text-");
   });
 
+  it("a single-id chip reserves one track — no phantom width from empty columns", () => {
+    renderCard("Mark thread done rename worktree #32");
+    const grid = chip().querySelector("[data-ticket-chip] > [class*='grid-cols']");
+    expect(grid?.className).toContain("grid-cols-[max-content]");
+    // Empty tracks would still collect their column gaps, leaving the chip
+    // wider than its one id.
+    expect(grid?.className).not.toContain("repeat(3");
+    expect(chip().querySelectorAll("[data-ticket-id]")).toHaveLength(1);
+  });
+
+  it("a two-id chip reserves two tracks", () => {
+    renderCard("Watch the pair #61 #62 settle");
+    const grid = chip().querySelector("[data-ticket-chip] > [class*='grid-cols']");
+    expect(grid?.className).toContain("grid-cols-[repeat(2,max-content)]");
+    expect(grid?.className).not.toContain("repeat(3");
+  });
+
+  it("a single-row chip centers its content vertically; a wrapped chip stays top-anchored", () => {
+    const single = renderCard("Follow-ups #17 #21 #30 chip mix");
+    expect(chip().className).toContain("items-center");
+    single.unmount();
+    renderCard("#101 #102 #103 #104 #105 #106 #107 #108 resolve");
+    expect(chip().className).toContain("items-start");
+    expect(chip().className).not.toContain("items-center");
+  });
+
   it("a chip with many ids wraps onto extra lines instead of overflowing", () => {
     renderCard("#101 #102 #103 #104 #105 #106 #107 #108 resolve");
     const chipEl = chip();

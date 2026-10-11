@@ -426,6 +426,22 @@ export const SIM_DEMO_THREADS: readonly SimThread[] = [
     updatedAt: SIM_NOW - 20 * MINUTE,
     lastReadAt: SIM_NOW - 19 * MINUTE,
   }),
+  // Chip-probe cards: a single-id chip (the shrink-to-fit case) and a
+  // two-id row — the small-count layouts the long list above never shows.
+  thread({
+    id: "thr_chips_single",
+    displayTitle: "Mark thread done rename worktree #32",
+    status: "idle",
+    updatedAt: SIM_NOW - 15 * MINUTE,
+    lastReadAt: SIM_NOW - 14 * MINUTE,
+  }),
+  thread({
+    id: "thr_chips_pair",
+    displayTitle: "Watch the pair #61 #62 settle",
+    status: "idle",
+    updatedAt: SIM_NOW - 18 * MINUTE,
+    lastReadAt: SIM_NOW - 17 * MINUTE,
+  }),
   // Family A — Working (lifted by its two active children), expanded in the
   // shots: a parent card with three nested child rows visible.
   thread({
