@@ -372,10 +372,14 @@ describe("firstRealCard", () => {
 });
 
 describe("transport constants", () => {
-  it("the wipes are symmetric: the card leaves and reappears at the same rate", () => {
-    // Star Trek TNG transporter symmetry: dissolve-out and dissolve-in run
-    // the same duration.
-    expect(TRANSPORT_WIPE_OUT_MS).toBe(TRANSPORT_WIPE_IN_MS);
+  it("the arrival sweep deliberately outlasts the departure so its amber beam reads", () => {
+    // Changed from the TNG-symmetric rule at the operator's ask ("maybe slow
+    // down arrival more?"): the dissolve-in's crawl keeps the arriving slot
+    // near-invisible for its first half, so the arrival gets a longer run for
+    // its glints to peak inside the visible window. Deliberate asymmetric
+    // retune, pinned exactly.
+    expect(TRANSPORT_WIPE_OUT_MS).toBe(400);
+    expect(TRANSPORT_WIPE_IN_MS).toBe(520);
     expect(TRANSPORT_COLLAPSE_MS).toBeGreaterThan(0);
   });
 
@@ -385,11 +389,12 @@ describe("transport constants", () => {
 
   it("the sweeps are tuned long enough for the shimmer to read, with a slow ease-in start", () => {
     // Feel-tuned anchors (operator: "increase the ease-in time", then
-    // "ease-in and ease-out should take the same amount of time"): one
-    // symmetric dwell with a slow first half. Pinned exactly so a retune is
-    // a deliberate test edit, never a silent constant drift.
+    // "ease-in and ease-out should take the same amount of time", later
+    // "maybe slow down arrival more?" — the arrival is deliberately longer
+    // now). Pinned exactly so a retune is a deliberate test edit, never a
+    // silent constant drift.
     expect(TRANSPORT_WIPE_OUT_MS).toBe(400);
-    expect(TRANSPORT_WIPE_IN_MS).toBe(400);
+    expect(TRANSPORT_WIPE_IN_MS).toBe(520);
     expect(TRANSPORT_COLLAPSE_MS).toBe(200);
     expect(TRANSPORT_EASE).toBe("cubic-bezier(0.5, 0, 0.6, 0.4)");
   });
@@ -531,7 +536,11 @@ describe("shimmerSparks", () => {
       // The field anchors toward the slot's upper half so the descent reads.
       expect(spark.topPct).toBeGreaterThanOrEqual(5);
       expect(spark.topPct).toBeLessThanOrEqual(55);
-      // Same envelope discipline as the departure field.
+      // Same envelope discipline as the departure field, plus the visibility
+      // bias: the dissolve-in's crawl keeps the arriving slot near-invisible
+      // through the first half, so arrival glints start no earlier than 35%
+      // into the phase and twinkle while the beam is actually on screen.
+      expect(spark.delayMs).toBeGreaterThanOrEqual(Math.round(0.35 * TRANSPORT_WIPE_IN_MS));
       expect(spark.delayMs + spark.durationMs).toBeLessThanOrEqual(TRANSPORT_WIPE_IN_MS);
     }
     // Determinism holds per direction, not just for the shared default seed.
