@@ -22,8 +22,9 @@ Never create or retarget a `node_modules` symlink inside this repo's checkouts. 
 
 Landing work on `dev`: **every thread rebases its worktree onto `dev`, then
 ships through a pull request on the remote — no thread merges into `dev`
-directly anymore.** The flow: `git fetch origin && git rebase dev` on the
-thread branch (resolve conflicts with dev's side, keeping your new bullets),
+directly anymore.** The flow: `git fetch origin && git rebase origin/dev`
+on the thread branch — rebase before the PR is opened, never after
+(resolve conflicts with dev's side, keeping your new bullets),
 run `npm test` (and `npm run build` where the bundle matters), push the
 branch, `gh pr create --base dev` (title carries the one-line behavior
 summary the old merge-commit subjects held), link the PR to the focus board
