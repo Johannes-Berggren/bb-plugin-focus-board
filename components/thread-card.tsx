@@ -226,8 +226,22 @@ function ProviderTicketChip({
   const [faviconFailed, setFaviconFailed] = useState(false);
   const isGithub = row.provider === "github";
   const markHref = ticketChipIconHref(row, chip.kind);
-  const className =
-    "inline-flex min-h-5 items-start gap-x-1 rounded bg-muted px-1 py-0.5 font-mono text-[10px] leading-none text-muted-foreground";
+  // The ids' grid row count: one grid line holds up to three ids. A chip
+  // whose ids all fit one line centers its content vertically (the shell's
+  // min-height would otherwise leave the mark, glyph, and ids hugging the
+  // top); a wrapped chip keeps them top-anchored so the mark and glyph
+  // stay pinned at the top-left corner beside the first id line.
+  const singleRow = chip.refs.length <= 3;
+  const columnClass =
+    chip.refs.length === 1
+      ? "grid-cols-[max-content]"
+      : chip.refs.length === 2
+        ? "grid-cols-[repeat(2,max-content)]"
+        : "grid-cols-[repeat(3,max-content)]";
+  const className = cn(
+    "inline-flex min-h-5 gap-x-1 rounded bg-muted px-1 py-0.5 font-mono text-[10px] leading-none text-muted-foreground",
+    singleRow ? "items-center" : "items-start",
+  );
   const mark =
     isGithub ? (
       <Icon name="GithubMark" className="size-3 shrink-0" aria-hidden />
@@ -349,11 +363,13 @@ function ProviderTicketChip({
     <span className={className} data-ticket-chip="">
       {markElement}
       {kindGlyph}
-      {/* The ids sit in a real grid, three left-aligned tracks per line
-          sized to each track's widest id, so every wrapped line shares the
-          same columns (the mark and glyph anchor the top-left corner and
-          never join the id flow to shorten the first line). */}
-      <span className="grid grid-cols-[repeat(3,max-content)] justify-items-start gap-x-2 gap-y-0.5">
+      {/* The ids sit in a real grid, left-aligned max-content tracks (one
+          per id, capped at three per line) so every wrapped line shares the
+          same columns — and so a short list reserves no empty tracks, whose
+          column gaps would hold phantom width past the last id (the mark
+          and glyph anchor the top-left corner and never join the id flow
+          to shorten the first line). */}
+      <span className={cn("grid justify-items-start gap-x-2 gap-y-0.5", columnClass)}>
         {ids}
       </span>
     </span>

@@ -32,5 +32,3 @@ provider chips (`scripts/screenshot/probe-chips.mjs`).
 Verify still present: `node scripts/screenshot/probe-chips.mjs` against a
 running vite harness; the "cannot contain a nested `<a>`" React console.error
 fires per chip-bearing card.
-
-## Nested `<a>` elements in thread cards (Invalid DOM)
