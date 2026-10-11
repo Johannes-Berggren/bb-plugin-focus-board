@@ -84,6 +84,11 @@ export const UNRELEASED_ITEMS: readonly { text: string; children: string[]; grou
     "group": "Card animations"
   },
   {
+    "text": "**A family card or group box follows the busiest thread inside it.** A running child lifts its quiet parent and the whole box into Working, and under Last activity a fresh child lifts the family's bucket the same way. A child with a lane of its own (Needs you, Done, Pinned) keeps that lane without dragging the family along.",
+    "children": [],
+    "group": "Card placement"
+  },
+  {
     "text": "**A card the board sees you attending holds its place.** Hovering a card, or keeping it open in the thread pane, pins its lane, its slot, and the lane of its family or box, so live updates re-sort the board around it instead of moving it; the pin lifts when the pointer leaves or the pane closes.",
     "children": [
       "The parent thread view pins the attended card's lane order and its row slot the same way.",

@@ -214,6 +214,7 @@ export function assembleBoard(
     groupBy,
     context,
     doneIds,
+    now,
   );
   const extraOverrides = options.extraColumnOverrides;
   const columnOverrides =
@@ -444,22 +445,77 @@ function stateRank(state: ThreadState): number {
 }
 
 /**
+ * The family members that drive a family's lane. The operator's rule (the
+ * family is the unit of visibility): the most attention-driving member wins
+ * for the whole family. The root always drives — its own attention lifts,
+ * and under the recency grouping its own freshness is the floor. A
+ * descendant drives only while it renders inside the family card: a child
+ * copied OUT to its own lane — a Needs-you child standing alone, a done
+ * child in the Done projection, a pinned child in Pinned — keeps that
+ * placement and does not drive (copy-out is dual membership, not removal).
+ * Archived descendants render nowhere and never drive.
+ *
+ * Walk order is root first, then descendants; both lane picks below break
+ * ties toward the earlier entry, so an all-idle family keeps the root's own
+ * bucket and a child only lifts when it strictly beats what came before it.
+ */
+export function familyDriveMembers(
+  rootId: string,
+  byId: ReadonlyMap<string, PluginSidebarThread>,
+  familyIndex: FamilyIndex,
+  doneIds: ReadonlySet<string>,
+): PluginSidebarThread[] {
+  const drive: PluginSidebarThread[] = [];
+  const stack = [rootId];
+  const seen = new Set<string>();
+  while (stack.length > 0) {
+    const id = stack.pop() as string;
+    if (seen.has(id)) continue;
+    seen.add(id);
+    const member = byId.get(id);
+    if (member === undefined || member.isArchived) continue;
+    if (
+      member.id === rootId ||
+      (!doneIds.has(member.id) && !member.isPinned && threadState(member) !== "attention")
+    ) {
+      drive.push(member);
+    }
+    for (const child of familyIndex.childrenByParent.get(id) ?? []) {
+      stack.push(child.id);
+    }
+  }
+  return drive;
+}
+
+function driveElevates(
+  a: PluginSidebarThread,
+  b: PluginSidebarThread,
+  groupBy: GroupBy,
+): boolean {
+  if (groupBy === "recency") return a.updatedAt > b.updatedAt;
+  return stateRank(threadState(a)) < stateRank(threadState(b));
+}
+
+/**
  * R4: under the status grouping, where should each family land? The family
  * (a root and its nested descendants) appears in the column of its most
- * attention-requiring NESTED member — the smallest state rank across members
- * that are neither archived (stale status must not demand attention), done
- * (the Done lane is a placement of its own), nor attention (a child that
- * needs the operator un-nests and demands it from its own card — it must not
- * drag the quiet family out of its own lane with it). The root's OWN
- * attention still lifts: the family belongs where the parent card already
- * points. The returned map is keyed by family ROOT id, so only roots — the
- * cards that take column slots — read it; promoted children of Done parents
- * and axis-flat children keep their own placements.
+ * attention-requiring nested member — the smallest state rank across the
+ * family's drive set (`familyDriveMembers`: the root plus every descendant
+ * that still renders inside the family card). The root's OWN attention
+ * always lifts. Under the recency grouping the same drive set scores by
+ * freshness instead: the newest updatedAt in the family carries the family's
+ * bucket, so a child's fresh activity lifts a stale parent the same way a
+ * running child lifts the status lane. The returned map is keyed by family
+ * ROOT id, so only roots — the cards that take column slots — read it;
+ * promoted children of Done parents and axis-flat children keep their own
+ * placements.
  *
- * An all-idle family gets no entry: `threadState` collapses idle to one
- * value, so every idle member ties — the family keeps the parent's own
- * bucket. The parent card's raw state badge is untouched: this is a
- * placement rule, not a state rewrite.
+ * Under the status grouping an all-idle family gets no entry:
+ * `threadState` collapses idle to a rank no member can win with, so the
+ * family keeps the parent's own bucket. Under recency the root's own
+ * freshness is the floor, so the entry (when any) names a bucket at least
+ * as fresh as the parent's own. The parent card's raw state badge is
+ * untouched: this is a placement rule, not a state rewrite.
  */
 export function familyColumnOverrides(
   threads: readonly PluginSidebarThread[],
@@ -467,48 +523,42 @@ export function familyColumnOverrides(
   groupBy: GroupBy,
   context: GroupingContext,
   doneIds: ReadonlySet<string>,
+  now: number = Date.now(),
 ): ReadonlyMap<string, { id: string; label: string }> {
-  if (groupBy !== "status") return new Map();
+  if (groupBy !== "status" && groupBy !== "recency") return new Map();
   const byId = new Map(threads.map((thread) => [thread.id, thread]));
   const overrides = new Map<string, { id: string; label: string }>();
   for (const rootId of familyIndex.rootIds) {
     const root = byId.get(rootId);
     if (root === undefined || root.isArchived || doneIds.has(rootId)) continue;
-    // Walk the whole family (root + descendants); only members that stay in
-    // the nest lift it — the root's own attention included.
-    const live: PluginSidebarThread[] = [];
-    const stack = [rootId];
-    const seen = new Set<string>();
-    while (stack.length > 0) {
-      const id = stack.pop() as string;
-      if (seen.has(id)) continue;
-      seen.add(id);
-      const member = byId.get(id);
-      if (member === undefined) continue;
-      if (
-        !member.isArchived &&
-        !doneIds.has(member.id) &&
-        (member.id === rootId || threadState(member) !== "attention")
-      ) {
-        live.push(member);
-      }
-      for (const grandchild of familyIndex.childrenByParent.get(id) ?? []) {
-        stack.push(grandchild.id);
-      }
+    const best = bestFamilyDriver(rootId, byId, familyIndex, doneIds, groupBy);
+    if (best === undefined) continue;
+    // Under the status grouping an all-idle drive set names no lane (idle
+    // ranks below every state that can demand a column move): the family
+    // keeps the parent's own bucket, so no entry.
+    if (groupBy === "status" && stateRank(threadState(best)) === Number.MAX_SAFE_INTEGER) {
+      continue;
     }
-    let best: PluginSidebarThread | undefined;
-    let bestRank = Number.MAX_SAFE_INTEGER;
-    for (const member of live) {
-      const rank = stateRank(threadState(member));
-      if (rank < bestRank) {
-        bestRank = rank;
-        best = member;
-      }
-    }
-    if (best === undefined || bestRank === Number.MAX_SAFE_INTEGER) continue;
-    overrides.set(rootId, columnFor(best, "status", context));
+    overrides.set(rootId, columnFor(best, groupBy, context, now));
   }
   return overrides;
+}
+
+/** The drive-set member that carries the family's lane under `groupBy`. */
+function bestFamilyDriver(
+  rootId: string,
+  byId: ReadonlyMap<string, PluginSidebarThread>,
+  familyIndex: FamilyIndex,
+  doneIds: ReadonlySet<string>,
+  groupBy: GroupBy,
+): PluginSidebarThread | undefined {
+  let best: PluginSidebarThread | undefined;
+  for (const member of familyDriveMembers(rootId, byId, familyIndex, doneIds)) {
+    if (best === undefined || driveElevates(member, best, groupBy)) {
+      best = member;
+    }
+  }
+  return best;
 }
 
 /**
