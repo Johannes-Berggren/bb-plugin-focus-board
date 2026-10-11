@@ -18,7 +18,9 @@ import {
   TRANSPORT_WIPE_OUT_MS,
   TRANSPORT_WIPE_IN_MS,
   TRANSPORT_COLLAPSE_MS,
+  TRANSPORT_GROW_MS,
   TRANSPORT_EASE,
+  TRANSPORT_GROW_EASE,
   arrivalGrowKeyframes,
   ghostCollapseKeyframes,
   wipeInKeyframes,
@@ -381,6 +383,20 @@ describe("transport constants", () => {
     expect(TRANSPORT_WIPE_IN_MS).toBe(400);
     expect(TRANSPORT_COLLAPSE_MS).toBe(200);
     expect(TRANSPORT_EASE).toBe("cubic-bezier(0.5, 0, 0.6, 0.4)");
+  });
+
+  it("the arrival's space opens faster than the card materializes into it", () => {
+    // Operator: "maybe expand faster than it dissolves in?" The slot's
+    // growth is a quick open (well under the dissolve-in) rather than a
+    // second 400ms ramp stacked on the materialize. Pinned exactly, same
+    // deliberate-retune rule as the sweep anchors.
+    expect(TRANSPORT_GROW_MS).toBe(180);
+    expect(TRANSPORT_GROW_MS).toBeLessThan(TRANSPORT_WIPE_IN_MS);
+  });
+
+  it("the grow opens fast and settles gently (ease-out shaped, unlike the crawl-in sweeps)", () => {
+    expect(TRANSPORT_GROW_EASE).toBe("cubic-bezier(0.3, 0.75, 0.4, 1)");
+    expect(TRANSPORT_GROW_EASE).not.toBe(TRANSPORT_EASE);
   });
 
   it("a batch switch larger than the cap stays a plain reflow", () => {

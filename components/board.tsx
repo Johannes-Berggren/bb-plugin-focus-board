@@ -68,6 +68,8 @@ import {
   TRANSPORT_BATCH_CAP,
   TRANSPORT_COLLAPSE_MS,
   TRANSPORT_EASE,
+  TRANSPORT_GROW_EASE,
+  TRANSPORT_GROW_MS,
   TRANSPORT_ROW_GAP_PX,
   TRANSPORT_WIPE_IN_MS,
   TRANSPORT_WIPE_OUT_MS,
@@ -907,6 +909,7 @@ export function Board({
       element: HTMLElement | null | undefined,
       frames: Keyframe[],
       durationMs: number,
+      easing: string = TRANSPORT_EASE,
     ) => {
       if (element === null || element === undefined) return;
       if (startedWipesRef.current.has(key)) return;
@@ -914,7 +917,7 @@ export function Board({
       if (typeof element.animate !== "function") return;
       transportAnimsRef.current.set(
         key,
-        element.animate(frames, { duration: durationMs, easing: TRANSPORT_EASE, fill: "both" }),
+        element.animate(frames, { duration: durationMs, easing, fill: "both" }),
       );
     };
     // The shimmer: twinkle the slot's glint field over its phase. Each
@@ -972,8 +975,10 @@ export function Board({
       // The dissolve rides the space growing: the new slot opens from zero
       // height to its measured height so the lane's neighbors slide as the
       // card materializes (scrollHeight reads through the slot's static
-      // max-height-0 clip). Skipped with no measurable height (jsdom, or a
-      // slot the layout has not sized yet).
+      // max-height-0 clip). The grow is its own quick clock — it opens well
+      // before the dissolve-in ends, so the shimmer plays over an open
+      // space instead of trailing it. Skipped with no measurable height
+      // (jsdom, or a slot the layout has not sized yet).
       if (
         arrivalEl !== null &&
         arrivalEl !== undefined &&
@@ -984,7 +989,8 @@ export function Board({
           `grow:${transport.threadId}@${transport.gen}`,
           arrivalEl,
           arrivalGrowKeyframes(arrivalEl.scrollHeight),
-          TRANSPORT_WIPE_IN_MS,
+          TRANSPORT_GROW_MS,
+          TRANSPORT_GROW_EASE,
         );
       }
       startSparks(
