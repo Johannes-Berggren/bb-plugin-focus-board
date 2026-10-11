@@ -251,3 +251,28 @@ describe("BoardToolbar settings icon: gear/gift double duty", () => {
     expect(screen.getByLabelText("What's new")).not.toBeNull();
   });
 });
+
+describe("BoardToolbar search clear button", () => {
+  it("absent while the search field is empty", () => {
+    renderToolbar({ search: "" });
+    expect(screen.queryByLabelText("Clear search")).toBeNull();
+  });
+
+  it("appears once the field holds text and clears on click", () => {
+    const onSearchChange = vi.fn();
+    renderToolbar({ search: "walnut", onSearchChange });
+    const clear = screen.getByLabelText("Clear search");
+    expect(clear instanceof HTMLElement).toBe(true);
+    fireEvent.click(clear);
+    expect(onSearchChange).toHaveBeenCalledTimes(1);
+    expect(onSearchChange).toHaveBeenCalledWith("");
+  });
+
+  it("stays inside the search input's own container, behind the field's text", () => {
+    const root = renderToolbar({ search: "walnut" });
+    const search = screen.getByLabelText("Search threads");
+    const clear = screen.getByLabelText("Clear search");
+    expect(clear instanceof HTMLElement && search instanceof HTMLElement).toBe(true);
+    expect(commonAncestor(search, clear)).not.toBe(root);
+  });
+});

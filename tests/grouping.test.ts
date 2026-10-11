@@ -185,6 +185,56 @@ describe("matchesFilter — ticket-chip refs are searchable", () => {
   });
 });
 
+describe("matchesFilter — every id on the thread is searchable", () => {
+  // "Paste the id you have" search: the toolbar box should find the card
+  // from ANY id a thread carries, not just the thread's own thr_ id.
+  const full = thread({
+    id: "thr_family",
+    projectId: "proj_alpha",
+    providerId: "prov_pi",
+    sectionId: "sec_later",
+    parentThreadId: "thr_root",
+    lifecycleOwnerThreadId: "thr_owner",
+    sourceThreadId: "thr_origin",
+    environment: {
+      id: "env_checkout",
+      name: "checkout",
+      branchName: null,
+      path: null,
+      isWorktree: true,
+      providerId: "envprov_worktree",
+      workspaceDisplayKind: null,
+    },
+    host: { id: "host_thor", name: "thor" },
+  });
+
+  it.each([
+    ["the thread id", "thr_family"],
+    ["the project id", "proj_alpha"],
+    ["the provider id", "prov_pi"],
+    ["the environment id", "env_checkout"],
+    ["the environment provider id", "envprov_worktree"],
+    ["the host id", "host_thor"],
+    ["the parent thread id", "thr_root"],
+    ["the lifecycle-owner thread id", "thr_owner"],
+    ["the forked-from thread id", "thr_origin"],
+    ["the section id", "sec_later"],
+  ])("matches %s", (_label, q) => {
+    expect(matchesFilter(full, q)).toBe(true);
+  });
+
+  it("stays false for an id that belongs to none of the fields", () => {
+    expect(matchesFilter(full, "proj_zzzz")).toBe(false);
+  });
+
+  it("survives null ids (no environment, no host, no lineage)", () => {
+    const bare = thread({ id: "thr_bare", projectId: "proj_a" });
+    expect(matchesFilter(bare, "thr_bare")).toBe(true);
+    expect(matchesFilter(bare, "proj_a")).toBe(true);
+    expect(matchesFilter(bare, "env_")).toBe(false);
+  });
+});
+
 describe("columnFor", () => {
   const context = {
     projects: [{ id: "proj_a", name: "Alpha", isPersonal: false, href: "", settingsHref: "" }],

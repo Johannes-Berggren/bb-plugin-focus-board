@@ -18,6 +18,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   - The composer dialog announces the target, "Will be tagged into *group*", before the prompt is spent, and tags the spawned thread into the group itself.
   - Member cards keep their own menus; the group menu covers the box's surface only.
 
+#### Toolbar search
+
+- **Toolbar search finds a card from any id it carries.** Typing or pasting a project (`proj_…`), provider, environment, host, linked thread, or section id matches now, alongside the thread id it always found.
+- **The search field gains an x.** The button appears once the field holds text and wipes the query with one click, leaving focus in the field.
+
 ### Changed
 
 ### Fixed

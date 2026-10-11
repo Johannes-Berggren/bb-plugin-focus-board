@@ -20,5 +20,15 @@ export const UNRELEASED_ITEMS: readonly { text: string; children: string[]; grou
       "Member cards keep their own menus; the group menu covers the box's surface only."
     ],
     "group": "Groups and family boxes"
+  },
+  {
+    "text": "**Toolbar search finds a card from any id it carries.** Typing or pasting a project (`proj_…`), provider, environment, host, linked thread, or section id matches now, alongside the thread id it always found.",
+    "children": [],
+    "group": "Toolbar search"
+  },
+  {
+    "text": "**The search field gains an x.** The button appears once the field holds text and wipes the query with one click, leaving focus in the field.",
+    "children": [],
+    "group": "Toolbar search"
   }
 ];
