@@ -13,13 +13,13 @@ import type { GroupBoxMap } from "./group-boxes";
  */
 
 /**
- * Wipe-out and wipe-in share one duration: the transporter is symmetric —
- * the card leaves its old lane and reappears in the new one at the same
- * rate (operator: "Star Trek TNG transporter, you disappear and reappear
- * at the same rate").
+ * Wipe durations: the departure is 400ms; the arrival is deliberately slower
+ * (520ms) — the dissolve-in's crawl keeps the arriving slot near-invisible
+ * for its first half, and the amber beam needs that longer, visible second
+ * half for its glints to read (operator: "maybe slow down arrival more?").
  */
 export const TRANSPORT_WIPE_OUT_MS = 400;
-export const TRANSPORT_WIPE_IN_MS = 400;
+export const TRANSPORT_WIPE_IN_MS = 520;
 /** The old slot's reserved space closing after the wipe-out. */
 export const TRANSPORT_COLLAPSE_MS = 200;
 
@@ -581,9 +581,14 @@ export function shimmerSparks(
   for (let index = 0; index < count; index += 1) {
     const durationMs = Math.max(80, Math.round(phaseMs * (0.25 + rng() * 0.3)));
     // Start late enough that the whole life ends inside the phase: a glint
-    // fades out before the sweep's final frame, never after it.
+    // fades out before the sweep's final frame, never after it. A descending
+    // (arrival) field starts no earlier than 35% into the phase: the
+    // dissolve-in's crawl keeps its host near-invisible through the first
+    // half, so the glints schedule into the visible second half.
+    const delayBaseMs =
+      direction === "up" ? rng() * phaseMs * 0.55 : 0.35 * phaseMs + rng() * phaseMs * 0.5;
     const delayMs = Math.min(
-      Math.round(rng() * phaseMs * 0.55),
+      Math.round(delayBaseMs),
       Math.max(0, phaseMs - durationMs),
     );
     // The field anchors where the travel starts: a rising field sits low
