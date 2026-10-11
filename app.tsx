@@ -137,7 +137,9 @@ import {
   motionStoredValue,
   type CardTransportPref,
   type MotionPref,
+  type SweepSettingKey,
 } from "./components/preferences";
+import { type ArchiveUnit } from "./lib/duration";
 import { usePrefersDarkScheme } from "./components/ui/hooks/use-media-query";
 import { WallpaperActiveProvider } from "./components/wallpaper-contrast";
 import { EmptyState } from "./components/empty-state";
@@ -275,14 +277,22 @@ function BoardPage({ subPath }: { subPath: string }) {
   // detail page's config panel edits — a partial values patch on this
   // plugin's settings (the host stores settings per key, so the panel keys
   // beside it are untouched), then reacts through `useSettings()` when the
-  // host confirms. Failures propagate to the modal's inline error.
-  const setEscStopsRunningThread = useCallback(
-    async (value: boolean) =>
-      void (await sdk.plugins.updateSettings({
-        pluginId,
-        values: { escStopsRunningThread: value },
-      })),
+  // host confirms. Failures propagate to the row's inline error.
+  const setPluginSettings = useCallback(
+    async (patch: Record<string, string | number | boolean>) =>
+      void (await sdk.plugins.updateSettings({ pluginId, values: patch })),
     [sdk, pluginId],
+  );
+  const setEscStopsRunningThread = useCallback(
+    async (value: boolean) => {
+      await setPluginSettings({ escStopsRunningThread: value });
+    },
+    [setPluginSettings],
+  );
+  const setSweepThreshold = useCallback(
+    (write: { key: SweepSettingKey; value: number | ArchiveUnit }) =>
+      setPluginSettings({ [write.key]: write.value }),
+    [setPluginSettings],
   );
 
   // The board's "needs you" state rides the sidebar's `hasPendingInteraction`
@@ -2787,6 +2797,13 @@ function BoardPage({ subPath }: { subPath: string }) {
         onTabChange={handleTabChange}
         entries={whatsNewEntries}
         escStopsRunningThread={settingValues?.escStopsRunningThread}
+        sweep={{
+          doneArchiveValue: settingValues?.doneArchiveValue,
+          doneArchiveUnit: settingValues?.doneArchiveUnit,
+          idleArchiveValue: settingValues?.idleArchiveValue,
+          idleArchiveUnit: settingValues?.idleArchiveUnit,
+        }}
+        onSetSweep={setSweepThreshold}
         onSetEscStopsRunningThread={setEscStopsRunningThread}
         cardTransport={cardTransport}
         motionPref={motionPref}
@@ -2874,13 +2891,17 @@ export default definePluginApp((app) => {
   });
   // A gear icon in the sidebar footer (beside the built-in Settings and
   // bug-report buttons) that jumps to this plugin's detail page in Tools,
-  // where its declarative settings — including the pane's Escape behavior —
-  // render. bb's sidebar entry context menu is host-owned with no plugin
-  // extension point, so this footer gear is the plugin's own shortcut to
-  // the configuration panel.
+  // where its declarative settings — all six, plus the mirrored look prefs
+  // once the configuration-page section lands — render. It takes the
+  // "configuration" noun on purpose: the board's own gear opens the settings
+  // modal, and two gears named settings with two destinations was the
+  // ambiguity the sync design killed (docs/plans settings-surface-sync).
+  // bb's sidebar entry context menu is host-owned with no plugin extension
+  // point, so this footer gear is the plugin's own shortcut to the
+  // configuration panel.
   app.slots.sidebarFooterAction({
     id: "open-settings",
-    title: "Focus Board settings",
+    title: "Focus Board configuration",
     icon: "Settings",
     run: (context) => context.openSettings(),
   });

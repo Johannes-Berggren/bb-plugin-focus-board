@@ -1,5 +1,11 @@
 import type { GroupBy } from "./grouping";
 import type { CSSProperties } from "react";
+import {
+  ARCHIVE_UNITS,
+  DEFAULT_ARCHIVE_UNIT,
+  DEFAULT_ARCHIVE_VALUE,
+  type ArchiveUnit,
+} from "../lib/duration";
 
 /**
  * The "Nest child threads" toggle's localStorage persistence (R3). The
@@ -115,6 +121,53 @@ export function parseCardTransportStored(raw: string | null): CardTransportPref 
 
 export function cardTransportStoredValue(value: CardTransportPref): CardTransportPref {
   return value;
+}
+
+/**
+ * The sweep threshold settings' frontend mirrors (server.ts declares the
+ * four settings; the Behavior tab renders them). The caps mirror the
+ * descriptor schemas as an input rail only: the host's schema stays the
+ * authority, so a stale or foreign value falls back to the default here
+ * instead of trusting it.
+ */
+export type SweepValueKey = "doneArchiveValue" | "idleArchiveValue";
+export type SweepUnitKey = "doneArchiveUnit" | "idleArchiveUnit";
+
+export type SweepSettingKey = SweepValueKey | SweepUnitKey;
+
+export const SWEEP_CAPS: Record<SweepValueKey, number> = {
+  doneArchiveValue: 365,
+  idleArchiveValue: 3650,
+};
+
+/**
+ * The effective threshold count behind a declared value: a stored integer
+ * inside the key's cap is used as-is; loading (undefined) or anything else
+ * falls back to `lib/duration`'s default, the same unset-means-default rule
+ * the Escape reader follows — never a coercion of a bad value.
+ */
+export function sweepValueFromSetting(
+  raw: number | string | boolean | undefined,
+  key: SweepValueKey,
+): number {
+  if (
+    typeof raw === "number" &&
+    Number.isInteger(raw) &&
+    raw >= 1 &&
+    raw <= SWEEP_CAPS[key]
+  ) {
+    return raw;
+  }
+  return DEFAULT_ARCHIVE_VALUE;
+}
+
+/** The effective unit behind a declared unit: a member of ARCHIVE_UNITS as-is, otherwise the default. */
+export function sweepUnitFromSetting(
+  raw: number | string | boolean | undefined,
+): ArchiveUnit {
+  return (ARCHIVE_UNITS as readonly string[]).includes(raw as string)
+    ? (raw as ArchiveUnit)
+    : DEFAULT_ARCHIVE_UNIT;
 }
 
 /**

@@ -307,11 +307,14 @@ const mockSdk = {
   },
   plugins: {
     // The settings modal's Behavior tab writes the plugin's declarative
-    // settings; the mock records the patch in `uatCalls` so a UAT driver can
-    // assert the write, while the reactive read side stays null (the
-    // harness has no host settings surface).
+    // settings; the mock merges the patch into the simulated store below and
+    // re-renders, so the reactive read side reflects the write the way the
+    // real host confirms one. Records the patch in `uatCalls` too, so a UAT
+    // driver can assert the write shape.
     updateSettings: async (args: { pluginId: string; values: Record<string, unknown> }) => {
       uatCalls.push({ method: "plugins.updateSettings", args });
+      simSettings = { ...simSettings, ...(args.values as Record<string, string | number | boolean>) };
+      mockRender();
       return { ok: true as const };
     },
   },
@@ -359,6 +362,13 @@ export function experimental_NewThreadComposer(props: Record<string, unknown>): 
  */
 let simRanks: Record<string, string[]> = {};
 const uatCalls: { method: string; args?: unknown }[] = [];
+// The simulated declared-settings store the plugins.updateSettings mock
+// merges into and useSettings reads back; `?settings=` (main.tsx) seeds it
+// so a verify run can prove the modal renders previously-written values.
+let simSettings: Record<string, string | number | boolean> = {};
+export function seedSimSettings(seed: Record<string, string | number | boolean>) {
+  simSettings = { ...seed };
+}
 // Feature groups: the registry (id → name stamps) and the per-thread
 // assignments, module state mutated by group_* writes. The default box
 // wraps the two active threads ("chat-imagegent", the live report's group).
@@ -540,7 +550,7 @@ export function useRealtime(_channel: string, _handler: (payload: unknown) => vo
  * settings as the documented default (escape-stops-running stays ON).
  */
 export function useSettings(): { values: Record<string, unknown> | null } {
-  return { values: null };
+  return { values: structuredClone(simSettings), isLoading: false };
 }
 
 interface MockMessage {

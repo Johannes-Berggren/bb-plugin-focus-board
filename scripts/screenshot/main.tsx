@@ -4,7 +4,7 @@
  */
 import "../../dist/app.css";
 import "../../app";
-import { mountRegisteredPanel } from "./mock-sdk";
+import { mountRegisteredPanel, seedSimSettings } from "./mock-sdk";
 
 // Seed before the app's useState initializers read localStorage (they run at
 // render time below, after these writes).
@@ -59,6 +59,14 @@ if (seedRanks !== null) {
   }).__uat;
   if (!uat) throw new Error("harness: rank seeding requested but __uat is missing");
   uat.seedRanks(JSON.parse(seedRanks) as Record<string, string[]>);
+}
+
+// Seed the harness's simulated plugin settings (the declared settings the
+// modal's Behavior tab reads through useSettings): `?settings={"key":value}`
+// JSON. Absent → empty, so defaults apply with no stale residue.
+const settingsSeed = params.get("settings");
+if (settingsSeed !== null) {
+  seedSimSettings(JSON.parse(settingsSeed) as Record<string, string | number | boolean>);
 }
 
 mountRegisteredPanel();

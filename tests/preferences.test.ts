@@ -19,6 +19,10 @@ import {
   wallpaperBackgroundStyle,
   wallpaperLayerOf,
   wallpaperStoredValue,
+  SWEEP_CAPS,
+  sweepUnitFromSetting,
+  sweepValueFromSetting,
+  type SweepValueKey,
 } from "../components/preferences";
 
 describe("wallpaper persistence", () => {
@@ -285,6 +289,41 @@ describe("simultaneous corruption (every key garbage at once)", () => {
       for (const id of parseCollapsedFamiliesStored(raw)) {
         expect(typeof id).toBe("string");
       }
+    }
+  });
+});
+
+describe("sweep threshold readers (the Behavior tab's Sweep block)", () => {
+  it("mirrors the declared descriptor caps", () => {
+    expect(SWEEP_CAPS.doneArchiveValue).toBe(365);
+    expect(SWEEP_CAPS.idleArchiveValue).toBe(3650);
+  });
+
+  it.each<SweepValueKey>(["doneArchiveValue", "idleArchiveValue"])(
+    "%s: a stored integer inside the cap is used as-is",
+    (key) => {
+      expect(sweepValueFromSetting(3, key)).toBe(3);
+      expect(sweepValueFromSetting(SWEEP_CAPS[key], key)).toBe(SWEEP_CAPS[key]);
+      expect(sweepValueFromSetting(1, key)).toBe(1);
+    },
+  );
+
+  it.each<SweepValueKey>(["doneArchiveValue", "idleArchiveValue"])(
+    "%s: unset or a foreign value falls back to the default, never coerced",
+    (key) => {
+      // Default fallbacks, lib/duration's ground truth.
+      expect(sweepValueFromSetting(undefined, key)).toBe(2);
+      for (const raw of [0, -1, SWEEP_CAPS[key] + 1, 2.5, "2", "3", true, null, NaN]) {
+        expect(sweepValueFromSetting(raw as number, key)).toBe(2);
+      }
+    },
+  );
+
+  it("units: a stored member of ARCHIVE_UNITS is used as-is, anything else is the default", () => {
+    expect(sweepUnitFromSetting("hours")).toBe("hours");
+    expect(sweepUnitFromSetting("weeks")).toBe("weeks");
+    for (const raw of [undefined, "months", 3, true, null, ""]) {
+      expect(sweepUnitFromSetting(raw as string)).toBe("days");
     }
   });
 });

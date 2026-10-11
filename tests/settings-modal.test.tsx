@@ -24,11 +24,19 @@ const NULL_WALLPAPER: WallpaperSettings = { version: 1 as const, global: null };
 
 interface RenderHandlers {
   onSetEscStopsRunningThread: ReturnType<typeof vi.fn>;
+  onSetSweep: ReturnType<typeof vi.fn>;
   onSetCardTransport: ReturnType<typeof vi.fn>;
   onSetMotionPref: ReturnType<typeof vi.fn>;
   onWallpaperChange: ReturnType<typeof vi.fn>;
   onOpenChange: ReturnType<typeof vi.fn>;
 }
+
+const NULL_SWEEP = {
+  doneArchiveValue: undefined,
+  doneArchiveUnit: undefined,
+  idleArchiveValue: undefined,
+  idleArchiveUnit: undefined,
+};
 
 function renderModal(
   overrides: Partial<{
@@ -36,16 +44,21 @@ function renderModal(
     tab: SettingsTab;
     entries: readonly WhatsNewEntry[];
     escStopsRunningThread: boolean | undefined;
+    sweep: typeof NULL_SWEEP;
     cardTransport: "none" | "teleport" | "zoom";
     motionPref: "system" | "reduce" | "full";
-    wallpaper: WallpaperSettings;    onSetEscStopsRunningThread: (value: boolean) => void | Promise<void>;
+    wallpaper: WallpaperSettings;
+    onSetEscStopsRunningThread: (value: boolean) => void | Promise<void>;
+    onSetSweep: (write: { key: string; value: number | string }) => void | Promise<void>;
     onSetCardTransport: (value: "none" | "teleport" | "zoom") => void;
     onSetMotionPref: (value: "system" | "reduce" | "full") => void;
+    onWallpaperChange: (next: WallpaperSettings) => void;
     onOpenChange: (open: boolean) => void;
   }> = {},
 ): RenderHandlers {
   const handlers = {
     onSetEscStopsRunningThread: vi.fn(),
+    onSetSweep: vi.fn(),
     onSetCardTransport: vi.fn(),
     onSetMotionPref: vi.fn(),
     onWallpaperChange: vi.fn(),
@@ -57,10 +70,12 @@ function renderModal(
       tab="behavior"
       entries={ENTRIES}
       escStopsRunningThread={undefined}
+      sweep={NULL_SWEEP}
+      onSetEscStopsRunningThread={handlers.onSetEscStopsRunningThread}
+      onSetSweep={handlers.onSetSweep}
       cardTransport="zoom"
       motionPref="system"
       wallpaper={NULL_WALLPAPER}
-      onSetEscStopsRunningThread={handlers.onSetEscStopsRunningThread}
       onSetCardTransport={handlers.onSetCardTransport}
       onSetMotionPref={handlers.onSetMotionPref}
       onWallpaperChange={handlers.onWallpaperChange}
@@ -158,6 +173,74 @@ describe("settings modal: Behavior tab", () => {
     ) as HTMLButtonElement;
     fireEvent.click(toggle);
     await screen.findByText(/the host refused the write/);
+  });
+});
+
+describe("settings modal: Behavior tab's Sweep block", () => {
+  it("renders both arms with the defaults when nothing is stored yet (loading)", () => {
+    renderModal();
+    const doneCount = screen.getByLabelText("Sweep: archive Done threads after count") as HTMLInputElement;
+    const doneUnit = screen.getByLabelText("Sweep: archive Done threads after unit") as HTMLSelectElement;
+    expect(doneCount.value).toBe("2");
+    expect([...doneUnit.options].find((o) => o.selected)?.value).toBe("days");
+    expect([...doneUnit.options].map((o) => o.value)).toEqual(["hours", "days", "weeks"]);
+    const idleCount = screen.getByLabelText("Sweep: mark long-idle threads Done after count") as HTMLInputElement;
+    const idleUnit = screen.getByLabelText("Sweep: mark long-idle threads Done after unit") as HTMLSelectElement;
+    expect(idleCount.value).toBe("2");
+    expect([...idleUnit.options].find((o) => o.selected)?.value).toBe("days");
+  });
+
+  it("renders the stored effective values over the defaults", () => {
+    renderModal({
+      sweep: { ...NULL_SWEEP, doneArchiveValue: 5, doneArchiveUnit: "hours" },
+    });
+    expect(
+      (screen.getByLabelText("Sweep: archive Done threads after count") as HTMLInputElement).value,
+    ).toBe("5");
+    const doneUnit = screen.getByLabelText("Sweep: archive Done threads after unit") as HTMLSelectElement;
+    expect(doneUnit.value).toBe("hours");
+  });
+
+  it("a valid edited count commits on blur with the right key and number", () => {
+    const { onSetSweep } = renderModal({
+      sweep: { ...NULL_SWEEP, idleArchiveValue: 10 },
+    });
+    const idle = screen.getByLabelText("Sweep: mark long-idle threads Done after count") as HTMLInputElement;
+    fireEvent.change(idle, { target: { value: "30" } });
+    fireEvent.blur(idle);
+    expect(onSetSweep).toHaveBeenCalledTimes(1);
+    expect(onSetSweep).toHaveBeenCalledWith({ key: "idleArchiveValue", value: 30 });
+  });
+
+  it("an out-of-range edit writes nothing, surfaces the failure inline, and snaps the field back", () => {
+    const { onSetSweep } = renderModal();
+    const done = screen.getByLabelText("Sweep: archive Done threads after count") as HTMLInputElement;
+    fireEvent.change(done, { target: { value: "9999" } });
+    fireEvent.blur(done);
+    expect(onSetSweep).not.toHaveBeenCalled();
+    expect(screen.getByText(/Expected an integer between 1 and 365/)).not.toBeNull();
+    expect(done.value).toBe("2");
+  });
+
+  it("a unit select change writes the right key immediately", () => {
+    const { onSetSweep } = renderModal();
+    const doneUnit = screen.getByLabelText("Sweep: archive Done threads after unit") as HTMLSelectElement;
+    fireEvent.change(doneUnit, { target: { value: "weeks" } });
+    expect(onSetSweep).toHaveBeenCalledWith({ key: "doneArchiveUnit", value: "weeks" });
+  });
+
+  it("a rejected write surfaces the failure inline, not as a silent revert", async () => {
+    const { onSetSweep } = renderModal();
+    onSetSweep.mockRejectedValueOnce(new Error("the host refused the write"));
+    const doneUnit = screen.getByLabelText("Sweep: archive Done threads after unit") as HTMLSelectElement;
+    fireEvent.change(doneUnit, { target: { value: "weeks" } });
+    await screen.findByText(/the host refused the write/);
+  });
+
+  it("points developer-only settings at the configuration page, without rendering them", () => {
+    renderModal();
+    expect(screen.getByText(/Developer-only switches/)).not.toBeNull();
+    expect(screen.queryByText(/instrument pane chat scrolling/i)).toBeNull();
   });
 });
 
@@ -295,6 +378,8 @@ describe("settings modal: Appearance tab", () => {
         tab="appearance"
         entries={ENTRIES}
         escStopsRunningThread={undefined}
+        sweep={NULL_SWEEP}
+        onSetSweep={vi.fn()}
         cardTransport="teleport"
         motionPref="system"
         wallpaper={NULL_WALLPAPER}

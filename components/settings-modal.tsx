@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -9,6 +9,18 @@ import { WallpaperDropdown } from "@/components/wallpaper-picker";
 import type { WallpaperSettings } from "@/components/preferences";
 import { WhatsNewFeed } from "@/components/whats-new-feed";
 import { APP_VERSION, type WhatsNewEntry } from "@/lib/whats-new";
+import {
+  ARCHIVE_UNITS,
+  type ArchiveUnit,
+} from "@/lib/duration";
+import {
+  SWEEP_CAPS,
+  sweepUnitFromSetting,
+  sweepValueFromSetting,
+  type SweepSettingKey,
+  type SweepValueKey,
+  type SweepUnitKey,
+} from "@/components/preferences";
 import { cn } from "@/lib/utils";
 
 /**
@@ -33,6 +45,26 @@ const TABS: readonly { id: SettingsTab; label: string }[] = [
   { id: "about", label: "About" },
 ];
 
+export interface SweepStoredValues {
+  doneArchiveValue: string | number | boolean | undefined;
+  doneArchiveUnit: string | number | boolean | undefined;
+  idleArchiveValue: string | number | boolean | undefined;
+  idleArchiveUnit: string | number | boolean | undefined;
+}
+
+const DEFAULT_SWEEP: SweepStoredValues = {
+  doneArchiveValue: undefined,
+  doneArchiveUnit: undefined,
+  idleArchiveValue: undefined,
+  idleArchiveUnit: undefined,
+};
+
+/** A Sweep key the Behavior tab can write, and the values it writes. */
+export type SweepWrite = {
+  key: SweepSettingKey;
+  value: number | ArchiveUnit;
+};
+
 export function SettingsModal({
   open,
   onOpenChange,
@@ -40,10 +72,12 @@ export function SettingsModal({
   onTabChange,
   entries,
   escStopsRunningThread,
+  sweep = DEFAULT_SWEEP,
   cardTransport,
   motionPref,
   wallpaper,
   onSetEscStopsRunningThread,
+  onSetSweep,
   onSetCardTransport,
   onSetMotionPref,
   onWallpaperChange,
@@ -60,6 +94,18 @@ export function SettingsModal({
    * rule as the board's runtime read (components/preferences.ts).
    */
   escStopsRunningThread: string | number | boolean | undefined;
+  /**
+   * The four sweep threshold settings' raw stored values, read with the
+   * same unset-means-default rule (components/preferences.ts) at render —
+   * loading or a foreign stored shape shows the 2-days default, never a
+   * coerced guess.
+   */
+  sweep: SweepStoredValues;
+  /**
+   * Called with the sweep key and value to write to the host settings; a
+   * failed write surfaces inline under the row, never as a silent revert.
+   */
+  onSetSweep: (write: SweepWrite) => void | Promise<void>;
   /**
    * Called with the value to write to the host setting. A failed write is
    * surfaced inline under the toggle, never as a silent revert.
@@ -113,10 +159,31 @@ export function SettingsModal({
           </div>
           <div role="tabpanel" className="min-w-0 flex-1 overflow-y-auto pr-1">
             {tab === "behavior" && (
-              <EscStopsRunningRow
-                storedValue={escStopsRunningThread}
-                onSet={onSetEscStopsRunningThread}
-              />
+              <div className="space-y-5">
+                <EscStopsRunningRow
+                  storedValue={escStopsRunningThread}
+                  onSet={onSetEscStopsRunningThread}
+                />
+                <SweepThresholdRow
+                  arm="done"
+                  numberKey="doneArchiveValue"
+                  unitKey="doneArchiveUnit"
+                  storedValues={sweep}
+                  onSet={onSetSweep}
+                />
+                <SweepThresholdRow
+                  arm="idle"
+                  numberKey="idleArchiveValue"
+                  unitKey="idleArchiveUnit"
+                  storedValues={sweep}
+                  onSet={onSetSweep}
+                />
+                <p className="text-xs leading-relaxed text-muted-foreground/80">
+                  Developer-only switches (pane chat scroll instrumentation)
+                  live in Focus Board&apos;s configuration page; the
+                  sidebar&apos;s footer gear opens it.
+                </p>
+              </div>
             )}
             {tab === "appearance" && (
               <AppearanceContent
@@ -273,7 +340,7 @@ function ChoiceRow({
   );
 }
 
-/** The Board Behavior tab's one setting for now: the pane's Escape behavior. */function EscStopsRunningRow({
+/** The Behavior tab's Escape row: the pane's Escape behavior setting. */function EscStopsRunningRow({
   storedValue,
   onSet,
 }: {
@@ -323,6 +390,137 @@ function ChoiceRow({
       >
         {enabled ? "On" : "Off"}
       </button>
+    </div>
+  );
+}
+
+/** The two sweep arms' label copy, mirroring the declared descriptors' labels. */
+const SWEEP_ARMS: Record<string, { label: string; description: string }> = {
+  done: {
+    label: "Sweep: archive Done threads after",
+    description:
+      "How long a thread stays Done before the sweep offers to archive it.",
+  },
+  idle: {
+    label: "Sweep: mark long-idle threads Done after",
+    description:
+      "How long a thread stays quiet before the sweep offers to mark it Done.",
+  },
+};
+
+/**
+ * One sweep threshold pair on the Behavior tab: a count field plus the unit
+ * select, both writing the same declared settings the configuration panel
+ * edits (the host's schema is the write authority; the modal's cap only
+ * keeps obvious garbage out of the input). Field commits happen on blur or
+ * Enter: an out-of-range or non-integer entry shows the failure inline and
+ * snaps the field back to the effective stored value; a unit select commits
+ * immediately. A failed host write surfaces inline, the Escape toggle's
+ * existing pattern.
+ */
+function SweepThresholdRow({
+  arm,
+  numberKey,
+  unitKey,
+  storedValues,
+  onSet,
+}: {
+  arm: "done" | "idle";
+  numberKey: SweepValueKey;
+  unitKey: SweepUnitKey;
+  storedValues: SweepStoredValues;
+  onSet: (write: SweepWrite) => void | Promise<void>;
+}) {
+  const effective = sweepValueFromSetting(
+    storedValues[numberKey],
+    numberKey,
+  );
+  const unit = sweepUnitFromSetting(storedValues[unitKey]);
+  const [draft, setDraft] = useState(String(effective));
+  const [saveError, setSaveError] = useState<string | null>(null);
+  // The host's confirmation re-renders this row; while loading or before
+  // the write confirms, the field keeps what the user typed.
+  useEffect(() => {
+    setDraft(String(effective));
+  }, [effective]);
+
+  const cap = SWEEP_CAPS[numberKey];
+  const commitValue = () => {
+    setSaveError(null);
+    const parsed = Number(draft);
+    if (parsed === effective && Number.isInteger(parsed)) return;
+    if (!Number.isInteger(parsed) || parsed < 1 || parsed > cap) {
+      setDraft(String(effective));
+      setSaveError(
+        `Expected an integer between 1 and ${cap} (in the chosen unit).`,
+      );
+      return;
+    }
+    Promise.resolve(onSet({ key: numberKey, value: parsed })).catch(
+      (error: unknown) => {
+        setDraft(String(effective));
+        setSaveError(
+          error instanceof Error ? error.message : String(error),
+        );
+      },
+    );
+  };
+
+  const commitUnit = (next: ArchiveUnit) => {
+    if (next === unit) return;
+    setSaveError(null);
+    Promise.resolve(onSet({ key: unitKey, value: next })).catch(
+      (error: unknown) => {
+        setSaveError(
+          error instanceof Error ? error.message : String(error),
+        );
+      },
+    );
+  };
+
+  return (
+    <div>
+      <p className="text-xs font-medium text-foreground">
+        {SWEEP_ARMS[arm].label}
+      </p>
+      <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+        {SWEEP_ARMS[arm].description}
+      </p>
+      {saveError !== null && (
+        <p className="mt-2 text-xs text-destructive" role="alert">
+          Saving failed: {saveError}
+        </p>
+      )}
+      <div className="mt-2 flex items-center gap-2">
+        <input
+          type="number"
+          aria-label={`${SWEEP_ARMS[arm].label} count`}
+          min={1}
+          max={cap}
+          step={1}
+          value={draft}
+          onChange={(event) => setDraft(event.target.value)}
+          onBlur={commitValue}
+          onKeyDown={(event) => {
+            if (event.key !== "Enter") return;
+            event.preventDefault();
+            event.currentTarget.blur();
+          }}
+          className="w-20 rounded-md border border-input bg-background px-2 py-1 text-xs text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        />
+        <select
+          aria-label={`${SWEEP_ARMS[arm].label} unit`}
+          value={unit}
+          onChange={(event) => commitUnit(event.target.value as ArchiveUnit)}
+          className="rounded-md border border-input bg-background px-2 py-1 text-xs text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          {ARCHIVE_UNITS.map((candidate) => (
+            <option key={candidate} value={candidate}>
+              {candidate}
+            </option>
+          ))}
+        </select>
+      </div>
     </div>
   );
 }
