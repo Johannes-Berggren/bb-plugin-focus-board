@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Icon } from "@/components/ui/icon";
 import { Input } from "@/components/ui/input";
-import { cn } from "@/lib/utils";
 import { fetchOpenversePage } from "@/lib/openverse";
 import { isAllowedWallpaperUrl, wallpaperBackgroundStyle, type WallpaperSettings, type WallpaperLayer } from "./preferences";
 import { usePrefersDarkScheme } from "./ui/hooks/use-media-query";
@@ -14,15 +13,17 @@ import {
 } from "./wallpaper-presets";
 
 /**
- * Board wallpaper control: an Image trigger opens a small popover with the
- * picker (shipped gradient presets, a Picsum shuffle strip, an Openverse
- * search) above the free-form image-url input and the dim-wash slider. Edits
+ * Board wallpaper picker: the Appearance tab's wallpaper block (shipped
+ * gradient presets, a Picsum shuffle strip, an Openverse search) above the
+ * free-form image-url input and the dim-wash slider. Its contents render
+ * inline in the modal's scrolling tab content — the control was once a
+ * toolbar popover, but its only home now is the settings dialog. Edits
  * apply immediately (like the search box) and ride up as the versioned
  * settings document; the Remove row renders only while a wallpaper is
  * active. Every gallery write goes through the same store validation the
  * typed url does, so no source can smuggle in an url the document refuses.
  */
-export function WallpaperDropdown({
+export function WallpaperPicker({
   wallpaper,
   onWallpaperChange,
 }: {
@@ -31,7 +32,6 @@ export function WallpaperDropdown({
 }) {
   const active = wallpaper.global;
   const dark = usePrefersDarkScheme();
-  const [open, setOpen] = useState(false);
   const [query, setQuery] = useState<string>(active?.url ?? "");
   const [dim, setDim] = useState<number>(active?.dim ?? 0.35);
   // Follows the committed state when a commit lands elsewhere too
@@ -39,10 +39,7 @@ export function WallpaperDropdown({
   useEffect(() => {
     setQuery(active?.url ?? "");
     setDim(active?.dim ?? 0.35);
-  }, [active?.url, active?.dim, open]);
-  const close = () => {
-    setOpen(false);
-  };
+  }, [active?.url, active?.dim]);
   const commitUrl = (nextUrl: string, nextDim: number) => {
     const url = nextUrl.trim();
     if (url === "") {
@@ -59,136 +56,108 @@ export function WallpaperDropdown({
     onWallpaperChange({ version: 1, global: layer });
   };
   return (
-    <div
-      className="relative flex"
-      onKeyDown={(event) => {
-        if (!open || event.key !== "Escape") return;
-        event.stopPropagation();
-        close();
-      }}
-    >
-      <button
-        type="button"
-        aria-haspopup="dialog"
-        aria-expanded={open}
-        aria-label="Wallpaper"
-        title="Wallpaper"
-        onClick={() => setOpen((current) => !current)}
-        className={cn(
-          "-ml-1 inline-flex size-6 items-center justify-center rounded-md transition-colors hover:bg-accent hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-          active !== null ? "text-foreground" : "text-muted-foreground",
-        )}
-      >
-        <Icon name="Image" className="size-4" aria-hidden />
-      </button>
-      {open ? (
-        <>
-          <div className="fixed inset-0 z-40" onClick={close} aria-hidden />
-          <div className="absolute right-0 top-9 z-50 w-72 rounded-md border border-border bg-popover p-2 shadow-md">
-            <div className="grid grid-cols-4 gap-1">
-              {WALLPAPER_PRESETS.map((preset) => (
-                <button
-                  key={preset.id}
-                  type="button"
-                  aria-label={`Wallpaper preset: ${preset.label}`}
-                  aria-pressed={active?.url === preset.url}
-                  title={preset.label}
-                  onClick={() => commitFromGallery(preset.url, preset.darkUrl)}
-                  className="aspect-video rounded-sm border border-border transition-colors hover:ring-2 hover:ring-ring focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                  style={
-                    wallpaperBackgroundStyle(
-                      {
-                        url: preset.url,
-                        darkUrl: preset.darkUrl,
-                        dim: 0,
-                      },
-                      dark,
-                    ) ?? undefined
-                  }
-                />
-              ))}
-            </div>
-            <div className="mt-2 grid grid-cols-4 gap-1">
-              {PICSUM_SEEDS.map((seed) => (
-                <button
-                  key={seed}
-                  type="button"
-                  aria-label={`Picsum: ${seed}`}
-                  title="Random photo (picsum.photos)"
-                  onClick={() => commitFromGallery(picsumWallpaperUrl(seed))}
-                  className="overflow-hidden rounded-sm border border-border transition-colors hover:ring-2 hover:ring-ring focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                >
-                  <img
-                    src={picsumThumbUrl(seed)}
-                    alt=""
-                    className="aspect-video w-full object-cover"
-                    loading="lazy"
-                  />
-                </button>
-              ))}
-            </div>
-            <OpenverseSearch onPick={commitFromGallery} />
-            <div className="mt-2 border-t border-border pt-2">
-              <Input
-                value={query}
-                onChange={(event) => {
-                  const nextUrl = event.target.value;
-                  setQuery(nextUrl);
-                  const trimmed = nextUrl.trim();
-                  if (trimmed === "" || isAllowedWallpaperUrl(trimmed)) {
-                    commitUrl(trimmed, dim);
-                  }
-                }}
-                aria-label="Wallpaper image url"
-                aria-invalid={
-                  query.trim() !== "" && !isAllowedWallpaperUrl(query.trim())
-                    ? "true"
-                    : undefined
-                }
-                placeholder="Image url (https://…)"
-                className="h-7 text-xs"
-              />
-              <label className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
-                <span className="shrink-0">Dim</span>
-                <input
-                  type="range"
-                  role="slider"
-                  aria-label="Wallpaper dim"
-                  min={0}
-                  max={0.9}
-                  step={0.05}
-                  value={dim}
-                  onChange={(event) => {
-                    const nextDim = Number(event.target.value);
-                    setDim(nextDim);
-                    const url = (active?.url ?? query.trim()) || "";
-                    if (url !== "" && active !== null) {
-                      const layer: WallpaperLayer =
-                        active.darkUrl === undefined
-                          ? { url, dim: nextDim }
-                          : { url, dim: nextDim, darkUrl: active.darkUrl };
-                      onWallpaperChange({ version: 1, global: layer });
-                    }
-                  }}
-                  className="flex-1 accent-[var(--primary)]"
-                />
-              </label>
-              {active !== null ? (
-                <button
-                  type="button"
-                  onClick={() => {
-                    onWallpaperChange({ version: 1, global: null });
-                  }}
-                  className="mt-2 flex w-full items-center gap-1.5 rounded-sm px-2 py-1.5 text-left text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-                >
-                  <Icon name="X" className="size-3.5 shrink-0" aria-hidden />
-                  Remove wallpaper
-                </button>
-              ) : null}
-            </div>
-          </div>
-        </>
-      ) : null}
+    <div className="rounded-md border border-border bg-popover p-2">
+      <div className="grid grid-cols-4 gap-1">
+        {WALLPAPER_PRESETS.map((preset) => (
+          <button
+            key={preset.id}
+            type="button"
+            aria-label={`Wallpaper preset: ${preset.label}`}
+            aria-pressed={active?.url === preset.url}
+            title={preset.label}
+            onClick={() => commitFromGallery(preset.url, preset.darkUrl)}
+            className="aspect-video rounded-sm border border-border transition-colors hover:ring-2 hover:ring-ring focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            style={
+              wallpaperBackgroundStyle(
+                {
+                  url: preset.url,
+                  darkUrl: preset.darkUrl,
+                  dim: 0,
+                },
+                dark,
+              ) ?? undefined
+            }
+          />
+        ))}
+      </div>
+      <div className="mt-2 grid grid-cols-4 gap-1">
+        {PICSUM_SEEDS.map((seed) => (
+          <button
+            key={seed}
+            type="button"
+            aria-label={`Picsum: ${seed}`}
+            title="Random photo (picsum.photos)"
+            onClick={() => commitFromGallery(picsumWallpaperUrl(seed))}
+            className="overflow-hidden rounded-sm border border-border transition-colors hover:ring-2 hover:ring-ring focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            <img
+              src={picsumThumbUrl(seed)}
+              alt=""
+              className="aspect-video w-full object-cover"
+              loading="lazy"
+            />
+          </button>
+        ))}
+      </div>
+      <OpenverseSearch onPick={commitFromGallery} />
+      <div className="mt-2 border-t border-border pt-2">
+        <Input
+          value={query}
+          onChange={(event) => {
+            const nextUrl = event.target.value;
+            setQuery(nextUrl);
+            const trimmed = nextUrl.trim();
+            if (trimmed === "" || isAllowedWallpaperUrl(trimmed)) {
+              commitUrl(trimmed, dim);
+            }
+          }}
+          aria-label="Wallpaper image url"
+          aria-invalid={
+            query.trim() !== "" && !isAllowedWallpaperUrl(query.trim())
+              ? "true"
+              : undefined
+          }
+          placeholder="Image url (https://…)"
+          className="h-7 text-xs"
+        />
+        <label className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
+          <span className="shrink-0">Dim</span>
+          <input
+            type="range"
+            role="slider"
+            aria-label="Wallpaper dim"
+            min={0}
+            max={0.9}
+            step={0.05}
+            value={dim}
+            onChange={(event) => {
+              const nextDim = Number(event.target.value);
+              setDim(nextDim);
+              const url = (active?.url ?? query.trim()) || "";
+              if (url !== "" && active !== null) {
+                const layer: WallpaperLayer =
+                  active.darkUrl === undefined
+                    ? { url, dim: nextDim }
+                    : { url, dim: nextDim, darkUrl: active.darkUrl };
+                onWallpaperChange({ version: 1, global: layer });
+              }
+            }}
+            className="flex-1 accent-[var(--primary)]"
+          />
+        </label>
+        {active !== null ? (
+          <button
+            type="button"
+            onClick={() => {
+              onWallpaperChange({ version: 1, global: null });
+            }}
+            className="mt-2 flex w-full items-center gap-1.5 rounded-sm px-2 py-1.5 text-left text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+          >
+            <Icon name="X" className="size-3.5 shrink-0" aria-hidden />
+            Remove wallpaper
+          </button>
+        ) : null}
+      </div>
     </div>
   );
 }
@@ -230,7 +199,7 @@ function OpenverseSearch({
   const controllerRef = useRef<AbortController | null>(null);
   useEffect(() => {
     // A closing or torn-down picker cancels the in-flight search so a stale
-    // response can never land in a reopened popover.
+    // response can never land in a reopened picker.
     return () => {
       controllerRef.current?.abort();
     };

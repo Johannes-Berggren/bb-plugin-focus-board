@@ -2,8 +2,11 @@
 // measure every control's vertical center under several host font-metric
 // sets. The line-box regression (bare `relative` wrappers positioning
 // inline-flex triggers on the text baseline) showed up as a non-zero center
-// delta between the wallpaper icon and the What's-new gift — and as cluster
-// height growth — only under host fonts other than the harness default.
+// delta between neighboring icon triggers — and as cluster height growth —
+// only under host fonts other than the harness default. (The wallpaper icon
+// that anchored the original measurement left the toolbar when the picker
+// moved into the settings' Appearance tab; the View trigger and the gift
+// keep the same row contract.)
 // Usage: vite harness first (README above), then node scripts/screenshot/repro-toolbar-alignment.mjs
 import puppeteer from "puppeteer-core";
 import { mkdirSync } from "node:fs";
@@ -51,9 +54,6 @@ for (const font of FONT_SETS) {
     const gift = [...document.querySelectorAll("button")].find(
       (b) => b.getAttribute("aria-label") === "What's new",
     );
-    const wp = [...document.querySelectorAll("button")].find(
-      (b) => b.getAttribute("aria-label") === "Wallpaper",
-    );
     const view = [...document.querySelectorAll("button")].find(
       (b) => b.getAttribute("aria-label") === "View",
     );
@@ -76,7 +76,6 @@ for (const font of FONT_SETS) {
         newThread: cy(newThread),
         search: cy(search),
         view: cy(view),
-        wallpaper: cy(wp),
         gift: cy(gift),
       },
     };

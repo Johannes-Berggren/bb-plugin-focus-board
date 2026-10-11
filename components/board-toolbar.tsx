@@ -11,8 +11,6 @@ import {
 } from "./dropdown-search";
 import type { FilterState, GroupBy, ThreadState } from "./grouping";
 import { GROUP_BY_OPTIONS } from "./grouping";
-import { WallpaperDropdown } from "./wallpaper-picker";
-import type { WallpaperSettings } from "./preferences";
 
 /**
  * Linear-model dropdown: clicking a row's label applies it as the single
@@ -512,9 +510,6 @@ interface BoardToolbarProps {
   whatsNewUnseen: boolean;
   /** Opens the settings modal on the asked tab: "whats-new" (pulse click) or "behavior" (gear click). */
   onOpenSettings: (tab: "behavior" | "whats-new") => void;
-  /** Board wallpaper behind the panel (global scope for now). */
-  wallpaper: WallpaperSettings;
-  onWallpaperChange: (next: WallpaperSettings) => void;
 }
 
 const STATE_OPTIONS: readonly { value: ThreadState; label: string }[] = [
@@ -540,8 +535,6 @@ export function BoardToolbar({
   search,
   onSearchChange,
   searchInputRef,
-  wallpaper,
-  onWallpaperChange,
   projectIds,
   providerIds,
   projects,
@@ -785,7 +778,6 @@ export function BoardToolbar({
               opens on Behavior. The aria-label flips with the costume. */}
           <div className="flex items-center gap-1.5">
             <span className="text-xs text-muted-foreground">{totalCount} threads</span>
-            <WallpaperDropdown wallpaper={wallpaper} onWallpaperChange={onWallpaperChange} />
             <button
               type="button"
               onClick={() =>

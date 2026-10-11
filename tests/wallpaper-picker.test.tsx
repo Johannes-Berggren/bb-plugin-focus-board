@@ -1,92 +1,41 @@
 // @vitest-environment jsdom
-// The toolbar's Wallpaper control: an Image icon button opens a small
-// popover with an image-url input and a dim slider. A typed url applies
-// immediately (like the search box) and lands on onWallpaperChange as a
-// versioned settings document; the Remove row (rendered only while a
-// wallpaper is active) drops it back to global: null. The trigger reads
-// active (amber ink) while a wallpaper renders behind the board.
+// The wallpaper picker as the settings' Appearance tab hosts it: shipped
+// gradient presets, a Picsum strip, an Openverse search, a free-form https
+// url field, and a dim slider, rendered inline in the tab content (no
+// trigger, no popover). Every edit commits immediately as a versioned
+// settings document; the Remove row (rendered only while a wallpaper is
+// active) drops it back to global: null. The toolbar mounts no picker — that
+// absence is pinned by tests/board-toolbar-layout.test.tsx.
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { BoardToolbar } from "../components/board-toolbar";
+import { WallpaperPicker } from "../components/wallpaper-picker";
 import { WALLPAPER_PRESETS } from "../components/wallpaper-presets";
 import type { WallpaperSettings } from "../components/preferences";
-import type { FilterState } from "../components/grouping";
 
-const PROVIDERS = [
-  { id: "p-alpha-1", displayName: "Alpha One" },
-  { id: "p-beta-1", displayName: "Beta One" },
-];
-
-type BoardToolbarProps = Parameters<typeof BoardToolbar>[0];
-
-function toolbarProps(
+function renderPicker(
   wallpaper: WallpaperSettings,
-  overrides: Partial<BoardToolbarProps> = {},
-): BoardToolbarProps {
-  const filter: FilterState = {
-    projects: new Set(),
-    providers: new Set(),
-    states: new Set(),
-  };
-  return {
-    groupBy: "status",
-    onGroupByChange: vi.fn(),
-    nestChildren: false,
-    onNestChildrenChange: vi.fn(),
-    nestingLocked: false,
-    filter,
-    onFilterChange: vi.fn(),
-    search: "",
-    onSearchChange: vi.fn(),
-    projectIds: new Set<string>(),
-    providerIds: new Set(PROVIDERS.map((provider) => provider.id)),
-    projects: [],
-    providers: PROVIDERS,
-    onCreateProject: vi.fn(() => Promise.resolve()),
-    totalCount: 0,
-    onClearFilters: vi.fn(),
-    anyFilterActive: false,
-    onNewThread: vi.fn(),
-    whatsNewUnseen: false,
-    onOpenWhatsNew: vi.fn(),
-    wallpaper,
-    onWallpaperChange: vi.fn(),
-    ...overrides,
-  };
-}
-
-function renderToolbar(
-  wallpaper: WallpaperSettings,
-  overrides: Partial<BoardToolbarProps> = {},
-): { onWallpaperChange: ReturnType<typeof vi.fn> } {
-  const props = toolbarProps(wallpaper, overrides);
-  const onWallpaperChange = props.onWallpaperChange as unknown as ReturnType<typeof vi.fn>;
-  render(<BoardToolbar {...props} />);
-  return { onWallpaperChange };
+): { onWallpaperChange: ReturnType<typeof vi.fn>; unmount: () => void } {
+  const onWallpaperChange = vi.fn();
+  const view = render(
+    <WallpaperPicker wallpaper={wallpaper} onWallpaperChange={onWallpaperChange} />,
+  );
+  return { onWallpaperChange, unmount: () => view.unmount() };
 }
 
 const NO_WALLPAPER: WallpaperSettings = { version: 1, global: null };
 
-function openPopover(): void {
-  fireEvent.click(screen.getByRole("button", { name: "Wallpaper" }));
-}
-
 afterEach(cleanup);
 
-describe("toolbar wallpaper control", () => {
-  it("opens a popover with an image-url input and a dim slider", () => {
-    renderToolbar(NO_WALLPAPER, { wallpaper: NO_WALLPAPER });
-    expect(screen.queryByRole("textbox", { name: "Wallpaper image url" })).toBeNull();
-    openPopover();
+describe("wallpaper picker (Appearance tab content)", () => {
+  it("renders the url input and dim slider inline — no trigger, no popover", () => {
+    renderPicker(NO_WALLPAPER);
     expect(screen.getByRole("textbox", { name: "Wallpaper image url" })).toBeTruthy();
     expect(screen.getByRole("slider", { name: "Wallpaper dim" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Wallpaper" })).toBeNull();
   });
 
   it("typing a url commits it as the global wallpaper, preserving the shown dim", () => {
-    const { onWallpaperChange } = renderToolbar(
-      { version: 1, global: null },
-    );
-    openPopover();
+    const { onWallpaperChange } = renderPicker({ version: 1, global: null });
     const input = screen.getByRole("textbox", { name: "Wallpaper image url" });
     fireEvent.change(input, { target: { value: "https://example.com/w.png" } });
     expect(onWallpaperChange).toHaveBeenCalledWith({
@@ -96,8 +45,7 @@ describe("toolbar wallpaper control", () => {
   });
 
   it("typing a non-http/data string is refused: nothing changes and the input reads invalid", () => {
-    const { onWallpaperChange } = renderToolbar(NO_WALLPAPER);
-    openPopover();
+    const { onWallpaperChange } = renderPicker(NO_WALLPAPER);
     fireEvent.change(screen.getByRole("textbox", { name: "Wallpaper image url" }), {
       target: { value: "javascript:alert(1)" },
     });
@@ -106,11 +54,10 @@ describe("toolbar wallpaper control", () => {
   });
 
   it("the dim slider changes only the dim of the active wallpaper", () => {
-    const { onWallpaperChange } = renderToolbar({
+    const { onWallpaperChange } = renderPicker({
       version: 1,
       global: { url: "https://example.com/w.png", dim: 0.35 },
     });
-    openPopover();
     fireEvent.change(screen.getByRole("slider", { name: "Wallpaper dim" }), {
       target: { value: "0.6" },
     });
@@ -121,23 +68,20 @@ describe("toolbar wallpaper control", () => {
   });
 
   it("Remove is rendered only while a wallpaper is active and commits global: null", () => {
-    renderToolbar(NO_WALLPAPER, { wallpaper: NO_WALLPAPER });
-    openPopover();
+    const first = renderPicker(NO_WALLPAPER);
     expect(screen.queryByRole("button", { name: "Remove wallpaper" })).toBeNull();
 
-    cleanup();
-    const { onWallpaperChange } = renderToolbar({
+    first.unmount();
+    const { onWallpaperChange } = renderPicker({
       version: 1,
       global: { url: "https://example.com/w.png", dim: 0.35 },
     });
-    openPopover();
     fireEvent.click(screen.getByRole("button", { name: "Remove wallpaper" }));
     expect(onWallpaperChange).toHaveBeenCalledWith({ version: 1, global: null });
   });
 
   it("renders the shipped preset swatches and commits one on click, keeping the shown dim", () => {
-    const { onWallpaperChange } = renderToolbar(NO_WALLPAPER);
-    openPopover();
+    const { onWallpaperChange } = renderPicker(NO_WALLPAPER);
     const count = screen.getAllByRole("button", { name: /Wallpaper preset: / }).length;
     expect(count).toBeGreaterThanOrEqual(8);
     fireEvent.click(screen.getByRole("button", { name: "Wallpaper preset: Acadia" }));
@@ -153,26 +97,23 @@ describe("toolbar wallpaper control", () => {
 
   it("marks the active preset (aria-pressed) so the stored url is visible in the grid", () => {
     // No wallpaper: nothing pressed.
-    const { unmount } = render(<BoardToolbar {...toolbarProps(NO_WALLPAPER)} />);
-    openPopover();
+    const first = renderPicker(NO_WALLPAPER);
     for (const button of screen.getAllByRole("button", { name: /Wallpaper preset: / })) {
       expect(button.getAttribute("aria-pressed")).toBe("false");
     }
-    unmount();
+    first.unmount();
 
     cleanup();
     const acadia = WALLPAPER_PRESETS.find((preset) => preset.label === "Acadia");
     if (acadia === undefined) throw new Error("missing Acadia preset");
-    renderToolbar({ version: 1, global: { url: acadia.url, dim: 0.35, darkUrl: acadia.darkUrl } });
-    openPopover();
+    renderPicker({ version: 1, global: { url: acadia.url, dim: 0.35, darkUrl: acadia.darkUrl } });
     expect(
       screen.getByRole("button", { name: "Wallpaper preset: Acadia" }).getAttribute("aria-pressed"),
     ).toBe("true");
   });
 
   it("renders Picsum thumbnails; clicking one commits its 1920x1080 url", () => {
-    const { onWallpaperChange } = renderToolbar(NO_WALLPAPER);
-    openPopover();
+    const { onWallpaperChange } = renderPicker(NO_WALLPAPER);
     const expected = screen.getAllByRole("button", { name: /Picsum: / }).length;
     expect(expected).toBe(8);
     fireEvent.click(screen.getByRole("button", { name: "Picsum: focus-board-3" }));
@@ -183,11 +124,10 @@ describe("toolbar wallpaper control", () => {
   });
 
   it("an active dim is kept when a preset or Picsum thumb commits (not the 0.35 default)", () => {
-    const { onWallpaperChange } = renderToolbar({
+    const { onWallpaperChange } = renderPicker({
       version: 1,
       global: { url: "https://example.com/w.png", dim: 0.6 },
     });
-    openPopover();
     fireEvent.click(screen.getByRole("button", { name: "Picsum: focus-board-3" }));
     expect(onWallpaperChange).toHaveBeenCalledWith({
       version: 1,
@@ -195,11 +135,10 @@ describe("toolbar wallpaper control", () => {
     });
   });
   it("the dim slider preserves an active layer's dark variant", () => {
-    const { onWallpaperChange } = renderToolbar({
+    const { onWallpaperChange } = renderPicker({
       version: 1,
       global: { url: "https://example.com/w.png", dim: 0.35, darkUrl: "https://example.com/w-dark.png" },
     });
-    openPopover();
     fireEvent.change(screen.getByRole("slider", { name: "Wallpaper dim" }), {
       target: { value: "0.6" },
     });
@@ -223,8 +162,7 @@ describe("toolbar wallpaper control", () => {
     }));
     const acadia = WALLPAPER_PRESETS.find((preset) => preset.label === "Acadia");
     if (acadia === undefined) throw new Error("missing Acadia preset");
-    renderToolbar(NO_WALLPAPER);
-    openPopover();
+    const view = renderPicker(NO_WALLPAPER);
     const swatchStyle = () =>
       screen.getByRole("button", { name: "Wallpaper preset: Acadia" }).getAttribute("style") ?? "";
     expect(swatchStyle()).toContain(acadia.url);
@@ -239,6 +177,8 @@ describe("toolbar wallpaper control", () => {
       for (const listener of listeners) listener();
     });
     expect(swatchStyle()).not.toContain(acadia.darkUrl);
+    view.unmount();
+    vi.unstubAllGlobals();
   });
 });
 
@@ -315,8 +255,7 @@ describe("Openverse search in the wallpaper picker", () => {
         ],
       },
     }));
-    const { onWallpaperChange } = renderToolbar(NO_WALLPAPER);
-    openPopover();
+    const { onWallpaperChange } = renderPicker(NO_WALLPAPER);
     fireEvent.change(screen.getByRole("textbox", { name: "Search Openverse" }), {
       target: { value: "mountain lake" },
     });
@@ -342,8 +281,7 @@ describe("Openverse search in the wallpaper picker", () => {
       const page = requestedPage(url);
       return { ok: true, body: openverseBody(page, [page === 1 ? "Sunset Beach" : "Forest Fog"]) };
     });
-    renderToolbar(NO_WALLPAPER);
-    openPopover();
+    renderPicker(NO_WALLPAPER);
     fireEvent.change(screen.getByRole("textbox", { name: "Search Openverse" }), {
       target: { value: "mountain lake" },
     });
@@ -366,8 +304,7 @@ describe("Openverse search in the wallpaper picker", () => {
       const page = requestedPage(url);
       return { ok: true, body: openverseBody(page, [`Result P${page}`]) };
     });
-    renderToolbar(NO_WALLPAPER);
-    openPopover();
+    renderPicker(NO_WALLPAPER);
     fireEvent.change(screen.getByRole("textbox", { name: "Search Openverse" }), {
       target: { value: "one lake" },
     });
@@ -393,8 +330,7 @@ describe("Openverse search in the wallpaper picker", () => {
         ? { ok: true, body: openverseBody(1, ["Sunset Beach"]) }
         : { reject: "too far" },
     );
-    const { onWallpaperChange } = renderToolbar(NO_WALLPAPER);
-    openPopover();
+    const { onWallpaperChange } = renderPicker(NO_WALLPAPER);
     fireEvent.change(screen.getByRole("textbox", { name: "Search Openverse" }), {
       target: { value: "mountain lake" },
     });
@@ -419,8 +355,7 @@ describe("Openverse search in the wallpaper picker", () => {
       ok: true,
       body: openverseBody(requestedPage(url), ["Sunset Beach"], 2),
     }));
-    renderToolbar(NO_WALLPAPER);
-    openPopover();
+    renderPicker(NO_WALLPAPER);
     fireEvent.change(screen.getByRole("textbox", { name: "Search Openverse" }), {
       target: { value: "mountain lake" },
     });
@@ -437,8 +372,7 @@ describe("Openverse search in the wallpaper picker", () => {
 
   it("an empty result set renders a visible no-results line", async () => {
     mockFetch({ ok: true, body: { results: [] } });
-    renderToolbar(NO_WALLPAPER);
-    openPopover();
+    renderPicker(NO_WALLPAPER);
     fireEvent.change(screen.getByRole("textbox", { name: "Search Openverse" }), {
       target: { value: "nothing matches" },
     });
@@ -448,8 +382,7 @@ describe("Openverse search in the wallpaper picker", () => {
 
   it("a failed search renders the failure (with the reason) and commits nothing", async () => {
     mockFetch({ reject: "network gone" });
-    const { onWallpaperChange } = renderToolbar(NO_WALLPAPER);
-    openPopover();
+    const { onWallpaperChange } = renderPicker(NO_WALLPAPER);
     fireEvent.change(screen.getByRole("textbox", { name: "Search Openverse" }), {
       target: { value: "mountain lake" },
     });

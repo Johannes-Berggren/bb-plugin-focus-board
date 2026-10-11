@@ -111,8 +111,9 @@ const selectedTab = (page) =>
   } else fail(`About rail click selected '${aboutTabAfter}'`);
   await page.screenshot({ path: `${OUT}settings-about.png` });
 
-  // The Appearance tab: three-way card-transport choice with Teleport
-  // selected by default, the motion override, and the wallpaper picker.
+  // The Appearance tab hosts the wallpaper picker inline: its contents (the
+  // preset swatches and the free-form url field) render directly in the tab
+  // content — no trigger button, no popover.
   await clickButton(page, 'button[role="tab"]:nth-child(2)');
   await new Promise((resolve) => setTimeout(resolve, 300));
   const appearanceTab = await selectedTab(page);
@@ -141,9 +142,13 @@ const selectedTab = (page) =>
     motionGroup.options.length === 3;
   if (okAppearance) ok("Appearance tab: defaults (Zoom, system motion), zoom live and default");
   else fail(`Appearance tab radio state wrong: ${JSON.stringify(radioInfo)}`);
-  const wallpaperTrigger = await page.$('button[aria-label="Wallpaper"]');
-  if (wallpaperTrigger === null) fail("Appearance tab shows no wallpaper picker trigger");
-  else ok("Appearance tab mounts the wallpaper picker");
+  const wallpaperInput = await page.$('input[aria-label="Wallpaper image url"]');
+  const presetCount = await page.$$eval(
+    'button[aria-label^="Wallpaper preset:"]',
+    (els) => els.length,
+  );
+  if (wallpaperInput === null || presetCount === 0) fail("Appearance tab shows no inline wallpaper picker");
+  else ok(`Appearance tab mounts the wallpaper picker inline (${presetCount} presets)`);
   await page.screenshot({ path: `${OUT}settings-appearance.png` });
 
   // Closing the modal marks the feed seen: the icon must now be the plain

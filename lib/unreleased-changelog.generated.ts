@@ -15,7 +15,7 @@ export const UNRELEASED_ITEMS: readonly { text: string; children: string[]; grou
   {
     "text": "**The board's settings live in one gear.** A modal with Behavior, What's new, and About panels replaces the standalone What's-new alert; the toolbar icon is a pulsing gift while there is unseen changelog — its click lands straight on the news — and a settings gear otherwise.",
     "children": [
-      "**Appearance joins the tabs.** Card animations pick the transporter read (None snaps into place, Teleport dissolves, Zoom out / in waits visibly), motion can force quieter or fuller animation than the OS setting, and the wallpaper picker lives here too; the rail marks the read tab with an accent bar, and What's-new lines fresh on dev tint amber."
+      "**Appearance joins the tabs.** Card animations pick the transporter read (None snaps into place, Teleport dissolves, Zoom out / in waits visibly), motion can force quieter or fuller animation than the OS setting, and the wallpaper picker lives here; the rail marks the read tab with an accent bar, and What's-new lines fresh on dev tint amber."
     ]
   },
   {
@@ -45,6 +45,11 @@ export const UNRELEASED_ITEMS: readonly { text: string; children: string[]; grou
     "text": "**The search field gains an x.** The button appears once the field holds text and wipes the query with one click, leaving focus in the field.",
     "children": [],
     "group": "Toolbar search"
+  },
+  {
+    "text": "**The Appearance tab is now the wallpaper's only home.** The board toolbar drops its wallpaper icon, and the picker renders inline in the settings' Appearance tab instead of popping over the toolbar; a wallpaper already stored keeps painting the board.",
+    "children": [],
+    "group": "Settings"
   },
   {
     "text": "**The Behavior tab hosts the sweep thresholds.** Each arm's count and unit edit the same declared settings Focus Board's configuration page already edits, the values render live in both places, and a rejected write names its failure right under the row.",
