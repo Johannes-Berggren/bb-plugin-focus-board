@@ -77,17 +77,27 @@ describe("a card relocating between lanes plays the transport dissolve", () => {
     expect(ghost?.getAttribute("aria-hidden")).toBe("true");
     expect(ghost?.className).toContain("pointer-events-none");
 
-    // New lane: the card is in the flow from wipe-in's first frame — its
-    // slot opens from nothing and the neighbors slide as the space grows,
-    // while the card itself dissolves in over its full height.
+    // New lane: the card is in the flow from wipe-in's first frame — the
+    // SLOT is clipped shut and opens via the grow animation, while the FADE
+    // lives on the card wrapper INSIDE the slot: the amber glint layer sits
+    // outside that fade and stays fully visible for the whole arrival
+    // (the glints must not inherit the card's dissolve opacity).
     const newLane = document.querySelector('[data-column-id="pinned"]');
     expect(newLane).not.toBeNull();
     const arrival = newLane?.querySelector("[data-transport-arrival]");
     expect(arrival?.getAttribute("data-transport-arrival")).toBe("wiping-in");
-    expect(arrival?.getAttribute("style")).toContain("opacity");
-    // The growing slot: clipped shut until the grow animation opens it.
+    expect(arrival?.getAttribute("style")).not.toContain("opacity");
     expect(arrival?.getAttribute("style")).toContain("max-height");
     expect(arrival?.getAttribute("style")).toContain("overflow");
+    const fade = arrival?.querySelector("[data-transport-fade]");
+    expect(fade ?? null).not.toBeNull();
+    expect(fade?.getAttribute("style")).toContain("opacity");
+    expect(fade?.getAttribute("style")).toContain("opacity: 0");
+    // The glint layer rides the slot, not the fade: full brightness for the
+    // entire arrival sequence.
+    expect(
+      arrival?.querySelector("[data-transport-sparks]")?.closest("[data-transport-fade]") ?? null,
+    ).toBeNull();
 
     // The shimmer: BOTH sweeps carry the spark field — the dissolving ghost
     // and the materializing arrival each render one layer of glints. Departure
@@ -96,6 +106,7 @@ describe("a card relocating between lanes plays the transport dissolve", () => {
     expect(document.querySelectorAll("[data-transport-sparks]")).toHaveLength(2);
     const arrivalSparks = arrival?.querySelector("[data-transport-sparks]");
     const ghostSparks = ghost?.querySelector("[data-transport-sparks]");
+    expect(arrivalSparks ?? null).not.toBeNull();
     expect(arrivalSparks?.getAttribute("data-transport-spark-tone")).toBe("in");
     expect(ghostSparks?.getAttribute("data-transport-spark-tone")).toBe("out");
     // The palettes: the arrival's amber beam versus the ghost's kept silver
@@ -121,8 +132,10 @@ describe("a card relocating between lanes plays the transport dissolve", () => {
     expect(document.querySelector('[data-transport-arrival]')).toBeNull();
     expect(newLane?.querySelector('[data-thread-card="thr_a"]')).not.toBeNull();
     // The arrival's spark layer goes with it: no glints ever sit on a
-    // settled card.
+    // settled card. The fade wrapper goes with it too: the card renders
+    // bare again.
     expect(newLane?.querySelector("[data-transport-sparks]")).toBeNull();
+    expect(newLane?.querySelector("[data-transport-fade]")).toBeNull();
 
     // The wipes are symmetric (equal durations): when the arrival settles,
     // the old slot's wipe is done too, and the collapse is already closing
@@ -229,15 +242,20 @@ describe("a box run relocating between lanes transports as ONE unit", () => {
     expect(ghostContainer).not.toBeNull();
     expect(ghostContainer?.previousElementSibling).not.toBeNull();
 
-    // New lane: the box arrives as one dashed container, hidden and clipped
-    // shut until the grow animation opens the space it needs.
+    // New lane: the box arrives as one dashed container — the SLOT li is
+    // clipped shut (grow target only), and the fade lives on the dashed
+    // container inside it, with the glint layer riding outside the fade.
     const newLane = document.querySelector('[data-column-id="pinned"]');
     expect(newLane?.querySelector("[data-group-box][data-transport-arrival]")).not.toBeNull();
     const arrival = newLane?.querySelector("[data-transport-arrival]");
     expect(arrival?.getAttribute("data-transport-arrival")).toBe("wiping-in");
-    expect(arrival?.getAttribute("style")).toContain("opacity");
+    expect(arrival?.getAttribute("style")).not.toContain("opacity");
     expect(arrival?.getAttribute("style")).toContain("max-height");
     expect(arrival?.getAttribute("style")).toContain("overflow");
+    const boxFade = arrival?.querySelector("[data-transport-fade]");
+    expect(boxFade ?? null).not.toBeNull();
+    expect(boxFade?.getAttribute("style")).toContain("opacity: 0");
+    expect(arrival?.querySelector("[data-transport-sparks]")?.closest("[data-transport-fade]") ?? null).toBeNull();
 
     // Wipe-in lands: the box drops its hiding styles and is an ordinary box.
     await act(async () => {

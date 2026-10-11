@@ -536,11 +536,9 @@ describe("shimmerSparks", () => {
       // The field anchors toward the slot's upper half so the descent reads.
       expect(spark.topPct).toBeGreaterThanOrEqual(5);
       expect(spark.topPct).toBeLessThanOrEqual(55);
-      // Same envelope discipline as the departure field, plus the visibility
-      // bias: the dissolve-in's crawl keeps the arriving slot near-invisible
-      // through the first half, so arrival glints start no earlier than 35%
-      // into the phase and twinkle while the beam is actually on screen.
-      expect(spark.delayMs).toBeGreaterThanOrEqual(Math.round(0.35 * TRANSPORT_WIPE_IN_MS));
+      // Same envelope discipline as the departure field. No schedule bias:
+      // the glide layer is decoupled from the card's fade (the glints ride
+      // the slot, not the card), so they twinkle across the WHOLE arrival.
       expect(spark.delayMs + spark.durationMs).toBeLessThanOrEqual(TRANSPORT_WIPE_IN_MS);
     }
     // Determinism holds per direction, not just for the shared default seed.
