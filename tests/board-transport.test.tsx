@@ -90,8 +90,22 @@ describe("a card relocating between lanes plays the transport dissolve", () => {
     expect(arrival?.getAttribute("style")).toContain("overflow");
 
     // The shimmer: BOTH sweeps carry the spark field — the dissolving ghost
-    // and the materializing arrival each render one layer of glints.
+    // and the materializing arrival each render one layer of glints. Departure
+    // keeps the silver field rising (out tone); the arrival wears amber and
+    // descends (in tone): departing is up, arriving is down.
     expect(document.querySelectorAll("[data-transport-sparks]")).toHaveLength(2);
+    const arrivalSparks = arrival?.querySelector("[data-transport-sparks]");
+    const ghostSparks = ghost?.querySelector("[data-transport-sparks]");
+    expect(arrivalSparks?.getAttribute("data-transport-spark-tone")).toBe("in");
+    expect(ghostSparks?.getAttribute("data-transport-spark-tone")).toBe("out");
+    // The palettes: the arrival's amber beam versus the ghost's kept silver
+    // (jsdom normalizes the hex literals to rgb()).
+    expect(arrivalSparks?.querySelector("[data-transport-spark]")?.style.background).toContain(
+      "rgb(253, 230, 138)",
+    );
+    expect(ghostSparks?.querySelector("[data-transport-spark]")?.style.background).toContain(
+      "rgb(186, 230, 253)",
+    );
     expect(arrival?.querySelectorAll("[data-transport-spark]")).toHaveLength(
       TRANSPORT_SPARK_COUNT,
     );

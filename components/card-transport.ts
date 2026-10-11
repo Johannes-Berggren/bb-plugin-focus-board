@@ -404,13 +404,18 @@ export function ghostCollapseKeyframes(
 
 /**
  * The shimmer's glint field: a transporter's beam does not wipe alone — a
- * field of glints rides the sweep, twinkling in and fading as they drift
- * upward. Deterministic per seed (same seed, same layout), so a re-render
- * mid-sweep never reshuffles the sparkle, and every glint's whole life
- * (delay + duration) fits inside its phase, so nothing keeps sparkling
- * after the transport machine moved on.
+ * field of glints rides the sweep, twinkling in and fading as they travel,
+ * and their travel carries the transport's own grammar: departing is up
+ * (glints rise from the bottom of the slot), arriving is down (glints
+ * descend from the top). Deterministic per (seed, direction), so a
+ * re-render mid-sweep never reshuffles the sparkle, and every glint's whole
+ * life (delay + duration) fits inside its phase, so nothing keeps
+ * sparkling after the transport machine moved on.
  */
 export const TRANSPORT_SPARK_COUNT = 14;
+
+/** Which way a phase's glint field travels. */
+export type TransportSparkDirection = "up" | "down";
 
 /** One glint's place and life inside a phase's shimmer. */
 export interface TransportSpark {
@@ -420,12 +425,18 @@ export interface TransportSpark {
   topPct: number;
   delayMs: number;
   durationMs: number;
-  /** The upward drift in px: a glint rises as it twinkles out. */
+  /** The drift in px: a glint travels as it twinkles out. */
   driftPx: number;
   widthPx: number;
   heightPx: number;
   /** The twinkle's peak opacity. */
   peak: number;
+  /**
+   * The field's travel direction: departing glints rise up from the bottom,
+   * arriving glints descend from the top (operator: "departing is up, and
+   * arriving is down").
+   */
+  direction: "up" | "down";
 }
 
 /** A tiny seeded LCG: the field must be identical across re-renders. */
@@ -443,6 +454,7 @@ export function shimmerSparks(
   phaseMs: number,
   count: number = TRANSPORT_SPARK_COUNT,
   seed: number = 20126,
+  direction: TransportSparkDirection = "up",
 ): TransportSpark[] {
   const rng = sparkRng(seed);
   const sparks: TransportSpark[] = [];
@@ -454,34 +466,43 @@ export function shimmerSparks(
       Math.round(rng() * phaseMs * 0.55),
       Math.max(0, phaseMs - durationMs),
     );
+    // The field anchors where the travel starts: a rising field sits low
+    // (departing from the bottom), a descending field sits high (arriving
+    // from the top) — direction the eye can read in one glance.
+    const topPct = direction === "up" ? 30 + rng() * 65 : 5 + rng() * 50;
     sparks.push({
       leftPct: 4 + rng() * 92,
-      topPct: 2 + rng() * 86,
+      topPct,
       delayMs,
       durationMs,
       driftPx: 6 + rng() * 8,
       widthPx: 1.5 + rng() * 1.5,
       heightPx: 5 + rng() * 7,
       peak: 0.55 + rng() * 0.4,
+      direction,
     });
   }
   return sparks;
 }
 
 /**
- * One glint's twinkle: rise to its peak, then fade while drifting upward —
- * energy leaving the card, not dust settling onto it.
+ * One glint's twinkle: rise to its peak, then fade while traveling on —
+ * energy leaving or entering the slot. The travel direction matches the
+ * field's: "up" departs from below the peak and exits above it, "down"
+ * enters from above and exits below.
  */
 export function sparkKeyframes(spark: TransportSpark): Keyframe[] {
   const drift = `${spark.driftPx.toFixed(1)}px`;
+  const [startOffset, endOffset] =
+    spark.direction === "up" ? [drift, `-${drift}`] : [`-${drift}`, drift];
   return [
     {
       opacity: 0,
-      transform: `translateY(${(spark.driftPx / 2).toFixed(1)}px) scaleY(0.4)`,
+      transform: `translateY(${startOffset}) scaleY(0.4)`,
       offset: 0,
     },
     { opacity: spark.peak, transform: "translateY(0px) scaleY(1)", offset: 0.45 },
-    { opacity: 0, transform: `translateY(-${drift}) scaleY(0.5)` },
+    { opacity: 0, transform: `translateY(${endOffset}) scaleY(0.5)` },
   ];
 }
 

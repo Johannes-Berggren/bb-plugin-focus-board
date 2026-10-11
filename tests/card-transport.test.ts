@@ -499,6 +499,37 @@ describe("shimmerSparks", () => {
       expect(spark.delayMs + spark.durationMs).toBeLessThanOrEqual(200);
     }
   });
+
+  it("departure glints rise from the bottom of the slot (departing is up)", () => {
+    const sparks = shimmerSparks(TRANSPORT_WIPE_OUT_MS);
+    expect(sparks.every((spark) => spark.direction === "up")).toBe(true);
+    for (const spark of sparks) {
+      // The field anchors toward the slot's lower half so the rise reads.
+      expect(spark.topPct).toBeGreaterThanOrEqual(30);
+      expect(spark.topPct).toBeLessThanOrEqual(95);
+    }
+  });
+
+  it("arrival glints descend from the top of the slot (arriving is down)", () => {
+    const sparks = shimmerSparks(
+      TRANSPORT_WIPE_IN_MS,
+      TRANSPORT_SPARK_COUNT,
+      undefined,
+      "down",
+    );
+    expect(sparks.every((spark) => spark.direction === "down")).toBe(true);
+    for (const spark of sparks) {
+      // The field anchors toward the slot's upper half so the descent reads.
+      expect(spark.topPct).toBeGreaterThanOrEqual(5);
+      expect(spark.topPct).toBeLessThanOrEqual(55);
+      // Same envelope discipline as the departure field.
+      expect(spark.delayMs + spark.durationMs).toBeLessThanOrEqual(TRANSPORT_WIPE_IN_MS);
+    }
+    // Determinism holds per direction, not just for the shared default seed.
+    expect(shimmerSparks(TRANSPORT_WIPE_IN_MS, TRANSPORT_SPARK_COUNT, undefined, "down")).toEqual(
+      sparks,
+    );
+  });
 });
 
 describe("sparkKeyframes", () => {
@@ -510,5 +541,16 @@ describe("sparkKeyframes", () => {
     expect(frames[frames.length - 1].opacity).toBe(0);
     // The drift: the end frame sits HIGHER than the start (negative Y).
     expect(String(frames[frames.length - 1].transform)).toContain("-");
+  });
+
+  it("an arrival glint mirrors the motion: it falls from above its peak", () => {
+    const spark = shimmerSparks(400, 14, undefined, "down")[0]!;
+    const frames = sparkKeyframes(spark);
+    // The drift: the start frame hangs BELOW-start (the glint enters from
+    // higher up), and the end frame sits LOWER than the peak (positive Y).
+    expect(String(frames[0].transform)).toContain("translateY(-");
+    const last = String(frames[frames.length - 1].transform);
+    expect(last).toContain("translateY(");
+    expect(last).not.toContain("translateY(-");
   });
 });

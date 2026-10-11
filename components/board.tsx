@@ -72,6 +72,7 @@ import {
   TRANSPORT_GROW_EASE,
   TRANSPORT_GROW_MS,
   TRANSPORT_ROW_GAP_PX,
+  TRANSPORT_SPARK_COUNT,
   TRANSPORT_WIPE_IN_MS,
   TRANSPORT_WIPE_OUT_MS,
   wipeInKeyframes,
@@ -91,14 +92,40 @@ import {
  * `shimmerSparks` entry. Invisible at rest — the start effect's WAAPI
  * twinkle brings each glint up, and a no-WAAPI environment (jsdom's phase
  * machine) holds them at 0, so the dissolve never leaves glitter behind in
- * an environment that cannot animate it away.
+ * an environment that cannot animate it away. The travel grammar differs
+ * per sweep direction: departing glints rise silver from the bottom, and
+ * arriving glints descend in amber from the top (operator: "departing is
+ * up, and arriving is down").
  */
-function TransportSparkLayer({ phaseMs }: { phaseMs: number }) {
-  const sparks = shimmerSparks(phaseMs);
+
+/** A sweep's beam palette: the kept silver beam leaves, amber arrives. */
+const SPARK_TONES = {
+  out: {
+    gradient: "linear-gradient(to top, rgba(186,230,253,0), #bae6fd 30%, #f0f9ff 85%)",
+    glow: "0 0 5px 1px rgba(125, 211, 252, 0.85)",
+    direction: "up" as const,
+  },
+  in: {
+    gradient: "linear-gradient(to bottom, rgba(253,230,138,0), #fde68a 30%, #fef9c3 85%)",
+    glow: "0 0 5px 1px rgba(252, 211, 77, 0.85)",
+    direction: "down" as const,
+  },
+} as const;
+
+function TransportSparkLayer({
+  phaseMs,
+  tone,
+}: {
+  phaseMs: number;
+  tone: keyof typeof SPARK_TONES;
+}) {
+  const palette = SPARK_TONES[tone];
+  const sparks = shimmerSparks(phaseMs, TRANSPORT_SPARK_COUNT, undefined, palette.direction);
   return (
     <span
       aria-hidden
       data-transport-sparks=""
+      data-transport-spark-tone={tone}
       className="pointer-events-none absolute inset-0 z-10 overflow-hidden"
     >
       {sparks.map((spark, index) => (
@@ -112,10 +139,8 @@ function TransportSparkLayer({ phaseMs }: { phaseMs: number }) {
             width: `${spark.widthPx.toFixed(2)}px`,
             height: `${spark.heightPx.toFixed(1)}px`,
             borderRadius: "9999px",
-            // The transporter palette: a pale blue-white streak, glowing.
-            background:
-              "linear-gradient(to top, rgba(186,230,253,0), #bae6fd 30%, #f0f9ff 85%)",
-            boxShadow: "0 0 5px 1px rgba(125, 211, 252, 0.85)",
+            background: palette.gradient,
+            boxShadow: palette.glow,
             filter: "blur(0.3px)",
             opacity: 0,
           }}
@@ -2576,9 +2601,9 @@ export function Board({
                             opacity-0 clip holds the glints down until the
                             dissolve lifts the card while the space opens. */}
                         {ghostPlay !== undefined && !prefersReducedMotion ? (
-                          <TransportSparkLayer phaseMs={TRANSPORT_WIPE_OUT_MS} />
+                          <TransportSparkLayer phaseMs={TRANSPORT_WIPE_OUT_MS} tone="out" />
                         ) : isArriving && arrivalPlay !== undefined && !prefersReducedMotion ? (
-                          <TransportSparkLayer phaseMs={TRANSPORT_WIPE_IN_MS} />
+                          <TransportSparkLayer phaseMs={TRANSPORT_WIPE_IN_MS} tone="in" />
                         ) : null}
                   </li>
                   );
@@ -2632,7 +2657,7 @@ export function Board({
                           {(play.members ?? []).map((member) => threadLi(member))}
                         </ul>
                         {!prefersReducedMotion ? (
-                          <TransportSparkLayer phaseMs={TRANSPORT_WIPE_OUT_MS} />
+                          <TransportSparkLayer phaseMs={TRANSPORT_WIPE_OUT_MS} tone="out" />
                         ) : null}
                       </div>
                     </li>
@@ -2960,7 +2985,7 @@ export function Board({
                               </ul>
                               {!prefersReducedMotion &&
                               boxArrivalFor(runItem.box.groupId) !== undefined ? (
-                                <TransportSparkLayer phaseMs={TRANSPORT_WIPE_IN_MS} />
+                                <TransportSparkLayer phaseMs={TRANSPORT_WIPE_IN_MS} tone="in" />
                               ) : null}
                             </div>
                           </li>
