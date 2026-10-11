@@ -1,5 +1,7 @@
 import type { PluginSidebarThread } from "@get-bb/plugin-sdk/app";
 import type { GroupRunItem } from "./group-boxes";
+import { columnRunItems } from "./group-boxes";
+import type { GroupBoxMap } from "./group-boxes";
 
 /**
  * The lane-transport dissolve (the Star Trek transporter wipe): when a card
@@ -33,15 +35,29 @@ export const TRANSPORT_EASE = "cubic-bezier(0.42, 0.08, 0.6, 0.5)";
  */
 export const TRANSPORT_BATCH_CAP = 12;
 
-/** One relocated card, planned from the previous commit's lane snapshot. */
+/** One relocated transport unit, planned from the previous commit's snapshot. */
 export interface LaneTransport {
+  /**
+   * The unit id: a card's thread id, or a box run's group id (the dashed
+   * container transported as one piece).
+   */
   threadId: string;
-  /** The PREVIOUS thread snapshot, so the ghost renders pre-move visuals. */
+  /**
+   * The PREVIOUS thread snapshot, so the ghost renders pre-move visuals —
+   * the unit's anchor card (a run's first member).
+   */
   thread: PluginSidebarThread;
   fromColumnId: string;
-  /** The card's slot index in its old lane (boxes count member slots). */
+  /** The unit's slot index in its old lane (a box run occupies member slots). */
   fromIndex: number;
   toColumnId: string;
+  /**
+   * A run transport's PRE-move member snapshots, in the old column's
+   * display order. Absent for single-card transports.
+   */
+  members?: readonly PluginSidebarThread[];
+  /** A run transport's previous box name — the ghost's label. */
+  boxName?: string;
 }
 
 /** The old lane's ghost state: wiping, then its reserved space collapsing. */
@@ -95,11 +111,16 @@ export function laneSignature(
  * Vanishing cards (archive, filter), brand-new cards, and multiplicity
  * changes (projection cards appearing or clearing) are plain reflows — the
  * transporter effect is for relocation only.
+ *
+ * `prevColumns` (the PREVIOUS commit's columns) gives the card's TRUE old
+ * slot: the moved card has already left its old lane in the NEXT columns,
+ * so a lookup there would degrade every ghost slot to the lane top.
  */
 export function planLaneTransports(
   prevLaneByThread: ReadonlyMap<string, string>,
   prevThreads: ReadonlyMap<string, PluginSidebarThread>,
   columns: readonly TransportColumnLike[],
+  prevColumns?: readonly TransportColumnLike[],
 ): readonly LaneTransport[] {
   const nextLaneByThread = laneSignature(columns);
   const moves: LaneTransport[] = [];
@@ -110,7 +131,7 @@ export function planLaneTransports(
     if (prevLane.includes("|") || nextLane.includes("|")) continue; // multiplicity change
     const snapshot = prevThreads.get(threadId);
     if (snapshot === undefined) continue; // no ghost visuals available
-    const prevColumn = columns.find((candidate) => candidate.id === prevLane);
+    const prevColumn = (prevColumns ?? columns).find((candidate) => candidate.id === prevLane);
     const fromIndex = prevColumn?.threads.findIndex((card) => card.id === threadId) ?? -1;
     moves.push({
       threadId,
@@ -121,6 +142,118 @@ export function planLaneTransports(
     });
   }
   return moves;
+}
+
+/**
+ * A box run as ONE transport unit: the unit the lane diff tracks, so a
+ * whole dashed box relocating between lanes plans a single dissolve instead
+ * of one per member. Keyed by group id.
+ */
+export interface RunUnit {
+  groupId: string;
+  name: string;
+  /** The column the unit's box renders in. */
+  columnId: string;
+  /** The members in the column's own display order (self-inclusive). */
+  memberIds: readonly string[];
+}
+
+/**
+ * The run units per commit, read off the columns' own display order via the
+ * same walker the render path uses (one source of truth for what a box is).
+ * A group id appears once — the first column that forms the run wins (a
+ * box split ≥ 2 + ≥ 2 across columns is a degenerate caller state; the
+ * overrides keep a box whole in one lane).
+ */
+export function runUnits(
+  columns: readonly {
+    id: string;
+    threads: readonly PluginSidebarThread[];
+  }[],
+  groupBoxOf: GroupBoxMap,
+): ReadonlyMap<string, RunUnit> {
+  const units = new Map<string, RunUnit>();
+  for (const column of columns) {
+    for (const item of columnRunItems(column, groupBoxOf)) {
+      if (item.kind !== "box") continue;
+      const groupId = item.box.groupId;
+      if (units.has(groupId)) continue;
+      units.set(groupId, {
+        groupId,
+        name: item.box.name,
+        columnId: column.id,
+        memberIds: item.box.members.map((member) => member.id),
+      });
+    }
+  }
+  return units;
+}
+
+/**
+ * Fold the per-thread moves into run transports where a box moved cleanly:
+ * every member moved, all between the same two lanes, and the membership
+ * (ids AND order) unchanged. Anything else — a split, a member joining or
+ * leaving while the box relanes, a reordered run — stays per-thread, the
+ * same way multiplicity changes stay plain reflows.
+ *
+ * A folded transport's `threadId` is the group id: the unit the timers, the
+ * ghost slot, and the arrival map key on. `members` carries the PRE-move
+ * snapshots so the ghost renders the box the board had.
+ */
+export function collapseRunTransports(
+  moves: readonly LaneTransport[],
+  prevRunUnits: ReadonlyMap<string, RunUnit> = new Map(),
+  nextRunUnits: ReadonlyMap<string, RunUnit> = new Map(),
+  prevThreads: ReadonlyMap<string, PluginSidebarThread> = new Map(),
+): readonly LaneTransport[] {
+  let result = [...moves];
+  for (const [groupId, unit] of nextRunUnits) {
+    const prevUnit = prevRunUnits.get(groupId);
+    if (prevUnit === undefined) continue;
+    if (prevUnit.memberIds.join("\u0000") !== unit.memberIds.join("\u0000")) {
+      continue; // membership or order changed: not a unit relocation
+    }
+    const memberMoves: (LaneTransport | undefined)[] = unit.memberIds.map(
+      (memberId) => {
+        const move = result.find((candidate) => candidate.threadId === memberId);
+        if (move === undefined) return undefined;
+        if (move.fromColumnId !== prevUnit.columnId || move.toColumnId !== unit.columnId) {
+          return undefined;
+        }
+        return move;
+      },
+    );
+    if (memberMoves.some((move) => move === undefined)) continue;
+    const members: PluginSidebarThread[] = [];
+    let snapshotsComplete = true;
+    for (const memberId of unit.memberIds) {
+      const snapshot = prevThreads.get(memberId);
+      if (snapshot === undefined) {
+        snapshotsComplete = false;
+        break;
+      }
+      members.push(snapshot);
+    }
+    if (!snapshotsComplete) continue; // no ghost visuals, stay per-thread
+    const removeIds = new Set(unit.memberIds);
+    const kept = result.filter((candidate) => !removeIds.has(candidate.threadId));
+    const anchor = memberMoves[0]!;
+    kept.splice(
+      result.findIndex((candidate) => removeIds.has(candidate.threadId)),
+      0,
+      {
+        threadId: groupId,
+        thread: members[0]!,
+        members,
+        boxName: prevUnit.name,
+        fromColumnId: prevUnit.columnId,
+        fromIndex: anchor.fromIndex,
+        toColumnId: unit.columnId,
+      },
+    );
+    result = kept;
+  }
+  return result;
 }
 
 /** One render entry in a lane's card list: a display run or an injected ghost. */
@@ -180,20 +313,20 @@ export function firstRealCard(
   return null;
 }
 
-/** Wipe-out frames: the card dematerializes top-down with a sparkle bloom. */
+/** Wipe-out frames: the card dematerializes top-down, blooming as it fades. */
 export function wipeOutKeyframes(): Keyframe[] {
   return [
     { clipPath: "inset(0% 0 0 0)", opacity: 1, filter: "none", offset: 0 },
     {
       clipPath: "inset(65% 0 0 0)",
-      opacity: 0.85,
-      filter: "blur(1.5px) brightness(1.3)",
+      opacity: 0.8,
+      filter: "blur(3px) brightness(1.45)",
       offset: 0.55,
     },
     {
       clipPath: "inset(100% 0 0 0)",
       opacity: 0,
-      filter: "blur(4px) brightness(1.8)",
+      filter: "blur(10px) brightness(2.1)",
     },
   ];
 }
@@ -204,13 +337,13 @@ export function wipeInKeyframes(): Keyframe[] {
     {
       clipPath: "inset(100% 0 0 0)",
       opacity: 0,
-      filter: "blur(3px) brightness(1.6)",
+      filter: "blur(7px) brightness(1.75)",
       offset: 0,
     },
     {
       clipPath: "inset(35% 0 0 0)",
       opacity: 0.9,
-      filter: "blur(0.5px) brightness(1.2)",
+      filter: "blur(1.5px) brightness(1.25)",
       offset: 0.6,
     },
     { clipPath: "inset(0% 0 0 0)", opacity: 1, filter: "none" },
@@ -227,10 +360,17 @@ export function wipeInKeyframes(): Keyframe[] {
 export function ghostCollapseKeyframes(
   heightPx: number,
   rowGapPx: number,
+  startMarginTopPx: string = "0px",
+  startMarginBottomPx: string = "0px",
 ): Keyframe[] {
   const gapHalf = `${-(rowGapPx / 2)}px`;
   return [
-    { maxHeight: `${heightPx}px`, marginTop: "0px", marginBottom: "0px", offset: 0 },
+    {
+      maxHeight: `${heightPx}px`,
+      marginTop: startMarginTopPx,
+      marginBottom: startMarginBottomPx,
+      offset: 0,
+    },
     { maxHeight: "0px", marginTop: gapHalf, marginBottom: gapHalf },
   ];
 }
@@ -245,4 +385,17 @@ export function cardRowGapPx(list: Element | null): number {
   const gap = getComputedStyle(list).rowGap;
   const parsed = Number.parseFloat(gap);
   return Number.isFinite(parsed) ? parsed : 6;
+}
+
+/**
+ * One computed margin in px. The collapse must START from the ghost's real
+ * margins: the collapsing phase's static styles are already applied when
+ * the animation claims the element, and a keyframe starting at 0 would
+ * jump the invisible ghost's neighbors before the smooth close begins.
+ * An unreadable computed value reads as 0px (a ghost with no own margin).
+ */
+export function computedMarginPx(element: Element, side: "Top" | "Bottom"): string {
+  const raw = getComputedStyle(element)[`margin${side}`];
+  const parsed = Number.parseFloat(raw);
+  return Number.isFinite(parsed) ? `${parsed}px` : "0px";
 }

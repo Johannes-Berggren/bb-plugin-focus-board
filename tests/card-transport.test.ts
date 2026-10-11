@@ -11,6 +11,8 @@ import type { PluginSidebarThread } from "@get-bb/plugin-sdk/app";
 import {
   laneSignature,
   planLaneTransports,
+  collapseRunTransports,
+  runUnits,
   firstRealCard,
   insertGhostSlots,
   TRANSPORT_WIPE_OUT_MS,
@@ -26,6 +28,27 @@ import { thread } from "./thread-fixture";
 
 function columnOf(id: string, threads: readonly PluginSidebarThread[]) {
   return { id, label: id, threads, cards: [] };
+}
+
+/** A two-member box shared by both member threads (the GroupBoxMap shape). */
+function groupBoxOf(...members: PluginSidebarThread[]) {
+  const box = { groupId: "grp_1", name: "Feature", members };
+  return new Map(members.map((member) => [member.id, box]));
+}
+
+function moveOf(
+  threadId: string,
+  fromIndex: number,
+  fromColumnId: string,
+  toColumnId: string,
+) {
+  return {
+    threadId,
+    thread: thread({ id: threadId, displayTitle: `${threadId} Before` }),
+    fromColumnId,
+    fromIndex,
+    toColumnId,
+  };
 }
 
 describe("laneSignature", () => {
@@ -112,6 +135,20 @@ describe("planLaneTransports", () => {
     expect(reverse).toEqual([]);
   });
 
+  it("reports the TRUE old slot index, read off the PREVIOUS columns even though the card already left the old lane", () => {
+    const a = thread({ id: "thr_a" });
+    const b = thread({ id: "thr_b" });
+    const c = thread({ id: "thr_c" });
+    const moves = planLaneTransports(
+      laneSignature([columnOf("unread", [a, b, c])]),
+      new Map([["thr_c", c]]),
+      [columnOf("unread", [a, b]), columnOf("pinned", [c])],
+      [columnOf("unread", [a, b, c])],
+    );
+    expect(moves.map((move) => move.threadId)).toEqual(["thr_c"]);
+    expect(moves[0].fromIndex).toBe(2);
+  });
+
   it("reports the previous thread snapshot so the ghost renders pre-move visuals", () => {
     const before = thread({ id: "thr_a", displayTitle: "Before" });
     const after = thread({ id: "thr_a", displayTitle: "After" });
@@ -121,6 +158,140 @@ describe("planLaneTransports", () => {
       [columnOf("done", [after])],
     );
     expect(moves[0].thread.displayTitle).toBe("Before");
+  });
+});
+
+describe("runUnits", () => {
+  it("maps a box run's members (≥ two in one column) to one unit keyed by group id", () => {
+    const m1 = thread({ id: "thr_m1" });
+    const m2 = thread({ id: "thr_m2" });
+    const units = runUnits(
+      [columnOf("unread", [m1, m2]), columnOf("pinned", [thread({ id: "thr_x" })])],
+      groupBoxOf(m1, m2),
+    );
+    expect([...units.keys()]).toEqual(["grp_1"]);
+    expect(units.get("grp_1")).toEqual({
+      groupId: "grp_1",
+      name: "Feature",
+      columnId: "unread",
+      memberIds: ["thr_m1", "thr_m2"],
+    });
+  });
+
+  it("keeps a group-of-one a unit (the live board keeps its dashed container)", () => {
+    const m1 = thread({ id: "thr_m1" });
+    const units = runUnits([columnOf("unread", [m1])], groupBoxOf(m1));
+    expect(units.get("grp_1")?.memberIds).toEqual(["thr_m1"]);
+  });
+
+  it("drops a split box (a lone multi-member-box member renders plain, no unit)", () => {
+    const m1 = thread({ id: "thr_m1" });
+    const m2 = thread({ id: "thr_m2" });
+    const units = runUnits(
+      [columnOf("unread", [m1]), columnOf("pinned", [m2])],
+      groupBoxOf(m1, m2),
+    );
+    expect(units.size).toBe(0);
+  });
+
+  it("reads member order off the column's own display order, not the plan's", () => {
+    const m1 = thread({ id: "thr_m1" });
+    const m2 = thread({ id: "thr_m2" });
+    const units = runUnits(
+      [columnOf("unread", [m2, m1])],
+      groupBoxOf(m1, m2),
+    );
+    expect(units.get("grp_1")?.memberIds).toEqual(["thr_m2", "thr_m1"]);
+  });
+});
+
+describe("collapseRunTransports", () => {
+  const prevUnits = new Map([
+    ["grp_1", { groupId: "grp_1", name: "Feature", columnId: "unread", memberIds: ["thr_m1", "thr_m2"] }],
+  ]);
+  const nextUnits = new Map([
+    ["grp_1", { groupId: "grp_1", name: "Feature", columnId: "pinned", memberIds: ["thr_m1", "thr_m2"] }],
+  ]);
+  const prevThreads = new Map([
+    ["thr_m1", thread({ id: "thr_m1", displayTitle: "M1 Before" })],
+    ["thr_m2", thread({ id: "thr_m2", displayTitle: "M2 Before" })],
+  ]);
+
+  it("folds a box's lockstep member moves into ONE run transport carrying pre-move snapshots", () => {
+    const result = collapseRunTransports(
+      [moveOf("thr_m1", 0, "unread", "pinned"), moveOf("thr_m2", 1, "unread", "pinned")],
+      prevUnits,
+      nextUnits,
+      prevThreads,
+    );
+    expect(result).toHaveLength(1);
+    expect(result[0]).toMatchObject({
+      threadId: "grp_1",
+      boxName: "Feature",
+      fromColumnId: "unread",
+      toColumnId: "pinned",
+      fromIndex: 0,
+      thread: { displayTitle: "M1 Before" },
+    });
+    expect(result[0].members?.map((member) => member.displayTitle)).toEqual([
+      "M1 Before",
+      "M2 Before",
+    ]);
+  });
+
+  it("keeps per-thread transports when only part of a box moved (a split, not a unit)", () => {
+    const result = collapseRunTransports(
+      [moveOf("thr_m1", 0, "unread", "pinned")],
+      prevUnits,
+      nextUnits,
+      prevThreads,
+    );
+    expect(result.map((transport) => transport.threadId)).toEqual(["thr_m1"]);
+    expect(result[0].members).toBeUndefined();
+  });
+
+  it("keeps per-thread transports when the box's membership changed while it moved", () => {
+    const changed = new Map([
+      ["grp_1", { groupId: "grp_1", name: "Feature", columnId: "pinned", memberIds: ["thr_m2", "thr_m1"] }],
+    ]);
+    const result = collapseRunTransports(
+      [moveOf("thr_m1", 0, "unread", "pinned"), moveOf("thr_m2", 1, "unread", "pinned")],
+      prevUnits,
+      changed,
+      prevThreads,
+    );
+    expect(result.map((transport) => transport.threadId).sort()).toEqual(["thr_m1", "thr_m2"]);
+  });
+
+  it("falls back to per-thread transports when a member has no pre-move snapshot", () => {
+    const result = collapseRunTransports(
+      [moveOf("thr_m1", 0, "unread", "pinned"), moveOf("thr_m2", 1, "unread", "pinned")],
+      prevUnits,
+      nextUnits,
+      new Map([["thr_m1", prevThreads.get("thr_m1")!]]),
+    );
+    expect(result.map((transport) => transport.threadId).sort()).toEqual(["thr_m1", "thr_m2"]);
+  });
+
+  it("counts a collapsed unit as ONE transport, so a 13-member box stays under the batch cap", () => {
+    const memberIds = Array.from({ length: 13 }, (_, index) => `thr_m${index}`);
+    const members = memberIds.map((id) => thread({ id }));
+    const prevThirteen = new Map([
+      ["grp_1", { groupId: "grp_1", name: "Big", columnId: "unread", memberIds }],
+    ]);
+    const nextThirteen = new Map([
+      ["grp_1", { groupId: "grp_1", name: "Big", columnId: "pinned", memberIds }],
+    ]);
+    const snapshots = new Map(members.map((member) => [member.id, member]));
+    const result = collapseRunTransports(
+      memberIds.map((id, index) => moveOf(id, index, "unread", "pinned")),
+      prevThirteen,
+      nextThirteen,
+      snapshots,
+    );
+    expect(result).toHaveLength(1);
+    expect(result[0].members).toHaveLength(13);
+    expect(TRANSPORT_BATCH_CAP).toBeGreaterThan(1);
   });
 });
 
@@ -210,12 +381,16 @@ describe("wipe keyframes", () => {
     expect(String(frames[0].clipPath)).toContain("inset(0%");
     expect(String(frames[frames.length - 1].clipPath)).toContain("inset(100%");
     expect(frames[frames.length - 1].opacity).toBe(0);
+    // The dissolve's read: the bloom strengthens all the way to the end —
+    // a sweep without a strong growing bloom reads as a plain wipe.
+    expect(String(frames[frames.length - 1].filter)).toContain("blur(10px)");
   });
 
   it("wipe-in is the mirror: hidden top edge opening to full visibility", () => {
     const frames = wipeInKeyframes();
     expect(String(frames[0].clipPath)).toContain("inset(100%");
     expect(Number(frames[frames.length - 1].opacity)).toBe(1);
+    expect(String(frames[0].filter)).toContain("blur(7px)");
   });
 
   it("the collapse closes the ghost's height and borrows nothing extra from the layout", () => {
@@ -224,6 +399,16 @@ describe("wipe keyframes", () => {
     const frames = ghostCollapseKeyframes(120, 6);
     expect(frames[0].maxHeight).toBe("120px");
     expect(frames[frames.length - 1].maxHeight).toBe("0px");
+    expect(frames[frames.length - 1].marginTop).toBe("-3px");
+    expect(frames[frames.length - 1].marginBottom).toBe("-3px");
+  });
+
+  it("the collapse starts from the ghost's real margins, so a box container's own top margin dissolves smoothly", () => {
+    // A box ghost's container carries a 6px top margin of its own; the
+    // collapse must eat that smoothly (6px → borrowed halves), never jump.
+    const frames = ghostCollapseKeyframes(120, 6, "6px", "0px");
+    expect(frames[0].marginTop).toBe("6px");
+    expect(frames[0].marginBottom).toBe("0px");
     expect(frames[frames.length - 1].marginTop).toBe("-3px");
     expect(frames[frames.length - 1].marginBottom).toBe("-3px");
   });

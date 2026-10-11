@@ -195,41 +195,64 @@ export function runsFromColumns(
 ): ReadonlyMap<string, readonly GroupRunItem[]> {
   const runs = new Map<string, readonly GroupRunItem[]>();
   for (const column of columns) {
-    const items: GroupRunItem[] = [];
-    const consumedThisColumn = new Set<string>();
-    for (const thread of column.threads) {
-      if (consumedThisColumn.has(thread.id)) continue;
-      const box = groupBoxOf.get(thread.id);
-      if (box === undefined) {
-        items.push({ kind: "single", thread });
-        continue;
-      }
-      // The box's members in THIS COLUMN'S OWN DISPLAY ORDER — read off
-      // `column.threads` as they appear, never from the plan's `box.members`
-      // (which planGroupBoxes collected in recency-iteration order). The
-      // rank contract keeps a boxed run contiguous in the column order, so
-      // the walk reproduces that order exactly — and an in-box reorder,
-      // whose write reorders the members inside the run's span, actually
-      // STICKS: rendering from the plan's recency order instead un-renders
-      // every in-box reorder the moment the store updates (reproduced live
-      // 2026-10-10 — the box read reordered ranks and displayed the old
-      // sequence, looking exactly like "reorder not working").
-      const memberIds = new Set(box.members.map((member) => member.id));
-      const members = column.threads.filter((candidate) => memberIds.has(candidate.id));
-      // A lone member of a MULTI-member box in THIS column (its box split
-      // by a frozen selection or a caller that skipped the overrides)
-      // renders plain — a split pair never becomes two boxes of one. A
-      // group whose WHOLE membership is this one member keeps its box.
-      if (members.length < 2 && box.members.length > 1) {
-        items.push({ kind: "single", thread });
-        continue;
-      }
-      for (const member of members) consumedThisColumn.add(member.id);
-      items.push({ kind: "box", box: { ...box, members } });
-    }
-    runs.set(column.id, items);
+    runs.set(column.id, columnRunItems(column, groupBoxOf));
   }
   return runs;
+}
+
+/** The column shape the run walk needs (BoardColumn satisfies it). */
+export interface RunColumnLike {
+  id: string;
+  threads: readonly PluginSidebarThread[];
+}
+
+/**
+ * One column's display order walked into runs: box members gather into one
+ * contiguous box item at the position of the FIRST member in the column's
+ * own order, preserving relative member order; standalone cards keep their
+ * slots. A group of one yields a box run around its single member (the
+ * solitary outline stays). A member that landed in a different column (a
+ * frozen selection, or a caller that skipped the overrides) renders plain
+ * there — the box renders in the column holding at least two of a
+ * multi-member box's members in this path.
+ */
+export function columnRunItems(
+  column: RunColumnLike,
+  groupBoxOf: GroupBoxMap,
+): readonly GroupRunItem[] {
+  const items: GroupRunItem[] = [];
+  const consumedThisColumn = new Set<string>();
+  for (const thread of column.threads) {
+    if (consumedThisColumn.has(thread.id)) continue;
+    const box = groupBoxOf.get(thread.id);
+    if (box === undefined) {
+      items.push({ kind: "single", thread });
+      continue;
+    }
+    // The box's members in THIS COLUMN'S OWN DISPLAY ORDER — read off
+    // `column.threads` as they appear, never from the plan's `box.members`
+    // (which planGroupBoxes collected in recency-iteration order). The
+    // rank contract keeps a boxed run contiguous in the column order, so
+    // the walk reproduces that order exactly — and an in-box reorder,
+    // whose write reorders the members inside the run's span, actually
+    // STICKS: rendering from the plan's recency order instead un-renders
+    // every in-box reorder the moment the store updates (reproduced live
+    // 2026-10-10 — the box read reordered ranks and displayed the old
+    // sequence, looking exactly like "reorder not working").
+    const memberIds = new Set(box.members.map((member) => member.id));
+    const members = column.threads.filter((candidate) => memberIds.has(candidate.id));
+    // A lone member of a MULTI-member box in THIS column (its box split
+    // by a frozen selection or a caller that skipped the overrides)
+    // renders plain — a split pair never becomes two boxes of one. A
+    // group whose WHOLE membership is this one member keeps its box.
+    if (members.length < 2 && box.members.length > 1) {
+      items.push({ kind: "single", thread });
+      continue;
+    }
+    for (const member of members) consumedThisColumn.add(member.id);
+    items.push({ kind: "box", box: { ...box, members } });
+  }
+  return items;
 }
 
 /**
