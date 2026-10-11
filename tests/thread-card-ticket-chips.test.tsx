@@ -170,6 +170,20 @@ describe("ticket chip icons — issue vs PR glyph", () => {
     const glyph = await chipIcon("Merge");
     expect(glyph.getAttribute("class")).toContain("text-purple-500");
     expect(glyph.getAttribute("aria-label")).toBe("pull MERGED");
+    // The glyph is the static state signal; id text stays neutral (a chip
+    // holding many merged PRs must not read as one purple smear). A merged
+    // id strikes through in grey and pops purple only on hover.
+    const idSpan = chip().querySelector('[data-ticket-id="#17"] > span');
+    expect(idSpan?.getAttribute("class") ?? "").toContain("line-through");
+    expect(idSpan?.getAttribute("class") ?? "").toContain("hover:text-purple-500");
+    expect(idSpan?.getAttribute("class") ?? "").not.toMatch(/(^|\s)text-purple-500/);
+  });
+
+  it("a chip with many ids wraps onto extra lines instead of overflowing", () => {
+    renderCard("#101 #102 #103 #104 #105 #106 #107 #108 resolve");
+    const chipEl = chip();
+    expect(chipEl.className).toContain("flex-wrap");
+    expect(chipEl.className).toContain("min-h-5");
   });
 
   it("live closed-PR status swaps in the closed-PR glyph muted", async () => {

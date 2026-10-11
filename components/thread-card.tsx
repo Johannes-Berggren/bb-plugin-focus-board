@@ -194,10 +194,11 @@ export const NESTED_ROWS_SCROLL_THRESHOLD = 5;
  *
  * The mark links to that kind's list page: the repo's filtered page where
  * the group's base is known, GitHub's own global page otherwise; an unknown
- * external tracker's mark stays inert. Each ID keeps its own href, and —
- * once live status lands, per ID — its state color. The kind glyph reads
- * the group's primary (first) ref's status, so it doubles as the state
- * signal exactly as the old per-ref chip's glyph did.
+ * external tracker's mark stays inert. Each ID keeps its own href, and the
+ * kind glyph carries the state color — read from the group's primary (first)
+ * ref's status — while ID text stays neutral and each ID's state survives on
+ * its hover title. The chip shell wraps, so a long ID list reflows onto
+ * extra lines instead of overflowing the card.
  */
 function ProviderTicketChip({
   row,
@@ -217,7 +218,8 @@ function ProviderTicketChip({
   const [faviconFailed, setFaviconFailed] = useState(false);
   const isGithub = row.provider === "github";
   const markHref = ticketChipIconHref(row, chip.kind);
-  const className = "inline-flex h-5 items-center gap-1 rounded bg-muted px-1 font-mono text-[10px] leading-none text-muted-foreground";
+  const className =
+    "inline-flex min-h-5 flex-wrap items-center gap-x-1 gap-y-0.5 rounded bg-muted px-1 py-0.5 font-mono text-[10px] leading-none text-muted-foreground";
   const mark =
     isGithub ? (
       <Icon name="GithubMark" className="size-3 shrink-0" aria-hidden />
@@ -283,15 +285,29 @@ function ProviderTicketChip({
   // External items name their own tracker in the favicon and carry no
   // GitHub kind glyph.
   const ids = chip.refs.map((ref, index) => {
+    // The kind glyph owns the static state color; id text stays neutral so a
+    // chip holding many merged PRs does not read as one purple smear. A
+    // merged id reads struck-through grey, popping purple on hover; every
+    // id's state answers on its hover title.
     const status =
       isGithub && ref.number !== undefined
         ? statusFor?.(ticketStatusRepo(ref, projectRepo), ref.number)
         : undefined;
-    const colorClass = status === undefined ? undefined : STATUS_ICON_CLASS[status.state];
+    const title = status === undefined ? undefined : `${status.kind} ${status.state}`;
     const text = ticketChipIdText(ref);
-    const body = <span className={colorClass}>{text}</span>;
+    const body = (
+      <span
+        className={
+          status?.state === "MERGED" ? "line-through hover:text-purple-500" : undefined
+        }
+      >
+        {text}
+      </span>
+    );
     return ref.href === undefined ? (
-      <span key={index}>{body}</span>
+      <span key={index} title={title}>
+        {body}
+      </span>
     ) : (
       <a
         key={index}
@@ -299,6 +315,7 @@ function ProviderTicketChip({
         target="_blank"
         rel="noreferrer"
         onClick={(event) => event.stopPropagation()}
+        title={title}
         className="inline-flex shrink-0"
         data-ticket-id={text}
       >
