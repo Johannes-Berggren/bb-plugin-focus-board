@@ -92,6 +92,7 @@ import {
   type TransportArrivalPhase,
   type TransportOutPhase,
   type TransportPlay,
+  type TransportSpark,
   type TransportVariantId,
 } from "./card-transport";
 
@@ -141,6 +142,11 @@ function TransportSparkLayer({
         <span
           key={index}
           data-transport-spark=""
+          // The glint's WHOLE life rides the DOM: the start effect animates
+          // exactly this state, so the rendered field and the animated field
+          // are the same by construction (a once-recomputed default gave
+          // every glint an upward drift, even on the downward arrival).
+          data-spark-state={JSON.stringify(spark)}
           style={{
             position: "absolute",
             left: `${spark.leftPct.toFixed(1)}%`,
@@ -1003,16 +1009,21 @@ export function Board({
     // envelope), so every sparkle has faded before the machine moves on;
     // the handles still ride sparkAnimsRef so a re-target or removal kills
     // them mid-twinkle.
-    const startSparks = (key: string, host: HTMLElement | null | undefined, phaseMs: number) => {
+    const startSparks = (key: string, host: HTMLElement | null | undefined) => {
       if (host === null || host === undefined) return;
       if (startedWipesRef.current.has(key)) return;
       startedWipesRef.current.add(key);
       if (typeof host.animate !== "function") return;
-      const sparks = shimmerSparks(phaseMs);
       const glints = host.querySelectorAll<HTMLElement>("[data-transport-spark]");
       const handles: Animation[] = [];
       for (let index = 0; index < glints.length; index += 1) {
-        const spark = sparks[index % sparks.length]!;
+        // The glint's life comes from its own DOM state — the field the
+        // layer actually rendered (direction included). No recomputation,
+        // so the animation can never diverge from what the eye sees.
+        const spark = JSON.parse(
+          glints[index]!.getAttribute("data-spark-state") ?? "null",
+        ) as TransportSpark | null;
+        if (spark === null) continue;
         handles.push(
           glints[index]!.animate(sparkKeyframes(spark), {
             duration: spark.durationMs,
@@ -1054,7 +1065,6 @@ export function Board({
         startSparks(
           `spark:out:${transport.threadId}@${transport.gen}`,
           transportElsRef.current.get(outKey),
-          TRANSPORT_WIPE_OUT_MS,
         );
       }
       const arrivalKey = `arrival:${transport.threadId}@${transport.gen}`;
@@ -1102,7 +1112,6 @@ export function Board({
         startSparks(
           `spark:arrival:${transport.threadId}@${transport.gen}`,
           arrivalSlotEl,
-          TRANSPORT_WIPE_IN_MS,
         );
       }
       if (
