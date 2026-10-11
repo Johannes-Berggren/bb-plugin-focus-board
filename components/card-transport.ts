@@ -55,6 +55,97 @@ export const TRANSPORT_GROW_EASE = "cubic-bezier(0.3, 0.75, 0.4, 1)";
  */
 export const TRANSPORT_BATCH_CAP = 12;
 
+// ── The zoom variant (shrink out / grow in) ───────────────────────────────
+// A second lane-move animation alongside the transporter dissolve: a card
+// leaving a lane zooms OUT (scales down like it is receding into a portal)
+// while its old slot's reserved space collapses IN TIME WITH the shrink, and
+// the arriving card zooms IN (scales up from small to full) with its new
+// slot's space expanding on the SAME clock as the growth, so the space and
+// the card land together. Additive by design: the dissolve stays the default
+// and a variant is selected by name.
+
+/** The lane-transport animation a board plays: the dissolve or the zoom. */
+export type TransportVariantId = "dissolve" | "zoom";
+
+/**
+ * The variant the board plays until a caller picks one. Module-level so the
+ * upcoming transition settings (user-facing selection, including a
+ * reduced-motion option) dispatch on a single named value.
+ */
+export const TRANSPORT_VARIANT: TransportVariantId = "dissolve";
+
+/**
+ * The zoom's shrink-out clock: the ghost card recedes while the OLD slot's
+ * space closes on the same tick (the dissolve's collapse runs AFTER its
+ * wipe; the zoom's runs concurrently). Removed slot, gone transport.
+ */
+export const TRANSPORT_ZOOM_OUT_MS = 320;
+
+/**
+ * The zoom's grow-in clock: the arriving card scales up while its NEW
+ * slot's space expands on the same tick, so the space and the card arrive
+ * together instead of the space trailing (the dissolve's grow opens early
+ * under its dissolve-in; the zoom's IS the arrival).
+ */
+export const TRANSPORT_ZOOM_IN_MS = 320;
+
+/**
+ * The recede's easing: accelerating-away, ease-in shaped — the card picks
+ * up speed as it shrinks into the old slot, the opposite of the materialize.
+ */
+export const TRANSPORT_ZOOM_OUT_EASE = "cubic-bezier(0.45, 0, 0.85, 0.6)";
+
+/**
+ * The arrival's easing: ease-out shaped — the card grows in fast and
+ * settles gently into its slot, the opposite of the recede's acceleration.
+ */
+export const TRANSPORT_ZOOM_IN_EASE = "cubic-bezier(0.2, 0.65, 0.3, 1)";
+
+/**
+ * The portal scale both directions meet at: the receding card shrinks
+ * toward it, the arriving card grows from it — one opening read from both
+ * sides. Never 0 (a card would fold through nothing) and never half (the
+ * shrink would not read as receding).
+ */
+export const TRANSPORT_ZOOM_MIN_SCALE = 0.2;
+
+/** A transport's phase timers, per variant — the board's state-machine clock. */
+export interface TransportPhasePlan {
+  /** The arrival finishes (its hiding styles drop) at this time. */
+  settleMs: number;
+  /** The old slot's space starts closing at this time (0 = concurrent with the shrink). */
+  collapseStartMs: number;
+  /** The ghost is removed entirely at this time. */
+  removeMs: number;
+}
+
+/**
+ * The dissolve's phases: wipe-in settles, THEN the wipe-out's end flips the
+ * ghost to collapsing, then the collapse's end removes it (operators tuned
+ * this order for the transporter read).
+ */
+export const DISSOLVE_PHASE_PLAN: TransportPhasePlan = {
+  settleMs: TRANSPORT_WIPE_IN_MS,
+  collapseStartMs: TRANSPORT_WIPE_OUT_MS,
+  removeMs: TRANSPORT_WIPE_OUT_MS + TRANSPORT_COLLAPSE_MS,
+};
+
+/**
+ * The zoom's phases: the slot close rides clock zero (in time with the
+ * shrink), the arrival settles at the growth clock, and the shrink's end
+ * removes the ghost — the space and the card change lanes together.
+ */
+export const ZOOM_PHASE_PLAN: TransportPhasePlan = {
+  settleMs: TRANSPORT_ZOOM_IN_MS,
+  collapseStartMs: 0,
+  removeMs: TRANSPORT_ZOOM_OUT_MS,
+};
+
+/** The phase timers a variant plays. The board's selection seam. */
+export function transportPhasePlan(variant: TransportVariantId): TransportPhasePlan {
+  return variant === "zoom" ? ZOOM_PHASE_PLAN : DISSOLVE_PHASE_PLAN;
+}
+
 /** One relocated transport unit, planned from the previous commit's snapshot. */
 export interface LaneTransport {
   /**
@@ -399,6 +490,35 @@ export function ghostCollapseKeyframes(
       offset: 0,
     },
     { maxHeight: "0px", marginTop: gapHalf, marginBottom: gapHalf },
+  ];
+}
+
+/**
+ * Zoom-out frames: the card recedes into its old slot's portal — it scales
+ * down toward the shared portal scale while fading, no directional clip and
+ * no beam bloom (that read belongs to the dissolve). The slot's own space
+ * closes concurrently via the collapse keyframes; the transform here makes
+ * the card shrink WITH the closing window instead of being clipped away.
+ */
+export function zoomOutKeyframes(): Keyframe[] {
+  return [
+    { opacity: 1, transform: "scale(1)", offset: 0 },
+    { opacity: 0.6, transform: "scale(0.6)", offset: 0.6 },
+    { opacity: 0, transform: `scale(${TRANSPORT_ZOOM_MIN_SCALE})` },
+  ];
+}
+
+/**
+ * Zoom-in frames: the arriving card grows from the shared portal scale to
+ * full size and lands opaque — the mirror of the recede. Its slot's space
+ * expands on the same clock (the grow keyframes run a TRANSPORT_ZOOM_IN_MS
+ * window in the board), so the space and the card come into being together.
+ */
+export function zoomInKeyframes(): Keyframe[] {
+  return [
+    { opacity: 0, transform: `scale(${TRANSPORT_ZOOM_MIN_SCALE})`, offset: 0 },
+    { opacity: 0.9, transform: "scale(0.85)", offset: 0.6 },
+    { opacity: 1, transform: "scale(1)" },
   ];
 }
 

@@ -73,10 +73,18 @@ import {
   TRANSPORT_GROW_MS,
   TRANSPORT_ROW_GAP_PX,
   TRANSPORT_SPARK_COUNT,
+  TRANSPORT_VARIANT,
   TRANSPORT_WIPE_IN_MS,
   TRANSPORT_WIPE_OUT_MS,
+  TRANSPORT_ZOOM_IN_EASE,
+  TRANSPORT_ZOOM_IN_MS,
+  TRANSPORT_ZOOM_OUT_EASE,
+  TRANSPORT_ZOOM_OUT_MS,
+  transportPhasePlan,
   wipeInKeyframes,
   wipeOutKeyframes,
+  zoomInKeyframes,
+  zoomOutKeyframes,
   shimmerSparks,
   sparkKeyframes,
   type LaneTransport,
@@ -84,6 +92,7 @@ import {
   type TransportArrivalPhase,
   type TransportOutPhase,
   type TransportPlay,
+  type TransportVariantId,
 } from "./card-transport";
 
 /**
@@ -230,6 +239,13 @@ interface BoardProps {
    * no dot, no pill, no color — the name is secondary text.
    */
   groupBoxOf?: GroupBoxMap;
+  /**
+   * The lane-transport animation this board plays: the transporter dissolve
+   * (default) or the zoom (shrink out / grow in). The selection seam the
+   * upcoming transition settings dispatch on — the module default stands in
+   * until a caller passes the operator's choice.
+   */
+  transportVariant?: TransportVariantId;
   /**
    * Join a dragged card to a registry group by dropping it on the group's
    * box container (the dashed outline's own surface: label, padding, and
@@ -530,6 +546,7 @@ export function Board({
   childCountByParent,
   doneChildrenByParent,
   groupBoxOf,
+  transportVariant = TRANSPORT_VARIANT,
   onRenameGroup,
   onDeleteGroup,
   onNewThreadInGroup,
@@ -727,6 +744,10 @@ export function Board({
   // but no wipe keyframes start and the arriving card never hides behind
   // static styles.
   const prefersReducedMotion = usePrefersReducedMotion();
+  // The shimmer is the dissolve's beam decoration — a field of glints riding
+  // the sweeps. The zoom recedes into a portal instead and plays no glint
+  // field, so all four shimmer render sites share one read.
+  const transportSparksOn = !prefersReducedMotion && transportVariant === "dissolve";
   const prevGroupByRef = useRef<GroupBy | null>(null);
   const prevLaneByThreadRef = useRef<ReadonlyMap<string, string> | null>(null);
   // The run-unit map (a box run is ONE unit): diffed per commit so a whole
@@ -852,6 +873,10 @@ export function Board({
 
   const scheduleTransportTimers = (transport: TransportPlay) => {
     cancelTransportTimers(transport.threadId);
+    // The variant owns the clocks: the dissolve holds the ghost slot open
+    // through its wipe-out before the collapse starts; the zoom starts the
+    // slot's close at clock zero, in time with the shrink.
+    const plan = transportPhasePlan(transportVariant);
     const timers: number[] = [];
     const settle = window.setTimeout(() => {
       // Wipe-in done: the arriving slot loses its hiding styles and the
@@ -885,18 +910,18 @@ export function Board({
           play.threadId === transport.threadId ? { ...play, arrival: "settled" } : play,
         ),
       );
-    }, TRANSPORT_WIPE_IN_MS);
+      }, plan.settleMs);
     const collapse = window.setTimeout(() => {
       setTransports((current) =>
         current.map((play) =>
           play.threadId === transport.threadId ? { ...play, phase: "collapsing" } : play,
         ),
       );
-    }, TRANSPORT_WIPE_OUT_MS);
+    }, plan.collapseStartMs);
     const remove = window.setTimeout(() => {
       cancelTransportTimers(transport.threadId);
       setTransports((current) => current.filter((play) => play.threadId !== transport.threadId));
-    }, TRANSPORT_WIPE_OUT_MS + TRANSPORT_COLLAPSE_MS);
+    }, plan.removeMs);
     timers.push(settle, collapse, remove);
     transportTimersRef.current.set(transport.threadId, timers);
   };
@@ -989,15 +1014,33 @@ export function Board({
           });
         }
       }
-      startWipe(outKey, transportElsRef.current.get(outKey), wipeOutKeyframes(), TRANSPORT_WIPE_OUT_MS);
-      startSparks(
-        `spark:out:${transport.threadId}@${transport.gen}`,
+      startWipe(
+        outKey,
         transportElsRef.current.get(outKey),
-        TRANSPORT_WIPE_OUT_MS,
+        // The dissolve fades in place with a bloom; the zoom recedes toward
+        // the portal scale, accelerating away.
+        transportVariant === "zoom" ? zoomOutKeyframes() : wipeOutKeyframes(),
+        transportVariant === "zoom" ? TRANSPORT_ZOOM_OUT_MS : TRANSPORT_WIPE_OUT_MS,
+        transportVariant === "zoom" ? TRANSPORT_ZOOM_OUT_EASE : TRANSPORT_EASE,
       );
+      if (transportVariant === "dissolve") {
+        startSparks(
+          `spark:out:${transport.threadId}@${transport.gen}`,
+          transportElsRef.current.get(outKey),
+          TRANSPORT_WIPE_OUT_MS,
+        );
+      }
       const arrivalKey = `arrival:${transport.threadId}@${transport.gen}`;
       const arrivalEl = transportElsRef.current.get(arrivalKey);
-      startWipe(arrivalKey, arrivalEl, wipeInKeyframes(), TRANSPORT_WIPE_IN_MS);
+      startWipe(
+        arrivalKey,
+        arrivalEl,
+        // The dissolve materializes out of the beam's bloom; the zoom grows
+        // from the portal scale, landing opaque as its space opens.
+        transportVariant === "zoom" ? zoomInKeyframes() : wipeInKeyframes(),
+        transportVariant === "zoom" ? TRANSPORT_ZOOM_IN_MS : TRANSPORT_WIPE_IN_MS,
+        transportVariant === "zoom" ? TRANSPORT_ZOOM_IN_EASE : TRANSPORT_EASE,
+      );
       // The dissolve rides the space growing: the new slot opens from zero
       // height to its measured height so the lane's neighbors slide as the
       // card materializes (scrollHeight reads through the slot's static
@@ -1015,16 +1058,29 @@ export function Board({
           `grow:${transport.threadId}@${transport.gen}`,
           arrivalEl,
           arrivalGrowKeyframes(arrivalEl.scrollHeight),
-          TRANSPORT_GROW_MS,
-          TRANSPORT_GROW_EASE,
+          // The dissolve's space opens early under its materialize; the
+          // zoom's space expands on the SAME clock as the card's growth, so
+          // the space and the card land together.
+          transportVariant === "zoom" ? TRANSPORT_ZOOM_IN_MS : TRANSPORT_GROW_MS,
+          transportVariant === "zoom" ? TRANSPORT_ZOOM_IN_EASE : TRANSPORT_GROW_EASE,
         );
       }
-      startSparks(
-        `spark:arrival:${transport.threadId}@${transport.gen}`,
-        arrivalEl,
-        TRANSPORT_WIPE_IN_MS,
-      );
-      if (transport.phase === "collapsing") {
+      if (transportVariant === "dissolve") {
+        startSparks(
+          `spark:arrival:${transport.threadId}@${transport.gen}`,
+          arrivalEl,
+          TRANSPORT_WIPE_IN_MS,
+        );
+      }
+      if (
+        transport.phase === "collapsing" ||
+        // The zoom's slot close is concurrent with the shrink: the collapse
+        // starts in this same commit (clock zero in the phase plan), so the
+        // old slot's space never waits for the recede to finish. The
+        // started-wipes guard keeps the flip to "collapsing" from restarting
+        // it; the static end state is only the no-WAAPI fallback there.
+        (transportVariant === "zoom" && transport.phase === "wiping-out")
+      ) {
         const collapseKey = `collapse:${transport.threadId}@${transport.gen}`;
         const ghost = transportElsRef.current.get(outKey);
         if (ghost !== null && ghost !== undefined) {
@@ -1050,12 +1106,16 @@ export function Board({
                 ? metrics.marginBottomPx
                 : computedMarginPx(ghost, "Bottom"),
             ),
-            TRANSPORT_COLLAPSE_MS,
+            // The zoom's slot close rides the shrink's clock and ease (the
+            // space recedes with the card); the dissolve keeps its own
+            // quicker close after the wipe.
+            transportVariant === "zoom" ? TRANSPORT_ZOOM_OUT_MS : TRANSPORT_COLLAPSE_MS,
+            transportVariant === "zoom" ? TRANSPORT_ZOOM_OUT_EASE : TRANSPORT_EASE,
           );
         }
       }
     }
-  }, [transports, prefersReducedMotion]);
+  }, [transports, prefersReducedMotion, transportVariant]);
 
   const sweepActive = sweepCandidatesFor !== undefined && onSweepArm !== undefined;
   // Clicking empty board area (anything that is not a card, control, or link)
@@ -2599,10 +2659,12 @@ export function Board({
                             glints twinkle out over the OLD visuals, the
                             arrival's over the growing slot — the slot's
                             opacity-0 clip holds the glints down until the
-                            dissolve lifts the card while the space opens. */}
-                        {ghostPlay !== undefined && !prefersReducedMotion ? (
+                            dissolve lifts the card while the space opens.
+                            A dissolve-only decoration: the zoom plays no
+                            glint field. */}
+                        {ghostPlay !== undefined && transportSparksOn ? (
                           <TransportSparkLayer phaseMs={TRANSPORT_WIPE_OUT_MS} tone="out" />
-                        ) : isArriving && arrivalPlay !== undefined && !prefersReducedMotion ? (
+                        ) : isArriving && arrivalPlay !== undefined && transportSparksOn ? (
                           <TransportSparkLayer phaseMs={TRANSPORT_WIPE_IN_MS} tone="in" />
                         ) : null}
                   </li>
@@ -2656,7 +2718,7 @@ export function Board({
                         <ul className="flex flex-col gap-1.5">
                           {(play.members ?? []).map((member) => threadLi(member))}
                         </ul>
-                        {!prefersReducedMotion ? (
+                        {transportSparksOn ? (
                           <TransportSparkLayer phaseMs={TRANSPORT_WIPE_OUT_MS} tone="out" />
                         ) : null}
                       </div>
@@ -2983,7 +3045,7 @@ export function Board({
                                   ),
                                 )}
                               </ul>
-                              {!prefersReducedMotion &&
+                              {transportSparksOn &&
                               boxArrivalFor(runItem.box.groupId) !== undefined ? (
                                 <TransportSparkLayer phaseMs={TRANSPORT_WIPE_IN_MS} tone="in" />
                               ) : null}
