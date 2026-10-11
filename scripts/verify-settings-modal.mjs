@@ -26,6 +26,12 @@ const browser = await puppeteer.launch({
 
 async function open(query) {
   const page = await browser.newPage();
+  // The appearance defaults read the persisted card-transport choice; the
+  // harness browser carries one from earlier runs, so the opening board
+  // gets a cleared key (an unparseable value yields the shipped default).
+  await page.evaluateOnNewDocument(() => {
+    window.localStorage.removeItem("focus-board:cardTransport");
+  });
   await page.goto(`${BASE}${query}`, { waitUntil: "domcontentloaded", timeout: 60_000 });
   await page.waitForSelector("div[data-focus-board-panel]", { timeout: 30_000 });
   await new Promise((resolve) => setTimeout(resolve, 400));
@@ -129,11 +135,11 @@ const selectedTab = (page) =>
     JSON.stringify(cardGroup.options.map((o) => [o.name, o.checked, o.disabled])) ===
       JSON.stringify([
         ["None", false, false],
-        ["Teleport", true, false],
-        ["Zoom out / in", false, false],
+        ["Teleport", false, false],
+        ["Zoom out / in", true, false],
       ]) &&
     motionGroup.options.length === 3;
-  if (okAppearance) ok("Appearance tab: defaults (Teleport, system motion), zoom live");
+  if (okAppearance) ok("Appearance tab: defaults (Zoom, system motion), zoom live and default");
   else fail(`Appearance tab radio state wrong: ${JSON.stringify(radioInfo)}`);
   const wallpaperTrigger = await page.$('button[aria-label="Wallpaper"]');
   if (wallpaperTrigger === null) fail("Appearance tab shows no wallpaper picker trigger");

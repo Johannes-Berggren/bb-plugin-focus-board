@@ -38,8 +38,7 @@ function renderModal(
     escStopsRunningThread: boolean | undefined;
     cardTransport: "none" | "teleport" | "zoom";
     motionPref: "system" | "reduce" | "full";
-    wallpaper: WallpaperSettings;
-    onSetEscStopsRunningThread: (value: boolean) => void | Promise<void>;
+    wallpaper: WallpaperSettings;    onSetEscStopsRunningThread: (value: boolean) => void | Promise<void>;
     onSetCardTransport: (value: "none" | "teleport" | "zoom") => void;
     onSetMotionPref: (value: "system" | "reduce" | "full") => void;
     onOpenChange: (open: boolean) => void;
@@ -58,7 +57,7 @@ function renderModal(
       tab="behavior"
       entries={ENTRIES}
       escStopsRunningThread={undefined}
-      cardTransport="teleport"
+      cardTransport="zoom"
       motionPref="system"
       wallpaper={NULL_WALLPAPER}
       onSetEscStopsRunningThread={handlers.onSetEscStopsRunningThread}
@@ -266,7 +265,7 @@ describe("settings modal: About tab", () => {
 });
 
 describe("settings modal: Appearance tab", () => {
-  it("offers the three transport choices with the running dissolve selected by default", () => {
+  it("offers the three transport choices with the shipped zoom default selected", () => {
     renderModal({ tab: "appearance" });
     const group = document.querySelector('[role="radiogroup"][aria-label="Card animations"]');
     expect(group).not.toBeNull();
@@ -274,8 +273,8 @@ describe("settings modal: Appearance tab", () => {
       (el) => group?.contains(el),
     );
     expect(radios.map((el) => el.textContent)).toEqual(["None", "Teleport", "Zoom out / in"]);
-    const teleport = radios.find((el) => el.textContent === "Teleport");
-    expect(teleport?.getAttribute("aria-checked")).toBe("true");
+    const zoom = radios.find((el) => el.textContent === "Zoom out / in");
+    expect(zoom?.getAttribute("aria-checked")).toBe("true");
   });
 
   it("picking a transport choice reports it through the handler", () => {

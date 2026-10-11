@@ -605,7 +605,7 @@ export function Board({
   onSweepArm,
   onSweepDisarm,
   onSweepConfirm,
-  cardTransport = "teleport",
+  cardTransport,
   motionPref = "system",
   onSweepCancel,
 }: BoardProps) {
@@ -767,10 +767,23 @@ export function Board({
   const systemReducedMotion = usePrefersReducedMotion();
   const prefersReducedMotion =
     motionPref === "reduce" ? true : motionPref === "full" ? false : systemReducedMotion;
+  // The Appearance choice is the operator's voice at the board's own seam:
+  // zoom and teleport map onto the transport variants, none never reaches
+  // the planner. UNSET, `transportVariant` keeps its own voice — the
+  // harness seam for direct Board callers (tests, screenshot runs) stays
+  // exactly what the transport threads pinned. The shipped zoom default
+  // lives at the settings layer (parseCardTransportStored, which always
+  // sends an explicit choice through app.tsx).
+  const effectiveTransportVariant =
+    cardTransport === "zoom"
+      ? "zoom"
+      : cardTransport === "teleport"
+        ? "dissolve"
+        : transportVariant;
   // The shimmer is the dissolve's beam decoration — a field of glints riding
   // the sweeps. The zoom recedes into a portal instead and plays no glint
   // field, so all four shimmer render sites share one read.
-  const transportSparksOn = !prefersReducedMotion && transportVariant === "dissolve";
+  const transportSparksOn = !prefersReducedMotion && effectiveTransportVariant === "dissolve";
   const prevGroupByRef = useRef<GroupBy | null>(null);
   const prevLaneByThreadRef = useRef<ReadonlyMap<string, string> | null>(null);
   // The run-unit map (a box run is ONE unit): diffed per commit so a whole
@@ -909,7 +922,7 @@ export function Board({
     // The variant owns the clocks: the dissolve holds the ghost slot open
     // through its wipe-out before the collapse starts; the zoom starts the
     // slot's close at clock zero, in time with the shrink.
-    const plan = transportPhasePlan(transportVariant);
+    const plan = transportPhasePlan(effectiveTransportVariant);
     const timers: number[] = [];
     const settle = window.setTimeout(() => {
       // Wipe-in done: the arriving slot loses its hiding styles and the
@@ -1057,11 +1070,11 @@ export function Board({
         transportElsRef.current.get(outKey),
         // The dissolve fades in place with a bloom; the zoom recedes toward
         // the portal scale, accelerating away.
-        transportVariant === "zoom" ? zoomOutKeyframes() : wipeOutKeyframes(),
-        transportVariant === "zoom" ? TRANSPORT_ZOOM_OUT_MS : TRANSPORT_WIPE_OUT_MS,
-        transportVariant === "zoom" ? TRANSPORT_ZOOM_OUT_EASE : TRANSPORT_EASE,
+        effectiveTransportVariant === "zoom" ? zoomOutKeyframes() : wipeOutKeyframes(),
+        effectiveTransportVariant === "zoom" ? TRANSPORT_ZOOM_OUT_MS : TRANSPORT_WIPE_OUT_MS,
+        effectiveTransportVariant === "zoom" ? TRANSPORT_ZOOM_OUT_EASE : TRANSPORT_EASE,
       );
-      if (transportVariant === "dissolve") {
+      if (effectiveTransportVariant === "dissolve") {
         startSparks(
           `spark:out:${transport.threadId}@${transport.gen}`,
           transportElsRef.current.get(outKey),
@@ -1080,9 +1093,9 @@ export function Board({
         arrivalEl,
         // The dissolve materializes out of the beam's bloom; the zoom grows
         // from the portal scale, landing opaque as its space opens.
-        transportVariant === "zoom" ? zoomInKeyframes() : wipeInKeyframes(),
-        transportVariant === "zoom" ? TRANSPORT_ZOOM_IN_MS : TRANSPORT_WIPE_IN_MS,
-        transportVariant === "zoom" ? TRANSPORT_ZOOM_IN_EASE : TRANSPORT_EASE,
+        effectiveTransportVariant === "zoom" ? zoomInKeyframes() : wipeInKeyframes(),
+        effectiveTransportVariant === "zoom" ? TRANSPORT_ZOOM_IN_MS : TRANSPORT_WIPE_IN_MS,
+        effectiveTransportVariant === "zoom" ? TRANSPORT_ZOOM_IN_EASE : TRANSPORT_EASE,
       );
       // The dissolve rides the space growing: the new slot opens from zero
       // height to its measured height so the lane's neighbors slide as the
@@ -1104,11 +1117,11 @@ export function Board({
           // The dissolve's space opens early under its materialize; the
           // zoom's space expands on the SAME clock as the card's growth, so
           // the space and the card land together.
-          transportVariant === "zoom" ? TRANSPORT_ZOOM_IN_MS : TRANSPORT_GROW_MS,
-          transportVariant === "zoom" ? TRANSPORT_ZOOM_IN_EASE : TRANSPORT_GROW_EASE,
+          effectiveTransportVariant === "zoom" ? TRANSPORT_ZOOM_IN_MS : TRANSPORT_GROW_MS,
+          effectiveTransportVariant === "zoom" ? TRANSPORT_ZOOM_IN_EASE : TRANSPORT_GROW_EASE,
         );
       }
-      if (transportVariant === "dissolve") {
+      if (effectiveTransportVariant === "dissolve") {
         startSparks(
           `spark:arrival:${transport.threadId}@${transport.gen}`,
           arrivalSlotEl,
@@ -1121,7 +1134,7 @@ export function Board({
         // old slot's space never waits for the recede to finish. The
         // started-wipes guard keeps the flip to "collapsing" from restarting
         // it; the static end state is only the no-WAAPI fallback there.
-        (transportVariant === "zoom" && transport.phase === "wiping-out")
+        (effectiveTransportVariant === "zoom" && transport.phase === "wiping-out")
       ) {
         const collapseKey = `collapse:${transport.threadId}@${transport.gen}`;
         const ghost = transportElsRef.current.get(outKey);
@@ -1151,13 +1164,13 @@ export function Board({
             // The zoom's slot close rides the shrink's clock and ease (the
             // space recedes with the card); the dissolve keeps its own
             // quicker close after the wipe.
-            transportVariant === "zoom" ? TRANSPORT_ZOOM_OUT_MS : TRANSPORT_COLLAPSE_MS,
-            transportVariant === "zoom" ? TRANSPORT_ZOOM_OUT_EASE : TRANSPORT_EASE,
+            effectiveTransportVariant === "zoom" ? TRANSPORT_ZOOM_OUT_MS : TRANSPORT_COLLAPSE_MS,
+            effectiveTransportVariant === "zoom" ? TRANSPORT_ZOOM_OUT_EASE : TRANSPORT_EASE,
           );
         }
       }
     }
-  }, [transports, prefersReducedMotion, transportVariant]);
+  }, [transports, prefersReducedMotion, effectiveTransportVariant]);
 
   const sweepActive = sweepCandidatesFor !== undefined && onSweepArm !== undefined;
   // Clicking empty board area (anything that is not a card, control, or link)

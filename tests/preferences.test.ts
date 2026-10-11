@@ -252,16 +252,17 @@ describe("simultaneous corruption (every key garbage at once)", () => {
     expect(parseGroupStored("group")).toBe("group"); // Feature-group columns
   });
 
-  it("parses the card-transport preference; the running dissolve is the default", () => {
-    // Teleport keeps today's transporter for existing boards; the appearance
-    // tab offers None (instant) and a not-yet-built zoom.
+  it("parses the card-transport preference; the zoom read is the shipped default", () => {
+    // The operator flipped the shipped default to zoom (the portal
+    // shrink-out/grow-in read); the dissolve lives on as the explicit Teleport
+    // choice, none is the instant read.
     expect(CARD_TRANSPORT_KEY).toBe("focus-board:cardTransport");
     expect(cardTransportStoredValue("none")).toBe("none");
     expect(cardTransportStoredValue("teleport")).toBe("teleport");
+    expect(parseCardTransportStored("teleport")).toBe("teleport");
     expect(parseCardTransportStored("none")).toBe("none");
-    expect(parseCardTransportStored("zoom")).toBe("zoom");
     for (const raw of [null, "", "not json", "123", "instant", "zoom out/in"]) {
-      expect(parseCardTransportStored(raw)).toBe("teleport");
+      expect(parseCardTransportStored(raw)).toBe("zoom");
     }
   });
 
