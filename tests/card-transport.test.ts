@@ -22,7 +22,10 @@ import {
   ghostCollapseKeyframes,
   wipeInKeyframes,
   wipeOutKeyframes,
+  shimmerSparks,
+  sparkKeyframes,
   TRANSPORT_BATCH_CAP,
+  TRANSPORT_SPARK_COUNT,
 } from "../components/card-transport";
 import { thread } from "./thread-fixture";
 
@@ -366,6 +369,16 @@ describe("transport constants", () => {
     expect(TRANSPORT_EASE).toContain("cubic-bezier");
   });
 
+  it("the sweeps are tuned long enough for the shimmer to read, with a slow ease-in start", () => {
+    // Feel-tuned anchors (operator: "increase the ease-in time"): a longer
+    // glide with a slower first half. Pinned exactly so a retune is a
+    // deliberate test edit, never a silent constant drift.
+    expect(TRANSPORT_WIPE_OUT_MS).toBe(420);
+    expect(TRANSPORT_WIPE_IN_MS).toBe(380);
+    expect(TRANSPORT_COLLAPSE_MS).toBe(200);
+    expect(TRANSPORT_EASE).toBe("cubic-bezier(0.5, 0, 0.6, 0.4)");
+  });
+
   it("a batch switch larger than the cap stays a plain reflow", () => {
     // Reassignment: planning a batch the size of a grouping change would
     // dissolve the whole board; the cap exists so those re-derivations read
@@ -411,5 +424,56 @@ describe("wipe keyframes", () => {
     expect(frames[0].marginBottom).toBe("0px");
     expect(frames[frames.length - 1].marginTop).toBe("-3px");
     expect(frames[frames.length - 1].marginBottom).toBe("-3px");
+  });
+});
+
+describe("shimmerSparks", () => {
+  it("lays a deterministic field of glints whose lives fit inside the phase", () => {
+    const sparks = shimmerSparks(TRANSPORT_WIPE_OUT_MS);
+    expect(sparks).toHaveLength(TRANSPORT_SPARK_COUNT);
+    // Same seed, same field: layer re-renders (a phase flip, a re-target)
+    // must not reshuffle the glints mid-sweep.
+    expect(shimmerSparks(TRANSPORT_WIPE_OUT_MS)).toEqual(sparks);
+    for (const spark of sparks) {
+      expect(spark.leftPct).toBeGreaterThanOrEqual(0);
+      expect(spark.leftPct).toBeLessThanOrEqual(100);
+      expect(spark.topPct).toBeGreaterThanOrEqual(0);
+      expect(spark.topPct).toBeLessThanOrEqual(100);
+      expect(spark.delayMs).toBeGreaterThanOrEqual(0);
+      expect(spark.durationMs).toBeGreaterThan(0);
+      // Each glint's whole life stays inside its phase: no orphaned sparkle
+      // blinking on a settled card after the machine moved on.
+      expect(spark.delayMs + spark.durationMs).toBeLessThanOrEqual(TRANSPORT_WIPE_OUT_MS);
+      expect(spark.peak).toBeGreaterThan(0);
+      expect(spark.peak).toBeLessThanOrEqual(1);
+      expect(spark.driftPx).toBeGreaterThan(0);
+    }
+  });
+
+  it("spreads the glints across the width and staggers their starts (a curtain, not a flash)", () => {
+    const sparks = shimmerSparks(TRANSPORT_WIPE_OUT_MS);
+    const leftBands = new Set(sparks.map((spark) => Math.floor(spark.leftPct / 10)));
+    expect(leftBands.size).toBeGreaterThanOrEqual(TRANSPORT_SPARK_COUNT / 2);
+    expect(new Set(sparks.map((spark) => spark.delayMs)).size).toBeGreaterThan(1);
+  });
+
+  it("respects a caller's count and phase length", () => {
+    const sparks = shimmerSparks(200, 5);
+    expect(sparks).toHaveLength(5);
+    for (const spark of sparks) {
+      expect(spark.delayMs + spark.durationMs).toBeLessThanOrEqual(200);
+    }
+  });
+});
+
+describe("sparkKeyframes", () => {
+  it("a glint twinkles in to its peak and fades away while it drifts upward", () => {
+    const spark = shimmerSparks(400)[0]!;
+    const frames = sparkKeyframes(spark);
+    expect(frames[0].opacity).toBe(0);
+    expect(frames.some((frame) => Number(frame.opacity) > 0)).toBe(true);
+    expect(frames[frames.length - 1].opacity).toBe(0);
+    // The drift: the end frame sits HIGHER than the start (negative Y).
+    expect(String(frames[frames.length - 1].transform)).toContain("-");
   });
 });

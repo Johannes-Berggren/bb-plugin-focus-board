@@ -14,6 +14,7 @@ import {
   TRANSPORT_WIPE_IN_MS,
   TRANSPORT_WIPE_OUT_MS,
   TRANSPORT_COLLAPSE_MS,
+  TRANSPORT_SPARK_COUNT,
 } from "../components/card-transport";
 import { thread } from "./thread-fixture";
 
@@ -85,6 +86,16 @@ describe("a card relocating between lanes plays the transport dissolve", () => {
     expect(arrival?.getAttribute("data-transport-arrival")).toBe("wiping-in");
     expect(arrival?.getAttribute("style")).toContain("opacity");
 
+    // The shimmer: BOTH sweeps carry the spark field — the dissolving ghost
+    // and the materializing arrival each render one layer of glints.
+    expect(document.querySelectorAll("[data-transport-sparks]")).toHaveLength(2);
+    expect(arrival?.querySelectorAll("[data-transport-spark]")).toHaveLength(
+      TRANSPORT_SPARK_COUNT,
+    );
+    expect(ghost?.querySelectorAll("[data-transport-spark]")).toHaveLength(
+      TRANSPORT_SPARK_COUNT,
+    );
+
     // Wipe-in finishes first: the arriving slot drops its hiding styles and
     // the transport attribute (the card is an ordinary card again).
     await act(async () => {
@@ -92,6 +103,9 @@ describe("a card relocating between lanes plays the transport dissolve", () => {
     });
     expect(document.querySelector('[data-transport-arrival]')).toBeNull();
     expect(newLane?.querySelector('[data-thread-card="thr_a"]')).not.toBeNull();
+    // The arrival's spark layer goes with it: no glints ever sit on a
+    // settled card.
+    expect(newLane?.querySelector("[data-transport-sparks]")).toBeNull();
 
     // Wipe-out finishes NEXT: the old slot's wipe is done, the collapse
     // closes its reserved space.
@@ -112,6 +126,9 @@ describe("a card relocating between lanes plays the transport dissolve", () => {
       vi.advanceTimersByTime(TRANSPORT_COLLAPSE_MS + 5);
     });
     expect(oldLane?.querySelector("[data-transport-out]")).toBeNull();
+    // The ghost's spark layer went with the ghost: the board holds no
+    // leftover glints after the dissolve.
+    expect(document.querySelectorAll("[data-transport-spark]")).toHaveLength(0);
   });
 
   it("a same-commit batch bigger than the cap is a plain reflow, not a wall of wipes", () => {
@@ -187,6 +204,9 @@ describe("a box run relocating between lanes transports as ONE unit", () => {
     expect(ghostContainer?.querySelector('[data-thread-card="thr_m2"]')).not.toBeNull();
     // Exactly one transport ghost in the lane: the container only.
     expect(oldLane?.querySelectorAll("[data-transport-ghost]")).toHaveLength(1);
+    // The box's spark layer rides INSIDE the dashed container: the whole
+    // box shimmers as one shape, not one glint field per member card.
+    expect(ghostContainer?.querySelector("[data-transport-sparks]")).not.toBeNull();
     // The ghost holds the box's TRUE old slot: second in the lane (thr_x's
     // slot came first before the move), not the lane top. A ghost woven at
     // the top would read as a random card dissolving, not this box leaving.

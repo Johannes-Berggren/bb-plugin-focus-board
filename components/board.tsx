@@ -72,12 +72,54 @@ import {
   TRANSPORT_WIPE_OUT_MS,
   wipeInKeyframes,
   wipeOutKeyframes,
+  shimmerSparks,
+  sparkKeyframes,
   type LaneTransport,
   type RunUnit,
   type TransportArrivalPhase,
   type TransportOutPhase,
   type TransportPlay,
 } from "./card-transport";
+
+/**
+ * The shimmer's static half: a field of glints laid over one transport slot
+ * (the dissolving ghost or the materializing arrival), one span per
+ * `shimmerSparks` entry. Invisible at rest — the start effect's WAAPI
+ * twinkle brings each glint up, and a no-WAAPI environment (jsdom's phase
+ * machine) holds them at 0, so the dissolve never leaves glitter behind in
+ * an environment that cannot animate it away.
+ */
+function TransportSparkLayer({ phaseMs }: { phaseMs: number }) {
+  const sparks = shimmerSparks(phaseMs);
+  return (
+    <span
+      aria-hidden
+      data-transport-sparks=""
+      className="pointer-events-none absolute inset-0 z-10 overflow-hidden"
+    >
+      {sparks.map((spark, index) => (
+        <span
+          key={index}
+          data-transport-spark=""
+          style={{
+            position: "absolute",
+            left: `${spark.leftPct.toFixed(1)}%`,
+            top: `${spark.topPct.toFixed(1)}%`,
+            width: `${spark.widthPx.toFixed(2)}px`,
+            height: `${spark.heightPx.toFixed(1)}px`,
+            borderRadius: "9999px",
+            // The transporter palette: a pale blue-white streak, glowing.
+            background:
+              "linear-gradient(to top, rgba(186,230,253,0), #bae6fd 30%, #f0f9ff 85%)",
+            boxShadow: "0 0 5px 1px rgba(125, 211, 252, 0.85)",
+            filter: "blur(0.3px)",
+            opacity: 0,
+          }}
+        />
+      ))}
+    </span>
+  );
+}
 
 /** The group plan absents itself when the caller has no group data. */
 const EMPTY_GROUP_BOXES: GroupBoxMap = new Map();
@@ -674,6 +716,10 @@ export function Board({
   // wipe at settle and the ghost wipes at removal, so finished animations
   // never persist on live cards.
   const transportAnimsRef = useRef(new Map<string, Animation>());
+  // The shimmer's glint handles, per phase key (a group of WAAPI animations
+  // per slot): the phase transitions cancel them the same way the wipes die,
+  // so no spark ever holds compositor work after its phase ends.
+  const transportSparkAnimsRef = useRef(new Map<string, Animation[]>());
   // Elements for the WAAPI wipes, keyed per phase generation (a re-located
   // card mid-flight restarts, so a bare id would swallow the second wipe).
   const transportElsRef = useRef(new Map<string, HTMLElement | null>());
@@ -752,6 +798,14 @@ export function Board({
         transportAnimsRef.current.delete(key);
       }
     }
+    // The glints die with the transport too (a re-target or removal): their
+    // keys carry the same `:id@gen` stamp the wipes do.
+    for (const [key, animations] of transportSparkAnimsRef.current) {
+      if (key.includes(`:${threadId}@`)) {
+        for (const animation of animations) animation.cancel();
+        transportSparkAnimsRef.current.delete(key);
+      }
+    }
   };
 
   const scheduleTransportTimers = (transport: TransportPlay) => {
@@ -768,6 +822,13 @@ export function Board({
       transportAnimsRef.current.delete(
         `arrival:${transport.threadId}@${transport.gen}`,
       );
+      // The arrival's glints go with it: their handles cancel, and the
+      // re-render below unmounts the layer with the Wiping-in attribute.
+      const arrivalSparkKey = `spark:arrival:${transport.threadId}@${transport.gen}`;
+      for (const animation of transportSparkAnimsRef.current.get(arrivalSparkKey) ?? []) {
+        animation.cancel();
+      }
+      transportSparkAnimsRef.current.delete(arrivalSparkKey);
       setTransports((current) =>
         current.map((play) =>
           play.threadId === transport.threadId ? { ...play, arrival: "settled" } : play,
@@ -799,6 +860,10 @@ export function Board({
       transportTimersRef.current.clear();
       for (const animation of transportAnimsRef.current.values()) animation.cancel();
       transportAnimsRef.current.clear();
+      for (const animations of transportSparkAnimsRef.current.values()) {
+        for (const animation of animations) animation.cancel();
+      }
+      transportSparkAnimsRef.current.clear();
     };
   }, []);
 
@@ -828,11 +893,47 @@ export function Board({
         element.animate(frames, { duration: durationMs, easing: TRANSPORT_EASE, fill: "both" }),
       );
     };
+    // The shimmer: twinkle the slot's glint field over its phase. Each
+    // glint's delay + duration fit inside the phase (the planner's
+    // envelope), so every sparkle has faded before the machine moves on;
+    // the handles still ride sparkAnimsRef so a re-target or removal kills
+    // them mid-twinkle.
+    const startSparks = (key: string, host: HTMLElement | null | undefined, phaseMs: number) => {
+      if (host === null || host === undefined) return;
+      if (startedWipesRef.current.has(key)) return;
+      startedWipesRef.current.add(key);
+      if (typeof host.animate !== "function") return;
+      const sparks = shimmerSparks(phaseMs);
+      const glints = host.querySelectorAll<HTMLElement>("[data-transport-spark]");
+      const handles: Animation[] = [];
+      for (let index = 0; index < glints.length; index += 1) {
+        const spark = sparks[index % sparks.length]!;
+        handles.push(
+          glints[index]!.animate(sparkKeyframes(spark), {
+            duration: spark.durationMs,
+            delay: spark.delayMs,
+            easing: TRANSPORT_EASE,
+            fill: "both",
+          }),
+        );
+      }
+      transportSparkAnimsRef.current.set(key, handles);
+    };
     for (const transport of transports) {
       const outKey = `out:${transport.threadId}@${transport.gen}`;
       startWipe(outKey, transportElsRef.current.get(outKey), wipeOutKeyframes(), TRANSPORT_WIPE_OUT_MS);
+      startSparks(
+        `spark:out:${transport.threadId}@${transport.gen}`,
+        transportElsRef.current.get(outKey),
+        TRANSPORT_WIPE_OUT_MS,
+      );
       const arrivalKey = `arrival:${transport.threadId}@${transport.gen}`;
       startWipe(arrivalKey, transportElsRef.current.get(arrivalKey), wipeInKeyframes(), TRANSPORT_WIPE_IN_MS);
+      startSparks(
+        `spark:arrival:${transport.threadId}@${transport.gen}`,
+        transportElsRef.current.get(arrivalKey),
+        TRANSPORT_WIPE_IN_MS,
+      );
       if (transport.phase === "collapsing") {
         const collapseKey = `collapse:${transport.threadId}@${transport.gen}`;
         const ghost = transportElsRef.current.get(outKey);
@@ -2388,6 +2489,16 @@ export function Board({
                             }
                           }}
                         />
+                        {/* The shimmer rides both sweeps: the ghost's
+                            glints twinkle out over the OLD visuals, the
+                            arrival's over the materializing card (the
+                            arriving slot's own opacity-0 styles hide the
+                            glints until the wipe-in raises the slot). */}
+                        {ghostPlay !== undefined && !prefersReducedMotion ? (
+                          <TransportSparkLayer phaseMs={TRANSPORT_WIPE_OUT_MS} />
+                        ) : isArriving && arrivalPlay !== undefined && !prefersReducedMotion ? (
+                          <TransportSparkLayer phaseMs={TRANSPORT_WIPE_IN_MS} />
+                        ) : null}
                   </li>
                   );
                   };
@@ -2439,6 +2550,9 @@ export function Board({
                         <ul className="flex flex-col gap-1.5">
                           {(play.members ?? []).map((member) => threadLi(member))}
                         </ul>
+                        {!prefersReducedMotion ? (
+                          <TransportSparkLayer phaseMs={TRANSPORT_WIPE_OUT_MS} />
+                        ) : null}
                       </div>
                     </li>
                   );
@@ -2727,6 +2841,10 @@ export function Board({
                                   ),
                                 )}
                               </ul>
+                              {!prefersReducedMotion &&
+                              boxArrivalFor(runItem.box.groupId) !== undefined ? (
+                                <TransportSparkLayer phaseMs={TRANSPORT_WIPE_IN_MS} />
+                              ) : null}
                             </div>
                           </li>
                     );
