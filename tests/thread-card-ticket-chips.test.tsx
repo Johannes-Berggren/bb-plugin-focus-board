@@ -162,21 +162,29 @@ describe("ticket chip icons — issue vs PR glyph", () => {
     expect(glyph.getAttribute("aria-label")).toBe("issue OPEN");
   });
 
-  it("live merged-PR status swaps in the merge glyph in purple", async () => {
+  it("live merged-PR status swaps in the merge glyph with the ids dimmed and struck", async () => {
     renderCard("resolve #17", {
       statusFor: (repo, num) =>
         repo === "owner/repo" && num === 17 ? { kind: "pull", state: "MERGED" } : undefined,
     });
     const glyph = await chipIcon("Merge");
-    expect(glyph.getAttribute("class")).toContain("text-purple-500");
-    expect(glyph.getAttribute("aria-label")).toBe("pull MERGED");
-    // The glyph is the static state signal; id text stays neutral (a chip
-    // holding many merged PRs must not read as one purple smear). A merged
-    // id strikes through in grey and pops purple only on hover.
+    // The merged glyph carries no state color (open's emerald is the only
+    // colored glyph); the merged id reads dimmed grey with a strikethrough,
+    // and hover changes size, never color.
+    expect(glyph.getAttribute("class") ?? "").not.toMatch(/text-purple-500/);
     const idSpan = chip().querySelector('[data-ticket-id="#17"] > span');
     expect(idSpan?.getAttribute("class") ?? "").toContain("line-through");
-    expect(idSpan?.getAttribute("class") ?? "").toContain("hover:text-purple-500");
-    expect(idSpan?.getAttribute("class") ?? "").not.toMatch(/(^|\s)text-purple-500/);
+    expect(idSpan?.getAttribute("class") ?? "").toContain("opacity-60");
+  });
+
+  it("each id sits in a roomy cell and enlarges on hover by transform", () => {
+    renderCard("#101 #102 #103 #104 #105 #106 #107 #108 resolve");
+    const ids = chip().querySelectorAll("[data-ticket-id]");
+    expect(ids.length).toBeGreaterThanOrEqual(4);
+    const anchor = ids[0];
+    expect(anchor.getAttribute("class") ?? "").toContain("min-w-12");
+    expect(anchor.getAttribute("class") ?? "").toContain("hover:scale-110");
+    expect(anchor.getAttribute("class") ?? "").not.toContain("hover:text-");
   });
 
   it("a chip with many ids wraps onto extra lines instead of overflowing", () => {

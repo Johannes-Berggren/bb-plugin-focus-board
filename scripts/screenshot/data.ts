@@ -408,6 +408,24 @@ export const SIM_THREADS: readonly SimThread[] = [
  * so the family itself carries the flag.
  */
 export const SIM_DEMO_THREADS: readonly SimThread[] = [
+  // Chip-probe cards: a title carrying many refs so the provider chips hold
+  // a long id list — the roomy-cell layout and the merged treatment show
+  // here. Demo-only (`?demo=1`) so the UAT fixtures stay pinned.
+  thread({
+    id: "thr_chips",
+    displayTitle:
+      "Card teleport effect #43 #44 #45 #46 #47 #48 #49 #50 #51 #52 #53 #54 #55 #56 merge all in one PR",
+    status: "idle",
+    updatedAt: SIM_NOW - 10 * MINUTE,
+    lastReadAt: SIM_NOW - 9 * MINUTE,
+  }),
+  thread({
+    id: "thr_chips_open",
+    displayTitle: "Follow-ups #17 #21 #30 chip mix",
+    status: "idle",
+    updatedAt: SIM_NOW - 20 * MINUTE,
+    lastReadAt: SIM_NOW - 19 * MINUTE,
+  }),
   // Family A — Working (lifted by its two active children), expanded in the
   // shots: a parent card with three nested child rows visible.
   thread({

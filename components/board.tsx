@@ -2269,10 +2269,9 @@ export function Board({
                     }
                     aria-hidden={ghostPlay !== undefined ? true : undefined}
                     {...(ghostPlay !== undefined
-                      ? // React 18 has no typed `inert`; the bare attribute
-                        // renders in both 18 and 19. It kills the ghost's
-                        // focusability alongside pointer-events-none.
-                        ({ inert: "" } as unknown as Record<string, never>)
+                      ? // React 19 types `inert` as a boolean; the bare-string
+                        // form React 18 needed now warns on every render.
+                        { inert: true as const }
                       : {})}
                     data-transport-ghost={ghostPlay !== undefined ? "" : undefined}
                     data-transport-out={ghostPlay?.phase}

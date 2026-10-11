@@ -49,7 +49,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 #### Card ticket chips
 
-- **A card's chips group by provider, at most two to a row.** All of a provider's issue ids share one chip and its pull ids another, with the provider mark at the head linking to that kind's list page: the repo's filtered page when the repo is known, GitHub's global one otherwise; long id lists wrap onto extra lines. Each id keeps its own item link in the muted chip color; merged ids strike through in grey and pop purple on hover, every id's state answers on its hover title, and a kindless `#N` whose status names a PR swaps to the pull glyph.
+- **A card's chips group by provider, at most two to a row.** All of a provider's issue ids share one chip and its pull ids another, with the provider mark at the head linking to that kind's list page: the repo's filtered page when the repo is known, GitHub's global one otherwise; long id lists wrap onto extra lines. Each id keeps its own item link in a roomy cell and enlarges slightly on hover without moving its neighbors; merged ids strike through dimmed grey with the merged glyph reading uncolored, every id's state answers on its hover title, and a kindless `#N` whose status names a PR swaps to the pull glyph.
 
 ### Fixed
 

@@ -322,7 +322,13 @@ const mockSdk = {
     },
   },
   projects: {
-    list: async () => SIM_PROJECTS.map((project) => ({ ...project, gitRemoteUrl: null })),
+    list: async () =>
+      SIM_PROJECTS.map((project) => ({
+        ...project,
+        // The Focus Board sim project carries the real repo so ticket chips
+        // build hrefs and the status batch finds a repo to ask.
+        gitRemoteUrl: project.id === "proj_board" ? "https://github.com/cristoslc/bb-plugin-focus-board.git" : null,
+      })),
     create: async () => ({}),
   },
 };
@@ -421,6 +427,29 @@ const rpcCall = async (method: string, args?: unknown): Promise<unknown> => {
   // reader (`Object.entries(result.links)`) recorded an unhandled rejection
   // on every harness boot and every "link-changed" wake.
   if (method === "link_list") return { links: {} };
+  // Live chip status: the sim answers merged for the chip-probe card's PR
+  // run and a couple of open/closed items for the follow-up card, so dark
+  // and light screenshots show every state treatment.
+  if (method === "tracker_status") {
+    const { repo, numbers } = args as { repo: string; numbers: number[] };
+    const statuses: Record<string, { kind: string; state: string }> = {};
+    if (repo === "cristoslc/bb-plugin-focus-board") {
+      for (const n of numbers) {
+        if (n >= 43 && n <= 59) statuses[String(n)] = { kind: "pull", state: "MERGED" };
+        else if (n === 17 || n === 21) statuses[String(n)] = { kind: "issue", state: "OPEN" };
+        else if (n === 30) statuses[String(n)] = { kind: "issue", state: "CLOSED" };
+      }
+    }
+    return { statuses };
+  }
+  // Validation gates the text-ref chips in the real app; the sim confirms
+  // everything asked of it so the probe cards render their chip rows.
+  if (method === "tracker_validate") {
+    const { urls } = args as { urls: string[] };
+    const results: Record<string, { confirmed: boolean }> = {};
+    for (const url of urls) results[url] = { confirmed: true };
+    return { results };
+  }
   // Feature groups (components/group-boxes): the harness renders one box
   // ("chat-imagegent") around the two active threads by default, and its
   // group writes mutate the module map + re-render, the way thread_reparent
