@@ -182,10 +182,9 @@ interface ThreadCardProps {
   onAttentionLeave?: (threadId: string) => void;
 }
 
-/** Chip kind-glyph colors by live state, mirroring the card's own state language. */
+/** Glyph shapes' colors: open is the one colored state; merged and closed read plain. */
 const STATUS_ICON_CLASS: Record<string, string> = {
   OPEN: "text-emerald-500",
-  MERGED: "text-purple-500",
   CLOSED: "text-muted-foreground/50",
 };
 
@@ -285,7 +284,7 @@ function ProviderTicketChip({
         "size-3 shrink-0",
         primaryStatus === undefined
           ? undefined
-          : (STATUS_ICON_CLASS[primaryStatus.state] ?? "text-muted-foreground/30"),
+          : STATUS_ICON_CLASS[primaryStatus.state],
       )}
       aria-label={primaryStatus === undefined ? undefined : `${kind} ${primaryStatus.state}`}
     />
@@ -293,27 +292,26 @@ function ProviderTicketChip({
   // External items name their own tracker in the favicon and carry no
   // GitHub kind glyph.
   const ids = chip.refs.map((ref, index) => {
-    // The kind glyph owns the static state color; id text stays neutral so a
-    // chip holding many merged PRs does not read as one purple smear. A
-    // merged id reads struck-through grey, popping purple on hover; every
-    // id's state answers on its hover title.
+    // The kind glyph keeps the state shape (and open's emerald); merged and
+    // closed glyphs and all id text read plain. A merged id dims grey and
+    // strikes through so it reads as done, with no color on hover. Each id
+    // sits in a roomy fixed-width cell and enlarges on hover by transform,
+    // so the enlargement never reflows a neighbor.
     const status =
       isGithub && ref.number !== undefined
         ? statusFor?.(ticketStatusRepo(ref, projectRepo), ref.number)
         : undefined;
     const title = status === undefined ? undefined : `${status.kind} ${status.state}`;
     const text = ticketChipIdText(ref);
+    const cell =
+      "inline-flex min-w-12 justify-center transition-transform hover:scale-110";
     const body = (
-      <span
-        className={
-          status?.state === "MERGED" ? "line-through hover:text-purple-500" : undefined
-        }
-      >
+      <span className={status?.state === "MERGED" ? "line-through opacity-60" : undefined}>
         {text}
       </span>
     );
     return ref.href === undefined ? (
-      <span key={index} title={title}>
+      <span key={index} title={title} className={cell}>
         {body}
       </span>
     ) : (
@@ -324,7 +322,7 @@ function ProviderTicketChip({
         rel="noreferrer"
         onClick={(event) => event.stopPropagation()}
         title={title}
-        className="inline-flex shrink-0"
+        className={cell}
         data-ticket-id={text}
       >
         {body}
