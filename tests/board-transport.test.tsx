@@ -78,13 +78,17 @@ describe("a card relocating between lanes plays the transport dissolve", () => {
     expect(ghost?.getAttribute("aria-hidden")).toBe("true");
     expect(ghost?.className).toContain("pointer-events-none");
 
-    // New lane: the card is present in the flow from wipe-in's first frame —
-    // its neighbors reflow NOW, not after the wipe lands.
+    // New lane: the card is in the flow from wipe-in's first frame — its
+    // slot opens from nothing and the neighbors slide as the space grows,
+    // while the card itself dissolves in over its full height.
     const newLane = document.querySelector('[data-column-id="pinned"]');
     expect(newLane).not.toBeNull();
     const arrival = newLane?.querySelector("[data-transport-arrival]");
     expect(arrival?.getAttribute("data-transport-arrival")).toBe("wiping-in");
     expect(arrival?.getAttribute("style")).toContain("opacity");
+    // The growing slot: clipped shut until the grow animation opens it.
+    expect(arrival?.getAttribute("style")).toContain("max-height");
+    expect(arrival?.getAttribute("style")).toContain("overflow");
 
     // The shimmer: BOTH sweeps carry the spark field — the dissolving ghost
     // and the materializing arrival each render one layer of glints.
@@ -218,13 +222,15 @@ describe("a box run relocating between lanes transports as ONE unit", () => {
     expect(ghostContainer).not.toBeNull();
     expect(ghostContainer?.previousElementSibling).not.toBeNull();
 
-    // New lane: the box arrives as one dashed container, hidden until the
-    // wipe-in's keyframes take over.
+    // New lane: the box arrives as one dashed container, hidden and clipped
+    // shut until the grow animation opens the space it needs.
     const newLane = document.querySelector('[data-column-id="pinned"]');
     expect(newLane?.querySelector("[data-group-box][data-transport-arrival]")).not.toBeNull();
     const arrival = newLane?.querySelector("[data-transport-arrival]");
     expect(arrival?.getAttribute("data-transport-arrival")).toBe("wiping-in");
     expect(arrival?.getAttribute("style")).toContain("opacity");
+    expect(arrival?.getAttribute("style")).toContain("max-height");
+    expect(arrival?.getAttribute("style")).toContain("overflow");
 
     // Wipe-in lands: the box drops its hiding styles and is an ordinary box.
     await act(async () => {
