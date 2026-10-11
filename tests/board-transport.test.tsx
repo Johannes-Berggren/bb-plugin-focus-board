@@ -119,6 +119,21 @@ describe("a card relocating between lanes plays the transport dissolve", () => {
     expect(ghostSparks?.querySelector("[data-transport-spark]")?.style.background).toContain(
       "rgb(186, 230, 253)",
     );
+    // Each glint carries its own life state, and the effect animates THAT
+    // state — the fields the layer rendered and the fields the start effect
+    // animates cannot desync (a recomputed default once gave every arrival
+    // glint an upward drift). The DOM directions ARE the travel directions:
+    // amber arrives falling, silver departs rising.
+    const glintDirections = (layer: Element | null | undefined) =>
+      Array.from(layer?.querySelectorAll("[data-transport-spark]") ?? []).map(
+        (glint) =>
+          (JSON.parse(glint.getAttribute("data-spark-state") ?? "null") as
+            | { direction?: string }
+            | null)?.direction,
+      );
+    expect(glintDirections(arrivalSparks)).toHaveLength(TRANSPORT_SPARK_COUNT);
+    expect(glintDirections(arrivalSparks).every((direction) => direction === "down")).toBe(true);
+    expect(glintDirections(ghostSparks).every((direction) => direction === "up")).toBe(true);
     expect(arrival?.querySelectorAll("[data-transport-spark]")).toHaveLength(
       TRANSPORT_SPARK_COUNT,
     );
