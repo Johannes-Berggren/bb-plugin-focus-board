@@ -68,7 +68,11 @@ export function SettingsModal({
             How the board behaves — one icon opens these where the news lives too.
           </DialogDescription>
         </DialogHeader>
-        <div className="flex min-w-0 gap-4">
+        <div
+          data-settings-body
+          style={{ height: "440px" }}
+          className="flex min-w-0 gap-4 overflow-hidden"
+        >
           <div
             role="tablist"
             aria-label="Focus Board settings sections"
@@ -92,7 +96,7 @@ export function SettingsModal({
               </button>
             ))}
           </div>
-          <div role="tabpanel" className="min-w-0 flex-1">
+          <div role="tabpanel" className="min-w-0 flex-1 overflow-y-auto pr-1">
             {tab === "behavior" && (
               <EscStopsRunningRow
                 storedValue={escStopsRunningThread}

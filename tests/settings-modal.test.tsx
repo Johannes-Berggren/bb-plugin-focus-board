@@ -195,4 +195,33 @@ describe("settings modal: shell", () => {
     renderModal({ open: false });
     expect(document.querySelectorAll('[role="tab"]').length).toBe(0);
   });
+
+  it("carries a fixed body height on every tab — switching does not resize the modal", () => {
+    // The rail+pane row declares its height as an inline fixed dimension
+    // (data-settings-body); jsdom has no layout, so the contract is the
+    // dimension itself, identical for the short Behavior/About tabs and the
+    // tall What's-new tab. Content scrolls inside the fixed frame instead
+    // of growing it.
+    const height = (tab: SettingsTab): string => {
+      renderModal({ tab });
+      const body = document.querySelector<HTMLElement>('[data-settings-body]');
+      if (body === null) throw new Error("modal body not found");
+      const value = body.style.height;
+      cleanup();
+      return value;
+    };
+    const behaviorHeight = height("behavior");
+    expect(behaviorHeight).toMatch(/^\d+px$/);
+    expect(height("whats-new")).toBe(behaviorHeight);
+    expect(height("about")).toBe(behaviorHeight);
+  });
+
+  it("the What's-new feed flows into the fixed body — its own per-tab height cap is gone", () => {
+    renderModal({ tab: "whats-new" });
+    const feed = document.querySelector<HTMLElement>('[data-whats-new-feed]');
+    expect(feed).not.toBeNull();
+    // The old max-h-[55vh] cap made each tab size itself; the fixed body
+    // carries the scroll now.
+    expect(feed?.className).not.toContain("max-h-");
+  });
 });

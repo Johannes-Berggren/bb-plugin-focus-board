@@ -43,14 +43,14 @@ const clickButton = async (page, selector) => {
 const selectedTab = (page) =>
   page.$eval('[role="tab"][aria-selected="true"]', (el) => el.textContent);
 
-// 1. Dev build with a standing [Unreleased] group (the default state of every
-//    dev tree): the icon is the pulsing What's-new gift, deep-linking to that
-//    tab.
+// 1. Seeded upgrade state (the tree carries a stable APP_VERSION since the
+//    1.2.0 finalize; a pulse needs the seed): the icon is the pulsing gift,
+//    deep-linking to that tab.
 {
-  const page = await open("?demo=1");
+  const page = await open("?demo=1&groupBy=status&lastSeenVersion=0.4.4&lastSeenUnreleased=zz");
   const gift = await page.$('button[aria-label="What\'s new"]');
-  if (gift === null) fail("default dev board shows no What's-new gift");
-  else ok("default dev board: gift icon with What's-new label");
+  if (gift === null) fail("seeded upgrade board shows no What's-new gift");
+  else ok("seeded upgrade board: gift icon with What's-new label");
   await clickButton(page, 'button[aria-label="What\'s new"]');
   await page.waitForSelector('[role="tabpanel"]', { timeout: 10_000 });
   await new Promise((resolve) => setTimeout(resolve, 400));
@@ -69,16 +69,40 @@ const selectedTab = (page) =>
     fail(`rail tabs are ${JSON.stringify(tabs)}`);
   } else ok(`rail tabs: ${tabs.join(" | ")}`);
 
-  // About tab.
-  await clickButton(page, 'button[role="tab"]:not([aria-selected="true"]):nth-last-child(1)');
+  // The modal's frame does not resize across tab switches: measure the
+  // dialog's bounding box under the tall What's-new feed and under the
+  // short About copy — the two extremes must carry one identical height.
+  const dialogBox = () =>
+    page.$eval("[role=dialog]", (el) => ({ h: el.getBoundingClientRect().height }));
+  const feedSize = await dialogBox();
+  await clickButton(page, 'button[role="tab"]:nth-last-child(1)');
   await new Promise((resolve) => setTimeout(resolve, 300));
-  const aboutTab = await selectedTab(page);
-  if (aboutTab === "About") {
+  const aboutSize = await dialogBox();
+  await clickButton(page, 'button[role="tab"]:nth-child(1)');
+  await new Promise((resolve) => setTimeout(resolve, 300));
+  const behaviorSize = await dialogBox();
+  const sameSize = feedSize.h === aboutSize.h && aboutSize.h === behaviorSize.h;
+  if (sameSize) ok(`fixed dimensions hold across tabs: one height (${behaviorSize.h}px)`);
+  else fail(`modal resizes across tabs: feed ${JSON.stringify(feedSize)} vs about ${JSON.stringify(aboutSize)} vs behavior ${JSON.stringify(behaviorSize)}`);
+  await page.screenshot({ path: `${OUT}settings-behavior.png` });
+
+  // Back to About for its content assertions (the rail stays in order).
+  await clickButton(page, 'button[role="tab"]:nth-last-child(1)');
+  await new Promise((resolve) => setTimeout(resolve, 300));
+  const aboutTabAfter = await selectedTab(page);
+  if (aboutTabAfter === "About") {
     const about = await page.$eval('[role="tabpanel"]', (el) => el.textContent ?? "");
-    if (about.includes("Focus Board") && about.includes("dev build") && about.includes("github.com/cristoslc")) {
-      ok("About tab: name, dev-build mark, and repo link");
-    } else fail(`About tab content incomplete: ${about.slice(0, 180)}`);
-  } else fail(`About rail click selected '${aboutTab}'`);
+    const versionMatch = /Version (\S+)/.exec(about);
+    const hasSuffix = versionMatch !== null && versionMatch[1].includes("-");
+    const okContent =
+      about.includes("Focus Board") &&
+      versionMatch !== null &&
+      about.includes("github.com/cristoslc") &&
+      (hasSuffix ? about.includes("dev build") : !about.includes("dev build"));
+    if (okContent) {
+      ok(`About tab: name, version ${versionMatch?.[1]} (parity mark ${hasSuffix ? "dev build" : "none"}), repo link`);
+    } else fail(`About tab content/parity wrong: ${about.slice(0, 180)}`);
+  } else fail(`About rail click selected '${aboutTabAfter}'`);
   await page.screenshot({ path: `${OUT}settings-about.png` });
 
   // Closing the modal marks the feed seen: the icon must now be the plain
