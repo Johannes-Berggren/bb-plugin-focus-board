@@ -44,6 +44,15 @@ export interface WhatsNewEntry {
   /** Marks the dev build's [Unreleased] group; the modal heads it without "Version ". */
   unreleased?: boolean;
   items: readonly WhatsNewItem[];
+  /**
+   * The fingerprint per unseen lead of this entry, present only on a dev
+   * build's [Unreleased] entry that carries sighted ground truth: an item
+   * whose lead is in the set is genuinely new to its reader (amber as a
+   * signal), one whose lead is absent was already on its last open's screen
+   * (muted, like the published history beside it). Absent entirely keeps
+   * the wholesale tint so no caller regresses.
+   */
+  unseenLeads?: ReadonlySet<string>;
 }
 
 /** Newest first; condensed highlights, not the full CHANGELOG.
@@ -201,6 +210,52 @@ export function writeLastSeenUnreleased(fingerprint: string): void {
   }
 }
 
+/** The per-line amber ground truth: fingerprints of every lead the reader has had open. */
+export const LAST_SEEN_UNRELEASED_ITEMS_KEY = "focus-board:lastSeenUnreleasedItems";
+
+/** Stored as a JSON string array; anything else (or a failed store) reads null. */
+export function readLastSeenUnreleasedItems(): readonly string[] | null {
+  try {
+    const raw = window.localStorage.getItem(LAST_SEEN_UNRELEASED_ITEMS_KEY);
+    if (raw === null) return null;
+    const parsed: unknown = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return null;
+    return parsed.filter((entry): entry is string => typeof entry === "string");
+  } catch {
+    return null;
+  }
+}
+
+export function writeLastSeenUnreleasedItems(fps: readonly string[]): void {
+  try {
+    window.localStorage.setItem(LAST_SEEN_UNRELEASED_ITEMS_KEY, JSON.stringify(fps));
+  } catch {
+    // Best effort only; the board works without the persistence.
+  }
+}
+
+/**
+ * Which leads are genuinely new to this reader: their fingerprints, absent
+ * from the stored per-line list. A null store is "never opened" — every line
+ * is new (the first open reads the accumulating group whole); afterwards
+ * only lines that landed since the previous open come back.
+ */
+export function unseenUnreleasedLeads(
+  leads: readonly string[],
+  storedFps: readonly string[] | null,
+): ReadonlySet<string> {
+  const seen =
+    storedFps !== null
+      ? new Set(storedFps.filter((fp) => /^[\da-f]{8}$/.test(fp)))
+      : new Set<string>();
+  const unseen = new Set<string>();
+  for (const lead of leads) {
+    const fp = unreleasedFingerprint([lead]);
+    if (!seen.has(fp)) unseen.add(fp);
+  }
+  return unseen;
+}
+
 /** FNV-1a 32-bit over the joined texts: cheap, stable, no dependency. */
 export function unreleasedFingerprint(texts: readonly string[]): string {
   let hash = 0x811c9dc5;
@@ -224,6 +279,27 @@ function unreleasedWhatsNewItems(): readonly WhatsNewItem[] {
     children: item.children.map(leadFromBullet).filter(Boolean),
     ...(item.group ? { group: item.group } : {}),
   }));
+}
+
+/**
+ * The leads the feed renders for the [Unreleased] group: each bullet's lead
+ * followed by its sub-bullets', in feed order. The per-line seen store is
+ * written from this list at open time, so the amber arithmetic and the
+ * rendered lines can never disagree.
+ */
+export function currentUnreleasedLeads(): readonly string[] {
+  return unreleasedWhatsNewItems().flatMap((item) => [
+    item.lead,
+    ...(item.children ?? []),
+  ]);
+}
+
+/**
+ * One fingerprint per lead: a line's identity in the per-line seen store.
+ * Same hash as the group fingerprint, applied to a single string.
+ */
+export function unreleasedItemFingerprints(leads: readonly string[]): readonly string[] {
+  return leads.map((lead) => unreleasedFingerprint([lead]));
 }
 
 export interface GroupedWhatsNewItems {
@@ -324,10 +400,20 @@ export function whatsNewEntriesFor(
   runningVersion: string,
   unseen: boolean,
   lastSeenVersion: string | null,
+  unseenUnreleasedLeadsSet?: ReadonlySet<string>,
 ): readonly WhatsNewEntry[] {
   if (isPrereleaseVersion(runningVersion)) {
     const unreleased: WhatsNewEntry | null = UNRELEASED_ITEMS.length
-      ? { version: runningVersion, unreleased: true, items: unreleasedWhatsNewItems() }
+      ? {
+          version: runningVersion,
+          unreleased: true,
+          items: unreleasedWhatsNewItems(),
+          // Only the granular case gains ground truth; an undefined set keeps
+          // the wholesale tint (see WhatsNewEntry.unseenLeads).
+          ...(unseenUnreleasedLeadsSet !== undefined
+            ? { unseenLeads: unseenUnreleasedLeadsSet }
+            : {}),
+        }
       : null;
     const published = unseen
       ? entriesSince(lastSeenVersion)

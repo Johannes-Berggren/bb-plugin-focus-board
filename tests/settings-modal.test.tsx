@@ -6,7 +6,11 @@
 // pulse click straight on What's new; a plain gear opens Behavior.
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
-import { APP_VERSION, type WhatsNewEntry } from "../lib/whats-new";
+import {
+  APP_VERSION,
+  unreleasedFingerprint,
+  type WhatsNewEntry,
+} from "../lib/whats-new";
 import type { WallpaperSettings } from "../components/preferences";
 import { SettingsModal, type SettingsTab } from "../components/settings-modal";
 
@@ -179,32 +183,61 @@ describe("settings modal: What's new tab", () => {
     expect(screen.getByText(new RegExp(`version ${APP_VERSION}`))).not.toBeNull();
   });
 
-  it("renders unreleased lines in amber and published lines in the plain color", () => {
+  it("the far-left case: without an unseen set the unreleased group renders amber wholesale (legacy shape)", () => {
+    renderModal({
+      tab: "whats-new",
+      entries: [
+        { version: "1.2.1-dev", unreleased: true, items: [{ lead: "Carried over." }] },
+      ],
+    });
+    const carried = screen.getByText("Carried over.") as HTMLElement;
+    expect(carried.className).toContain("text-amber");
+  });
+
+  it("amber follows the unseen set: fresh lines light, already-seen lines stay muted", () => {
     renderModal({
       tab: "whats-new",
       entries: [
         {
           version: "1.2.1-dev",
           unreleased: true,
-          items: [{ lead: "Fresh on dev.", children: ["Still accumulating."] }],
-        },
-        {
-          version: "1.2.0",
-          items: [{ lead: "Published stone." }],
+          unseenLeads: new Set([unreleasedFingerprint(["Fresh line."])]),
+          items: [{ lead: "Fresh line." }, { lead: "Carried over." }],
         },
       ],
     });
-    const unreleasedHead = screen.getByText(/Unreleased 1\.2\.1-dev/);
-    expect(unreleasedHead.className).toContain("text-amber");
-    // Items inherit their color from the wrapping list (the li carries no
-    // class of its own), so the amber assertion reads the nearest ul.
-    const fresh = screen.getByText("Fresh on dev.").closest("ul") as HTMLElement;
+    const fresh = screen.getByText("Fresh line.") as HTMLElement;
     expect(fresh.className).toContain("text-amber");
-    const accumulates = screen.getByText("Still accumulating.").closest("ul") as HTMLElement;
-    expect(accumulates.className).toContain("text-amber");
-    const published = screen.getByText("Published stone.").closest("ul") as HTMLElement;
-    expect(published.className).not.toContain("text-amber");
-    expect(screen.getByText(/Version 1\.2\.0/).className).not.toContain("text-amber");
+    const carried = screen.getByText("Carried over.") as HTMLElement;
+    expect(carried.className).not.toContain("text-amber");
+  });
+
+  it("a subheading is amber when any bullet under it is amber, muted when none is", () => {
+    const makeEntry = (leads: ReadonlySet<string>) => ({
+      version: "1.2.1-dev",
+      unreleased: true,
+      unseenLeads: leads,
+      items: [{ lead: "Fresh.", group: "Fresh surface" }, { lead: "Stale.", group: "Stale surface" }],
+    });
+    renderModal({
+      tab: "whats-new",
+      entries: [
+        makeEntry(new Set([unreleasedFingerprint(["Fresh."])])) as WhatsNewEntry,
+      ],
+    });
+    expect(screen.getByText("Fresh surface").className).toContain("text-amber");
+    expect(screen.getByText("Stale surface").className).not.toContain("text-amber");
+    // The entry header follows the same rule.
+    expect(screen.getByText(/Unreleased 1\.2\.1-dev/).className).toContain("text-amber");
+
+    cleanup();
+    renderModal({
+      tab: "whats-new",
+      entries: [makeEntry(new Set()) as WhatsNewEntry],
+    });
+    expect(screen.getByText("Fresh surface").className).not.toContain("text-amber");
+    expect(screen.getByText("Stale surface").className).not.toContain("text-amber");
+    expect(screen.getByText(/Unreleased 1\.2\.1-dev/).className).not.toContain("text-amber");
   });
 });
 
