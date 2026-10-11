@@ -502,6 +502,9 @@ function ChildRow({
       href={child.href}
       onOpen={() => onOpenThread(child.id)}
       title={child.displayTitle}
+      onOpenChange={(open) =>
+        open ? onAttentionEnter?.(child.id) : onAttentionLeave?.(child.id)
+      }
     />
   );
 }
@@ -966,6 +969,9 @@ export function ThreadCard({
       href={thread.href}
       onOpen={onOpen}
       title={thread.displayTitle}
+      onOpenChange={(open) =>
+        open ? onAttentionEnter?.(thread.id) : onAttentionLeave?.(thread.id)
+      }
     />
   );
 }

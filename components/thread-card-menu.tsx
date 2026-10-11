@@ -12,6 +12,12 @@ interface ThreadCardMenuProps {
   href: string;
   /** The thread the menu acts on, shown as the menu's header. */
   title: string;
+  /**
+   * Open/close reports (the attention freeze): the caller captures the
+   * anchor card's placement while the menu holds, and releases on close —
+   * whatever path closed it (a run's own close, outside click, Escape).
+   */
+  onOpenChange?: (open: boolean) => void;
 }
 
 /**
@@ -22,16 +28,25 @@ interface ThreadCardMenuProps {
  * its ancestor card's menu — and a boxed card's menu cannot also open its
  * group box's. The popover shell itself is shared (components/menu-popover).
  */
-export function ThreadCardMenu({ anchor, actions, onOpen, href, title }: ThreadCardMenuProps) {
+export function ThreadCardMenu({ anchor, actions, onOpen, href, title, onOpenChange }: ThreadCardMenuProps) {
   const [open, setOpen] = useState<{ x: number; y: number } | null>(null);
-  const close = () => setOpen(null);
+  // The open/close reports ride every path, the dismissal mechanics
+  // (outside click, Escape, a run's own close) included.
+  const openMenu = ({ x, y }: { x: number; y: number }) => {
+    setOpen({ x, y });
+    onOpenChange?.(true);
+  };
+  const close = () => {
+    if (open !== null) onOpenChange?.(false);
+    setOpen(null);
+  };
   return (
     <>
       <div
         onContextMenu={(event) => {
           event.preventDefault();
           event.stopPropagation();
-          setOpen({ x: event.clientX, y: event.clientY });
+          openMenu({ x: event.clientX, y: event.clientY });
         }}
       >
         {anchor}

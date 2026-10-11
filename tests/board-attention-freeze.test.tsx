@@ -81,6 +81,29 @@ describe("the board reports card attention", () => {
     expect(onAttentionLeave).toHaveBeenCalledWith("thr_child");
   });
 
+  it("an open context menu reports the card too; closing the menu releases it", () => {
+    const onAttentionEnter = vi.fn();
+    const onAttentionLeave = vi.fn();
+    renderBoard(
+      [thread({ id: "thr_a", status: "active", updatedAt: NOW - 5000 })],
+      { onAttentionEnter, onAttentionLeave },
+      new Map(),
+    );
+    const card = document.querySelector('[data-thread-card="thr_a"]')!;
+    // The menu wrapper holds the card; right-clicking it opens the menu
+    // (and reports the card under the menu).
+    const menued = card.closest("div") ?? card;
+    fireEvent.contextMenu(menued);
+    expect(onAttentionEnter).toHaveBeenCalledWith("thr_a");
+    // Closing frees the pin: the menu's own close paths (backdrop click,
+    // Escape, a run) all report it. The backdrop is the popover's
+    // full-viewport click-away div.
+    const backdrop = document.querySelector("div.fixed.inset-0");
+    expect(backdrop).not.toBeNull();
+    fireEvent.click(backdrop!);
+    expect(onAttentionLeave).toHaveBeenCalledWith("thr_a");
+  });
+
   it("hovering a parent-lane board cell reports it too", () => {
     const onAttentionEnter = vi.fn();
     const onAttentionLeave = vi.fn();

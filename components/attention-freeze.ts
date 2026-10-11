@@ -27,8 +27,11 @@ import type { PluginSidebarThread } from "@get-bb/plugin-sdk/app";
 import type { BoardColumn, GroupBy } from "./grouping";
 import type { ParentLane } from "./parent-lanes";
 
-/** What opened a freeze: the pointer, or the open thread pane. */
-export type AttentionOrigin = "hover" | "selection";
+/** What opened a freeze: the pointer, the open thread pane, or an open
+ *  card context menu (the popover is a portal outside the card's DOM, so
+ *  pointing at the menu is not a pointer-exit; its own open/close reports
+ *  capture and release). */
+export type AttentionOrigin = "hover" | "selection" | "menu";
 
 /** One pinned card's captured placement in the column board. */
 export interface AttentionSlot {
