@@ -65,7 +65,7 @@ const selectedTab = (page) =>
 
   // The rail lists exactly the three tabs.
   const tabs = await page.$$eval('[role="tab"]', (els) => els.map((el) => el.textContent));
-  if (JSON.stringify(tabs) !== JSON.stringify(["Behavior", "What's new", "About"])) {
+  if (JSON.stringify(tabs) !== JSON.stringify(["Behavior", "Appearance", "What's new", "About"])) {
     fail(`rail tabs are ${JSON.stringify(tabs)}`);
   } else ok(`rail tabs: ${tabs.join(" | ")}`);
 
@@ -104,6 +104,41 @@ const selectedTab = (page) =>
     } else fail(`About tab content/parity wrong: ${about.slice(0, 180)}`);
   } else fail(`About rail click selected '${aboutTabAfter}'`);
   await page.screenshot({ path: `${OUT}settings-about.png` });
+
+  // The Appearance tab: three-way card-transport choice with Teleport
+  // selected by default, the motion override, and the wallpaper picker.
+  await clickButton(page, 'button[role="tab"]:nth-child(2)');
+  await new Promise((resolve) => setTimeout(resolve, 300));
+  const appearanceTab = await selectedTab(page);
+  if (appearanceTab !== "Appearance") fail(`appearance rail click selected '${appearanceTab}'`);
+  const radioInfo = await page.evaluate(() => {
+    const groups = [...document.querySelectorAll('[role="radiogroup"]')];
+    return groups.map((group) => ({
+      label: group.getAttribute("aria-label"),
+      options: [...group.querySelectorAll('[role="radio"]')].map((radio) => ({
+        name: radio.textContent,
+        checked: radio.getAttribute("aria-checked") === "true",
+        disabled: radio.getAttribute("aria-disabled") === "true",
+      })),
+    }));
+  });
+  const cardGroup = radioInfo.find((g) => g.label === "Card animations");
+  const motionGroup = radioInfo.find((g) => g.label === "Motion");
+  const okAppearance =
+    cardGroup !== undefined && motionGroup !== undefined &&
+    JSON.stringify(cardGroup.options.map((o) => [o.name, o.checked, o.disabled])) ===
+      JSON.stringify([
+        ["None", false, false],
+        ["Teleport", true, false],
+        ["Zoom out / in", false, true],
+      ]) &&
+    motionGroup.options.length === 3;
+  if (okAppearance) ok("Appearance tab: defaults (Teleport, system motion) and the disabled zoom choice");
+  else fail(`Appearance tab radio state wrong: ${JSON.stringify(radioInfo)}`);
+  const wallpaperTrigger = await page.$('button[aria-label="Wallpaper"]');
+  if (wallpaperTrigger === null) fail("Appearance tab shows no wallpaper picker trigger");
+  else ok("Appearance tab mounts the wallpaper picker");
+  await page.screenshot({ path: `${OUT}settings-appearance.png` });
 
   // Closing the modal marks the feed seen: the icon must now be the plain
   // gear with the settings label (the binary costume flips live, no reload).

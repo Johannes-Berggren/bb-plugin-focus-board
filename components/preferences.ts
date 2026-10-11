@@ -92,6 +92,52 @@ export function escStopsRunningFromSetting(
 }
 
 /**
+ * The card-transport appearance choice (the settings modal's Appearance tab),
+ * localStorage-backed. `teleport` is the running transporter dissolve and
+ * the default, so existing boards keep today's behavior; `none` relocates a
+ * card instantly with no ghost and no wipe (what the board did before the
+ * transporter existed); `zoom` is a future zoom-out/zoom-in read — the tab
+ * shows it disabled until it is built.
+ */
+export type CardTransportPref = "none" | "teleport" | "zoom";
+
+export const CARD_TRANSPORT_KEY = "focus-board:cardTransport";
+
+const ALLOWED_CARD_TRANSPORT: readonly CardTransportPref[] = ["none", "teleport", "zoom"];
+
+export function parseCardTransportStored(raw: string | null): CardTransportPref {
+  return (ALLOWED_CARD_TRANSPORT as readonly string[]).includes(raw ?? "")
+    ? (raw as CardTransportPref)
+    : "teleport";
+}
+
+export function cardTransportStoredValue(value: CardTransportPref): CardTransportPref {
+  return value;
+}
+
+/**
+ * The board motion preference: `system` defers to the OS media query (the
+ * default), `reduce` forces the reduced-motion path on regardless, `full`
+ * forces the full-motion path on regardless. Wired into the board's
+ * transport wipe gating, which already has both branches.
+ */
+export type MotionPref = "system" | "reduce" | "full";
+
+export const MOTION_PREF_KEY = "focus-board:motion";
+
+const ALLOWED_MOTION: readonly MotionPref[] = ["system", "reduce", "full"];
+
+export function parseMotionStored(raw: string | null): MotionPref {
+  return (ALLOWED_MOTION as readonly string[]).includes(raw ?? "")
+    ? (raw as MotionPref)
+    : "system";
+}
+
+export function motionStoredValue(value: MotionPref): MotionPref {
+  return value;
+}
+
+/**
  * The board wallpaper's localStorage persistence. Versioned document with a
  * single GLOBAL layer for now; per-project / per-group overrides extend this
  * same document (version 2) instead of growing sibling keys, so every scope

@@ -129,6 +129,14 @@ import {
   type WallpaperLayer,
   type WallpaperSettings,
   WALLPAPER_KEY,
+  CARD_TRANSPORT_KEY,
+  MOTION_PREF_KEY,
+  parseCardTransportStored,
+  cardTransportStoredValue,
+  parseMotionStored,
+  motionStoredValue,
+  type CardTransportPref,
+  type MotionPref,
 } from "./components/preferences";
 import { usePrefersDarkScheme } from "./components/ui/hooks/use-media-query";
 import { WallpaperActiveProvider } from "./components/wallpaper-contrast";
@@ -764,6 +772,24 @@ function BoardPage({ subPath }: { subPath: string }) {
   const persistWallpaper = useCallback((next: WallpaperSettings) => {
     setWallpaper(next);
     writeStored(WALLPAPER_KEY, wallpaperStoredValue(next));
+  }, []);
+  // Appearance tab: the card-transport read and the motion override, backed
+  // by the same tolerant localStorage stores every other board preference
+  // uses. Defaults keep today's board untouched (the dissolve plays; the
+  // OS media query rules motion).
+  const [cardTransport, setCardTransport] = useState<CardTransportPref>(() =>
+    parseCardTransportStored(readStoredText(CARD_TRANSPORT_KEY, "")),
+  );
+  const persistCardTransport = useCallback((value: CardTransportPref) => {
+    setCardTransport(value);
+    writeStored(CARD_TRANSPORT_KEY, cardTransportStoredValue(value));
+  }, []);
+  const [motionPref, setMotionPref] = useState<MotionPref>(() =>
+    parseMotionStored(readStoredText(MOTION_PREF_KEY, "")),
+  );
+  const persistMotionPref = useCallback((value: MotionPref) => {
+    setMotionPref(value);
+    writeStored(MOTION_PREF_KEY, motionStoredValue(value));
   }, []);
   // Scheme read for the wallpaper's dark variant: the hook lives with the
   // media-query hooks and flips live (a change listener, no reload).
@@ -2486,6 +2512,8 @@ function BoardPage({ subPath }: { subPath: string }) {
             columns={columns}
             groupBy={groupBy}
             activeThreadId={openThreadId}
+            cardTransport={cardTransport}
+            motionPref={motionPref}
             doneIds={doneIds}
             nestedChildrenByParent={nestedChildrenByParent}
             childCountByParent={assembly?.childCountByParent ?? new Map()}
@@ -2724,6 +2752,12 @@ function BoardPage({ subPath }: { subPath: string }) {
         entries={whatsNewEntries}
         escStopsRunningThread={settingValues?.escStopsRunningThread}
         onSetEscStopsRunningThread={setEscStopsRunningThread}
+        cardTransport={cardTransport}
+        motionPref={motionPref}
+        wallpaper={wallpaper}
+        onSetCardTransport={persistCardTransport}
+        onSetMotionPref={persistMotionPref}
+        onWallpaperChange={persistWallpaper}
       />
       {snoozeDialogFor === null ? null : (() => {
         const dialogThread = threads.find((candidate) => candidate.id === snoozeDialogFor);

@@ -14,7 +14,9 @@ export const UNRELEASED_ITEMS: readonly { text: string; children: string[]; grou
   },
   {
     "text": "**The board's settings live in one gear.** A modal with Behavior, What's new, and About panels replaces the standalone What's-new alert; the toolbar icon is a pulsing gift while there is unseen changelog — its click lands straight on the news — and a settings gear otherwise.",
-    "children": []
+    "children": [
+      "**Appearance joins the tabs.** Card animations pick the transporter read (None snaps into place, Teleport dissolves, Zoom out / in waits visibly), motion can force quieter or fuller animation than the OS setting, and the wallpaper picker lives here too; the rail marks the read tab with an accent bar, and What's-new lines fresh on dev tint amber."
+    ]
   },
   {
     "text": "**A family box drags by its label.** Grabbing the group name moves the whole box and ranks it wherever the drop lands, the same move grabbing a member card already made. A snoozed lead member still refuses to drag, and a click without the drag still renames.",
