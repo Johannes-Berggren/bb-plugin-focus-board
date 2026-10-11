@@ -24,11 +24,10 @@ const browser = await puppeteer.launch({
   defaultViewport: { width: 1920, height: 1080, deviceScaleFactor: 2 },
 });
 
+// Each verify run launches a fresh browser profile, so localStorage starts
+// empty; blocks order their writes so later assertions see earlier picks.
 async function open(query) {
   const page = await browser.newPage();
-  // The appearance defaults read the persisted card-transport choice; the
-  // harness browser carries one from earlier runs, so the opening board
-  // gets a cleared key (an unparseable value yields the shipped default).
   await page.goto(`${BASE}${query}`, { waitUntil: "domcontentloaded", timeout: 60_000 });
   // The board panel or the standalone config section (`?page=configuration`),
   // whichever the query mounts.

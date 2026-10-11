@@ -127,7 +127,7 @@ setting (and, after D3, every mirrored look pref) shows. Deleting the footer
 gear would strand declared-only settings behind Tools navigation for no gain;
 retitling costs one string.
 
-**D5, the plugin CLI's config commands retires.** Ruled 2026-10-10 (operator
+**D5, the plugin CLI's config commands retire.** Ruled 2026-10-10 (operator
 thread thr_2vjgvw98xc): the plugin CLI no longer carries `config show|set`,
 keep true. `bb focus-board` keeps the state commands (done, group, link,
 snooze, autotitle, sweep).

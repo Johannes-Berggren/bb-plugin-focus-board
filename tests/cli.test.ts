@@ -17,7 +17,7 @@ function iso(msAgo: number): string {
   return new Date(NOW - msAgo).toISOString();
 }
 
-describe("bb focus-board CLI (done + config)", () => {
+describe("bb focus-board done/snooze/link CLI", () => {
   let bb: Bb;
   let harness: FakePluginHarness;
   let metadata: Map<string, Record<string, unknown>>;
