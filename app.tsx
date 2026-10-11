@@ -138,6 +138,9 @@ import {
   parseParentLaneOrderStored,
   parseWallpaperStored,
   wallpaperBackgroundStyle,
+  readStored,
+  readStoredText,
+  writeStored,
   type ParentLaneOrder,
   wallpaperLayerOf,
   wallpaperStoredValue,
@@ -159,6 +162,7 @@ import { usePrefersDarkScheme } from "./components/ui/hooks/use-media-query";
 import { WallpaperActiveProvider } from "./components/wallpaper-contrast";
 import { EmptyState } from "./components/empty-state";
 import { SettingsModal, type SettingsTab } from "./components/settings-modal";
+import { AppearanceSettingsSection } from "./components/settings-section";
 import {
   APP_VERSION,
   CURRENT_UNRELEASED_FINGERPRINT,
@@ -220,35 +224,6 @@ function recordsAsExtras(
     };
   }
   return out;
-}
-
-function readStored<T extends string>(key: string, allowed: readonly T[], fallback: T): T {
-  try {
-    const value = window.localStorage.getItem(key);
-    if (value !== null && (allowed as readonly string[]).includes(value)) {
-      return value as T;
-    }
-  } catch {
-    // localStorage can throw in embedded contexts; fall through to default.
-  }
-  return fallback;
-}
-
-function readStoredText(key: string, fallback: string): string {
-  try {
-    return window.localStorage.getItem(key) ?? fallback;
-  } catch {
-    // localStorage can throw in embedded contexts; fall through to default.
-  }
-  return fallback;
-}
-
-function writeStored(key: string, value: string): void {
-  try {
-    window.localStorage.setItem(key, value);
-  } catch {
-    // Best effort only; the board still works without persistence.
-  }
 }
 
 function readStoredList(key: string): string[] {
@@ -3221,6 +3196,18 @@ export default definePluginApp((app) => {
     title: "Focus Board configuration",
     icon: "Settings",
     run: (context) => context.openSettings(),
+  });
+  // The configuration page (the footer gear's destination) also hosts the
+  // Appearance rows as a plugin-rendered section beside the declared
+  // settings: same controls, same localStorage truth, no second store (the
+  // sync design's D3). The section reads once at mount; a board instance is
+  // never mounted on this page, so the next board visit applies an edit.
+  app.slots.settingsSection({
+    id: "appearance",
+    title: "Appearance",
+    description:
+      "Card animations, motion, and wallpaper. These follow this browser, not bb's settings store.",
+    component: AppearanceSettingsSection,
   });
   // The host paints its own ExternalLink glyph inside linkified anchors
   // rendered in this panel's pane (ThreadChat's markdown) — an atomic

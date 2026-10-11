@@ -307,124 +307,14 @@ describe("bb focus-board CLI (done + config)", () => {
     });
   });
 
-  describe("config show", () => {
-    it("shows defaults with the overridden flag false", async () => {
+  describe("retired config commands", () => {
+    it("the plugin CLI no longer carries config show or config set (the declared settings edit through `bb plugin config focus-board` and the settings modal)", async () => {
       await load();
-      const result = await harness.behavior.runCli(["config", "show", "--json"]);
-      expect(result.exitCode).toBe(0);
-      const rows = JSON.parse(result.stdout) as Array<{
-        key: string;
-        value: number | string;
-        default: number | string;
-        overridden: boolean;
-      }>;
-      expect(rows).toEqual([
-        { key: "doneArchiveValue", value: 2, default: 2, overridden: false },
-        { key: "doneArchiveUnit", value: "days", default: "days", overridden: false },
-        { key: "idleArchiveValue", value: 2, default: 2, overridden: false },
-        { key: "idleArchiveUnit", value: "days", default: "days", overridden: false },
-      ]);
-    });
-
-    it("flags overridden keys in the human output", async () => {
-      await load();
-      await harness.behavior.setSettings({ doneArchiveValue: 14 });
       const result = await harness.behavior.runCli(["config", "show"]);
-      expect(result.exitCode).toBe(0);
-      expect(result.stdout).toContain("doneArchiveValue=14");
-      expect(result.stdout).toContain("overridden");
-      expect(result.stdout).toContain("idleArchiveValue=2");
-    });
-  });
-
-  describe("config set", () => {
-    it("sets a valid key and echoes the new effective value", async () => {
-      await load();
-      const result = await harness.behavior.runCli([
-        "config",
-        "set",
-        "idleArchiveValue",
-        "14",
-      ]);
-      expect(result.exitCode).toBe(0);
-      expect(result.stdout).toContain("idleArchiveValue=14");
-      const unit = await harness.behavior.runCli([
-        "config",
-        "set",
-        "idleArchiveUnit",
-        "hours",
-      ]);
-      expect(unit.exitCode).toBe(0);
-      expect(unit.stdout).toContain("idleArchiveUnit=hours");
-      const show = await harness.behavior.runCli(["config", "show", "--json"]);
-      expect(show.stdout).toContain('"idleArchiveValue"');
-      expect(show.stdout).toContain("14");
-      expect(show.stdout).toContain('"idleArchiveUnit"');
-      expect(show.stdout).toContain('"hours"');
-    });
-
-    it("rejects an unknown key naming the valid keys", async () => {
-      await load();
-      const result = await harness.behavior.runCli([
-        "config",
-        "set",
-        "bogusKey",
-        "3",
-      ]);
       expect(result.exitCode).toBe(1);
-      expect(result.stderr).toContain("unknown setting 'bogusKey'");
-      expect(result.stderr).toContain("doneArchiveValue");
-      expect(result.stderr).toContain("idleArchiveUnit");
-    });
-
-    it("rejects zero, negative, non-integer, and over-cap counts", async () => {
-      await load();
-      for (const bad of ["0", "-5", "2.5", "abc", "366"]) {
-        const result = await harness.behavior.runCli([
-          "config",
-          "set",
-          "doneArchiveValue",
-          bad,
-        ]);
-        expect(result.exitCode).toBe(1);
-        expect(result.stderr).toContain("invalid value");
-      }
-      // The stored value is untouched by the rejected writes.
-      const show = await harness.behavior.runCli(["config", "show", "--json"]);
-      const rows = JSON.parse(show.stdout) as Array<{
-        key: string;
-        value: number | string;
-      }>;
-      expect(rows.find((row) => row.key === "doneArchiveValue")?.value).toBe(2);
-    });
-
-    it("rejects a unit outside hours | days | weeks", async () => {
-      await load();
-      const result = await harness.behavior.runCli([
-        "config",
-        "set",
-        "doneArchiveUnit",
-        "fortnights",
-      ]);
-      expect(result.exitCode).toBe(1);
-      expect(result.stderr).toContain("invalid value");
-      expect(result.stderr).toContain("hours, days, weeks");
-    });
-
-    it("emits the key/value object with --json", async () => {
-      await load();
-      const result = await harness.behavior.runCli([
-        "config",
-        "set",
-        "doneArchiveValue",
-        "10",
-        "--json",
-      ]);
-      expect(result.exitCode).toBe(0);
-      expect(JSON.parse(result.stdout)).toEqual({
-        key: "doneArchiveValue",
-        value: 10,
-      });
+      expect(result.stderr.toLowerCase()).toMatch(/unknown|unrecognized|not/);
+      const set = await harness.behavior.runCli(["config", "set", "doneArchiveValue", "3"]);
+      expect(set.exitCode).toBe(1);
     });
   });
 
@@ -438,8 +328,6 @@ describe("bb focus-board CLI (done + config)", () => {
         "done mark",
         "done clear",
         "sweep",
-        "config show",
-        "config set",
       ]) {
         expect(result.stdout).toContain(path);
       }

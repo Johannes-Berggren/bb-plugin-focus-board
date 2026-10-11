@@ -47,6 +47,19 @@ export function definePluginApp(setup: (app: unknown) => void): unknown {
       sidebarFooterAction: (config: { id: string; title: string }) => {
         registeredSidebarFooterAction = { ...config };
       },
+      // The plugin detail page's configuration section (the Appearance
+      // mirror): captured so `?page=configuration` can mount it standalone
+      // for the headless verify (the harness has no host plugin page).
+      settingsSection: (
+        config: {
+          id: string;
+          title?: string;
+          description?: string;
+          component: ComponentType<Record<string, never>>;
+        },
+      ) => {
+        registeredSettingsSections[config.id] = { ...config };
+      },
     },
     // The brand-icon registration (app.tsx FocusBoardAppIcon): no host
     // surface renders icons in the harness, so accept and drop it.
@@ -131,6 +144,25 @@ export function mountRegisteredPanel(): void {
   if (panelPath === undefined) throw new Error("harness: no nav panel registered");
   installMockRouter(panelPath);
   mockRender();
+}
+
+/**
+ * Standalone config-page mount (`?page=configuration`): the harness has no
+ * host plugin-detail page, so this renders the registered settings section
+ * bare. The headless verify drives the mirrored Appearance rows against the
+ * same mock SDK the board runs on.
+ */
+export function mountRegisteredConfigSection(): void {
+  const section = registeredSettingsSections["appearance"];
+  if (section === undefined) throw new Error("harness: no settings section registered");
+  const rootElement = document.createElement("div");
+  rootElement.setAttribute("data-focus-board-config-section", "");
+  rootElement.className = "p-6";
+  document.body.append(rootElement);
+  // Render through JSX (an element, never a direct call): the section uses
+  // hooks, which only work inside the renderer's component context.
+  const Section = section.component;
+  createRoot(rootElement).render(<Section {...( {} as Record<string, never>)} />);
 }
 
 export function useBbNavigate(): unknown {
@@ -381,6 +413,12 @@ export function seedSimSettings(seed: Record<string, string | number | boolean>)
 // The sidebar-footer action's captured registration (its title is the
  // "configuration" noun the verify script asserts).
 let registeredSidebarFooterAction: Record<string, unknown> | null = null;
+// The captured settings sections (the Appearance mirror), keyed by id, so
+// `?page=configuration` can mount one standalone for the headless verify.
+const registeredSettingsSections: Record<
+  string,
+  { title?: string; description?: string; component: (props: Record<string, never>) => unknown }
+> = {};
 // Feature groups: the registry (id → name stamps) and the per-thread
 // assignments, module state mutated by group_* writes. The default box
 // wraps the two active threads ("chat-imagegent", the live report's group).

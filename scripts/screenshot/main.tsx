@@ -4,7 +4,11 @@
  */
 import "../../dist/app.css";
 import "../../app";
-import { mountRegisteredPanel, seedSimSettings } from "./mock-sdk";
+import {
+  mountRegisteredConfigSection,
+  mountRegisteredPanel,
+  seedSimSettings,
+} from "./mock-sdk";
 
 // Seed before the app's useState initializers read localStorage (they run at
 // render time below, after these writes).
@@ -69,4 +73,11 @@ if (settingsSeed !== null) {
   seedSimSettings(JSON.parse(settingsSeed) as Record<string, string | number | boolean>);
 }
 
-mountRegisteredPanel();
+// `?page=configuration` mounts the registered settings section bare (the
+// harness has no host plugin-detail page) instead of the board panel, so
+// the headless verify can drive the mirrored Appearance controls.
+if (params.get("page") === "configuration") {
+  mountRegisteredConfigSection();
+} else {
+  mountRegisteredPanel();
+}

@@ -103,18 +103,20 @@ values of the one store. Storage does not move: the sweep server command must
 keep reading the thresholds, which alone settles that they remain declared
 settings.
 
-**D3, Appearance stays localStorage-backed; the config page later mirrors its
+**D3, Appearance stays localStorage-backed; the config page mirrors its
 controls.** Making Appearance declared would fork the tab's three controls
 across stores (the wallpaper document cannot fit the scalar declaration types
 anyway), migrate live values for no operator benefit, and claim a per-browser
-taste as account-wide state. Instead a later slice registers
-`app.slots.settingsSection(...)` (the SDK seam a plugin app can use to render
-a section on the plugin's configuration page) and re-renders the same
-`ChoiceRow`s and wallpaper picker there, bound to the same preferences
-helpers, labeled "per browser". One click from the sidebar footer gear then
-reaches every setting the plugin owns. That slice needs its own verification
-(the screenshot harness does not mount the configuration page), so it does
-not ride the first slice.
+taste as account-wide state. Instead the plugin app registers
+`app.slots.settingsSection({ id: "appearance", ... })` and renders the same
+shared rows (`components/appearance-controls.tsx`, also the modal's
+Appearance tab) in `components/settings-section.tsx`: reads parse through the
+shared parsers, writes go through the shared serializers and keys. The
+section reads once at mount; a board instance is never mounted on the
+configuration page, so an edit there applies on the board's next mount (the
+same-document storage-event gap). The harness mounts the section standalone
+through `?page=configuration` (mock-sdk's captured registration), which is
+the headless seam the mirror's verify steps run against.
 
 **D4, the sidebar footer gear stays, retitled "Focus Board
 configuration".** Two gears named "Focus Board settings" with two different
@@ -125,11 +127,10 @@ setting (and, after D3, every mirrored look pref) shows. Deleting the footer
 gear would strand declared-only settings behind Tools navigation for no gain;
 retitling costs one string.
 
-**D5, the plugin CLI's `config show|set` stays as the sweep-threshold sugar.**
-It duplicates `bb plugin config` for four keys, but its summary already says
-"sweep threshold settings", and it predates the mirror; no new keys join it
-(`bb plugin config` is the broad path). If a future landing retires it, that
-is its own decision, not sync work.
+**D5, the plugin CLI's config commands retires.** Ruled 2026-10-10 (operator
+thread thr_2vjgvw98xc): the plugin CLI no longer carries `config show|set`,
+keep true. `bb focus-board` keeps the state commands (done, group, link,
+snooze, autotitle, sweep).
 
 **Developer settings in the modal.** `scrollDebugInstrumentation` stays
 config-panel and CLI only: it is a developer surface, and its own description
@@ -161,10 +162,14 @@ designed, never a settings write.
 
 ## Later slices
 
-1. D3's configuration-page Appearance mirror (needs a harness fixture for the
-   config page or a live UAT row in `tests/manual/`).
-2. A ruling on whether `bb focus-board config` retires once the modal covers
-   the thresholds (operator decision, D5).
+1. ~~D3's configuration-page Appearance mirror~~ Landed in this same lineage
+   (PR #65): the `settingsSection` registration, the shared
+   `components/appearance-controls.tsx` anatomy, the standalone
+   `?page=configuration` harness mount, and unit plus headless coverage.
+2. ~~The `bb focus-board config` retirement ruling~~ Ruled and landed in the
+   same PR (operator thread thr_2vjgvw98xc): the plugin CLI's `config
+   show|set` retired, `bb plugin config focus-board` keeps the one door, and
+   the README CLI block names it.
 3. Mobile settings page (`experimental_page: "mobile"` on
    `settingsSection`) if bb's mobile settings surface ever needs the mirrors.
 

@@ -124,13 +124,13 @@ bb focus-board snooze set <when> <thread-id>...   # +<N>m|h|d|w or a future time
 bb focus-board snooze clear <thread-id>...
 bb focus-board autotitle availability|prompt|probe --thread-id <thread-id>
 bb focus-board sweep [--ids <id>...] [--confirm]
-bb focus-board config show
-bb focus-board config set <doneArchiveValue|doneArchiveUnit|idleArchiveValue|idleArchiveUnit> <count|hours|days|weeks>
+bb plugin config focus-board                       # declared settings (sweep thresholds, pane Escape, scroll debug)
 ```
 
 All commands accept `--json`. The sweep never archives without `--confirm`;
 without it the command is a dry-run: it prints what would be archived and
-exits 1.
+exits 1. Sweep thresholds live in the declared settings above, editable from
+`bb plugin config focus-board` or the board settings modal's Behavior tab.
 
 ## Data and privacy
 
