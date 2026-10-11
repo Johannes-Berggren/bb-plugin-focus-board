@@ -56,11 +56,14 @@ import {
 import { displayAfterUnitMove } from "../lib/rank-unit-move";
 import {
   cardRowGapPx,
+  computedMarginPx,
   firstRealCard,
   ghostCollapseKeyframes,
   insertGhostSlots,
   laneSignature,
   planLaneTransports,
+  collapseRunTransports,
+  runUnits,
   TRANSPORT_BATCH_CAP,
   TRANSPORT_COLLAPSE_MS,
   TRANSPORT_EASE,
@@ -70,6 +73,7 @@ import {
   wipeInKeyframes,
   wipeOutKeyframes,
   type LaneTransport,
+  type RunUnit,
   type TransportArrivalPhase,
   type TransportOutPhase,
   type TransportPlay,
@@ -654,6 +658,15 @@ export function Board({
   const prefersReducedMotion = usePrefersReducedMotion();
   const prevGroupByRef = useRef<GroupBy | null>(null);
   const prevLaneByThreadRef = useRef<ReadonlyMap<string, string> | null>(null);
+  // The run-unit map (a box run is ONE unit): diffed per commit so a whole
+  // dashed box relocating plans a single dissolve, not one per member.
+  const prevRunUnitsRef = useRef<ReadonlyMap<string, RunUnit> | null>(null);
+  // The PREVIOUS columns: the moved card has already left its old lane in
+  // the next columns, so the true old slot (the ghost's weave position) is
+  // only readable from the previous commit's column order.
+  const prevColumnsRef = useRef<
+    readonly { id: string; threads: readonly PluginSidebarThread[] }[] | null
+  >(null);
   const prevThreadsRef = useRef<ReadonlyMap<string, PluginSidebarThread>>(new Map());
   const transportGenRef = useRef(0);
   const transportTimersRef = useRef(new Map<string, number[]>());
@@ -678,19 +691,36 @@ export function Board({
     for (const column of columns) {
       for (const card of column.threads) threadsById.set(card.id, card);
     }
+    const runUnitsNext = runUnits(columns, groupBoxOf ?? EMPTY_GROUP_BOXES);
     const prev = prevLaneByThreadRef.current;
+    const prevRunUnits = prevRunUnitsRef.current;
+    const prevColumns = prevColumnsRef.current;
     const prevThreads = prevThreadsRef.current;
     prevLaneByThreadRef.current = laneByThread;
+    prevRunUnitsRef.current = runUnitsNext;
+    prevColumnsRef.current = columns;
     prevThreadsRef.current = threadsById;
     if (groupByChanged || prev === null) return;
-    const moves = planLaneTransports(prev, prevThreads, columns);
+    const rawMoves = planLaneTransports(prev, prevThreads, columns, prevColumns ?? columns);
+    const moves = collapseRunTransports(
+      rawMoves,
+      prevRunUnits ?? new Map<string, RunUnit>(),
+      runUnitsNext,
+      prevThreads,
+    );
     if (moves.length === 0 || moves.length > TRANSPORT_BATCH_CAP) return;
     // A card already mid-transport re-targets: drop its old play (and its
     // timers) and start fresh from its CURRENT lane — the old ghost's slot
-    // state is stale the moment the card moves again.
+    // state is stale the moment the card moves again. A unit play (a box)
+    // whose member re-targets individually dies too: the unit's own play
+    // was planned for the WHOLE box, and its member snapshot set is stale.
     const replacements = new Set(moves.map((move) => move.threadId));
     setTransports((current) => [
-      ...current.filter((play) => !replacements.has(play.threadId)),
+      ...current.filter(
+        (play) =>
+          !replacements.has(play.threadId) &&
+          !(play.members?.some((member) => replacements.has(member.id)) ?? false),
+      ),
       ...moves.map((move) => {
         const gen = transportGenRef.current + 1;
         transportGenRef.current = gen;
@@ -706,7 +736,7 @@ export function Board({
     ]);
     // The transports state update re-renders BEFORE paint; the wipes below
     // start in the same commit's effect so nothing flashes half-drawn.
-  }, [columns]);
+  }, [columns, groupBoxOf]);
 
   /** Cancel one transport's phase timers (a re-target or unmounting). */
   const cancelTransportTimers = (threadId: string) => {
@@ -807,14 +837,19 @@ export function Board({
         const collapseKey = `collapse:${transport.threadId}@${transport.gen}`;
         const ghost = transportElsRef.current.get(outKey);
         if (ghost !== null && ghost !== undefined) {
-          // Measured: the ghost's live height and its list's real row gap,
-          // so the collapse lands pixel-identical to the ghost's removal.
+          // Measured: the ghost's live height, its list's real row gap, and
+          // its REAL current margins — the collapsing phase's static styles
+          // are already applied when the animation claims the element, and
+          // a keyframe starting at 0 would jump the invisible ghost's
+          // neighbors before the smooth close begins.
           startWipe(
             collapseKey,
             ghost,
             ghostCollapseKeyframes(
               ghost.getBoundingClientRect().height,
               cardRowGapPx(ghost.parentElement),
+              computedMarginPx(ghost, "Top"),
+              computedMarginPx(ghost, "Bottom"),
             ),
             TRANSPORT_COLLAPSE_MS,
           );
@@ -2356,6 +2391,57 @@ export function Board({
                   </li>
                   );
                   };
+                  // A run transport's ghost: the WHOLE dashed container
+                  // dissolves (the box was one visual shape), holding the
+                  // pre-move member snapshots inert while the wipe-out and
+                  // collapse run. The container drives the wipe, the
+                  // transport attributes, and the phase styles; the members
+                  // render the same card markup a live box member does
+                  // (firstRealCard skips ghost subtrees, and the container's
+                  // inert + pointer-events cut every gesture).
+                  const ghostRunLi = (play: TransportPlay) => (
+                    <li
+                      key={`transport:${play.threadId}`}
+                      aria-hidden
+                      {...({ inert: "" } as unknown as Record<string, never>)}
+                      className="pointer-events-none relative mt-1.5"
+                      data-group-box={play.threadId}
+                      data-transport-ghost=""
+                      data-transport-out={play.phase}
+                      style={
+                        play.phase === "collapsing"
+                          ? {
+                              // The static END state of the collapse, as a
+                              // card ghost's (the animation's fill keeps its
+                              // frames winning in a browser; a no-WAAPI
+                              // environment lands here instantly).
+                              maxHeight: "0px",
+                              overflow: "hidden",
+                              marginTop: `-${TRANSPORT_ROW_GAP_PX / 2}px`,
+                              marginBottom: `-${TRANSPORT_ROW_GAP_PX / 2}px`,
+                            }
+                          : undefined
+                      }
+                      ref={(el) => {
+                        transportElsRef.current.set(
+                          `out:${play.threadId}@${play.gen}`,
+                          el,
+                        );
+                      }}
+                    >
+                      <div className="relative rounded-lg border border-dashed border-muted-foreground/50 px-1 pt-4 pb-0.5">
+                        <span
+                          data-group-box-label={play.threadId}
+                          className="absolute -top-2 left-3 z-10 rounded-sm bg-muted px-1 text-[10.5px] leading-[14px] text-muted-foreground"
+                        >
+                          {play.boxName}
+                        </span>
+                        <ul className="flex flex-col gap-1.5">
+                          {(play.members ?? []).map((member) => threadLi(member))}
+                        </ul>
+                      </div>
+                    </li>
+                  );
                   // The run list: standalone card slots at their own
                   // positions; a boxed run renders ONE dashed container li
                   // whose members keep their own card slots inside. The
@@ -2376,6 +2462,17 @@ export function Board({
                   // One display run's markup (the ghost render maps
                   // entries through it — every entry that is not a ghost
                   // is a run of this column).
+                  // A run transport's arriving side: the box CONTAINER
+                  // carries the wipe-in (one dashed shape, never per
+                  // member) when the unit's play says it just landed here.
+                  const boxArrivalFor = (groupId: string) => {
+                    const play = transportByThread.get(groupId);
+                    return play !== undefined &&
+                      play.toColumnId === column.id &&
+                      play.arrival === "wiping-in"
+                      ? play
+                      : undefined;
+                  };
                   const renderRun = (runItem: GroupRunItem) =>
                     runItem.kind === "single" ? (
                       threadLi(runItem.thread)
@@ -2383,6 +2480,26 @@ export function Board({
                       <li
                         key={`group:${runItem.box.groupId}`}
                         data-group-box={runItem.box.groupId}
+                        data-transport-arrival={
+                          boxArrivalFor(runItem.box.groupId) ? "wiping-in" : undefined
+                        }
+                        style={
+                          boxArrivalFor(runItem.box.groupId) !== undefined &&
+                          !prefersReducedMotion
+                            ? // Hidden until the wipe-in's keyframes take over,
+                              // same contract as an arriving card's slot.
+                              { opacity: 0 }
+                            : undefined
+                        }
+                        ref={(el) => {
+                          const arriving = boxArrivalFor(runItem.box.groupId);
+                          if (arriving !== undefined) {
+                            transportElsRef.current.set(
+                              `arrival:${arriving.threadId}@${arriving.gen}`,
+                              el,
+                            );
+                          }
+                        }}
                         className="relative mt-1.5"
                         onContextMenu={(event) => {
                           // The box context menu covers the box's own
@@ -2617,14 +2734,18 @@ export function Board({
                     <ul className="flex flex-col gap-1.5">
                       {insertGhostSlots(columnRuns, laneOutGhosts).map((entry) =>
                         entry.kind === "ghost"
-                          ? // The ghost renders through threadLi with the
-                            // planner's PRE-move snapshot: the visuals the
-                            // card had, inert (aria-hidden, inert,
-                            // pointer-events-none) while the wipe-out and
-                            // collapse play over it.
-                            threadLi(entry.ghost.thread, undefined, {
-                              play: entry.ghost,
-                            })
+                          ? entry.ghost.members !== undefined
+                            ? // A run transport: the dashed container itself
+                              // is the ghost (one box-shaped dissolve).
+                              ghostRunLi(entry.ghost)
+                            : // The card ghost renders through threadLi with
+                              // the planner's PRE-move snapshot: the visuals
+                              // the card had, inert (aria-hidden, inert,
+                              // pointer-events-none) while the wipe-out and
+                              // collapse play over it.
+                              threadLi(entry.ghost.thread, undefined, {
+                                play: entry.ghost,
+                              })
                           : renderRun(entry.run),
                       )}
                     </ul>
