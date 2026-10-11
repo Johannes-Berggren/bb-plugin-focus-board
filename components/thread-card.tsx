@@ -285,16 +285,25 @@ function ProviderTicketChip({
   // External items name their own tracker in the favicon and carry no
   // GitHub kind glyph.
   const ids = chip.refs.map((ref, index) => {
-    // The kind glyph owns the state color; id text stays neutral so a chip
-    // holding many merged PRs does not read as one purple smear. The
-    // per-id state survives on hover instead.
+    // The kind glyph owns the static state color; id text stays neutral so a
+    // chip holding many merged PRs does not read as one purple smear. A
+    // merged id reads struck-through grey, popping purple on hover; every
+    // id's state answers on its hover title.
     const status =
       isGithub && ref.number !== undefined
         ? statusFor?.(ticketStatusRepo(ref, projectRepo), ref.number)
         : undefined;
     const title = status === undefined ? undefined : `${status.kind} ${status.state}`;
     const text = ticketChipIdText(ref);
-    const body = <span>{text}</span>;
+    const body = (
+      <span
+        className={
+          status?.state === "MERGED" ? "line-through hover:text-purple-500" : undefined
+        }
+      >
+        {text}
+      </span>
+    );
     return ref.href === undefined ? (
       <span key={index} title={title}>
         {body}
