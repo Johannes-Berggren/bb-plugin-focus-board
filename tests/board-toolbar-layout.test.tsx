@@ -37,8 +37,6 @@ function renderToolbar(
     onNewThread: vi.fn(),
     whatsNewUnseen: false,
     onOpenSettings: vi.fn(),
-    wallpaper: { version: 1 as const, global: null },
-    onWallpaperChange: vi.fn(),
     ...overrides,
   } as unknown as BoardToolbarProps;
   const view = render(<BoardToolbar {...props} />);
@@ -154,6 +152,16 @@ describe("BoardToolbar layout", () => {
     expect(screen.queryByLabelText("Maximize new thread")).toBeNull();
   });
 
+  it("carries no wallpaper control — the picker lives in the settings' Appearance tab", () => {
+    // The toolbar's wallpaper trigger was removed when the Appearance tab
+    // became the picker's only home; nothing wallpaper-shaped may creep
+    // back (a trigger, a popover, or the toolbar props resurfacing).
+    renderToolbar();
+    expect(screen.queryByLabelText("Wallpaper")).toBeNull();
+    expect(screen.queryByTitle("Wallpaper")).toBeNull();
+    expect(screen.queryByText(/Wallpaper/)).toBeNull();
+  });
+
   it("the View menu's Nest row toggles nesting", () => {
     const onNestChildrenChange = vi.fn();
     renderToolbar({ onNestChildrenChange, nestChildren: false });
@@ -200,13 +208,12 @@ describe("BoardToolbar layout", () => {
     // reproduced in the screenshot harness at 16px/1.5). Flex wrappers
     // position the trigger by centering, immune to line metrics.
     renderToolbar();
-    const labels = ["View", "Project", "Provider", "State", "Wallpaper"];
+    const labels = ["View", "Project", "Provider", "State"];
     const triggers = [
       document.querySelector('button[aria-label="View"]'),
       screen.getByText(/Project:/).closest("button"),
       screen.getByText(/Provider:/).closest("button"),
       screen.getByText(/State:/).closest("button"),
-      screen.getByLabelText("Wallpaper"),
     ];
     for (const [i, label] of labels.entries()) {
       const trigger = triggers[i];

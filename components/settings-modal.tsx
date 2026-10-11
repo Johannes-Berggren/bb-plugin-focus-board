@@ -5,7 +5,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { WallpaperDropdown } from "@/components/wallpaper-picker";
+import { WallpaperPicker } from "@/components/wallpaper-picker";
 import type { WallpaperSettings } from "@/components/preferences";
 import { WhatsNewFeed } from "@/components/whats-new-feed";
 import { APP_VERSION, type WhatsNewEntry } from "@/lib/whats-new";
@@ -210,7 +210,8 @@ export function SettingsModal({
  * the dissolve running today, Zoom out / in = a future wipe kept visibly
  * disabled so nobody selects a mode the board cannot run), Motion overrides
  * the OS reduce-motion media query for the board's own animations, and the
- * wallpaper hosts the same picker control the toolbar carries.
+ * wallpaper picker contents render inline here (the toolbar carries no
+ * picker — the Appearance tab is the wallpaper's only surface).
  */
 function AppearanceContent({
   cardTransport,
@@ -264,10 +265,11 @@ function AppearanceContent({
       <div>
         <p className="text-xs font-medium text-foreground">Wallpaper</p>
         <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-          The backdrop behind the board — the same picker the toolbar's image control opens.
+          The backdrop behind the board — shipped gradient presets, a photo shuffle, an
+          Openverse search, or any https url.
         </p>
         <div className="mt-2">
-          <WallpaperDropdown wallpaper={wallpaper} onWallpaperChange={onWallpaperChange} />
+          <WallpaperPicker wallpaper={wallpaper} onWallpaperChange={onWallpaperChange} />
         </div>
       </div>
     </div>

@@ -2812,8 +2812,6 @@ function BoardPage({ subPath }: { subPath: string }) {
           nestChildren={nestChildren}
           onNestChildrenChange={persistNestChildren}
           nestingLocked={isParentGroupBy}
-          wallpaper={wallpaper}
-          onWallpaperChange={persistWallpaper}
         />
         {groupBy === "parent" ? (
           <ParentLaneBoard

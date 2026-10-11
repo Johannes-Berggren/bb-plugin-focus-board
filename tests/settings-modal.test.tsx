@@ -419,11 +419,16 @@ describe("settings modal: Appearance tab", () => {
     expect(onSetMotionPref).toHaveBeenCalledWith("reduce");
   });
 
-  it("mounts the wallpaper picker in the tab content", () => {
+  it("mounts the wallpaper picker contents inline in the tab content", () => {
     renderModal({ tab: "appearance", wallpaper: NULL_WALLPAPER });
-    // The same control the toolbar hosts: its Image trigger carries the
-    // Wallpaper label (the picker's own jest tree reads as the trigger).
-    expect(screen.getByLabelText("Wallpaper")).not.toBeNull();
+    // The Appearance tab is the wallpaper's only surface: the picker is not
+    // a toolbar-style popover here — its contents (preset swatches and the
+    // free-form url field) render directly in the tab's scroll.
+    expect(
+      document.querySelectorAll('button[aria-label^="Wallpaper preset:"]').length,
+    ).toBeGreaterThan(0);
+    expect(screen.getByRole("textbox", { name: "Wallpaper image url" })).not.toBeNull();
+    expect(screen.queryByRole("button", { name: "Wallpaper" })).toBeNull();
   });
 });
 
