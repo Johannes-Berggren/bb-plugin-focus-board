@@ -213,8 +213,7 @@ interface BoardProps {
   columns: readonly BoardColumn[];
   /** The active grouping — a column's rank key is namespaced by it. */
   groupBy: GroupBy;
-  activeThreadId: string | null;
-  doneIds: ReadonlySet<string>;
+  activeThreadId: string | null;  doneIds: ReadonlySet<string>;
   /** Parent id → children that render as nested rows under the parent card. */
   nestedChildrenByParent: ReadonlyMap<string, readonly PluginSidebarThread[]>;
   /**
@@ -430,6 +429,19 @@ interface BoardProps {
   onSweepDisarm?: () => void;
   onSweepConfirm?: (columnId: string) => void;
   /**
+   * The Appearance tab's card-transport choice: `teleport` (default) runs
+   * the transporter dissolve, `none` relocates cards instantly (the planner
+   * never runs), `zoom` is a future read — the settings tab keeps it
+   * disabled so it never reaches the board.
+   */
+  cardTransport?: "none" | "teleport" | "zoom";
+  /**
+   * The Appearance tab's motion override: `reduce`/`full` force the
+   * reduced/full-motion path regardless of the OS media query; `system`
+   * (default) defers to the media query.
+   */
+  motionPref?: "system" | "reduce" | "full";
+  /**
    * The sweep's way out, whatever state it is in: an armed mode exits
    * (disarm), a running sweep stops before its next archive. The board
    * renders the button and labels it per state; the caller dispatches.
@@ -587,6 +599,8 @@ export function Board({
   onSweepArm,
   onSweepDisarm,
   onSweepConfirm,
+  cardTransport = "teleport",
+  motionPref = "system",
   onSweepCancel,
 }: BoardProps) {
   const [dragOverColumn, setDragOverColumn] = useState<string | null>(null);
@@ -742,8 +756,11 @@ export function Board({
   // Reduced motion: the phases still run (the layout choreography — ghost
   // collapse, slot handoff — stays correct for the user reading the board),
   // but no wipe keyframes start and the arriving card never hides behind
-  // static styles.
-  const prefersReducedMotion = usePrefersReducedMotion();
+  // static styles. The Appearance tab's motion override replaces the media
+  // query when the user forces a side.
+  const systemReducedMotion = usePrefersReducedMotion();
+  const prefersReducedMotion =
+    motionPref === "reduce" ? true : motionPref === "full" ? false : systemReducedMotion;
   // The shimmer is the dissolve's beam decoration — a field of glints riding
   // the sweeps. The zoom recedes into a portal instead and plays no glint
   // field, so all four shimmer render sites share one read.
@@ -806,6 +823,16 @@ export function Board({
     prevColumnsRef.current = columns;
     prevThreadsRef.current = threadsById;
     if (groupByChanged || prev === null) return;
+    if (cardTransport === "none") {
+      // Instant relocation: the planner never runs. The snapshots re-seed so
+      // re-enabling the transporter starts a fresh baseline instead of
+      // diffing against one collected while the planner was off.
+      prevLaneByThreadRef.current = null;
+      prevRunUnitsRef.current = null;
+      prevColumnsRef.current = null;
+      prevThreadsRef.current = new Map();
+      return;
+    }
     const rawMoves = planLaneTransports(prev, prevThreads, columns, prevColumns ?? columns);
     const moves = collapseRunTransports(
       rawMoves,

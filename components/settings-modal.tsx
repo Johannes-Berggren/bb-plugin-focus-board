@@ -2,23 +2,24 @@ import { useState } from "react";
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { WallpaperDropdown } from "@/components/wallpaper-picker";
+import type { WallpaperSettings } from "@/components/preferences";
 import { WhatsNewFeed } from "@/components/whats-new-feed";
 import { APP_VERSION, type WhatsNewEntry } from "@/lib/whats-new";
 import { cn } from "@/lib/utils";
 
 /**
- * Focus Board's settings: one modal with a left tab rail (Behavior, What's
- * new, About) and the selected tab's content on the right — "how the board
- * behaves always", not a view-mode surface. The app opens it on the tab the
- * icon asked for: a pulsing gift deep-links to What's new, a plain gear
- * opens on Behavior. State lives in the app shell; this component renders
- * the selection it is given and reports switches back.
+ * Focus Board's settings: one modal with a left tab rail (Behavior,
+ * Appearance, What's new, About) and the selected tab's content on the right
+ * — "how the board behaves always", not a view-mode surface. The app opens
+ * it on the tab the icon asked for: a pulsing gift deep-links to What's new,
+ * a plain gear opens on Behavior. State lives in the app shell; this
+ * component renders the selection it is given and reports switches back.
  */
-export type SettingsTab = "behavior" | "whats-new" | "about";
+export type SettingsTab = "behavior" | "appearance" | "whats-new" | "about";
 
 /** The board's identity copy, for the About tab. */
 const PLUGIN_NAME = "Focus Board";
@@ -27,6 +28,7 @@ const PLUGIN_REPO_URL = "https://github.com/cristoslc/bb-plugin-focus-board";
 
 const TABS: readonly { id: SettingsTab; label: string }[] = [
   { id: "behavior", label: "Behavior" },
+  { id: "appearance", label: "Appearance" },
   { id: "whats-new", label: "What's new" },
   { id: "about", label: "About" },
 ];
@@ -38,7 +40,13 @@ export function SettingsModal({
   onTabChange,
   entries,
   escStopsRunningThread,
+  cardTransport,
+  motionPref,
+  wallpaper,
   onSetEscStopsRunningThread,
+  onSetCardTransport,
+  onSetMotionPref,
+  onWallpaperChange,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -57,6 +65,15 @@ export function SettingsModal({
    * surfaced inline under the toggle, never as a silent revert.
    */
   onSetEscStopsRunningThread: (value: boolean) => void | Promise<void>;
+  /** The Appearance tab's card-transport choice (components/preferences.ts). */
+  cardTransport: "none" | "teleport" | "zoom";
+  /** The Appearance tab's motion preference. */
+  motionPref: "system" | "reduce" | "full";
+  /** The board wallpaper document, rendered by the same picker the toolbar hosts. */
+  wallpaper: WallpaperSettings;
+  onSetCardTransport: (value: "none" | "teleport" | "zoom") => void;
+  onSetMotionPref: (value: "system" | "reduce" | "full") => void;
+  onWallpaperChange: (next: WallpaperSettings) => void;
 }) {
   if (!open) return null;
   return (
@@ -64,9 +81,6 @@ export function SettingsModal({
       <DialogContent className="max-w-2xl">
         <DialogHeader>
           <DialogTitle>Focus Board settings</DialogTitle>
-          <DialogDescription>
-            How the board behaves — one icon opens these where the news lives too.
-          </DialogDescription>
         </DialogHeader>
         <div
           data-settings-body
@@ -76,7 +90,7 @@ export function SettingsModal({
           <div
             role="tablist"
             aria-label="Focus Board settings sections"
-            className="flex w-40 shrink-0 flex-col items-start gap-1 self-start"
+            className="flex w-40 shrink-0 flex-col items-stretch gap-1 self-start"
           >
             {TABS.map((entry) => (
               <button
@@ -84,12 +98,13 @@ export function SettingsModal({
                 type="button"
                 role="tab"
                 aria-selected={tab === entry.id}
+                aria-current={tab === entry.id ? "page" : undefined}
                 onClick={() => onTabChange(entry.id)}
                 className={cn(
-                  "w-full rounded-md px-2 py-1.5 text-left text-xs transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                  "w-full rounded-r-md border-l-2 py-2 pl-3 pr-2 text-left text-xs font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                   tab === entry.id
-                    ? "bg-accent text-foreground"
-                    : "text-muted-foreground hover:bg-accent/50 hover:text-foreground",
+                    ? "border-primary bg-accent/60 text-foreground"
+                    : "border-transparent pl-3.5 text-muted-foreground hover:bg-accent/40 hover:text-foreground",
                 )}
               >
                 {entry.label}
@@ -103,6 +118,16 @@ export function SettingsModal({
                 onSet={onSetEscStopsRunningThread}
               />
             )}
+            {tab === "appearance" && (
+              <AppearanceContent
+                cardTransport={cardTransport}
+                motionPref={motionPref}
+                wallpaper={wallpaper}
+                onSetCardTransport={onSetCardTransport}
+                onSetMotionPref={onSetMotionPref}
+                onWallpaperChange={onWallpaperChange}
+              />
+            )}
             {tab === "whats-new" && <WhatsNewFeed entries={entries} />}
             {tab === "about" && <AboutContent />}
           </div>
@@ -112,8 +137,143 @@ export function SettingsModal({
   );
 }
 
-/** The Board Behavior tab's one setting for now: the pane's Escape behavior. */
-function EscStopsRunningRow({
+/**
+ * The Appearance tab: what the board's movements and backdrop look like.
+ * Card animations pick the transporter's read (None = instant, Teleport =
+ * the dissolve running today, Zoom out / in = a future wipe kept visibly
+ * disabled so nobody selects a mode the board cannot run), Motion overrides
+ * the OS reduce-motion media query for the board's own animations, and the
+ * wallpaper hosts the same picker control the toolbar carries.
+ */
+function AppearanceContent({
+  cardTransport,
+  motionPref,
+  wallpaper,
+  onSetCardTransport,
+  onSetMotionPref,
+  onWallpaperChange,
+}: {
+  cardTransport: "none" | "teleport" | "zoom";
+  motionPref: "system" | "reduce" | "full";
+  wallpaper: WallpaperSettings;
+  onSetCardTransport: (value: "none" | "teleport" | "zoom") => void;
+  onSetMotionPref: (value: "system" | "reduce" | "full") => void;
+  onWallpaperChange: (next: WallpaperSettings) => void;
+}) {
+  return (
+    <div className="space-y-5">
+      <ChoiceRow
+        ariaLabel="Card animations"
+        label="Card animations"
+        description="How a card reads when it relocates between lanes."
+        options={[
+          { value: "none", name: "None", title: "The card appears in its new lane instantly." },
+          {
+            value: "teleport",
+            name: "Teleport",
+            title: "The card dissolves out of its old lane and materializes in the new one.",
+          },
+          {
+            value: "zoom",
+            name: "Zoom out / in",
+            title: "The card shrinks into its old slot's portal and grows back as the new slot opens.",
+          },
+        ]}
+        selected={cardTransport}
+        onSelect={(value) => onSetCardTransport(value as "none" | "teleport" | "zoom")}
+      />
+      <ChoiceRow
+        ariaLabel="Motion"
+        label="Motion"
+        description="How the board's animations respect your system's reduce-motion preference."
+        options={[
+          { value: "system", name: "Use my system setting", title: "The OS decides." },
+          { value: "reduce", name: "Always reduce", title: "Boards move quietly even if your system plays everything." },
+          { value: "full", name: "Always play in full", title: "Full motion even if your system asks for reduced." },
+        ]}
+        selected={motionPref}
+        onSelect={(value) => onSetMotionPref(value as "system" | "reduce" | "full")}
+      />
+      <div>
+        <p className="text-xs font-medium text-foreground">Wallpaper</p>
+        <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+          The backdrop behind the board — the same picker the toolbar's image control opens.
+        </p>
+        <div className="mt-2">
+          <WallpaperDropdown wallpaper={wallpaper} onWallpaperChange={onWallpaperChange} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** A labeled radio group with a description; the modal's only choice anatomy. */
+function ChoiceRow({
+  ariaLabel,
+  label,
+  description,
+  options,
+  selected,
+  onSelect,
+}: {
+  ariaLabel: string;
+  label: string;
+  description: string;
+  options: readonly {
+    value: string;
+    name: string;
+    title: string;
+    disabled?: boolean;
+  }[];
+  selected: string;
+  onSelect: (value: string) => void;
+}) {
+  return (
+    <div>
+      <p className="text-xs font-medium text-foreground">{label}</p>
+      <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{description}</p>
+      <div role="radiogroup" aria-label={ariaLabel} className="mt-2 space-y-1">
+        {options.map((option) => (
+          <button
+            key={option.value}
+            type="button"
+            role="radio"
+            aria-checked={selected === option.value}
+            aria-disabled={option.disabled === true ? "true" : undefined}
+            title={option.title}
+            onClick={() => {
+              if (option.disabled === true) return;
+              onSelect(option.value);
+            }}
+            className={cn(
+              "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+              option.disabled === true
+                ? "cursor-not-allowed text-muted-foreground/60"
+                : selected === option.value
+                  ? "bg-accent text-foreground"
+                  : "text-muted-foreground hover:bg-accent/50 hover:text-foreground",
+              option.disabled === true && "opacity-60",
+            )}
+          >
+            <span
+              className={cn(
+                "inline-block size-3 shrink-0 rounded-full border",
+                selected === option.value
+                  ? "border-primary bg-primary"
+                  : "border-muted-foreground/50 bg-transparent",
+              )}
+            />
+            <span className={option.disabled === true ? "italic" : undefined}>
+              {option.name}
+            </span>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/** The Board Behavior tab's one setting for now: the pane's Escape behavior. */function EscStopsRunningRow({
   storedValue,
   onSet,
 }: {

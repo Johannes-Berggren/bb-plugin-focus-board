@@ -1,13 +1,18 @@
 import { describe, expect, it } from "vitest";
 import {
+  CARD_TRANSPORT_KEY,
   COLLAPSED_FAMILIES_KEY,
+  MOTION_PREF_KEY,
   NEST_CHILDREN_KEY,
   WALLPAPER_KEY,
+  cardTransportStoredValue,
   collapsedFamiliesStoredValue,
   escStopsRunningFromSetting,
   nestStoredValue,
+  parseCardTransportStored,
   parseCollapsedFamiliesStored,
   parseGroupStored,
+  parseMotionStored,
   parseNestStored,
   parseParentLaneOrderStored,
   parseWallpaperStored,
@@ -245,6 +250,28 @@ describe("simultaneous corruption (every key garbage at once)", () => {
 
   it("round-trips the group grouping", () => {
     expect(parseGroupStored("group")).toBe("group"); // Feature-group columns
+  });
+
+  it("parses the card-transport preference; the running dissolve is the default", () => {
+    // Teleport keeps today's transporter for existing boards; the appearance
+    // tab offers None (instant) and a not-yet-built zoom.
+    expect(CARD_TRANSPORT_KEY).toBe("focus-board:cardTransport");
+    expect(cardTransportStoredValue("none")).toBe("none");
+    expect(cardTransportStoredValue("teleport")).toBe("teleport");
+    expect(parseCardTransportStored("none")).toBe("none");
+    expect(parseCardTransportStored("zoom")).toBe("zoom");
+    for (const raw of [null, "", "not json", "123", "instant", "zoom out/in"]) {
+      expect(parseCardTransportStored(raw)).toBe("teleport");
+    }
+  });
+
+  it("parses the motion preference; the system's media query is the default", () => {
+    expect(MOTION_PREF_KEY).toBe("focus-board:motion");
+    expect(parseMotionStored("reduce")).toBe("reduce");
+    expect(parseMotionStored("full")).toBe("full");
+    for (const raw of [null, "", "not json", "on", "off", "always"]) {
+      expect(parseMotionStored(raw)).toBe("system");
+    }
   });
 
   it("every parser survives the full garbage list and returns its documented fallback", () => {

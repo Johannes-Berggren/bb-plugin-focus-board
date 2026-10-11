@@ -1,4 +1,5 @@
 import { APP_VERSION, type WhatsNewEntry, groupWhatsNewItems } from "@/lib/whats-new";
+import { cn } from "@/lib/utils";
 
 /**
  * The condensed changelog feed, as tab content inside the settings modal.
@@ -10,6 +11,12 @@ import { APP_VERSION, type WhatsNewEntry, groupWhatsNewItems } from "@/lib/whats
  * effect, now in app.tsx). Changelog bullets tagged with `#### <surface>`
  * headings group their same-surface items under that label (Added, Changed,
  * and Fixed merge); untagged entries render flat.
+ *
+ * A dev build's [Unreleased] group renders in amber: that group is the one
+ * place the feed mixes old and new (it accumulates between releases), so
+ * the lines still becoming true are the amber ones. Released builds show
+ * the pending delta whole — every line there is new by construction, so no
+ * amber distinction exists to draw.
  */
 export function WhatsNewFeed({ entries }: { entries: readonly WhatsNewEntry[] }) {
   return (
@@ -22,7 +29,12 @@ export function WhatsNewFeed({ entries }: { entries: readonly WhatsNewEntry[] })
       <div className="mt-3" data-whats-new-feed>
         {entries.map((entry) => (
           <section key={entry.version} className="mb-3 last:mb-0">
-            <h3 className="mb-1 text-xs font-semibold text-foreground">
+            <h3
+              className={cn(
+                "mb-1 text-xs font-semibold",
+                entry.unreleased ? "text-amber-500" : "text-foreground",
+              )}
+            >
               {entry.unreleased ? `Unreleased ${entry.version}` : `Version ${entry.version}`}
             </h3>
             <div key={`ul-${entry.version}`}>
@@ -33,12 +45,22 @@ export function WhatsNewFeed({ entries }: { entries: readonly WhatsNewEntry[] })
                       {group.label}
                     </div>
                   )}
-                  <ul className="list-disc space-y-1 pl-4 text-xs leading-relaxed text-muted-foreground">
+                  <ul
+                    className={cn(
+                      "list-disc space-y-1 pl-4 text-xs leading-relaxed",
+                      entry.unreleased ? "text-amber-500" : "text-muted-foreground",
+                    )}
+                  >
                     {group.items.map((item) => (
                       <li key={item.lead}>
                         {item.lead}
                         {item.children && item.children.length > 0 && (
-                          <ul className="list-disc mt-1 space-y-1 pl-4">
+                          <ul
+                            className={cn(
+                              "list-disc mt-1 space-y-1 pl-4",
+                              entry.unreleased ? "text-amber-500" : "text-muted-foreground",
+                            )}
+                          >
                             {item.children.map((child) => (
                               <li key={child}>{child}</li>
                             ))}

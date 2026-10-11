@@ -31,6 +31,7 @@ function boardProps(
   groupBy: "status" | "none",
   threads: readonly PluginSidebarThread[],
   groupBoxOf?: GroupBoxMap,
+  overrides?: Record<string, unknown>,
 ) {
   return {
     groupBy,
@@ -49,6 +50,7 @@ function boardProps(
     onDropUnread: () => {},
     onDropPinned: () => {},
     menuActionsFor: () => [],
+    ...overrides,
     ...(groupBoxOf !== undefined ? { groupBoxOf } : {}),
   } as unknown as BoardProps;
 }
@@ -307,5 +309,58 @@ describe("a box run relocating between lanes transports as ONE unit", () => {
     // dissolves as one box instead.
     expect(document.querySelector("[data-group-box][data-transport-ghost]")).not.toBeNull();
     expect(document.querySelectorAll("[data-transport-ghost]")).toHaveLength(1);
+  });
+});
+
+describe("cardTransport: teleport (the default) dissolves; none teleports instantly", () => {
+  const before = [
+    thread({ id: "thr_a", isUnread: true, updatedAt: NOW - 1000 }),
+    thread({ id: "thr_b", isUnread: true, updatedAt: NOW - 2000 }),
+  ];
+  const after = [
+    thread({ id: "thr_a", isPinned: true, pinnedAt: 1, pinSortKey: 1, updatedAt: NOW - 1000 }),
+    thread({ id: "thr_b", isUnread: true, updatedAt: NOW - 2000 }),
+  ];
+
+  it("unspecified keeps today's dissolve (existing boards change nothing)", () => {
+    vi.useFakeTimers();
+    const { rerender } = render(<Board {...boardProps("status", before)} />);
+    rerender(<Board {...boardProps("status", after)} />);
+    expect(document.querySelector("[data-transport-out]")).not.toBeNull();
+  });
+
+  it("none plans no ghost and no arrival slot — the card teleports", () => {
+    vi.useFakeTimers();
+    const { rerender } = render(
+      <Board {...boardProps("status", before, undefined, { cardTransport: "none" })} />,
+    );
+    rerender(<Board {...boardProps("status", after, undefined, { cardTransport: "none" })} />);
+    expect(document.querySelector("[data-transport-out]")).toBeNull();
+    expect(document.querySelector("[data-transport-in]")).toBeNull();
+    expect(document.querySelector("[data-transport-ghost]")).toBeNull();
+  });
+
+  it("teleport plans the dissolve exactly like the unspecified default", () => {
+    vi.useFakeTimers();
+    const { rerender } = render(
+      <Board {...boardProps("status", before, undefined, { cardTransport: "teleport" })} />,
+    );
+    rerender(
+      <Board {...boardProps("status", after, undefined, { cardTransport: "teleport" })} />,
+    );
+    expect(document.querySelector("[data-transport-out]")).not.toBeNull();
+  });
+
+  it("the motion override suppresses the wipes without killing the choreography", () => {
+    vi.useFakeTimers();
+    const { rerender } = render(
+      <Board {...boardProps("status", before, undefined, { motionPref: "reduce" })} />,
+    );
+    rerender(<Board {...boardProps("status", after, undefined, { motionPref: "reduce" })} />);
+    // The ghost slots still exist (layout stays honest)...
+    expect(document.querySelector("[data-transport-out]")).not.toBeNull();
+    // ...but the shimmer field rides nothing: the glint layer only mounts
+    // when motion is allowed.
+    expect(document.querySelector("[data-transport-sparks]")).toBeNull();
   });
 });
