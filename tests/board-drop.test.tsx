@@ -252,3 +252,53 @@ describe("Board cross-column drops to Pinned", () => {
     expect(props.onDropPinned).not.toHaveBeenCalled();
   });
 });
+
+// The white drop rectangle around a lane (`ring-2 ring-ring` on the column
+// section) is set on dragover. Any drag that ends without the lane's own
+// onDrop running must clear it, or the ring sticks to the lane after the
+// gesture is over: Escape mid-drag, a drop claimed by a card's own handler
+// (which stops propagation before the column's release runs), or a source
+// element the drop's relocation unmounts before its dragend can fire.
+describe("the lane drop ring never outlives the drag", () => {
+  function boardFixture() {
+    return [
+      thread({ id: "thr_pinned_in", isPinned: true, updatedAt: NOW - 5000 }),
+      thread({ id: "thr_bug", isUnread: true, updatedAt: NOW - 1000 }),
+    ];
+  }
+
+  function pinnedSection(): HTMLElement {
+    const section = document.querySelector('section[data-column-id="pinned"]');
+    if (!(section instanceof HTMLElement)) throw new Error("missing pinned column");
+    return section;
+  }
+
+  it("a drag cancelled over a lane clears the lane's ring on dragend", () => {
+    renderBoard(boardFixture());
+    const section = pinnedSection();
+    const dt = makeDataTransfer();
+    fireEvent.dragStart(cardAnchor("thr_bug"), { dataTransfer: dt });
+    fireEvent(section, createEvent.dragOver(section, { dataTransfer: dt }));
+    expect(section.className).toContain("ring-ring");
+    fireEvent.dragEnd(cardAnchor("thr_bug"));
+    expect(section.className).not.toContain("ring-ring");
+  });
+
+  it("a drop claimed by a card clears the lane's ring at the drop, without dragend", () => {
+    // The claimed drop relocates the dragged card across lanes; React then
+    // unmounts the source element and a real browser never fires dragend on
+    // it. The drop itself is the last chance the ring has to die.
+    renderBoard(boardFixture());
+    const section = pinnedSection();
+    const slot = document.querySelector('[data-thread-card="thr_pinned_in"]');
+    if (!(slot instanceof HTMLElement)) throw new Error("missing pinned card");
+    const dt = makeDataTransfer();
+    fireEvent.dragStart(cardAnchor("thr_bug"), { dataTransfer: dt });
+    // In a real browser dragover bubbles from the card into the lane, so the
+    // lane ring was lit while the card was hovered; the drop must end it.
+    fireEvent(slot, createEvent.dragOver(slot, { dataTransfer: dt }));
+    expect(section.className).toContain("ring-ring");
+    fireEvent(slot, createEvent.drop(slot, { dataTransfer: dt }));
+    expect(section.className).not.toContain("ring-ring");
+  });
+});

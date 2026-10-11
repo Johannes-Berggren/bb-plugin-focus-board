@@ -1340,6 +1340,21 @@ export function Board({
   }
 
   /**
+   * The lane-level drop affordances: the white "drop lands here" ring on a
+   * column (`dragOverColumn`) and the amber family rings on the floor and
+   * header (`familyFloorColumn`, `familyHeaderColumn`). A drag ends in more
+   * ways than the dropped column's `onDrop` runs — Escape, a drop a card
+   * claims before the column sees it, a source element the drop's relocation
+   * unmounts before its dragend fires — so the cleanup lives here, callable
+   * from the dragend lifecycle AND the drop paths that claim their event.
+   */
+  function releaseDropAffordances(): void {
+    setDragOverColumn(null);
+    setFamilyFloorColumn(null);
+    setFamilyHeaderColumn(null);
+  }
+
+  /**
    * The shared rank-drag lifecycle, moved out of the card's `onRankDragStart`
    * so the group-box labels start (and end) the same drag state: the dragged
    * card id, the column headers' in-flight growth, and the promise cleanup a
@@ -1357,6 +1372,7 @@ export function Board({
       clearRankDrop();
       setJoinHoverId(null);
       clearChildDrop();
+      releaseDropAffordances();
     }
   };
 
@@ -2400,6 +2416,7 @@ export function Board({
                               // also fire for this drop.
                               event.stopPropagation();
                               clearRankDrop();
+                              releaseDropAffordances();
                               commitNest(droppedId, thread);
                               return;
                             }
@@ -2419,6 +2436,7 @@ export function Board({
                               // also fire for this drop.
                               event.stopPropagation();
                               clearRankDrop();
+                              releaseDropAffordances();
                               if (droppedId === "") return;
                               // The state change first — the card joins the
                               // lane — then the ranked slot the line showed.
@@ -2449,6 +2467,7 @@ export function Board({
                             // insert plus an append.
                             event.stopPropagation();
                             clearRankDrop();
+                            releaseDropAffordances();
                             if (droppedId === "") return;
                             // A hover inside the dragged member's own box
                             // reorders WITHIN the family: the member moves
