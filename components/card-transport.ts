@@ -32,6 +32,21 @@ export const TRANSPORT_COLLAPSE_MS = 200;
 export const TRANSPORT_EASE = "cubic-bezier(0.5, 0, 0.6, 0.4)";
 
 /**
+ * The arrival slot's space opening, on its own clock: the operator retuned
+ * it ("maybe expand faster than it dissolves in?") — a slow two-ramp read
+ * where the slot trails the materialize felt wrong. The grow runs well
+ * under the dissolve-in, so the lane's neighbors settle into place early
+ * and the shimmer plays over an already-open space.
+ */
+export const TRANSPORT_GROW_MS = 180;
+
+/**
+ * The grow's own easing: ease-out shaped — the space pops open and settles
+ * gently, the opposite of the sweeps' deliberate crawl.
+ */
+export const TRANSPORT_GROW_EASE = "cubic-bezier(0.3, 0.75, 0.4, 1)";
+
+/**
  * Lane moves over this count in ONE commit (a grouping change re-deriving
  * every lane, a batch curation action) skip the dissolve entirely: a whole
  * board of wipe-outs is a view switch's reflow dressed up as an effect, and
