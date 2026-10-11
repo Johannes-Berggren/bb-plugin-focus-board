@@ -50,6 +50,7 @@ export const UNRELEASED_ITEMS: readonly { text: string; children: string[]; grou
     "text": "**A card the board sees you attending holds its place.** Hovering a card, or keeping it open in the thread pane, pins its lane, its slot, and the lane of its family or box, so live updates re-sort the board around it instead of moving it; the pin lifts when the pointer leaves or the pane closes.",
     "children": [
       "The parent thread view pins the attended card's lane order and its row slot the same way.",
+      "The pin also holds the card against a rank order that changes while attention lasts: stored rankings are never rewritten, and the held card renders its ranked slot again when the pin lifts.",
       "Your own moves still land: a drag, drop, or menu action releases the pin for that gesture and re-pins the settled result."
     ],
     "group": "Card placement"

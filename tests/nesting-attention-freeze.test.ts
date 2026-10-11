@@ -165,6 +165,38 @@ describe("attention freeze through board assembly", () => {
     expect(placementOf(again, "s1")).toEqual(captured);
   });
 
+  it("a rank write from another surface does not move the attended card; its rank renders again on release", () => {
+    // Build 1: no ranks; the operator attends to s1 (last card).
+    const first = [
+      fixture("s1", { updatedAt: 100 }),
+      fixture("s2", { updatedAt: 200 }),
+      fixture("s3", { updatedAt: 300 }),
+    ];
+    const base = assembleBoard(first, "project", context, new Map(), new Set<string>(), NOW);
+    const captured = placementOf(base, "s1")!;
+    expect(captured.index).toBe(2);
+
+    // Another surface ranks s1 first; the stored order renders the change
+    // for every unattended card, but the attended card holds its slot.
+    const ranked = { "project:proj_a": ["s1"] };
+    const moved = assembleBoard(first, "project", context, new Map(), new Set<string>(), NOW, {
+      ranks: ranked,
+    });
+    expect(placementOf(moved, "s1")!.index).toBe(0);
+
+    const plan: AttentionFreezePlan = {
+      columns: new Map([["s1", { id: captured.columnId, label: captured.columnId }]]),
+      slots: new Map([["s1", captured.index]]),
+      stayNested: new Set(),
+      rowSlots: new Map(),
+    };
+    const pinned = assembleBoard(first, "project", context, new Map(), new Set<string>(), NOW, {
+      ranks: ranked,
+      attentionFreeze: plan,
+    });
+    expect(placementOf(pinned, "s1")!.index).toBe(2);
+  });
+
   it("the natural column lookup the capture reads agrees with the rendered lane", () => {
     const threads = [fixture("s1", { updatedAt: NOW })];
     expect(columnFor(threads[0]!, "project", context, NOW).id).toBe("proj_a");
