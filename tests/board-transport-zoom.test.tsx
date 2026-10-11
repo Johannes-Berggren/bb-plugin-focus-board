@@ -88,7 +88,12 @@ describe("a card relocating under the zoom variant", () => {
     const newLane = document.querySelector('[data-column-id="pinned"]');
     const arrival = newLane?.querySelector("[data-transport-arrival]");
     expect(arrival?.getAttribute("data-transport-arrival")).toBe("wiping-in");
-    expect(arrival?.getAttribute("style")).toContain("opacity");
+    // The zoom's fade/scale lives on the card wrapper inside the slot; the
+    // slot li itself only clips (grow target, never fade target).
+    expect(arrival?.getAttribute("style")).not.toContain("opacity");
+    expect(arrival?.querySelector("[data-transport-fade]")?.getAttribute("style")).toContain(
+      "opacity: 0",
+    );
     expect(arrival?.getAttribute("style")).toContain("max-height");
     expect(arrival?.getAttribute("style")).toContain("overflow");
   });
@@ -207,6 +212,10 @@ describe("the zoom keeps the planner's guardrails", () => {
       expect(arrival?.getAttribute("data-transport-arrival")).toBe("wiping-in");
       expect(arrival?.getAttribute("style") ?? "").not.toContain("opacity");
       expect(arrival?.getAttribute("style") ?? "").not.toContain("max-height");
+      // No fade wrapper, or an inert one: the card is visible either way.
+      expect(arrival?.querySelector("[data-transport-fade]")?.getAttribute("style") ?? "").not.toContain(
+        "opacity: 0",
+      );
       expect(arrival?.querySelector('[data-thread-card="thr_a"]')).not.toBeNull();
       expect(document.querySelectorAll("[data-transport-sparks]")).toHaveLength(0);
 

@@ -581,14 +581,12 @@ export function shimmerSparks(
   for (let index = 0; index < count; index += 1) {
     const durationMs = Math.max(80, Math.round(phaseMs * (0.25 + rng() * 0.3)));
     // Start late enough that the whole life ends inside the phase: a glint
-    // fades out before the sweep's final frame, never after it. A descending
-    // (arrival) field starts no earlier than 35% into the phase: the
-    // dissolve-in's crawl keeps its host near-invisible through the first
-    // half, so the glints schedule into the visible second half.
-    const delayBaseMs =
-      direction === "up" ? rng() * phaseMs * 0.55 : 0.35 * phaseMs + rng() * phaseMs * 0.5;
+    // fades out before the sweep's final frame, never after it. Both
+    // directions schedule the same way — the arrival's glide layer is
+    // decoupled from the card's fade (it rides the slot), so its glints
+    // twinkle across the WHOLE sweep.
     const delayMs = Math.min(
-      Math.round(delayBaseMs),
+      Math.round(rng() * phaseMs * 0.55),
       Math.max(0, phaseMs - durationMs),
     );
     // The field anchors where the travel starts: a rising field sits low

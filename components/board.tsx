@@ -1031,7 +1031,13 @@ export function Board({
         );
       }
       const arrivalKey = `arrival:${transport.threadId}@${transport.gen}`;
+      // The fade (or the zoom's scale-in) claims the card wrapper; the slot
+      // li drives the grow and hosts the glint layer, so the shimmer never
+      // inherits the card's fade.
       const arrivalEl = transportElsRef.current.get(arrivalKey);
+      const arrivalSlotEl = transportElsRef.current.get(
+        `slot:${transport.threadId}@${transport.gen}`,
+      );
       startWipe(
         arrivalKey,
         arrivalEl,
@@ -1049,15 +1055,15 @@ export function Board({
       // space instead of trailing it. Skipped with no measurable height
       // (jsdom, or a slot the layout has not sized yet).
       if (
-        arrivalEl !== null &&
-        arrivalEl !== undefined &&
-        typeof arrivalEl.animate === "function" &&
-        arrivalEl.scrollHeight > 0
+        arrivalSlotEl !== null &&
+        arrivalSlotEl !== undefined &&
+        typeof arrivalSlotEl.animate === "function" &&
+        arrivalSlotEl.scrollHeight > 0
       ) {
         startWipe(
           `grow:${transport.threadId}@${transport.gen}`,
-          arrivalEl,
-          arrivalGrowKeyframes(arrivalEl.scrollHeight),
+          arrivalSlotEl,
+          arrivalGrowKeyframes(arrivalSlotEl.scrollHeight),
           // The dissolve's space opens early under its materialize; the
           // zoom's space expands on the SAME clock as the card's growth, so
           // the space and the card land together.
@@ -1068,7 +1074,7 @@ export function Board({
       if (transportVariant === "dissolve") {
         startSparks(
           `spark:arrival:${transport.threadId}@${transport.gen}`,
-          arrivalEl,
+          arrivalSlotEl,
           TRANSPORT_WIPE_IN_MS,
         );
       }
@@ -2145,6 +2151,14 @@ export function Board({
                     ownPlay.toColumnId === column.id &&
                     ownPlay.arrival === "wiping-in";
                   const arrivalPlay = ghostPlay ? undefined : ownPlay;
+                  // The arrival's fade lives on the card wrapper INSIDE the
+                  // slot: the slot li only clips (the grow animation's
+                  // target), so the amber glint layer — a sibling, never a
+                  // child of the fade — stays fully visible for the whole
+                  // arrival sequence instead of inheriting the card's
+                  // dissolve opacity.
+                  const arrivingFade =
+                    isArriving && arrivalPlay !== undefined && !prefersReducedMotion;
                   return (
                   <li
                     key={
@@ -2175,13 +2189,13 @@ export function Board({
                             marginTop: `-${TRANSPORT_ROW_GAP_PX / 2}px`,
                             marginBottom: `-${TRANSPORT_ROW_GAP_PX / 2}px`,
                           }
-                        : isArriving && !prefersReducedMotion
-                          ? // Hidden and clipped shut until the wipe-in's keyframes
-                            // take over — the dissolve fades it in while the grow
-                            // animation opens the slot's height (same commit in a
-                            // browser; the jsdom phase timers hold this until the
-                            // settle phase).
-                            { opacity: 0, maxHeight: "0px", overflow: "hidden" }
+                        : arrivingFade
+                          ? // Clipped shut until the grow animation opens the
+                            // slot's height — the FADE no longer rides here:
+                            // it claims the card wrapper inside (see
+                            // data-transport-fade), so the glint layer keeps
+                            // full brightness through the whole arrival.
+                            { maxHeight: "0px", overflow: "hidden" }
                           : undefined
                     }
                     ref={(el) => {
@@ -2189,9 +2203,9 @@ export function Board({
                         transportElsRef.current.set(`out:${ghostPlay.threadId}@${ghostPlay.gen}`, el);
                         return;
                       }
-                      if (isArriving && arrivalPlay !== undefined) {
+                      if (arrivingFade && arrivalPlay !== undefined) {
                         transportElsRef.current.set(
-                          `arrival:${arrivalPlay.threadId}@${arrivalPlay.gen}`,
+                          `slot:${arrivalPlay.threadId}@${arrivalPlay.gen}`,
                           el,
                         );
                       }
@@ -2548,6 +2562,22 @@ export function Board({
                           ),
                         )}
                       >
+                        <div
+                          data-transport-fade={arrivingFade ? "" : undefined}
+                          // A plain transparent container for ordinary cards
+                          // (the card participates in layout as before); the
+                          // fade element only while the card is arriving.
+                          className={arrivingFade ? undefined : "contents"}
+                          style={arrivingFade ? { opacity: 0 } : undefined}
+                          ref={(el) => {
+                            if (arrivingFade && el !== null && arrivalPlay !== undefined) {
+                              transportElsRef.current.set(
+                                `arrival:${arrivalPlay.threadId}@${arrivalPlay.gen}`,
+                                el,
+                              );
+                            }
+                          }}
+                        >
                         <ThreadCard
                           thread={thread}
                           stateDot={<StateDot thread={thread} />}
@@ -2655,12 +2685,15 @@ export function Board({
                           rankKey={ranking ? rankKey : undefined}
                           onRankDragStart={rankDragLifecycle}
                         />
+                        </div>
                         {/* The shimmer rides both sweeps: the ghost's
                             glints twinkle out over the OLD visuals, the
-                            arrival's over the growing slot — the slot's
-                            opacity-0 clip holds the glints down until the
-                            dissolve lifts the card while the space opens.
-                            A dissolve-only decoration: the zoom plays no
+                            arrival's ride the SLOT — a sibling of the fade
+                            wrapper, so they never inherit the card's
+                            dissolve opacity and twinkle at full brightness
+                            for the whole arrival. The ghost's own layer
+                            dissolves with its host (the departure fades as
+                            one). A dissolve-only decoration: the zoom plays no
                             glint field. */}
                         {ghostPlay !== undefined && transportSparksOn ? (
                           <TransportSparkLayer phaseMs={TRANSPORT_WIPE_OUT_MS} tone="out" />
@@ -2795,19 +2828,20 @@ export function Board({
                         style={
                           boxArrivalFor(runItem.box.groupId) !== undefined &&
                           !prefersReducedMotion
-                            ? // Hidden and clipped shut until the wipe-in's
-                              // keyframes take over — the same growing-slot
-                              // contract as an arriving card's (the dissolve
-                              // fades the container in, the grow animation
-                              // opens the space it needs).
-                              { opacity: 0, maxHeight: "0px", overflow: "hidden" }
+                            ? // Clipped shut until the grow animation opens
+                              // the space it needs — the fade no longer rides
+                              // here: it claims the dashed container inside
+                              // (data-transport-fade), so the glint layer, a
+                              // sibling of that container, keeps full
+                              // brightness through the whole arrival.
+                              { maxHeight: "0px", overflow: "hidden" }
                             : undefined
                         }
                         ref={(el) => {
                           const arriving = boxArrivalFor(runItem.box.groupId);
                           if (arriving !== undefined) {
                             transportElsRef.current.set(
-                              `arrival:${arriving.threadId}@${arriving.gen}`,
+                              `slot:${arriving.threadId}@${arriving.gen}`,
                               el,
                             );
                           }
@@ -2926,6 +2960,27 @@ export function Board({
                           >
                             <div
                               data-group-box-join-hover={joinHoverId === runItem.box.groupId ? "" : undefined}
+                              data-transport-fade={
+                                boxArrivalFor(runItem.box.groupId) !== undefined &&
+                                !prefersReducedMotion
+                                  ? ""
+                                  : undefined
+                              }
+                              style={
+                                boxArrivalFor(runItem.box.groupId) !== undefined &&
+                                !prefersReducedMotion
+                                  ? { opacity: 0 }
+                                  : undefined
+                              }
+                              ref={(el) => {
+                                const boxArrival = boxArrivalFor(runItem.box.groupId);
+                                if (boxArrival !== undefined && el !== null && !prefersReducedMotion) {
+                                  transportElsRef.current.set(
+                                    `arrival:${boxArrival.threadId}@${boxArrival.gen}`,
+                                    el,
+                                  );
+                                }
+                              }}
                               className={cn(
                                 "relative rounded-lg border border-dashed border-muted-foreground/50 px-1 pt-4 pb-0.5",
                                 // The join hover reads amber like the other
@@ -3045,11 +3100,15 @@ export function Board({
                                   ),
                                 )}
                               </ul>
-                              {transportSparksOn &&
-                              boxArrivalFor(runItem.box.groupId) !== undefined ? (
-                                <TransportSparkLayer phaseMs={TRANSPORT_WIPE_IN_MS} tone="in" />
-                              ) : null}
                             </div>
+                            {/* The arrival's glint layer rides the slot li —
+                                a sibling of the fading dashed container, so
+                                the amber sparks never inherit its dissolve
+                                opacity and shine for the whole arrival. */}
+                            {transportSparksOn &&
+                            boxArrivalFor(runItem.box.groupId) !== undefined ? (
+                              <TransportSparkLayer phaseMs={TRANSPORT_WIPE_IN_MS} tone="in" />
+                            ) : null}
                           </li>
                     );
                   return (
