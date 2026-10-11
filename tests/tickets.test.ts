@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { findTicketRefs, forgejoItemBase, resolveRepoSlug } from "../lib/tickets";
+import { findTicketRefs, forgejoItemBase, forgejoItemUrl, resolveRepoSlug } from "../lib/tickets";
 
 const BASE = "https://github.com/owner/repo";
 
@@ -226,5 +226,32 @@ describe("findTicketRefs — hostname on non-github bases (favicon source)", () 
 
   it("no base → no hostname", () => {
     expect(findTicketRefs("see #7")[0].hostname).toBeUndefined();
+  });
+});
+
+describe("forgejoItemUrl — item URLs carry base, kind, number", () => {
+  it("parses an issues URL into its repo base and kind issue", () => {
+    expect(forgejoItemUrl("https://forge.example/org/app/issues/7")).toEqual({
+      base: "https://forge.example/org/app",
+      kind: "issue",
+      number: 7,
+    });
+  });
+
+  it("parses a pulls URL as kind pull", () => {
+    expect(forgejoItemUrl("https://forge.example/org/app/pulls/3")?.kind).toBe("pull");
+  });
+
+  it("tolerates a trailing slash", () => {
+    expect(forgejoItemUrl("https://forge.example/org/app/issues/7/")?.number).toBe(7);
+  });
+
+  it("github.com URLs stay out (parseGithubItemUrl owns them)", () => {
+    expect(forgejoItemUrl("https://github.com/owner/repo/issues/7")).toBeNull();
+  });
+
+  it("a non-item path is no item URL", () => {
+    expect(forgejoItemUrl("https://forge.example/org/app/src/tag/v1")).toBeNull();
+    expect(forgejoItemUrl("https://forge.example/org/app")).toBeNull();
   });
 });
