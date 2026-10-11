@@ -63,6 +63,6 @@ describe("configuration-page Appearance section", () => {
       [WALLPAPER_KEY]: JSON.stringify({ version: 1, global: null }),
     });
     render(<AppearanceSettingsSection />);
-    expect(screen.queryByRole("button", { name: "Wallpaper" })).not.toBeNull();
+    expect(screen.queryByRole("textbox", { name: "Wallpaper image url" })).not.toBeNull();
   });
 });

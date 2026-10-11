@@ -7,6 +7,11 @@ import {
 } from "@/components/ui/dialog";
 import type { WallpaperSettings } from "@/components/preferences";
 import { WhatsNewFeed } from "@/components/whats-new-feed";
+import {
+  CardTransportChoice,
+  MotionChoice,
+  WallpaperGroup,
+} from "@/components/appearance-controls";
 import { APP_VERSION, type WhatsNewEntry } from "@/lib/whats-new";
 import {
   ARCHIVE_UNITS,
