@@ -5,8 +5,12 @@ import {
   APP_VERSION,
   CURRENT_UNRELEASED_FINGERPRINT,
   EMPTY_UNRELEASED_FINGERPRINT,
+  LAST_SEEN_UNRELEASED_ITEMS_KEY,
   WHATS_NEW,
   compareVersions,
+  currentUnreleasedLeads,
+  unreleasedItemFingerprints,
+  unseenUnreleasedLeads,
   whatsNewEntriesFor,
   entriesSince,
   hasUnseenWhatsNew,
@@ -489,5 +493,43 @@ describe("groupWhatsNewItems", () => {
     const groups = groupWhatsNewItems([item("Tagged.", "A"), item("Loose.")]);
     expect(groups.map((g) => g.label)).toEqual(["A", null]);
     expect(groups[1].items.map((i) => i.lead)).toEqual(["Loose."]);
+  });
+});
+
+describe("per-line unseen tracking for the dev [Unreleased] amber", () => {
+  it("exposes the localStorage key and round-trips the stored fingerprint list", () => {
+    expect(LAST_SEEN_UNRELEASED_ITEMS_KEY).toBe("focus-board:lastSeenUnreleasedItems");
+    expect(unreleasedItemFingerprints(["a", "b"])).toEqual(
+      [unreleasedFingerprint(["a"]), unreleasedFingerprint(["b"])],
+    );
+  });
+
+  it("a null stored list means the reader has never opened it — every line is new", () => {
+    const leads = ["New since encoding.", "Another line."];
+    const unseen = unseenUnreleasedLeads(leads, null);
+    expect([...unseen]).toEqual(unreleasedItemFingerprints(leads));
+  });
+
+  it("only leads whose fingerprint is missing from the stored list come back unseen", () => {
+    const seenLead = "Seen on the last open.";
+    const freshLead = "Landed since.";
+    const stored = unreleasedItemFingerprints([seenLead]);
+    const unseen = unseenUnreleasedLeads([seenLead, freshLead], stored);
+    expect([...unseen]).toEqual([unreleasedFingerprint([freshLead])]);
+  });
+
+  it("currentUnreleasedLeads mirrors the feed's unreleased items (one lead per bullet including children)", () => {
+    // The stored list is written from these same leads at open time; if the
+    // derivation drifts from what the feed renders, amber lies.
+    const leads = currentUnreleasedLeads();
+    const entry = whatsNewEntriesFor(APP_VERSION, false, null).find(
+      (e) => e.unreleased === true,
+    );
+    if (UNRELEASED_ITEMS.length === 0) return; // an empty dev tree carries nothing
+    const feedLeads = (entry?.items ?? []).flatMap((item) => [
+      item.lead,
+      ...(item.children ?? []),
+    ]);
+    expect(leads).toEqual(feedLeads);
   });
 });

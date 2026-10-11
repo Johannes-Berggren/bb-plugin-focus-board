@@ -145,11 +145,16 @@ import { SettingsModal, type SettingsTab } from "./components/settings-modal";
 import {
   APP_VERSION,
   CURRENT_UNRELEASED_FINGERPRINT,
+  currentUnreleasedLeads,
   hasUnseenWhatsNew,
   readLastSeenUnreleased,
+  readLastSeenUnreleasedItems,
   readLastSeenVersion,
+  unreleasedItemFingerprints,
+  unseenUnreleasedLeads,
   whatsNewEntriesFor,
   writeLastSeenUnreleased,
+  writeLastSeenUnreleasedItems,
   writeLastSeenVersion,
   type WhatsNewEntry,
 } from "./lib/whats-new";
@@ -888,28 +893,59 @@ function BoardPage({ subPath }: { subPath: string }) {
     unreleasedFingerprint: CURRENT_UNRELEASED_FINGERPRINT,
     lastSeenUnreleasedFingerprint: lastSeenUnreleased,
   });
-  // The delta is captured at load (before opening marks it seen): a dev
-  // build leads with its unreleased group; stable builds show entries since
-  // the stored version when one is pending, all recent entries otherwise.
-  const whatsNewEntries: readonly WhatsNewEntry[] = useMemo(
-    () => whatsNewEntriesFor(APP_VERSION, whatsNewUnseen, lastSeenVersion),
-    [whatsNewUnseen, lastSeenVersion],
-  );
-  const [settingsOpen, setSettingsOpen] = useState(false);
-  const [settingsTab, setSettingsTab] = useState<SettingsTab>("behavior");
   // Opening the modal on What's new marks the changelog seen — the same
   // side effect the standalone What's-new modal owned before it became a
-  // tab; opening on Behavior (the plain gear) touches nothing.
+  // tab; opening on Behavior (the plain gear) touches nothing. The per-line
+  // amber ground truth resolves BEFORE the baseline overwrite: the fresh
+  // set (leads the stored per-item list had not yet seen) is held in state
+  // so the deep-linked tab renders exactly the new lines amber, then the
+  // store extends with every current lead.
+  const [unreleasedNewLeads, setUnreleasedNewLeads] = useState<ReadonlySet<string>>(
+    () => new Set(),
+  );
+  const activateWhatsNew = () => {
+    const leads = currentUnreleasedLeads();
+    setUnreleasedNewLeads(unseenUnreleasedLeads(leads, readLastSeenUnreleasedItems()));
+    writeLastSeenUnreleasedItems(unreleasedItemFingerprints(leads));
+    writeLastSeenUnreleased(CURRENT_UNRELEASED_FINGERPRINT);
+    setLastSeenUnreleased(CURRENT_UNRELEASED_FINGERPRINT);
+    writeLastSeenVersion(APP_VERSION);
+    setLastSeenVersion(APP_VERSION);
+  };
   const openSettings = useCallback((tab: SettingsTab) => {
     if (tab === "whats-new") {
-      writeLastSeenUnreleased(CURRENT_UNRELEASED_FINGERPRINT);
-      setLastSeenUnreleased(CURRENT_UNRELEASED_FINGERPRINT);
-      writeLastSeenVersion(APP_VERSION);
-      setLastSeenVersion(APP_VERSION);
+      activateWhatsNew();
     }
     setSettingsTab(tab);
     setSettingsOpen(true);
   }, []);
+  // Rail switches inside an open modal land on the same activation: the
+  // What's-new tab is stamped the moment its content becomes visible,
+  // whatever route the reader took. Re-activating in the same open shows a
+  // muted group — the delta was already presented.
+  const handleTabChange = useCallback((tab: SettingsTab) => {
+    if (tab === "whats-new") {
+      activateWhatsNew();
+    }
+    setSettingsTab(tab);
+  }, []);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [settingsTab, setSettingsTab] = useState<SettingsTab>("behavior");
+  // The delta is captured at load (before opening marks it seen): a dev
+  // build leads with its unreleased group; stable builds show entries since
+  // the stored version when one is pending, all recent entries otherwise.
+  // The unreleased entry rides its per-line unseen set so amber marks only
+  // what is genuinely new to this reader.
+  const whatsNewEntries: readonly WhatsNewEntry[] = useMemo(
+    () =>
+      whatsNewEntriesFor(
+        APP_VERSION,
+        whatsNewUnseen,
+        lastSeenVersion,
+        unreleasedNewLeads,
+      ),
+    [whatsNewUnseen, lastSeenVersion, unreleasedNewLeads],
+  );
   // The selected thread's column is captured when it is opened and held until
   // it is deselected, so live state/age changes cannot slide the card.
   const [frozenColumn, setFrozenColumn] = useState<{
@@ -2749,7 +2785,7 @@ function BoardPage({ subPath }: { subPath: string }) {
         open={settingsOpen}
         onOpenChange={setSettingsOpen}
         tab={settingsTab}
-        onTabChange={setSettingsTab}
+        onTabChange={handleTabChange}
         entries={whatsNewEntries}
         escStopsRunningThread={settingValues?.escStopsRunningThread}
         onSetEscStopsRunningThread={setEscStopsRunningThread}
