@@ -177,6 +177,20 @@ describe("ticket chip icons — issue vs PR glyph", () => {
     expect(idSpan?.getAttribute("class") ?? "").toContain("opacity-60");
   });
 
+  it("each id carries a hover bubble naming it, clear of the pointer", () => {
+    renderCard("resolve #17");
+    const anchor = chip().querySelector('[data-ticket-id="#17"]');
+    const tip = anchor?.querySelector("[data-ticket-tip]");
+    expect(tip?.textContent).toBe("#17");
+    // The bubble sits above the id and reveals on that id's hover, so the
+    // OS pays it no attention and the pointer can never cover it.
+    expect(tip?.getAttribute("class") ?? "").toContain("bottom-full");
+    expect(tip?.getAttribute("class") ?? "").toContain("group-hover/id:block");
+    // The native title tooltip is gone (it renders under the pointer).
+    expect(anchor?.getAttribute("title")).toBeNull();
+    expect(anchor?.getAttribute("aria-label") ?? "").toContain("#17");
+  });
+
   it("ids render in a three-track grid and enlarge on hover by transform", () => {
     renderCard("#101 #102 #103 #104 #105 #106 #107 #108 resolve");
     const grid = chip().querySelector("[data-ticket-chip] > [class*='grid-cols']");

@@ -303,15 +303,29 @@ function ProviderTicketChip({
         : undefined;
     const title = status === undefined ? undefined : `${status.kind} ${status.state}`;
     const text = ticketChipIdText(ref);
-    const cell = "inline-flex origin-left transition-transform hover:scale-110";
+    // The bubble repeats the id above the cell — a native title tooltip
+    // draws under the pointer and gets hidden by it, so the id gets its own
+    // bubble that the cursor cannot cover. The hover title keeps its state
+    // role; the id itself rides an aria-label for keyboard and screen
+    // readers.
+    const cell = "group/id relative inline-flex origin-left transition-transform hover:scale-110";
+    const bubble = (
+      <span
+        data-ticket-tip=""
+        className="pointer-events-none absolute bottom-full left-0 z-20 mb-1 hidden whitespace-nowrap rounded border border-border bg-popover px-1.5 py-0.5 font-mono text-[10px] leading-none text-popover-foreground shadow-md group-hover/id:block"
+      >
+        {text}
+      </span>
+    );
     const body = (
       <span className={status?.state === "MERGED" ? "line-through opacity-60" : undefined}>
         {text}
       </span>
     );
     return ref.href === undefined ? (
-      <span key={index} title={title} className={cell}>
+      <span key={index} title={title} aria-label={text} className={cell}>
         {body}
+        {bubble}
       </span>
     ) : (
       <a
@@ -321,10 +335,12 @@ function ProviderTicketChip({
         rel="noreferrer"
         onClick={(event) => event.stopPropagation()}
         title={title}
+        aria-label={text}
         className={cell}
         data-ticket-id={text}
       >
         {body}
+        {bubble}
       </a>
     );
   });
