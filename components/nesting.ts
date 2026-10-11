@@ -17,6 +17,11 @@ import {
   threadState,
 } from "./grouping";
 import {
+  applySlotPins,
+  pinRowOrder,
+  type AttentionFreezePlan,
+} from "./attention-freeze";
+import {
   childRankKey,
   columnRankKey,
   compareByRank,
@@ -110,6 +115,27 @@ export interface NestingOptions {
    * with.
    */
   extraColumnOverrides?: ReadonlyMap<string, { id: string; label: string }>;
+  /**
+   * The attention freeze (components/attention-freeze): the plan compiled
+   * from the captures app.tsx holds for attended cards — the lane pins that
+   * win over every claim, the final-list slot pins, and the nested-row
+   * pins. Absent → placement rules run untouched (their own behavior).
+   */
+  attentionFreeze?: AttentionFreezePlan;
+}
+
+/**
+ * One per-build slot pinning pass over the final rendered lists: the place
+ * the assembled board LAST touches order, so the pins reflect what renders —
+ * after the nesting drains, the projections' recency sort, and the pinned
+ * lane's attention lift.
+ */
+export function withSlotPins(
+  columns: readonly BoardColumn[],
+  slots: ReadonlyMap<string, number>,
+): BoardColumn[] {
+  if (slots.size === 0) return [...columns];
+  return columns.map((column) => ({ ...column, threads: applySlotPins(column.threads, slots) }));
 }
 
 /**
@@ -146,21 +172,27 @@ export function assembleBoard(
   // child renders nowhere at all — matching bb's sidebar, where archiving
   // removes the thread from the list.
   const visible = threads.filter((thread) => !thread.isArchived);
+  const attention = options.attentionFreeze;
+  const attentionColumns = attention?.columns ?? new Map();
   if (!nestingEnabled) {
     // Flat board: no families — but group boxes are NOT family machinery,
     // they are the operator's own container, so their column overrides
     // still move a box's members into one lane and runsFromColumns wraps
     // them there (the board keeps this plan's groupBoxOf).
     return {
-      columns: buildColumns(
-        visible,
-        groupBy,
-        context,
-        frozenColumns,
-        doneIds,
-        now,
-        ranks,
-        options.extraColumnOverrides ?? new Map(),
+      columns: withSlotPins(
+        buildColumns(
+          visible,
+          groupBy,
+          context,
+          frozenColumns,
+          doneIds,
+          now,
+          ranks,
+          options.extraColumnOverrides ?? new Map(),
+          attentionColumns,
+        ),
+        attention?.slots ?? new Map(),
       ),
       nestedChildrenByParent: new Map(),
       doneChildrenByParent: new Map(),
@@ -197,6 +229,7 @@ export function assembleBoard(
       now,
       ranks,
       columnOverrides,
+      attentionColumns,
     ),
     visible,
     groupBy,
@@ -222,7 +255,7 @@ export function assembleBoard(
     );
   }
   return {
-    columns: nested.columns,
+    columns: withSlotPins(nested.columns, attention?.slots ?? new Map()),
     nestedChildrenByParent: nested.childrenByParent,
     doneChildrenByParent: nested.doneChildrenByParent,
     childCountByParent,
@@ -351,6 +384,14 @@ function childPlacement(
   parent: PluginSidebarThread,
   groupBy: GroupBy,
   doneIds: ReadonlySet<string>,
+  /**
+   * The attention freeze's stay-nested set (components/attention-freeze): a
+   * nested child the operator is attending to does NOT un-nest on a fresh
+   * attention flip — the operator is looking at its row, and the card must
+   * not move. Attention surfaces through the row's own state treatment;
+   * the un-nest happens the moment attention releases.
+   */
+  stayNested: ReadonlySet<string> = new Set<string>(),
 ): ChildPlacement {
   if (doneIds.has(child.id)) {
     return doneIds.has(parent.id) ? "nest" : "done";
@@ -373,7 +414,7 @@ function childPlacement(
   // card may be collapsed (a persisted fold), and a child that needs the
   // operator must surface as its own actionable card, not hide behind a
   // fold. The rest of the rows stay collapsed under the parent.
-  if (threadState(child) === "attention") {
+  if (threadState(child) === "attention" && !stayNested.has(child.id)) {
     return "flat";
   }
   if (groupBy === "status") {
@@ -516,7 +557,11 @@ export function nestUnderParents(
   // untouched (the caller has already kept archived threads out of them);
   // no child nests, no rows, no chips, no projections.
   if (options.nestingEnabled === false) {
-    return { columns: [...columns], childrenByParent: new Map(), doneChildrenByParent: new Map() };
+    return {
+      columns: withSlotPins([...columns], options.attentionFreeze?.slots ?? new Map()),
+      childrenByParent: new Map(),
+      doneChildrenByParent: new Map(),
+    };
   }
 
   // Decide, per child, where it renders: rows under the parent's own card,
@@ -536,7 +581,7 @@ export function nestUnderParents(
       flatIds.add(childId);
       continue;
     }
-    const placement = childPlacement(child, parent, groupBy, doneIds);
+  const placement = childPlacement(child, parent, groupBy, doneIds, options.attentionFreeze?.stayNested);
     if (placement === "flat") {
       flatIds.add(childId);
       continue;
@@ -555,6 +600,19 @@ export function nestUnderParents(
   // Done-space rows read in the Done column's own order: newest done first.
   for (const children of doneNested.values()) {
     children.sort(doneRecencyCompare(doneTimes));
+  }
+  // Attended children pin their row slots (the attention freeze): a row the
+  // operator is looking at holds its slot while the family's rows churn.
+  const rowSlots = options.attentionFreeze?.rowSlots;
+  if (rowSlots !== undefined && rowSlots.size > 0) {
+    for (const [parentId, children] of nested) {
+      const pins = rowSlots.get(parentId);
+      if (pins !== undefined) nested.set(parentId, pinRowOrder(children, pins));
+    }
+    for (const [parentId, children] of doneNested) {
+      const pins = rowSlots.get(parentId);
+      if (pins !== undefined) doneNested.set(parentId, pinRowOrder(children, pins));
+    }
   }
   // Pinned-lane attention lift: a pinned card whose OWN state needs the
   // operator rises to the top of the lane (a pinned attention child un-nests
@@ -631,8 +689,10 @@ export function nestUnderParents(
     outColumns.push({ id: "done", label: "Done", threads: withProjections([]) });
   }
 
+  // Attention slot pins land LAST — after the drains, the projections, and
+  // the pinned lane's attention lift — so the pins name exactly what renders.
   return {
-    columns: outColumns,
+    columns: withSlotPins(outColumns, options.attentionFreeze?.slots ?? new Map()),
     childrenByParent: nested,
     doneChildrenByParent: doneNested,
   };

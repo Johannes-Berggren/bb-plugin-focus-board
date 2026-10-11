@@ -289,6 +289,14 @@ interface BoardProps {
   collapsedFamilyIds?: ReadonlySet<string>;
   /** Reports a family card's collapse/expand gesture (parent id, new state). */
   onFamilyCollapsedChange?: (parentId: string, collapsed: boolean) => void;
+  /**
+   * Attention reporting (components/attention-freeze): the card a pointer
+   * enters, and the card it leaves. The caller captures each entered card's
+   * rendered placement and pins it for the attention's duration — every card
+   * under attention holds its lane and slot while live data churns.
+   */
+  onAttentionEnter?: (threadId: string) => void;
+  onAttentionLeave?: (threadId: string) => void;
   projectNameFor: (projectId: string) => string;
   /** GitHub repo base per project ("https://github.com/owner/repo"), when known. */
   repoBaseFor: (projectId: string) => string | null;
@@ -582,6 +590,8 @@ export function Board({
   onClosePane,
   rankStore,
   onRankMove,
+  onAttentionEnter,
+  onAttentionLeave,
   onReparent,
   rawParentOf,
   onDropDone,
@@ -2677,6 +2687,8 @@ export function Board({
                           stateDot={<StateDot thread={thread} />}
                           isActive={thread.id === activeThreadId}
                           isDone={doneIds.has(thread.id) || isDoneProjection}
+                          onAttentionEnter={onAttentionEnter}
+                          onAttentionLeave={onAttentionLeave}
                           isSweepHighlighted={armedSet?.has(thread.id) ?? false}
                           isSweeping={runHere !== null && runHere.activeId === thread.id}
                           isSweepSelecting={isArmed}

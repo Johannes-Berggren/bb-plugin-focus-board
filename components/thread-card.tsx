@@ -172,6 +172,14 @@ interface ThreadCardProps {
   validatedHrefs?: ReadonlySet<string>;
   // Ruler+wrap mini variant: fits the 136×92 context card grid.
   compact?: boolean;
+  /**
+   * Attention reporting (components/attention-freeze): the caller captures
+   * the card's rendered placement when the pointer enters it and releases
+   * the pin on leave — the freeze that keeps an attended card from moving.
+   * Nested child rows report too, with their own id.
+   */
+  onAttentionEnter?: (threadId: string) => void;
+  onAttentionLeave?: (threadId: string) => void;
 }
 
 /** Chip kind-glyph colors by live state, mirroring the card's own state language. */
@@ -342,6 +350,8 @@ function ChildRow({
   rankKey,
   onRankDragStart,
   rankDrag,
+  onAttentionEnter,
+  onAttentionLeave,
 }: {
   child: PluginSidebarThread;
   /** A done child row dims, as does any child of a done parent. */
@@ -368,6 +378,9 @@ function ChildRow({
     onDragLeave: (event: DragEvent) => void;
     line?: { childId: string; zone: "before" | "after" };
   };
+  /** Attention reporting for the row itself (nested rows pin their slots). */
+  onAttentionEnter?: (threadId: string) => void;
+  onAttentionLeave?: (threadId: string) => void;
 }) {
   const now = Date.now();
   const childSnoozeWakeAt = snoozeFor?.(child.id) ?? null;
@@ -382,6 +395,16 @@ function ChildRow({
       data-thread-card={child.id}
       data-snoozed={childSnoozeWakeAt !== null ? "" : undefined}
       draggable={!childSnoozed}
+      onMouseEnter={onAttentionEnter === undefined ? undefined : () => onAttentionEnter(child.id)}
+      onMouseOut={
+        onAttentionLeave === undefined
+          ? undefined
+          : (event) => {
+              const from = event.relatedTarget;
+              if (from instanceof Node && event.currentTarget.contains(from)) return;
+              onAttentionLeave(child.id);
+            }
+      }
       onDragOver={
         rankDrag === undefined
           ? undefined
@@ -479,6 +502,9 @@ function ChildRow({
       href={child.href}
       onOpen={() => onOpenThread(child.id)}
       title={child.displayTitle}
+      onOpenChange={(open) =>
+        open ? onAttentionEnter?.(child.id) : onAttentionLeave?.(child.id)
+      }
     />
   );
 }
@@ -516,6 +542,8 @@ export function ThreadCard({
   onCollapsedChange,
   // Ruler+wrap mini cards: tighter padding and type, no ticket chips.
   compact = false,
+  onAttentionEnter,
+  onAttentionLeave,
 }: ThreadCardProps) {
   const now = Date.now();
   // Controlled when `isCollapsed` is supplied (the app persists the set);
@@ -629,6 +657,23 @@ export function ThreadCard({
       data-snoozed={snoozed ? "" : undefined}
       // `group` drives the hover-revealed done checkbox below.
       onPointerLeave={armedDone ? () => setArmedDone(false) : undefined}
+      onMouseEnter={
+        onAttentionEnter === undefined ? undefined : () => onAttentionEnter(thread.id)
+      }
+      onMouseOut={
+        onAttentionLeave === undefined
+          ? undefined
+          : (event) => {
+              // Only a TRUE exit (the pointer passing above/outside the
+              // card) releases the pin: entering a nested child row — a
+              // descendant of this div — must not, or the card could move
+              // while the pointer is still inside it.
+              const from = event.relatedTarget;
+              const current = event.currentTarget;
+              if (from instanceof Node && current.contains(from)) return;
+              onAttentionLeave(thread.id);
+            }
+      }
       className={cn(
         "group relative overflow-hidden rounded-md bg-card transition-colors",
         "hover:bg-accent/50",
@@ -903,6 +948,8 @@ export function ThreadCard({
                         rankKey={rankKey}
                         onRankDragStart={onRankDragStart}
                         rankDrag={childRankDrag}
+                        onAttentionEnter={onAttentionEnter}
+                        onAttentionLeave={onAttentionLeave}
                       />
                     </li>
                   );
@@ -922,6 +969,9 @@ export function ThreadCard({
       href={thread.href}
       onOpen={onOpen}
       title={thread.displayTitle}
+      onOpenChange={(open) =>
+        open ? onAttentionEnter?.(thread.id) : onAttentionLeave?.(thread.id)
+      }
     />
   );
 }

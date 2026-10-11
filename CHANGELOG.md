@@ -38,6 +38,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - **Card animations default to zoom.** The Appearance tab's default read is now the shrink-out/grow-in portal transport instead of the dissolve; Teleport stays the explicit name for the transporter read and None snaps the card instantly.
 
+#### Card placement
+
+- **A card the board sees you attending holds its place.** Hovering a card, or keeping it open in the thread pane, pins its lane, its slot, and the lane of its family or box, so live updates re-sort the board around it instead of moving it; the pin lifts when the pointer leaves or the pane closes.
+  - The parent thread view pins the attended card's lane order and its row slot the same way.
+  - An open context menu holds the card too, whatever closes it (a menu action, a backdrop click, Escape); the menu's pop-over does not count as the pointer leaving.
+  - The pin also holds the card against a rank order that changes while attention lasts: stored rankings are never rewritten, and the held card renders its ranked slot again when the pin lifts.
+  - Your own moves still land: a drag, drop, or menu action releases the pin for that gesture and re-pins the settled result.
+
 #### Card ticket chips
 
 - **A card's chips group by provider, at most two to a row.** All of a provider's issue ids share one chip and its pull ids another, with the provider mark at the head linking to that kind's list page: the repo's filtered page when the repo is known, GitHub's global one otherwise; long id lists wrap onto extra lines. Each id keeps its own item link in the muted chip color; merged ids strike through in grey and pop purple on hover, every id's state answers on its hover title, and a kindless `#N` whose status names a PR swaps to the pull glyph.
