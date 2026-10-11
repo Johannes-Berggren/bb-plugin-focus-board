@@ -45,6 +45,30 @@ export function forgejoItemBase(remote: string | null | undefined): string | nul
   return null;
 }
 
+/**
+ * A Forgejo/Gitea ITEM URL: "https://host/owner/repo/issues/123" (or
+ * /pulls/123 — Gitea names PRs "pulls"). Returns the repo base the item
+ * sits in, the issue-vs-pull kind the path names, and the number; null for
+ * github.com URLs (parseGithubItemUrl owns those) and anything else.
+ * Forgejo identifies both kinds on those paths, exactly like its remote
+ * shape above — so a Forgejo PR link stored from the link tool carries its
+ * kind and base with no extra records.
+ */
+export function forgejoItemUrl(
+  url: string,
+): { base: string; kind: "issue" | "pull"; number: number } | null {
+  const match = url.match(
+    /^https:\/\/(?!github\.com)([\w.-]+(?::\d+)?)\/([\w.-]+)\/([\w.-]+?)\/(?<kind>issues|pulls)\/(?<num>\d+)\/?$/,
+  );
+  if (match === null) return null;
+  const [, host, owner, repo] = match;
+  return {
+    base: `https://${host}/${owner}/${repo}`,
+    kind: match.groups?.kind === "pulls" ? "pull" : "issue",
+    number: Number(match.groups?.num),
+  };
+}
+
 export interface TicketRef {
   /** The matched text, e.g. "https://github.com/owner/repo/issues/42" or "#482". */
   raw: string;

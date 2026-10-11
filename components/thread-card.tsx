@@ -3,7 +3,15 @@ import type { PluginSidebarThread } from "@get-bb/plugin-sdk/app";
 import { Icon } from "@/components/ui/icon";
 import { cn } from "@/lib/utils";
 import { threadState, THREAD_STATE_LABELS } from "./grouping";
-import { type TicketRef, resolveRepoSlug } from "@/lib/tickets";
+import { resolveRepoSlug } from "@/lib/tickets";
+import {
+  ticketChipRows,
+  ticketChipIconHref,
+  ticketChipIdText,
+  ticketStatusRepo,
+  type TicketChip,
+  type TicketChipRow,
+} from "@/lib/ticket-chips";
 import type { GitHubItemStatus } from "@/lib/tracker-status";
 
 import { DRAG_ID_KEY, rankDragType } from "../lib/rank";
@@ -171,95 +179,129 @@ const STATUS_ICON_CLASS: Record<string, string> = {
 export const NESTED_ROWS_SCROLL_THRESHOLD = 5;
 
 /**
- * Small clickable ticket chip; inert (span) when the ref has no href.
+ * One provider-grouped chip (lib/ticket-chips.ts): all the provider's IDs of
+ * one kind (issue or pull) inside a single chip shell — the provider mark
+ * leading, the kind glyph naming the chip's kind, then one link per ID.
  *
- * Two glyphs lead the ref text: the source's provider mark (GitHub's own
- * octocat; a generic ticket mark when the source cannot be named — PROJ-123
- * keys carry no provider signal), then the issue-vs-PR glyph drawn with
- * GitHub's own octicon shapes (the same language GitHub.com and VS Code
- * use). The kind glyph doubles as the state signal once live status lands —
- * open emerald, merged purple, closed muted — absorbing the old bare state
- * dot.
+ * The mark links to that kind's list page: the repo's filtered page where
+ * the group's base is known, GitHub's own global page otherwise; an unknown
+ * external tracker's mark stays inert. Each ID keeps its own href, and —
+ * once live status lands, per ID — its state color. The kind glyph reads
+ * the group's primary (first) ref's status, so it doubles as the state
+ * signal exactly as the old per-ref chip's glyph did.
  */
-function TicketChip({
-  ticket,
-  status,
+function ProviderTicketChip({
+  row,
+  chip,
+  statusFor,
+  projectRepo,
 }: {
-  ticket: TicketRef;
-  status: GitHubItemStatus | undefined;
+  row: TicketChipRow;
+  chip: TicketChip;
+  statusFor?: (repo: string | null, number: number | undefined) => GitHubItemStatus | undefined;
+  projectRepo: string | null;
 }) {
-  // Non-GitHub trackers show the site's favicon (forgejo bases, external
+  // External providers show the site's favicon (forgejo bases, external
   // links — each carries its hostname; bb's app shell sets no CSP header,
   // verified 2026-10-08, so the browser may load it directly). A failed or
   // blocked load collapses to the plain text chip.
   const [faviconFailed, setFaviconFailed] = useState(false);
-  const favicon =
-    ticket.hostname !== undefined && !faviconFailed ? (
+  const isGithub = row.provider === "github";
+  const markHref = ticketChipIconHref(row, chip.kind);
+  const className = "inline-flex h-5 items-center gap-1 rounded bg-muted px-1 font-mono text-[10px] leading-none text-muted-foreground";
+  const mark =
+    isGithub ? (
+      <Icon name="GithubMark" className="size-3 shrink-0" aria-hidden />
+    ) : row.hostname !== undefined && !faviconFailed ? (
       <img
-        src={`https://${ticket.hostname}/favicon.ico`}
+        src={`https://${row.hostname}/favicon.ico`}
         alt=""
         loading="lazy"
         className="size-3 shrink-0 rounded-[2px]"
         onError={() => setFaviconFailed(true)}
       />
-    ) : null;
-  const className = cn(
-    "inline-flex h-5 items-center gap-1 rounded bg-muted px-1 font-mono text-[10px] leading-none text-muted-foreground",
-    ticket.href && "hover:bg-accent hover:text-foreground",
-  );
-  // Issue vs PR: live status is exact; before it lands (or for refs the
-  // status cache never covers) fall back to what the raw text implies,
-  // defaulting plain "#N" refs to the issue glyph — the glyph self-corrects
-  // the moment status arrives.
-  const kind = status?.kind === "pull" ? "pull" : (ticket.kind ?? "issue");
-  const kindIconName =
-    kind === "pull"
-      ? (status?.state === "MERGED"
-          ? "Merge"
-          : status?.state === "CLOSED"
-            ? "PullRequestClosed"
-            : "PullRequest")
-      : (status?.state === "CLOSED" ? "IssueClosed" : "IssueOpen");
-  const isGithub = ticket.tracker === "github";
-  const provider =
-    isGithub ? (
-      <Icon name="GithubMark" className="size-3 shrink-0" aria-hidden />
-    ) : favicon ?? (
+    ) : (
       <Icon name="Ticket" className="size-3 shrink-0" aria-hidden />
     );
-  // Only GitHub-shaped refs carry the issue-vs-PR glyph; external items
-  // name their own tracker in the favicon instead.
-  const kindGlyph = isGithub ? (
-    <Icon
-      name={kindIconName}
-      className={cn(
-        "size-3 shrink-0",
-        status === undefined ? undefined : (STATUS_ICON_CLASS[status.state] ?? "text-muted-foreground/30"),
-      )}
-      aria-label={status === undefined ? undefined : `${kind} ${status.state}`}
-    />
-  ) : null;
-  const body = (
-    <>
-      {provider}
-      {kindGlyph}
-      {ticket.raw}
-    </>
-  );
-  return ticket.href ? (
+  const markElement = markHref ? (
     <a
-      href={ticket.href}
+      href={markHref}
       target="_blank"
       rel="noreferrer"
       onClick={(event) => event.stopPropagation()}
-      className={className}
-      data-ticket-chip=""
+      title={chip.kind === "pull" ? "Pull requests list" : "Issues list"}
+      className="inline-flex shrink-0"
+      data-ticket-chip-mark=""
     >
-      {body}
+      {mark}
     </a>
   ) : (
+    <span className="inline-flex shrink-0" data-ticket-chip-mark="">
+      {mark}
+    </span>
+  );
+  // The kind glyph self-corrects the moment status arrives: the primary
+  // ref's live state names it (merged PR → merge glyph, closed → closed
+  // glyph), defaulting to the open shapes before status lands. Status kind
+  // overrides the chip's structural kind too — a kindless "#N" that turns
+  // out to be a merged PR swaps to the pull shapes.
+  const primary = chip.refs[0];
+  const primaryStatus =
+    isGithub && primary !== undefined
+      ? statusFor?.(ticketStatusRepo(primary, projectRepo), primary.number)
+      : undefined;
+  const kind = primaryStatus?.kind === "pull" ? "pull" : chip.kind;
+  const kindGlyph = isGithub ? (
+    <Icon
+      name={
+        kind === "pull"
+          ? (primaryStatus?.state === "MERGED"
+              ? "Merge"
+              : primaryStatus?.state === "CLOSED"
+                ? "PullRequestClosed"
+                : "PullRequest")
+          : (primaryStatus?.state === "CLOSED" ? "IssueClosed" : "IssueOpen")
+      }
+      className={cn(
+        "size-3 shrink-0",
+        primaryStatus === undefined
+          ? undefined
+          : (STATUS_ICON_CLASS[primaryStatus.state] ?? "text-muted-foreground/30"),
+      )}
+      aria-label={primaryStatus === undefined ? undefined : `${kind} ${primaryStatus.state}`}
+    />
+  ) : null;
+  // External items name their own tracker in the favicon and carry no
+  // GitHub kind glyph.
+  const ids = chip.refs.map((ref, index) => {
+    const status =
+      isGithub && ref.number !== undefined
+        ? statusFor?.(ticketStatusRepo(ref, projectRepo), ref.number)
+        : undefined;
+    const colorClass = status === undefined ? undefined : STATUS_ICON_CLASS[status.state];
+    const text = ticketChipIdText(ref);
+    const body = <span className={colorClass}>{text}</span>;
+    return ref.href === undefined ? (
+      <span key={index}>{body}</span>
+    ) : (
+      <a
+        key={index}
+        href={ref.href}
+        target="_blank"
+        rel="noreferrer"
+        onClick={(event) => event.stopPropagation()}
+        className="inline-flex shrink-0"
+        data-ticket-id={text}
+      >
+        {body}
+      </a>
+    );
+  });
+  return (
     <span className={className} data-ticket-chip="">
-      {body}
+      {markElement}
+      {kindGlyph}
+      {ids}
     </span>
   );
 }
@@ -459,9 +501,11 @@ export function ThreadCard({
   };
   const branch = thread.environment?.branchName ?? thread.host?.name ?? "";
   const repo = repoHrefBase === undefined ? null : resolveRepoSlug(repoHrefBase);
-  // The chip row: text refs after the chip gate + the board's store links
-  // (lib/link-metadata's cardTicketRefs). The toolbar search matches this
-  // exact set (app.tsx), so a "#38" query finds every card with a #38 chip.
+  // The chip rows: text refs after the chip gate + the board's store links
+  // (lib/link-metadata's cardTicketRefs), grouped by provider into rows —
+  // one row per provider, at most two chips per row (issues left, pulls
+  // right), lib/ticket-chips.ts. The toolbar search matches the flat ref
+  // set (app.tsx), so a "#38" query still finds every card with a #38 chip.
   const ticketRefs = cardTicketRefs({
     title: thread.displayTitle,
     branch,
@@ -469,6 +513,7 @@ export function ThreadCard({
     linkedIssues,
     ...(validatedHrefs !== undefined ? { validatedHrefs } : {}),
   });
+  const chipRows = ticketRefs.length === 0 || compact ? [] : ticketChipRows(ticketRefs);
   const children = childThreads ?? [];
   // The chip counts every visible child (prop from the raw family index);
   // fall back to the nested rows when the caller does not supply it.
@@ -648,10 +693,26 @@ export function ThreadCard({
             {projectName}
             {branch === "" ? null : <span className="text-muted-foreground/40"> · {branch}</span>}
           </p>
-          {ticketRefs.length === 0 || compact ? null : (
-            <div className="mt-1 flex flex-wrap gap-1 pl-1.5">
-              {ticketRefs.map((ticket) => (
-                <TicketChip key={ticket.raw} ticket={ticket} status={statusFor?.(repo, ticket.number)} />
+          {chipRows.length === 0 ? null : (
+            <div className="mt-1 flex flex-col gap-1 pl-1.5">
+              {chipRows.map((row) => (
+                // One provider per row; issues chip first and the PRs chip
+                // after it. justify-between spreads the pair — issues left,
+                // PRs right — while flex-wrap reflows the right chip onto
+                // the row's next line when the labels run long (a PRs-only
+                // row places its single chip left).
+                <div
+                  key={row.key}
+                  data-provider-row={row.key}
+                  className="flex flex-wrap justify-between gap-1"
+                >
+                  {row.issues === undefined ? null : (
+                    <ProviderTicketChip row={row} chip={row.issues} statusFor={statusFor} projectRepo={repo} />
+                  )}
+                  {row.pulls === undefined ? null : (
+                    <ProviderTicketChip row={row} chip={row.pulls} statusFor={statusFor} projectRepo={repo} />
+                  )}
+                </div>
               ))}
             </div>
           )}

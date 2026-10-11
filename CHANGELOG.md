@@ -27,6 +27,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+#### Card ticket chips
+
+- **A card's chips group by provider, at most two to a row.** All of a provider's issue ids share one chip and its pull ids another, with the provider mark at the head linking to that kind's list page: the repo's filtered page when the repo is known, GitHub's global one otherwise. Each id keeps its own item link and its live color, and a kindless `#N` whose status names a PR swaps to the pull glyph.
+
 ### Fixed
 
 ## [1.2.0] - 2026-10-10

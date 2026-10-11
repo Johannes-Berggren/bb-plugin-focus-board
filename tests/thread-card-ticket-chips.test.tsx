@@ -52,7 +52,13 @@ describe("ticket chip icons — provider glyph", () => {
   it("a #N ref under a GitHub repo leads with the GitHub brand mark", async () => {
     renderCard("resolve #17: surface a thread's ticket");
     await chipIcon("GithubMark");
-    expect(chip().getAttribute("href")).toBe(`${BASE}/issues/17`);
+    // The mark links to the kind's list page; each ID links to its item.
+    expect(chip().querySelector("[data-ticket-chip-mark]")?.getAttribute("href")).toBe(
+      `${BASE}/issues`,
+    );
+    expect(chip().querySelector('[data-ticket-id="#17"]')?.getAttribute("href")).toBe(
+      `${BASE}/issues/17`,
+    );
     expect(chip().textContent).toContain("#17");
   });
 
