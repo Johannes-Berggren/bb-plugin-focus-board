@@ -1094,12 +1094,37 @@ describe("assembleBoard — the Pinned lane's attention lift (a pinned card's OW
 });
 
 describe("familyColumnOverrides — the placement override map", () => {
-  it("is empty outside the status grouping", () => {
-    const parent = thread({ id: "p" });
-    const child = thread({ id: "c", parentThreadId: "p", status: "active" });
+  it("is empty outside the status and recency groupings", () => {
+    const parent = thread({ id: "p", updatedAt: NOW - 2 * HOUR });
+    const child = thread({ id: "c", parentThreadId: "p", status: "active", updatedAt: NOW - HOUR });
     const index = buildFamilyIndex([parent, child]);
     expect(familyColumnOverrides([parent, child], index, "project", CONTEXT, new Set())).toHaveLength(0);
-    expect(familyColumnOverrides([parent, child], index, "recency", CONTEXT, new Set())).toHaveLength(0);
+    expect(familyColumnOverrides([parent, child], index, "none", CONTEXT, new Set())).toHaveLength(0);
+  });
+
+  it("under Last activity, a fresher nested child lifts the family's bucket", () => {
+    const parent = thread({ id: "p", updatedAt: NOW - 5 * HOUR }); // Today
+    const child = thread({ id: "c", parentThreadId: "p", status: "active", updatedAt: NOW - HOUR / 2 }); // Recent
+    const index = buildFamilyIndex([parent, child]);
+    const overrides = familyColumnOverrides([parent, child], index, "recency", CONTEXT, new Set(), NOW);
+    expect(overrides.get("p")?.id).toBe("recent");
+    expect(overrides.get("p")?.label).toBe("Recent");
+  });
+
+  it("a pinned child is copied out: it keeps the Pinned lane and does not lift the family", () => {
+    const parent = thread({ id: "p", updatedAt: NOW - 2 * DAY });
+    const child = thread({
+      id: "c",
+      parentThreadId: "p",
+      status: "active",
+      isPinned: true,
+      updatedAt: NOW - HOUR,
+    });
+    const index = buildFamilyIndex([parent, child]);
+    const overrides = familyColumnOverrides([parent, child], index, "status", CONTEXT, new Set());
+    // the pinned child's card lives in Pinned; the idle family names no lane
+    // and keeps the parent's own bucket via the natural fallback
+    expect(overrides.get("p")).toBeUndefined();
   });
 
   it("a Needs-you child does not lift the family (it stands alone); the root's own attention does", () => {

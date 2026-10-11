@@ -12,11 +12,12 @@
 //   members drift into Pinned or Done simply loses those members from the
 //   box — they keep their own lanes, the same way a family's done children
 //   leave the nest.
-// - The whole box lands in ONE column: the lane of its most
-//   attention-needing member (status grouping), or — under recency — the
-//   recency bucket of that member. This is the family placement rule
-//   (familyColumnOverrides) re-derived for groups, so "behaves like a
-//   family for column selection" is literally the same algorithm.
+// - The whole box lands in ONE column: the lane of the most
+//   attention-driving thread across its members' FAMILIES (status
+//   grouping), or — under recency — the freshest family drive's bucket.
+//   This is the family placement rule (familyColumnOverrides via the shared
+//   familyDriveMembers walk) — so "behaves like a family for column
+//   selection" is literally the same algorithm.
 // - A grouping that renders per-thread columns (status, none, recency,
 //   project, provider, machine) keeps boxes active: the box lands in ONE
 //   column — the lane of its most attention-needing member, pulled there by
@@ -41,6 +42,7 @@ import type {
 } from "./grouping";
 import { columnFor, groupFilterMisses, matchesFilter, stateFilterPasses, threadState } from "./grouping";
 import { STATUS_COLUMN_ORDER } from "./grouping";
+import { buildFamilyIndex, familyDriveMembers } from "./nesting";
 import type { MoveTarget } from "../lib/rank";
 import type { TicketRef } from "../lib/tickets";
 
@@ -119,24 +121,36 @@ export function planGroupBoxes(
     if (members === undefined) candidatesByGroup.set(groupId, [thread]);
     else members.push(thread);
   }
+  // One family index over the same visible set serves every member's lane
+  // pick: the box drives by families (the family is the unit of visibility),
+  // and the index is the single authoritative hide of archived members.
+  const byId = new Map(threads.map((thread) => [thread.id, thread]));
+  const familyIndex = buildFamilyIndex(threads);
   for (const [groupId, members] of candidatesByGroup) {
     // A group of one keeps its box: the solitary dashed outline is the
     // drag-into target, so the group stays visible and joinable with a
     // single member (the "evaporates at last assignment cleared" rule
     // lives in the RPC GC, not the board render).
     const box: GroupBox = { groupId, name: groupNames.get(groupId) as string, members: [] };
-    // The box lands in the most attention-needing member's lane — the same
-    // smallest-state rule the family overrides run. Idle members tie on
-    // state; their freshest member breaks the tie (the box is as current as
-    // its freshest member). Under recency the bucket IS the age, so the
-    // freshest member's bucket wins outright.
+    // The box lands in the lane of the most attention-driving thread across
+    // the members' FAMILIES — the family is the unit of visibility (the
+    // BV-INC-10 sighting: an idle member's running child sat in a box the
+    // member-scoped pick pinned to Idle · Recent). `familyDriveMembers`
+    // already drops the copied-out descendants (a Needs-you child, a done
+    // child, a pinned child keep their own lanes and do not drive) and the
+    // archived ones; the member itself always drives. Idle drives tie on
+    // state; the freshest drive breaks the tie (the box is as current as its
+    // freshest visible member). Under recency the bucket IS the age, so the
+    // freshest drive's bucket wins outright.
     let best: PluginSidebarThread | undefined;
     for (const member of members) {
-      if (
-        best === undefined ||
-        memberIsElevated(memberPriority(member, groupBy), memberPriority(best, groupBy))
-      ) {
-        best = member;
+      for (const driver of familyDriveMembers(member.id, byId, familyIndex, doneIds)) {
+        if (
+          best === undefined ||
+          memberIsElevated(memberPriority(driver, groupBy), memberPriority(best, groupBy))
+        ) {
+          best = driver;
+        }
       }
     }
     if (best === undefined) continue;
@@ -151,10 +165,10 @@ export function planGroupBoxes(
 }
 
 /**
- * Member priority for the box's lane pick, compared as a tuple: smallest
+ * Drive priority for the box's lane pick, compared as a tuple: smallest
  * primary, then largest secondary — the fresher idle (or, under recency,
- * newer) member carries the box. status ranks attention(0) < unread(1) <
- * working(2) < idle(3).
+ * newer) family drive carries the box. status ranks attention(0) < unread(1)
+ * < working(2) < idle(3).
  */
 function memberPriority(
   member: PluginSidebarThread,

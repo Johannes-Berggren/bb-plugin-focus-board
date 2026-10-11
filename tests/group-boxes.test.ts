@@ -828,6 +828,165 @@ describe("canJoinGroup (the drop-into-the-box gesture's decision)", () => {
   });
 });
 
+describe("planGroupBoxes — the family is the unit of lane driving", () => {
+  // The operator's rule (2026-10-11, the BV-INC-10 board sighting): a box
+  // lands in the lane of its most attention-driving member FAMILY — what
+  // renders inside the member's card drives the box. A child copied OUT to
+  // its own lane (Needs you, Done, Pinned) keeps that placement and does not
+  // drive; copy-out is dual membership, not removal. Archived descendants
+  // render nowhere and never drive.
+  const MINUTE = 60 * 1000;
+  const HOUR = 60 * MINUTE;
+
+  it("a member's active child lifts the box to Working", () => {
+    const threads = [
+      thread({ id: "thr_root", updatedAt: NOW - 5 * MINUTE }),
+      thread({ id: "thr_kid", status: "active", updatedAt: NOW - MINUTE, parentThreadId: "thr_root" }),
+    ];
+    const plan = planGroupBoxes(
+      threads,
+      groupOf({ thr_root: "grp_auth" }),
+      NAMES,
+      "status",
+      context,
+      new Set(),
+      NOW,
+    );
+    expect(plan.columnOverrides.get("thr_root")).toEqual({ id: "working", label: "Working" });
+  });
+
+  it("a Needs-you child is copied out: it keeps its own lane and does not drive the box", () => {
+    const threads = [
+      thread({ id: "thr_root", updatedAt: NOW - 5 * MINUTE }),
+      thread({ id: "thr_kid", hasPendingInteraction: true, updatedAt: NOW - MINUTE, parentThreadId: "thr_root" }),
+    ];
+    const plan = planGroupBoxes(
+      threads,
+      groupOf({ thr_root: "grp_auth" }),
+      NAMES,
+      "status",
+      context,
+      new Set(),
+      NOW,
+    );
+    const override = plan.columnOverrides.get("thr_root");
+    expect(override?.id).toBe("idle-recent");
+    expect(override?.label).toBe("Idle · Recent");
+  });
+
+  it("a done child is copied out: it does not drive the box", () => {
+    const threads = [
+      thread({ id: "thr_root", updatedAt: NOW - 5 * MINUTE }),
+      thread({ id: "thr_kid", status: "active", updatedAt: NOW - MINUTE, parentThreadId: "thr_root" }),
+    ];
+    const plan = planGroupBoxes(
+      threads,
+      groupOf({ thr_root: "grp_auth" }),
+      NAMES,
+      "status",
+      context,
+      new Set(["thr_kid"]),
+      NOW,
+    );
+    const override = plan.columnOverrides.get("thr_root");
+    expect(override?.id).toBe("idle-recent");
+    expect(override?.label).toBe("Idle · Recent");
+  });
+
+  it("a pinned child is copied out: it does not drive the box", () => {
+    const threads = [
+      thread({ id: "thr_root", updatedAt: NOW - 5 * MINUTE }),
+      thread({
+        id: "thr_kid",
+        status: "active",
+        isPinned: true,
+        updatedAt: NOW - MINUTE,
+        parentThreadId: "thr_root",
+      }),
+    ];
+    const plan = planGroupBoxes(
+      threads,
+      groupOf({ thr_root: "grp_auth" }),
+      NAMES,
+      "status",
+      context,
+      new Set(),
+      NOW,
+    );
+    const override = plan.columnOverrides.get("thr_root");
+    expect(override?.id).toBe("idle-recent");
+    expect(override?.label).toBe("Idle · Recent");
+  });
+
+  it("an archived child is invisible to the pick", () => {
+    const threads = [
+      thread({ id: "thr_root", updatedAt: NOW - 5 * MINUTE }),
+      thread({
+        id: "thr_kid",
+        status: "active",
+        isArchived: true,
+        updatedAt: NOW - MINUTE,
+        parentThreadId: "thr_root",
+      }),
+    ];
+    const plan = planGroupBoxes(
+      threads,
+      groupOf({ thr_root: "grp_auth" }),
+      NAMES,
+      "status",
+      context,
+      new Set(),
+      NOW,
+    );
+    const override = plan.columnOverrides.get("thr_root");
+    expect(override?.id).toBe("idle-recent");
+    expect(override?.label).toBe("Idle · Recent");
+  });
+
+  it("under Last activity, a fresher nested child lifts the box's bucket", () => {
+    const threads = [
+      thread({ id: "thr_root", updatedAt: NOW - 3 * HOUR }),
+      thread({ id: "thr_kid", updatedAt: NOW - 5 * MINUTE, parentThreadId: "thr_root" }),
+    ];
+    const plan = planGroupBoxes(
+      threads,
+      groupOf({ thr_root: "grp_auth" }),
+      NAMES,
+      "recency",
+      context,
+      new Set(),
+      NOW,
+    );
+    const override = plan.columnOverrides.get("thr_root");
+    expect(override?.id).toBe("recent");
+    expect(override?.label).toBe("Recent");
+  });
+
+  it("under Last activity, a copied-out child's freshness does not lift the box", () => {
+    const threads = [
+      thread({ id: "thr_root", updatedAt: NOW - 3 * HOUR }),
+      thread({
+        id: "thr_kid",
+        hasPendingInteraction: true,
+        updatedAt: NOW - 5 * MINUTE,
+        parentThreadId: "thr_root",
+      }),
+    ];
+    const plan = planGroupBoxes(
+      threads,
+      groupOf({ thr_root: "grp_auth" }),
+      NAMES,
+      "recency",
+      context,
+      new Set(),
+      NOW,
+    );
+    const override = plan.columnOverrides.get("thr_root");
+    expect(override?.id).toBe("today");
+    expect(override?.label).toBe("Today");
+  });
+});
+
 describe("doneRecencyCompare is untouched by the group plan", () => {
   it("the comparator still sorts newest done first", () => {
     const times = new Map([
