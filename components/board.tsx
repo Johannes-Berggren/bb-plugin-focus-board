@@ -55,6 +55,7 @@ import {
 } from "../components/group-boxes";
 import { displayAfterUnitMove } from "../lib/rank-unit-move";
 import {
+  arrivalGrowKeyframes,
   cardRowGapPx,
   computedMarginPx,
   firstRealCard,
@@ -724,6 +725,15 @@ export function Board({
   // card mid-flight restarts, so a bare id would swallow the second wipe).
   const transportElsRef = useRef(new Map<string, HTMLElement | null>());
   const startedWipesRef = useRef(new Set<string>());
+  // Pre-clip geometry, captured the commit the ghost first rendered: the
+  // collapsing phase's static max-height-0 styles are already ON the ghost
+  // when the collapse animation starts, so a getBoundingClientRect() there
+  // measures 0 and the smooth close would collapse from nothing (an instant
+  // jump). The wipe-start commit's unclipped slot is the only honest place
+  // to read the ghost's height and margins.
+  const transportMetricsRef = useRef(
+    new Map<string, { heightPx: number; marginTopPx: string; marginBottomPx: string }>(),
+  );
 
   // Diff the lane map. A grouping change re-derives EVERY lane at once and
   // reads as a view switch — never a wall of wipes — so it re-seeds the
@@ -806,6 +816,10 @@ export function Board({
         transportSparkAnimsRef.current.delete(key);
       }
     }
+    // The captured pre-clip geometry goes with the transport as well.
+    for (const key of transportMetricsRef.current.keys()) {
+      if (key.includes(`:${threadId}@`)) transportMetricsRef.current.delete(key);
+    }
   };
 
   const scheduleTransportTimers = (transport: TransportPlay) => {
@@ -821,6 +835,15 @@ export function Board({
         ?.cancel();
       transportAnimsRef.current.delete(
         `arrival:${transport.threadId}@${transport.gen}`,
+      );
+      // The grow goes with the dissolve: its final frame IS the slot's
+      // natural layout, so cancelling it changes no pixel, and the re-render
+      // below drops the clip/hide styles with the attribute.
+      transportAnimsRef.current
+        .get(`grow:${transport.threadId}@${transport.gen}`)
+        ?.cancel();
+      transportAnimsRef.current.delete(
+        `grow:${transport.threadId}@${transport.gen}`,
       );
       // The arrival's glints go with it: their handles cancel, and the
       // re-render below unmounts the layer with the Wiping-in attribute.
@@ -864,6 +887,7 @@ export function Board({
         for (const animation of animations) animation.cancel();
       }
       transportSparkAnimsRef.current.clear();
+      transportMetricsRef.current.clear();
     };
   }, []);
 
@@ -921,6 +945,21 @@ export function Board({
     };
     for (const transport of transports) {
       const outKey = `out:${transport.threadId}@${transport.gen}`;
+      // Capture the ghost's unclipped geometry the one commit it is fully
+      // laid out (wiping-out), BEFORE the collapsing phase's static
+      // max-height-0 styles clamp every later measurement to zero. The
+      // collapse below replays this captured shape.
+      const metricKey = `metric:${transport.threadId}@${transport.gen}`;
+      if (!transportMetricsRef.current.has(metricKey)) {
+        const outEl = transportElsRef.current.get(outKey);
+        if (outEl !== null && outEl !== undefined) {
+          transportMetricsRef.current.set(metricKey, {
+            heightPx: outEl.getBoundingClientRect().height,
+            marginTopPx: computedMarginPx(outEl, "Top"),
+            marginBottomPx: computedMarginPx(outEl, "Bottom"),
+          });
+        }
+      }
       startWipe(outKey, transportElsRef.current.get(outKey), wipeOutKeyframes(), TRANSPORT_WIPE_OUT_MS);
       startSparks(
         `spark:out:${transport.threadId}@${transport.gen}`,
@@ -928,29 +967,56 @@ export function Board({
         TRANSPORT_WIPE_OUT_MS,
       );
       const arrivalKey = `arrival:${transport.threadId}@${transport.gen}`;
-      startWipe(arrivalKey, transportElsRef.current.get(arrivalKey), wipeInKeyframes(), TRANSPORT_WIPE_IN_MS);
+      const arrivalEl = transportElsRef.current.get(arrivalKey);
+      startWipe(arrivalKey, arrivalEl, wipeInKeyframes(), TRANSPORT_WIPE_IN_MS);
+      // The dissolve rides the space growing: the new slot opens from zero
+      // height to its measured height so the lane's neighbors slide as the
+      // card materializes (scrollHeight reads through the slot's static
+      // max-height-0 clip). Skipped with no measurable height (jsdom, or a
+      // slot the layout has not sized yet).
+      if (
+        arrivalEl !== null &&
+        arrivalEl !== undefined &&
+        typeof arrivalEl.animate === "function" &&
+        arrivalEl.scrollHeight > 0
+      ) {
+        startWipe(
+          `grow:${transport.threadId}@${transport.gen}`,
+          arrivalEl,
+          arrivalGrowKeyframes(arrivalEl.scrollHeight),
+          TRANSPORT_WIPE_IN_MS,
+        );
+      }
       startSparks(
         `spark:arrival:${transport.threadId}@${transport.gen}`,
-        transportElsRef.current.get(arrivalKey),
+        arrivalEl,
         TRANSPORT_WIPE_IN_MS,
       );
       if (transport.phase === "collapsing") {
         const collapseKey = `collapse:${transport.threadId}@${transport.gen}`;
         const ghost = transportElsRef.current.get(outKey);
         if (ghost !== null && ghost !== undefined) {
-          // Measured: the ghost's live height, its list's real row gap, and
-          // its REAL current margins — the collapsing phase's static styles
-          // are already applied when the animation claims the element, and
-          // a keyframe starting at 0 would jump the invisible ghost's
-          // neighbors before the smooth close begins.
+          // Shape and margins come from the wipe-start capture (the ghost's
+          // LAST unclipped commit): replays here measure a static
+          // max-height-0 ghost — height 0 — which would make the close an
+          // instant jump. The captured margins are the live pre-collapse
+          // ones (a box container's own 6px top margin included), so the
+          // close eats them smoothly down to the gap-borrowed end frame.
+          const metrics = transportMetricsRef.current.get(metricKey);
           startWipe(
             collapseKey,
             ghost,
             ghostCollapseKeyframes(
-              ghost.getBoundingClientRect().height,
+              metrics !== undefined
+                ? metrics.heightPx
+                : ghost.scrollHeight,
               cardRowGapPx(ghost.parentElement),
-              computedMarginPx(ghost, "Top"),
-              computedMarginPx(ghost, "Bottom"),
+              metrics !== undefined
+                ? metrics.marginTopPx
+                : computedMarginPx(ghost, "Top"),
+              metrics !== undefined
+                ? metrics.marginBottomPx
+                : computedMarginPx(ghost, "Bottom"),
             ),
             TRANSPORT_COLLAPSE_MS,
           );
@@ -1997,10 +2063,12 @@ export function Board({
                             marginBottom: `-${TRANSPORT_ROW_GAP_PX / 2}px`,
                           }
                         : isArriving && !prefersReducedMotion
-                          ? // Hidden until the wipe-in's keyframes take over
-                            // (same commit in a browser; the jsdom phase
-                            // timers hold this until the settle phase).
-                            { opacity: 0 }
+                          ? // Hidden and clipped shut until the wipe-in's keyframes
+                            // take over — the dissolve fades it in while the grow
+                            // animation opens the slot's height (same commit in a
+                            // browser; the jsdom phase timers hold this until the
+                            // settle phase).
+                            { opacity: 0, maxHeight: "0px", overflow: "hidden" }
                           : undefined
                     }
                     ref={(el) => {
@@ -2491,9 +2559,9 @@ export function Board({
                         />
                         {/* The shimmer rides both sweeps: the ghost's
                             glints twinkle out over the OLD visuals, the
-                            arrival's over the materializing card (the
-                            arriving slot's own opacity-0 styles hide the
-                            glints until the wipe-in raises the slot). */}
+                            arrival's over the growing slot — the slot's
+                            opacity-0 clip holds the glints down until the
+                            dissolve lifts the card while the space opens. */}
                         {ghostPlay !== undefined && !prefersReducedMotion ? (
                           <TransportSparkLayer phaseMs={TRANSPORT_WIPE_OUT_MS} />
                         ) : isArriving && arrivalPlay !== undefined && !prefersReducedMotion ? (
@@ -2600,9 +2668,12 @@ export function Board({
                         style={
                           boxArrivalFor(runItem.box.groupId) !== undefined &&
                           !prefersReducedMotion
-                            ? // Hidden until the wipe-in's keyframes take over,
-                              // same contract as an arriving card's slot.
-                              { opacity: 0 }
+                            ? // Hidden and clipped shut until the wipe-in's
+                              // keyframes take over — the same growing-slot
+                              // contract as an arriving card's (the dissolve
+                              // fades the container in, the grow animation
+                              // opens the space it needs).
+                              { opacity: 0, maxHeight: "0px", overflow: "hidden" }
                             : undefined
                         }
                         ref={(el) => {

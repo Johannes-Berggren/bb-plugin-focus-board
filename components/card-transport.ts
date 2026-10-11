@@ -314,41 +314,48 @@ export function firstRealCard(
   return null;
 }
 
-/** Wipe-out frames: the card dematerializes top-down, blooming as it fades. */
+/** Dissolve-out frames: the card fades away where it stands, blooming as it goes — no directional wipe. */
 export function wipeOutKeyframes(): Keyframe[] {
   return [
-    { clipPath: "inset(0% 0 0 0)", opacity: 1, filter: "none", offset: 0 },
+    { opacity: 1, filter: "none", offset: 0 },
     {
-      clipPath: "inset(65% 0 0 0)",
       opacity: 0.8,
       filter: "blur(3px) brightness(1.45)",
       offset: 0.55,
     },
     {
-      clipPath: "inset(100% 0 0 0)",
       opacity: 0,
       filter: "blur(10px) brightness(2.1)",
     },
   ];
 }
 
-/** Wipe-in frames: the card materializes top-down out of the beam's bloom. */
+/** Dissolve-in frames: the card materializes where it lands, out of the beam's bloom — no directional wipe. */
 export function wipeInKeyframes(): Keyframe[] {
   return [
     {
-      clipPath: "inset(100% 0 0 0)",
       opacity: 0,
       filter: "blur(7px) brightness(1.75)",
       offset: 0,
     },
     {
-      clipPath: "inset(35% 0 0 0)",
       opacity: 0.9,
       filter: "blur(1.5px) brightness(1.25)",
       offset: 0.6,
     },
-    { clipPath: "inset(0% 0 0 0)", opacity: 1, filter: "none" },
+    { opacity: 1, filter: "none" },
   ];
+}
+
+/**
+ * The arrival's growth frames: the NEW slot's space itself opens from
+ * nothing to the card's measured height, so the lane's neighbors slide as
+ * the card materializes instead of jumping to a fixed-size reveal. The
+ * card's own rest margins are never touched — the end frame equals the
+ * slot's natural layout exactly (the flex gap supplies the spacing).
+ */
+export function arrivalGrowKeyframes(heightPx: number): Keyframe[] {
+  return [{ maxHeight: "0px", offset: 0 }, { maxHeight: `${heightPx}px` }];
 }
 
 /**

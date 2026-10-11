@@ -19,6 +19,7 @@ import {
   TRANSPORT_WIPE_IN_MS,
   TRANSPORT_COLLAPSE_MS,
   TRANSPORT_EASE,
+  arrivalGrowKeyframes,
   ghostCollapseKeyframes,
   wipeInKeyframes,
   wipeOutKeyframes,
@@ -389,21 +390,36 @@ describe("transport constants", () => {
 });
 
 describe("wipe keyframes", () => {
-  it("wipe-out starts fully visible and ends hidden, sweeping from the top edge", () => {
+  it("the dissolve-out fades in place — no directional wipe, and the bloom grows to the end", () => {
     const frames = wipeOutKeyframes();
-    expect(String(frames[0].clipPath)).toContain("inset(0%");
-    expect(String(frames[frames.length - 1].clipPath)).toContain("inset(100%");
+    // No clip-path anywhere: the top-down curtain stacked into vertical
+    // wipes once several lanes moved at once (operator: "a lot of vertical
+    // wipes"). The card dissolves where it stands instead.
+    for (const frame of frames) expect(frame.clipPath).toBeUndefined();
+    expect(frames[0].opacity).toBe(1);
     expect(frames[frames.length - 1].opacity).toBe(0);
     // The dissolve's read: the bloom strengthens all the way to the end —
-    // a sweep without a strong growing bloom reads as a plain wipe.
+    // a fade without a strong growing bloom reads as a plain vanish.
     expect(String(frames[frames.length - 1].filter)).toContain("blur(10px)");
+    expect(String(frames[frames.length - 1].filter)).toContain("brightness(2.1)");
   });
 
-  it("wipe-in is the mirror: hidden top edge opening to full visibility", () => {
+  it("the dissolve-in materializes in place — no directional wipe, blooming out of the beam", () => {
     const frames = wipeInKeyframes();
-    expect(String(frames[0].clipPath)).toContain("inset(100%");
-    expect(Number(frames[frames.length - 1].opacity)).toBe(1);
+    for (const frame of frames) expect(frame.clipPath).toBeUndefined();
+    expect(Number(frames[0].opacity)).toBe(0);
     expect(String(frames[0].filter)).toContain("blur(7px)");
+    expect(Number(frames[frames.length - 1].opacity)).toBe(1);
+    expect(frames[frames.length - 1].filter).toBe("none");
+  });
+
+  it("the arrival grows the new slot from nothing to its full measured height", () => {
+    // The space itself grows: the slot opens from zero height so the lane's
+    // neighbors slide as it materializes, never a fixed-height reveal.
+    const frames = arrivalGrowKeyframes(240);
+    expect(frames).toHaveLength(2);
+    expect(frames[0].maxHeight).toBe("0px");
+    expect(frames[frames.length - 1].maxHeight).toBe("240px");
   });
 
   it("the collapse closes the ghost's height and borrows nothing extra from the layout", () => {
