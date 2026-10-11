@@ -31,13 +31,20 @@ export const GROUP_BY_OPTIONS: readonly { value: GroupBy; label: string }[] = [
 
 export type ThreadState = "working" | "attention" | "unread" | "idle";
 
+/** A state-filter value: a plain thread state, or one specific idle lane
+ *  ("idle-today"…) — Idle is no longer a single bundled checkbox. */
+export type StateFilterValue = ThreadState | IdleBucketState;
+
 export type FilterState = {
   /** Empty set means all projects; a non-empty set restricts to those ids. */
   projects: ReadonlySet<string>;
   /** Empty set means all providers; a non-empty set restricts to those ids. */
   providers: ReadonlySet<string>;
-  /** Empty set means all states; a non-empty set restricts to those states. */
-  states: ReadonlySet<ThreadState>;
+  /** Empty set means all states; a non-empty set restricts to those states —
+   *  plain states, or specific idle buckets (the Attention board's idle
+   *  lanes). The legacy bare "idle" value (stored before the split) still
+   *  passes every idle thread until the stored filter is rewritten. */
+  states: ReadonlySet<StateFilterValue>;
   /** Empty or absent set means all groups; a non-empty set restricts to
    *  those buckets — group ids (including the "Unknown group" buckets of
    *  record-less assignments), or NO_GROUP_BUCKET for unassigned threads.
@@ -96,13 +103,18 @@ const DAY = 24 * HOUR;
 
 // Age buckets for idle threads (Attention grouping) and for all
 // threads (Last activity grouping). Ordered oldest-first for lookup; the
-// column orders below reverse them so boards read newest-leftmost.
-const AGE_BUCKETS: { id: string; label: string; minAge: number; maxAge: number }[] = [
+// column orders below reverse them so boards read newest-leftmost. The ids
+// are const literals: the idle-bucket filter values derive from them.
+const AGE_BUCKETS = [
   { id: "awhile", label: "A while ago", minAge: 7 * DAY, maxAge: Number.POSITIVE_INFINITY },
   { id: "earlier", label: "Earlier", minAge: DAY, maxAge: 7 * DAY },
   { id: "today", label: "Today", minAge: HOUR, maxAge: DAY },
   { id: "recent", label: "Recent", minAge: 0, maxAge: HOUR },
-];
+] as const;
+
+/** A specific idle lane ("idle-recent", "idle-today"…) — the same buckets
+ *  the Attention board lanes idle threads into, derived from AGE_BUCKETS. */
+export type IdleBucketState = `idle-${(typeof AGE_BUCKETS)[number]["id"]}`;
 
 // Column display order per grouping, left to right, derived from AGE_BUCKETS
 // (most recent leftmost, least recent rightmost) so the board reads in order
@@ -119,16 +131,63 @@ export const STATUS_COLUMN_ORDER: readonly string[] = [
   ...RECENCY_COLUMN_ORDER.map((id) => `idle-${id}`),
 ];
 
-export const IDLE_BUCKETS = AGE_BUCKETS.map((bucket) => ({
+export const IDLE_BUCKETS: readonly {
+  id: IdleBucketState;
+  label: string;
+  minAge: number;
+  maxAge: number;
+}[] = AGE_BUCKETS.map((bucket) => ({
   ...bucket,
   id: `idle-${bucket.id}`,
   label: `Idle · ${bucket.label}`,
 }));
 
-function ageBucketFor(
+/**
+ * The State filter's checkbox list: the three live states, then Idle split
+ * one checkbox per idle lane — the same buckets, labels, and newest-first
+ * order the Attention board lays its idle columns out in, so a checked box
+ * is exactly one lane.
+ */
+export const STATE_FILTER_OPTIONS: readonly {
+  value: StateFilterValue;
+  label: string;
+}[] = [
+  { value: "working", label: THREAD_STATE_LABELS.working },
+  { value: "attention", label: THREAD_STATE_LABELS.attention },
+  { value: "unread", label: THREAD_STATE_LABELS.unread },
+  ...[...IDLE_BUCKETS].reverse().map((bucket) => ({ value: bucket.id, label: bucket.label })),
+];
+
+export const STATE_FILTER_VALUES: readonly StateFilterValue[] = STATE_FILTER_OPTIONS.map(
+  (option) => option.value,
+);
+
+export function isStateFilterValue(value: string): value is StateFilterValue {
+  return (STATE_FILTER_VALUES as readonly string[]).includes(value);
+}
+
+/**
+ * Stored-filter reader for the states list: known values pass through, the
+ * legacy bare "idle" (a stored filter from before the Idle split) expands
+ * to all four idle buckets — the same threads it used to pass — and unknown
+ * ids drop. Returns in insertion order; the caller wraps it in a Set.
+ */
+export function parseStoredStateFilter(values: readonly string[]): StateFilterValue[] {
+  const out = new Set<StateFilterValue>();
+  for (const value of values) {
+    if (value === "idle") {
+      for (const bucket of IDLE_BUCKETS) out.add(bucket.id);
+    } else if (isStateFilterValue(value)) {
+      out.add(value);
+    }
+  }
+  return [...out];
+}
+
+function ageBucketFor<B extends { id: string; label: string; minAge: number; maxAge: number }>(
   age: number,
-  buckets: typeof AGE_BUCKETS,
-): { id: string; label: string } {
+  buckets: readonly B[],
+): B {
   const match = buckets.find((candidate) => age >= candidate.minAge && age < candidate.maxAge);
   return match ?? buckets[buckets.length - 1];
 }
@@ -197,15 +256,37 @@ export function matchesFilter(
   );
 }
 
+/**
+ * The state-filter half of a thread's pass check, shared by every filter
+ * entry point (filterThreads, filterWithGroupBoxes, nesting's
+ * threadPassesFilter): an EMPTY selection shows every state; a plain state
+ * value matches that state; an idle-bucket value matches an idle thread
+ * whose updatedAt falls in that age bucket — the same bucketing the
+ * Attention board's idle lanes use, so a checked box is exactly one lane.
+ * The legacy bare "idle" value still matches every idle thread.
+ */
+export function stateFilterPasses(
+  thread: PluginSidebarThread,
+  selected: ReadonlySet<StateFilterValue>,
+  now: number = Date.now(),
+): boolean {
+  if (selected.size === 0) return true;
+  const state = threadState(thread);
+  if (selected.has(state)) return true;
+  if (state !== "idle") return false;
+  return selected.has(ageBucketFor(now - thread.updatedAt, IDLE_BUCKETS).id);
+}
+
 export function filterThreads(
   threads: readonly PluginSidebarThread[],
   filter: FilterState,
   groupsByThread?: ReadonlyMap<string, string>,
+  now: number = Date.now(),
 ): PluginSidebarThread[] {
   return threads.filter((thread) => {
     if (filter.projects.size > 0 && !filter.projects.has(thread.projectId)) return false;
     if (filter.providers.size > 0 && !filter.providers.has(thread.providerId)) return false;
-    if (filter.states.size > 0 && !filter.states.has(threadState(thread))) return false;
+    if (!stateFilterPasses(thread, filter.states, now)) return false;
     if (groupFilterMisses(thread, filter, groupsByThread)) return false;
     return true;
   });

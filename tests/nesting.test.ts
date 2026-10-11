@@ -371,6 +371,25 @@ describe("filterFamilies", () => {
     expect(result.kept).toHaveLength(0);
   });
 
+  it("an idle-bucket filter keeps only families with a member in that bucket", () => {
+    const fresh = thread({ id: "r", updatedAt: NOW - 5 * 60 * 1000 });
+    const staleParent = thread({ id: "sp", updatedAt: NOW - 2 * DAY });
+    const staleChild = thread({ id: "sc", parentThreadId: "sp", updatedAt: NOW - 3 * DAY });
+    const index = buildFamilyIndex([fresh, staleParent, staleChild]);
+    const result = filterFamilies(
+      [fresh, staleParent, staleChild],
+      index,
+      { projects: new Set(), providers: new Set(), states: new Set(["idle-recent"]) },
+      "",
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      NOW,
+    );
+    expect(result.kept.map((t) => t.id)).toEqual(["r"]);
+  });
+
   it("a search hit on a child keeps the family (parent dimmed)", () => {
     const index = buildFamilyIndex([parent, child]);
     const result = filterFamilies([parent, child], index, EMPTY_FILTER, "c");

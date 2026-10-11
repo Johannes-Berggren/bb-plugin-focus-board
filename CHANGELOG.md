@@ -40,6 +40,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **The Behavior tab hosts the sweep thresholds.** Each arm's count and unit edit the same declared settings Focus Board's configuration page already edits, the values render live in both places, and a rejected write names its failure right under the row.
 - **The sidebar's footer gear retitles to Focus Board configuration.** The board's own gear keeps opening the settings modal; the footer gear still jumps to the plugin page in Tools, and two gears no longer share one name.
 
+#### State filter
+
+- **The State filter splits Idle into one checkbox per idle lane.** Idle · Recent, Idle · Today, Idle · Earlier, and Idle · A while ago replace the single Idle row, each ticking exactly the Attention lane it names; a stored filter that ticked the old Idle row still shows every idle thread.
+  - The menu grew to seven rows, so it now carries the search bar and select-all checkbox the other filters have.
+
 #### Card animations
 
 - **Card animations default to zoom.** The Appearance tab's default read is now the shrink-out/grow-in portal transport instead of the dissolve; Teleport stays the explicit name for the transporter read and None snaps the card instantly.

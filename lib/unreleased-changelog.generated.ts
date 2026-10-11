@@ -72,6 +72,13 @@ export const UNRELEASED_ITEMS: readonly { text: string; children: string[]; grou
     "group": "Settings"
   },
   {
+    "text": "**The State filter splits Idle into one checkbox per idle lane.** Idle · Recent, Idle · Today, Idle · Earlier, and Idle · A while ago replace the single Idle row, each ticking exactly the Attention lane it names; a stored filter that ticked the old Idle row still shows every idle thread.",
+    "children": [
+      "The menu grew to seven rows, so it now carries the search bar and select-all checkbox the other filters have."
+    ],
+    "group": "State filter"
+  },
+  {
     "text": "**Card animations default to zoom.** The Appearance tab's default read is now the shrink-out/grow-in portal transport instead of the dissolve; Teleport stays the explicit name for the transporter read and None snaps the card instantly.",
     "children": [],
     "group": "Card animations"

@@ -9,8 +9,8 @@ import {
   filterDropdownOptions,
   shouldShowDropdownSearch,
 } from "./dropdown-search";
-import type { FilterState, GroupBy, ThreadState } from "./grouping";
-import { GROUP_BY_OPTIONS } from "./grouping";
+import type { FilterState, GroupBy, StateFilterValue } from "./grouping";
+import { GROUP_BY_OPTIONS, STATE_FILTER_OPTIONS } from "./grouping";
 
 /**
  * Linear-model dropdown: clicking a row's label applies it as the single
@@ -63,8 +63,9 @@ function MultiSelectDropdown({
   const containerId = useId();
   const triggerRef = useRef<HTMLButtonElement>(null);
   const listboxId = `${containerId}-listbox`;
-  // Long lists (Project, Provider, and the six-row Group) get a search bar;
-  // short ones like State keep their plain rows.
+  // Long lists (Project, Provider, the six-row Group, and the seven-row
+  // State — it crossed the threshold when Idle split into per-bucket rows)
+  // get a search bar; short lists keep their plain rows.
   const searchable = shouldShowDropdownSearch(options);
   const visibleOptions = searchable
     ? filterDropdownOptions(options, query)
@@ -512,13 +513,6 @@ interface BoardToolbarProps {
   onOpenSettings: (tab: "behavior" | "whats-new") => void;
 }
 
-const STATE_OPTIONS: readonly { value: ThreadState; label: string }[] = [
-  { value: "working", label: "Working" },
-  { value: "attention", label: "Needs you" },
-  { value: "unread", label: "Unread" },
-  { value: "idle", label: "Idle" },
-];
-
 /** The absent persisted group set (a legacy stored filter): nothing
  *  restricted. Module-level stable so the Group filter's selected-set
  *  identity holds across renders. */
@@ -738,23 +732,31 @@ export function BoardToolbar({
             label="State"
             icon="FilterHorizontal"
             selected={filter.states}
-            options={STATE_OPTIONS}
+            options={STATE_FILTER_OPTIONS}
             summaryFor={(current) =>
               current.size === 0
                 ? "Any state"
                 : current.size === 1
-                  ? (STATE_OPTIONS.find((option) => option.value === [...current][0])?.label ??
+                  ? (STATE_FILTER_OPTIONS.find((option) => option.value === [...current][0])?.label ??
                     "1 state")
                   : `${current.size} states`
             }
             onToggle={(state) => {
               const next = new Set(filter.states);
-              if (next.has(state as ThreadState)) next.delete(state as ThreadState);
-              else next.add(state as ThreadState);
+              if (next.has(state as StateFilterValue)) next.delete(state as StateFilterValue);
+              else next.add(state as StateFilterValue);
+              onFilterChange({ ...filter, states: next });
+            }}
+            onToggleMany={(states, add) => {
+              const next = new Set(filter.states);
+              for (const state of states) {
+                if (add) next.add(state as StateFilterValue);
+                else next.delete(state as StateFilterValue);
+              }
               onFilterChange({ ...filter, states: next });
             }}
             onSingleSelect={(state) =>
-              onFilterChange({ ...filter, states: new Set([state as ThreadState]) })
+              onFilterChange({ ...filter, states: new Set([state as StateFilterValue]) })
             }
             onClear={() => onFilterChange({ ...filter, states: new Set() })}
           />

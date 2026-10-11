@@ -14,6 +14,7 @@ import {
   doneRecencyCompare,
   groupFilterMisses,
   matchesFilter,
+  stateFilterPasses,
   threadState,
 } from "./grouping";
 import {
@@ -827,9 +828,10 @@ export function filterFamilies(
   ticketRefsFor?: (thread: PluginSidebarThread) => readonly TicketRef[],
   groupNameFor?: (thread: PluginSidebarThread) => string,
   groupsByThread?: ReadonlyMap<string, string>,
+  now: number = Date.now(),
 ): FamilyFilterResult {
   const passes = (thread: PluginSidebarThread): boolean =>
-    threadPassesFilter(thread, filter, searchQuery, projectNameFor, ticketRefsFor, groupNameFor, groupsByThread);
+    threadPassesFilter(thread, filter, searchQuery, projectNameFor, ticketRefsFor, groupNameFor, groupsByThread, now);
 
   // Group visible threads into families by their root, so a parent and its
   // descendants pass or fail together.
@@ -893,11 +895,12 @@ function threadPassesFilter(
   ticketRefsFor?: (thread: PluginSidebarThread) => readonly TicketRef[],
   groupNameFor?: (thread: PluginSidebarThread) => string,
   groupsByThread?: ReadonlyMap<string, string>,
+  now: number = Date.now(),
 ): boolean {
   if (thread.isArchived) return false;
   if (filter.projects.size > 0 && !filter.projects.has(thread.projectId)) return false;
   if (filter.providers.size > 0 && !filter.providers.has(thread.providerId)) return false;
-  if (filter.states.size > 0 && !filter.states.has(threadState(thread))) return false;
+  if (!stateFilterPasses(thread, filter.states, now)) return false;
   if (groupFilterMisses(thread, filter, groupsByThread)) return false;
   if (
     searchQuery.trim() !== "" &&
@@ -921,6 +924,7 @@ export function filterIndividually(
   ticketRefsFor?: (thread: PluginSidebarThread) => readonly TicketRef[],
   groupNameFor?: (thread: PluginSidebarThread) => string,
   groupsByThread?: ReadonlyMap<string, string>,
+  now: number = Date.now(),
 ): FamilyFilterResult {
   const kept: PluginSidebarThread[] = [];
   for (const thread of threads) {
@@ -933,6 +937,7 @@ export function filterIndividually(
         ticketRefsFor,
         groupNameFor,
         groupsByThread,
+        now,
       )
     ) {
       kept.push(thread);

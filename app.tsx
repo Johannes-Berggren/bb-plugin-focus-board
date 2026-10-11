@@ -32,13 +32,14 @@ import { NewThreadModal } from "./components/new-thread-modal";
 import type { SpawnedThread } from "./components/new-thread-modal";
 import type { CardMenuAction } from "./components/thread-card-menu";
 import { cardMenuActions } from "./lib/card-menu";
-import type { FilterState, GroupBy, LaneHideOutcome, ThreadState } from "./components/grouping";
+import type { FilterState, GroupBy, LaneHideOutcome } from "./components/grouping";
 import {
   buildColumns,
   columnFor,
   filterBucketsWithoutLane,
   matchesFilter,
   NO_GROUP_BUCKET,
+  parseStoredStateFilter,
 } from "./components/grouping";
 import {
   buildFamilyIndex,
@@ -749,11 +750,7 @@ function BoardPage({ subPath }: { subPath: string }) {
   const [filter, setFilter] = useState<FilterState>(() => ({
     projects: new Set(readStoredList(`${FILTER_KEY}:projects`)),
     providers: new Set(readStoredList(`${FILTER_KEY}:providers`)),
-    states: new Set(
-      readStoredList(`${FILTER_KEY}:states`).filter((state): state is ThreadState =>
-        (["working", "attention", "unread", "idle"] as const).includes(state as ThreadState),
-      ),
-    ),
+    states: new Set(parseStoredStateFilter(readStoredList(`${FILTER_KEY}:states`))),
     groups: new Set(readStoredList(`${FILTER_KEY}:groups`)),
   }));
   const [search, setSearch] = useState<string>(() => readStoredText(SEARCH_KEY, ""));
@@ -1265,8 +1262,8 @@ function BoardPage({ subPath }: { subPath: string }) {
   const familyFiltered = useMemo(
     () =>
       nestChildren || groupBy === "parent"
-        ? filterFamilies(nonHiddenThreads, familyIndex, filter, search.trim(), projectNameFor, ticketRefsFor, groupNameFor, groupsByThread)
-        : filterIndividually(nonHiddenThreads, filter, search.trim(), projectNameFor, ticketRefsFor, groupNameFor, groupsByThread),
+        ? filterFamilies(nonHiddenThreads, familyIndex, filter, search.trim(), projectNameFor, ticketRefsFor, groupNameFor, groupsByThread, Date.now())
+        : filterIndividually(nonHiddenThreads, filter, search.trim(), projectNameFor, ticketRefsFor, groupNameFor, groupsByThread, Date.now()),
     [nestChildren, groupBy, nonHiddenThreads, familyIndex, filter, search, projectNameFor, ticketRefsFor, groupNameFor, groupsByThread],
   );
   // The feature-group plan (the decided family-box design): which groups
@@ -1318,7 +1315,7 @@ function BoardPage({ subPath }: { subPath: string }) {
   const groupBoxFiltered = useMemo(
     () =>
       groupBoxPlan.active
-        ? filterWithGroupBoxes(familyFiltered.kept, groupBoxPlan.groupBoxOf, filter, search.trim(), projectNameFor, ticketRefsFor, groupNameFor, groupsByThread)        : { kept: familyFiltered.kept, dimmedIds: new Set<string>() as ReadonlySet<string> },
+        ? filterWithGroupBoxes(familyFiltered.kept, groupBoxPlan.groupBoxOf, filter, search.trim(), projectNameFor, ticketRefsFor, groupNameFor, groupsByThread, Date.now())        : { kept: familyFiltered.kept, dimmedIds: new Set<string>() as ReadonlySet<string> },
     [groupBoxPlan, familyFiltered, filter, search, projectNameFor, ticketRefsFor, groupNameFor, groupsByThread]  );
   const dimmedAll = useMemo(
     () => new Set([...familyFiltered.dimmedIds, ...groupBoxFiltered.dimmedIds]),

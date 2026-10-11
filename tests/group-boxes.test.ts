@@ -484,6 +484,37 @@ describe("filterWithGroupBoxes", () => {
     expect(result.dimmedIds).toEqual(new Set(["thr_b"]));
   });
 
+  it("an idle-bucket filter passes only the box member in that bucket; the rest dim", () => {
+    const idleMembers = [
+      thread({ id: "thr_recent", displayTitle: "Freshly idle", updatedAt: NOW - 5 * 60 * 1000 }),
+      thread({ id: "thr_today", displayTitle: "Idle since lunch", updatedAt: NOW - 2 * 60 * 60 * 1000 }),
+    ];
+    const idlePlan = planGroupBoxes(
+      idleMembers,
+      groupOf({ thr_recent: "grp_auth", thr_today: "grp_auth" }),
+      NAMES,
+      "status",
+      context,
+      new Set(),
+      NOW,
+    );
+    const result = filterWithGroupBoxes(
+      idleMembers,
+      idlePlan.groupBoxOf,
+      { projects: new Set(), providers: new Set(), states: new Set(["idle-today"]) },
+      "",
+      () => "",
+      undefined,
+      undefined,
+      undefined,
+      NOW,
+    );
+    // The box passes whole (one member matches); the recent member rides
+    // along dimmed, per the box keep rule.
+    expect(result.kept.map((t) => t.id)).toEqual(["thr_recent", "thr_today"]);
+    expect(result.dimmedIds).toEqual(new Set(["thr_recent"]));
+  });
+
   it("an unboxed thread keeps its own pass/fail even under an unrelated search miss", () => {
     const result = filterWithGroupBoxes(
       threads,
