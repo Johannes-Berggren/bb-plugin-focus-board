@@ -47,6 +47,16 @@ export const UNRELEASED_ITEMS: readonly { text: string; children: string[]; grou
     "group": "Toolbar search"
   },
   {
+    "text": "**The Behavior tab hosts the sweep thresholds.** Each arm's count and unit edit the same declared settings Focus Board's configuration page already edits, the values render live in both places, and a rejected write names its failure right under the row.",
+    "children": [],
+    "group": "Settings"
+  },
+  {
+    "text": "**The sidebar's footer gear retitles to Focus Board configuration.** The board's own gear keeps opening the settings modal; the footer gear still jumps to the plugin page in Tools, and two gears no longer share one name.",
+    "children": [],
+    "group": "Settings"
+  },
+  {
     "text": "**Card animations default to zoom.** The Appearance tab's default read is now the shrink-out/grow-in portal transport instead of the dissolve; Teleport stays the explicit name for the transporter read and None snaps the card instantly.",
     "children": [],
     "group": "Card animations"
