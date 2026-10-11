@@ -35,6 +35,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- **The white drop rectangle around a lane no longer sticks after the drag ends.** Escape mid-drag, a drop claimed by a card, and a drop that relocates the card out from under its own element all clear the lane's ring now, where only a drop onto empty lane space did before.
+
 ## [1.2.0] - 2026-10-10
 
 ### Added
