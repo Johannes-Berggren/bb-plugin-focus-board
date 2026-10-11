@@ -12,10 +12,14 @@ import type { GroupBoxMap } from "./group-boxes";
  * starts) and dissolves in top-down. Both wipes ease in slightly.
  */
 
-/** Wipe-out: the old lane keeps the ghost this long, then collapses. */
-export const TRANSPORT_WIPE_OUT_MS = 420;
-/** Wipe-in: the arriving slot is unhidden before the wipe-out ends. */
-export const TRANSPORT_WIPE_IN_MS = 380;
+/**
+ * Wipe-out and wipe-in share one duration: the transporter is symmetric —
+ * the card leaves its old lane and reappears in the new one at the same
+ * rate (operator: "Star Trek TNG transporter, you disappear and reappear
+ * at the same rate").
+ */
+export const TRANSPORT_WIPE_OUT_MS = 400;
+export const TRANSPORT_WIPE_IN_MS = 400;
 /** The old slot's reserved space closing after the wipe-out. */
 export const TRANSPORT_COLLAPSE_MS = 200;
 

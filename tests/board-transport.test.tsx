@@ -12,7 +12,6 @@ import { buildColumns } from "../components/grouping";
 import type { GroupBoxMap } from "../components/group-boxes";
 import {
   TRANSPORT_WIPE_IN_MS,
-  TRANSPORT_WIPE_OUT_MS,
   TRANSPORT_COLLAPSE_MS,
   TRANSPORT_SPARK_COUNT,
 } from "../components/card-transport";
@@ -111,15 +110,9 @@ describe("a card relocating between lanes plays the transport dissolve", () => {
     // settled card.
     expect(newLane?.querySelector("[data-transport-sparks]")).toBeNull();
 
-    // Wipe-out finishes NEXT: the old slot's wipe is done, the collapse
-    // closes its reserved space.
-    expect(
-      oldLane?.querySelector('[data-transport-out="collapsing"]'),
-    ).toBeNull();
-    expect(oldLane?.querySelector("[data-transport-out]")).not.toBeNull();
-    await act(async () => {
-      vi.advanceTimersByTime(TRANSPORT_WIPE_OUT_MS - TRANSPORT_WIPE_IN_MS + 5);
-    });
+    // The wipes are symmetric (equal durations): when the arrival settles,
+    // the old slot's wipe is done too, and the collapse is already closing
+    // its reserved space.
     const collapsing = oldLane?.querySelector('[data-transport-out="collapsing"]');
     expect(collapsing).not.toBeNull();
     expect(collapsing?.getAttribute("style")).toContain("max-height");
@@ -240,11 +233,9 @@ describe("a box run relocating between lanes transports as ONE unit", () => {
     const settledBox = newLane?.querySelector("[data-group-box]");
     expect(settledBox?.querySelectorAll('[data-thread-card="thr_m1"], [data-thread-card="thr_m2"]')).toHaveLength(2);
 
-    // Wipe-out lands: the container ghost collapses (the phase rides the
-    // same container li the ghost attrs sit on).
-    await act(async () => {
-      vi.advanceTimersByTime(TRANSPORT_WIPE_OUT_MS - TRANSPORT_WIPE_IN_MS + 5);
-    });
+    // The wipes are symmetric (equal durations): when the box un-hides, the
+    // container ghost's wipe is done too (the phase rides the same container
+    // li the ghost attrs sit on).
     const collapsing = oldLane?.querySelector('[data-transport-out="collapsing"]');
     expect(collapsing?.getAttribute("style")).toContain("max-height");
 

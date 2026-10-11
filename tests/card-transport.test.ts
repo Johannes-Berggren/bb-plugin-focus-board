@@ -361,8 +361,10 @@ describe("firstRealCard", () => {
 });
 
 describe("transport constants", () => {
-  it("wipe-out ends the old slot's visibility before the collapse, arrival lands first", () => {
-    expect(TRANSPORT_WIPE_OUT_MS).toBeGreaterThan(TRANSPORT_WIPE_IN_MS);
+  it("the wipes are symmetric: the card leaves and reappears at the same rate", () => {
+    // Star Trek TNG transporter symmetry: dissolve-out and dissolve-in run
+    // the same duration.
+    expect(TRANSPORT_WIPE_OUT_MS).toBe(TRANSPORT_WIPE_IN_MS);
     expect(TRANSPORT_COLLAPSE_MS).toBeGreaterThan(0);
   });
 
@@ -371,11 +373,12 @@ describe("transport constants", () => {
   });
 
   it("the sweeps are tuned long enough for the shimmer to read, with a slow ease-in start", () => {
-    // Feel-tuned anchors (operator: "increase the ease-in time"): a longer
-    // glide with a slower first half. Pinned exactly so a retune is a
-    // deliberate test edit, never a silent constant drift.
-    expect(TRANSPORT_WIPE_OUT_MS).toBe(420);
-    expect(TRANSPORT_WIPE_IN_MS).toBe(380);
+    // Feel-tuned anchors (operator: "increase the ease-in time", then
+    // "ease-in and ease-out should take the same amount of time"): one
+    // symmetric dwell with a slow first half. Pinned exactly so a retune is
+    // a deliberate test edit, never a silent constant drift.
+    expect(TRANSPORT_WIPE_OUT_MS).toBe(400);
+    expect(TRANSPORT_WIPE_IN_MS).toBe(400);
     expect(TRANSPORT_COLLAPSE_MS).toBe(200);
     expect(TRANSPORT_EASE).toBe("cubic-bezier(0.5, 0, 0.6, 0.4)");
   });
