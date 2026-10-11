@@ -135,11 +135,13 @@ function ageBucketFor(
 
 /**
  * Search predicate for the toolbar's filter box. Matches the thread's own
- * fields (title and id) PLUS the two fields the card's footer line renders
- * (ThreadCard's `{projectName} · {branch}` strip): the project's display
- * name and the branch. All matches are case-insensitive. Family filtering
- * runs this over children too, so a hit on a child (title, project, or
- * branch) keeps the whole family.
+ * fields (title and every id it carries: thread, project, provider,
+ * environment plus its provider, host, and the parent/owner/fork lineage
+ * thread ids, section included) PLUS the two fields the card's footer line
+ * renders (ThreadCard's `{projectName} · {branch}` strip): the project's
+ * display name and the branch. All matches are case-insensitive. Family
+ * filtering runs this over children too, so a hit on a child (title,
+ * project, or branch) keeps the whole family.
  *
  * Ticket chips are searchable too: when `ticketRefsFor` is wired, the refs
  * the card's chip row shows (text refs + store links, cardTicketRefs) are
@@ -162,6 +164,22 @@ export function matchesFilter(
   const project = (projectNameFor?.(thread.projectId) ?? "").toLowerCase();
   const branch = (thread.environment?.branchName ?? thread.host?.name ?? "").toLowerCase();
   const group = (groupNameFor?.(thread) ?? "").toLowerCase();
+  // Every id the thread carries (thread, project + provider, environment
+  // + its provider, host, parent/owner/fork lineage, section) joins into
+  // one haystack, so pasting any id a card knows about finds the card.
+  const ids = [
+    thread.id,
+    thread.projectId,
+    thread.providerId,
+    thread.environment?.id ?? null,
+    thread.environment?.providerId ?? null,
+    thread.host?.id ?? null,
+    thread.parentThreadId,
+    thread.lifecycleOwnerThreadId,
+    thread.sourceThreadId,
+    thread.sectionId,
+  ];
+  const idHaystack = ids.filter((id) => id !== null).join("\n").toLowerCase();
   const chipHit = (ref: TicketRef): boolean => {
     if (ref.raw.toLowerCase().includes(q)) return true;
     if (ref.number !== undefined && (q === String(ref.number) || q === `#${ref.number}`)) {
@@ -171,7 +189,7 @@ export function matchesFilter(
   };
   return (
     thread.displayTitle.toLowerCase().includes(q) ||
-    thread.id.toLowerCase().includes(q) ||
+    idHaystack.includes(q) ||
     (project !== "" && project.includes(q)) ||
     (branch !== "" && branch.includes(q)) ||
     (group !== "" && group.includes(q)) ||

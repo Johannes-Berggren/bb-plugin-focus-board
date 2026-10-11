@@ -583,7 +583,7 @@ export function BoardToolbar({
       </button>
       {/* Search pairs with the View menu (the surfaces that change what the
           board shows structurally); fixed width so the search never starves
-          the row to wrapping. */}
+          the row to wrapping. The x clears when the field holds text. */}
       <div className="flex items-center gap-2">
         <div className="relative w-44 sm:w-56">
           <Icon
@@ -597,8 +597,22 @@ export function BoardToolbar({
             onChange={(event) => onSearchChange(event.target.value)}
             placeholder="Search title or id…"
             aria-label="Search threads"
-            className="h-8 pl-7 text-xs"
+            className={cn("h-8 pl-7 text-xs", search !== "" && "pr-8")}
           />
+          {search !== "" ? (
+            <button
+              type="button"
+              aria-label="Clear search"
+              title="Clear search"
+              onClick={() => {
+                onSearchChange("");
+                searchInputRef?.current?.focus();
+              }}
+              className="absolute right-1 top-1/2 flex size-6 -translate-y-1/2 items-center justify-center rounded p-0.5 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline focus-visible:outline-1 focus-visible:outline-ring"
+            >
+              <Icon name="X" className="size-3.5" aria-hidden />
+            </button>
+          ) : null}
         </div>
         {/* The View menu: picking a grouping replaces the current one,
             and the "Nest child threads" toggle lives here now — it changes
