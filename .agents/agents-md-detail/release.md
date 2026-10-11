@@ -56,8 +56,10 @@ merging into `dev`, releasing, changelog writing, or tagging.
 
 - The standard integration flow, one pass per landing:
   1. Commit the work on the thread branch in its worktree.
-  2. `git fetch origin && git rebase dev` — conflicts resolve with dev's
-     side, keeping the branch's new bullets in place.
+  2. `git fetch origin && git rebase origin/dev` — the rebase targets the
+     fetched remote dev, not a possibly stale local ref, and lands before
+     step 4 opens the PR, never after; conflicts resolve with dev's side,
+     keeping the branch's new bullets in place.
   3. Verify in the worktree: `npm test` (plus `npm run build` / `npm run
      gates` where the landing ships).
   4. Push the branch and `gh pr create --base dev` — the PR title carries
@@ -166,8 +168,9 @@ merging into `dev`, releasing, changelog writing, or tagging.
 
 ## 3. Finalize commit (on the dev lineage)
 
-If your branch doesn't contain `origin/dev` yet, rebase it onto `dev` first
-(section 1's flow). One finalize commit, subject `Release X.Y.Z: <user-facing summary>` (the summary
+If your branch doesn't contain `origin/dev` yet, rebase it onto
+`origin/dev` first (section 1's flow) — the rebase always lands before that
+PR is opened, never after. One finalize commit, subject `Release X.Y.Z: <user-facing summary>` (the summary
 condenses the changelog's lead item — same wording rules as the What's-new
 entry below), riding its own PR per the standard flow:
 
