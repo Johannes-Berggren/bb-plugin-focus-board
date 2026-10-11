@@ -301,4 +301,23 @@ describe("the lane drop ring never outlives the drag", () => {
     fireEvent(slot, createEvent.drop(slot, { dataTransfer: dt }));
     expect(section.className).not.toContain("ring-ring");
   });
+
+  it("a card that leaves the board mid-drag clears the ring with no dragend at all", () => {
+    // A live update relocates the dragged card the same commit the drag is in
+    // flight: the source element unmounts, so neither dragend nor drop ever
+    // fires. The board must notice the dead drag on its own.
+    const { props, rerender } = renderBoard(boardFixture());
+    const section = pinnedSection();
+    const dt = makeDataTransfer();
+    fireEvent.dragStart(cardAnchor("thr_bug"), { dataTransfer: dt });
+    fireEvent(section, createEvent.dragOver(section, { dataTransfer: dt }));
+    expect(section.className).toContain("ring-ring");
+    rerender(
+      <Board
+        {...props}
+        columns={buildColumns([boardFixture()[0]], "status", context, new Map(), new Set(), NOW, {})}
+      />,
+    );
+    expect(section.className).not.toContain("ring-ring");
+  });
 });

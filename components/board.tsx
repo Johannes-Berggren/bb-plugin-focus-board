@@ -1376,6 +1376,32 @@ export function Board({
     }
   };
 
+  // ── The drag-out-of-DOM safety ──────────────────────────────────────────
+  // A drag whose source element stops existing mid-flight owns no event to
+  // clean up after itself: a card that relocates while it is dragged (a live
+  // update reassembled the board out from under the gesture) unmounts the
+  // element the browser was tracking, and no dragend or drop can ever fire.
+  // Its drag state would idle forever — the grown headers, the last lane's
+  // white drop ring. Every commit checks: a drag still marked in flight with
+  // no draggable card for its id on the board is a dead drag — end the
+  // lifecycle exactly as dragend would have.
+  useLayoutEffect(() => {
+    const id = draggingIdRef.current;
+    if (id === null) return;
+    // An attribute selector value is a string literal: escape the two
+    // characters that would break out of it (thread ids never carry them,
+    // but the guard is for the selector's sake, not the id's format).
+    const safe = id.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+    // A top-level card wraps its draggable anchor; a nested row carries
+    // data-thread-card on the anchor itself. Either form proves the drag's
+    // source still on the board.
+    const alive =
+      document.querySelector(`[data-thread-card="${safe}"] a[draggable]`) ??
+      document.querySelector(`a[data-thread-card="${safe}"]`);
+    if (alive !== null) return;
+    rankDragLifecycle(null);
+  });
+
   /**
    * Report a reorder that cannot complete, naming the reason.
    *
