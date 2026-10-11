@@ -88,11 +88,12 @@ interface ThreadCardProps {
    */
   onSweepToggle?: (threadId: string, gesture: SweepClickGesture) => void;
   /**
-   * The hover Mark Done checkbox's write, for non-done cards: the empty
-   * checkbox reveals on card hover, the first click arms it ("Mark Done"),
-   * the second click fires this. Absent → no checkbox renders (done cards,
-   * unwired surfaces, compact context minis). The board passes the same
-   * "done" menu action's run, so the checkbox shares the menu's full
+   * The title-row checkbox's write, wired both ways: the "done" menu
+   * action's run, which marks a not-done thread done and a done thread not
+   * done (the card mirrors: an empty box on not-done cards, a checked one
+   * on done). The first click arms, the second fires this. Absent → no
+   * checkbox renders (unwired surfaces: compact context minis). The board
+   * passes the menu action's run, so the checkbox shares the menu's full
    * done recipe with no second source of truth.
    */
   onMarkDone?: () => void;
@@ -615,24 +616,29 @@ export function ThreadCard({
   const fades = isDone || dimmed || snoozed;
   const dimsByScrim = wallpaperActive && fades && !isSweepHighlighted;
 
-  // The two-click Mark Done checkbox (non-done cards only): idle the card
-  // carries an empty checkbox that only paints on hover (the CSS `group`
-  // reveals it); the first click ARMS it — the icon fills to a check and a
-  // "Mark Done" tag slides out over the timestamp — and the second click
-  // fires `onMarkDone`. Hovering away disarms, so an armed card never
-  // survives a stray pointer into a later accidental settle. Sweeps are
-  // modal: while this card's column curates a sweep the checkbox cedes
-  // every click to the selection gesture.
+  // The two-click Mark Done checkbox, sitting LEFT OF THE THREAD TITLE in a
+  // reserved gutter (the title never reflows on hover — only ARMING pushes,
+  // adding the inline label so the title wraps in the narrower space).
+  // Done cards mirror it: a checked box that arms "Mark Not Done". The
+  // first click arms, the second fires `onMarkDone`; hovering away disarms,
+  // so an armed card never survives a stray pointer into a later
+  // accidental settle. Sweeps are modal: while this card's column curates
+  // a sweep the checkbox cedes every click to the selection gesture.
   const [armedDone, setArmedDone] = useState(false);
-  const showDoneCheckbox = !isDone && onMarkDone !== undefined && !isSweepSelecting;
+  const showDoneCheckbox = onMarkDone !== undefined && !isSweepSelecting;
+  const doneLabel = isDone ? "Mark Not Done" : "Mark Done";
   const doneCheckbox = showDoneCheckbox ? (
     <button
       type="button"
       data-done-checkbox=""
       data-done-armed={armedDone ? "" : undefined}
-      aria-label={armedDone ? "Mark Done" : "Arm Mark Done"}
-      title={armedDone ? "Click again to mark done" : "Click to confirm Mark Done"}
+      aria-label={armedDone ? doneLabel : `Arm ${doneLabel}`}
+      title={armedDone ? "Click again to confirm" : "Click to arm"}
       onClick={(event) => {
+        // The checkbox lives inside the card's anchor — the ticket-chip
+        // precedent (interactive content in the anchor's flow). The stop
+        // keeps the anchor's own activation (open the pane, the sweep
+        // toggle, the native href) from firing under the checkbox's click.
         event.preventDefault();
         event.stopPropagation();
         if (armedDone) {
@@ -643,14 +649,14 @@ export function ThreadCard({
         }
       }}
       className={cn(
-        "relative -my-1 flex shrink-0 items-center justify-center rounded-sm p-0.5 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+        "mt-px flex shrink-0 items-center gap-1 rounded-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-ring",
         armedDone
-          ? "opacity-100 text-amber-600"
+          ? "text-amber-600"
           : "text-muted-foreground/50 opacity-0 group-hover:opacity-100 focus-visible:opacity-100",
       )}
     >
       <Icon
-        name={armedDone ? "CheckboxChecked" : "Checkbox"}
+        name={armedDone || isDone ? "CheckboxChecked" : "Checkbox"}
         className="size-3.5 shrink-0"
         aria-hidden
       />
@@ -658,9 +664,9 @@ export function ThreadCard({
         <span
           data-done-armed-tag=""
           aria-hidden
-          className="absolute right-full top-1/2 mr-1.5 -translate-y-1/2 whitespace-nowrap rounded-sm bg-muted px-1 py-0.5 text-[10px] font-medium leading-none text-amber-600"
+          className="whitespace-nowrap text-[10px] font-medium leading-none"
         >
-          Mark Done
+          {doneLabel}
         </span>
       ) : null}
     </button>
@@ -832,7 +838,14 @@ export function ThreadCard({
               {relativeTime(thread.updatedAt, now)}
             </span>
           </div>
-          <p className={cn("mt-0.5 line-clamp-2 pl-1.5 leading-snug", compact ? "text-[11px]" : "text-[13px]")}>{thread.displayTitle}</p>
+          {doneCheckbox === null ? (
+            <p data-title="" className={cn("mt-0.5 line-clamp-2 pl-1.5 leading-snug", compact ? "text-[11px]" : "text-[13px]")}>{thread.displayTitle}</p>
+          ) : (
+            <div className="mt-0.5 flex items-start gap-1.5 pl-1.5">
+              {doneCheckbox}
+              <p data-title="" className={cn("min-w-0 flex-1 line-clamp-2 leading-snug", compact ? "text-[11px]" : "text-[13px]")}>{thread.displayTitle}</p>
+            </div>
+          )}
           <p className="mt-0.5 truncate pl-1.5 text-[11px] text-muted-foreground/70">
             {projectName}
             {branch === "" ? null : <span className="text-muted-foreground/40"> · {branch}</span>}
@@ -861,17 +874,14 @@ export function ThreadCard({
             </div>
           )}
         </a>
-        {chipCount > 0 || doneCheckbox !== null ? (
-          <div className="flex shrink-0 items-start gap-1.5 py-2 pr-1.5">
-            {chipCount > 0 ? (
-              // Family-size metadata only: the collapsed rows' dot strip lives in
-              // the child section below, directly under the "N child threads"
-              // label it describes.
-              <span className="rounded-full bg-muted px-1.5 text-[10px] tabular-nums text-muted-foreground">
-                {chipCount}
-              </span>
-            ) : null}
-            {doneCheckbox}
+        {chipCount > 0 ? (
+          // Family-size metadata only: the collapsed rows' dot strip lives in
+          // the child section below, directly under the "N child threads"
+          // label it describes.
+          <div className="flex shrink-0 items-start py-2 pr-1.5">
+            <span className="rounded-full bg-muted px-1.5 text-[10px] tabular-nums text-muted-foreground">
+              {chipCount}
+            </span>
           </div>
         ) : null}
       </div>

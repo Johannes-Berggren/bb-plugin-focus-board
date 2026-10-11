@@ -19,7 +19,7 @@ export const UNRELEASED_ITEMS: readonly { text: string; children: string[]; grou
     ]
   },
   {
-    "text": "**A hover checkbox marks a card done.** Hovering a not-done card shows an empty checkbox; the first click arms it with a \"Mark Done\" tag, the second click settles the thread into Done, and hovering away disarms so a stray pointer settles nothing.",
+    "text": "**A title checkbox settles threads.** Hovering a card shows a checkbox left of its title, empty on not-done cards and checked on done; the first click arms it (\"Mark Done\" or \"Mark Not Done\" inline, pushing the title to wrap) and the second click writes, with hovering away disarming so a stray pointer settles nothing.",
     "children": []
   },
   {
