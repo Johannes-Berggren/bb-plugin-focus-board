@@ -14,6 +14,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   - **Appearance joins the tabs.** Card animations pick the transporter read (None snaps into place, Teleport dissolves, Zoom out / in waits visibly), motion can force quieter or fuller animation than the OS setting, and the wallpaper picker lives here; the rail marks the read tab with an accent bar, and What's-new lines fresh on dev tint amber.
 - **A hover checkbox marks a card done.** Hovering a not-done card shows an empty checkbox; the first click arms it with a "Mark Done" tag, the second click settles the thread into Done, and hovering away disarms so a stray pointer settles nothing.
 
+#### Settings
+
+- **The configuration page mirrors the Appearance tab.** Beside the declared settings on Focus Board's plugins page, a section re-renders the card animation and motion choices and the wallpaper picker, writing the same per-browser values the modal writes, so an edit in either place covers both.
+
 #### Groups and family boxes
 
 - **A family box drags by its label.** Grabbing the group name moves the whole box and ranks it wherever the drop lands, the same move grabbing a member card already made. A snoozed lead member still refuses to drag, and a click without the drag still renames.
@@ -32,6 +36,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 #### Settings
 
 - **The Appearance tab is now the wallpaper's only home.** The board toolbar drops its wallpaper icon, and the picker renders inline in the settings' Appearance tab instead of popping over the toolbar; a wallpaper already stored keeps painting the board.
+- **The plugin CLI drops its config commands.** Sweep thresholds are set through `bb plugin config focus-board` or the board settings modal, so `bb focus-board config show` and `config set` retire and the CLI help names the surviving door.
 - **The Behavior tab hosts the sweep thresholds.** Each arm's count and unit edit the same declared settings Focus Board's configuration page already edits, the values render live in both places, and a rejected write names its failure right under the row.
 - **The sidebar's footer gear retitles to Focus Board configuration.** The board's own gear keeps opening the settings modal; the footer gear still jumps to the plugin page in Tools, and two gears no longer share one name.
 

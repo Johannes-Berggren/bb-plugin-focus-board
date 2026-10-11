@@ -5,9 +5,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { WallpaperPicker } from "@/components/wallpaper-picker";
 import type { WallpaperSettings } from "@/components/preferences";
 import { WhatsNewFeed } from "@/components/whats-new-feed";
+import {
+  CardTransportChoice,
+  MotionChoice,
+  WallpaperGroup,
+} from "@/components/appearance-controls";
 import { APP_VERSION, type WhatsNewEntry } from "@/lib/whats-new";
 import {
   ARCHIVE_UNITS,
@@ -206,12 +210,12 @@ export function SettingsModal({
 
 /**
  * The Appearance tab: what the board's movements and backdrop look like.
- * Card animations pick the transporter's read (None = instant, Teleport =
- * the dissolve running today, Zoom out / in = a future wipe kept visibly
- * disabled so nobody selects a mode the board cannot run), Motion overrides
- * the OS reduce-motion media query for the board's own animations, and the
- * wallpaper picker contents render inline here (the toolbar carries no
- * picker — the Appearance tab is the wallpaper's only surface).
+ * The rows come from components/appearance-controls.tsx, the same anatomy
+ * the plugin detail page's configuration section renders, so both surfaces
+ * present identical controls: card animations pick the transporter's read,
+ * motion overrides the OS reduce-motion media query for the board's own
+ * animations, and the wallpaper hosts the inline picker (the toolbar
+ * carries none — the Appearance tab is the wallpaper's only surface).
  */
 function AppearanceContent({
   cardTransport,
@@ -230,114 +234,12 @@ function AppearanceContent({
 }) {
   return (
     <div className="space-y-5">
-      <ChoiceRow
-        ariaLabel="Card animations"
-        label="Card animations"
-        description="How a card reads when it relocates between lanes."
-        options={[
-          { value: "none", name: "None", title: "The card appears in its new lane instantly." },
-          {
-            value: "teleport",
-            name: "Teleport",
-            title: "The card dissolves out of its old lane and materializes in the new one.",
-          },
-          {
-            value: "zoom",
-            name: "Zoom out / in",
-            title: "The card shrinks into its old slot's portal and grows back as the new slot opens.",
-          },
-        ]}
+      <CardTransportChoice
         selected={cardTransport}
-        onSelect={(value) => onSetCardTransport(value as "none" | "teleport" | "zoom")}
+        onSelect={onSetCardTransport}
       />
-      <ChoiceRow
-        ariaLabel="Motion"
-        label="Motion"
-        description="How the board's animations respect your system's reduce-motion preference."
-        options={[
-          { value: "system", name: "Use my system setting", title: "The OS decides." },
-          { value: "reduce", name: "Always reduce", title: "Boards move quietly even if your system plays everything." },
-          { value: "full", name: "Always play in full", title: "Full motion even if your system asks for reduced." },
-        ]}
-        selected={motionPref}
-        onSelect={(value) => onSetMotionPref(value as "system" | "reduce" | "full")}
-      />
-      <div>
-        <p className="text-xs font-medium text-foreground">Wallpaper</p>
-        <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-          The backdrop behind the board — shipped gradient presets, a photo shuffle, an
-          Openverse search, or any https url.
-        </p>
-        <div className="mt-2">
-          <WallpaperPicker wallpaper={wallpaper} onWallpaperChange={onWallpaperChange} />
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/** A labeled radio group with a description; the modal's only choice anatomy. */
-function ChoiceRow({
-  ariaLabel,
-  label,
-  description,
-  options,
-  selected,
-  onSelect,
-}: {
-  ariaLabel: string;
-  label: string;
-  description: string;
-  options: readonly {
-    value: string;
-    name: string;
-    title: string;
-    disabled?: boolean;
-  }[];
-  selected: string;
-  onSelect: (value: string) => void;
-}) {
-  return (
-    <div>
-      <p className="text-xs font-medium text-foreground">{label}</p>
-      <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{description}</p>
-      <div role="radiogroup" aria-label={ariaLabel} className="mt-2 space-y-1">
-        {options.map((option) => (
-          <button
-            key={option.value}
-            type="button"
-            role="radio"
-            aria-checked={selected === option.value}
-            aria-disabled={option.disabled === true ? "true" : undefined}
-            title={option.title}
-            onClick={() => {
-              if (option.disabled === true) return;
-              onSelect(option.value);
-            }}
-            className={cn(
-              "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-              option.disabled === true
-                ? "cursor-not-allowed text-muted-foreground/60"
-                : selected === option.value
-                  ? "bg-accent text-foreground"
-                  : "text-muted-foreground hover:bg-accent/50 hover:text-foreground",
-              option.disabled === true && "opacity-60",
-            )}
-          >
-            <span
-              className={cn(
-                "inline-block size-3 shrink-0 rounded-full border",
-                selected === option.value
-                  ? "border-primary bg-primary"
-                  : "border-muted-foreground/50 bg-transparent",
-              )}
-            />
-            <span className={option.disabled === true ? "italic" : undefined}>
-              {option.name}
-            </span>
-          </button>
-        ))}
-      </div>
+      <MotionChoice selected={motionPref} onSelect={onSetMotionPref} />
+      <WallpaperGroup wallpaper={wallpaper} onWallpaperChange={onWallpaperChange} />
     </div>
   );
 }

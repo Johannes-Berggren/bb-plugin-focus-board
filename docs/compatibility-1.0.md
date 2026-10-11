@@ -17,11 +17,15 @@ The command set and everything an operator or an agent can script against:
 | `snooze set <when> <id>… / clear <id>…` | `+<N>m\|h\|d\|w` or a future timestamp; invalid input exits 1 |
 | `autotitle availability \| prompt \| probe --thread-id <id>` | diagnostics unchanged in semantics |
 | `sweep [--ids <id>…] [--confirm]` | dry-run default, exit 1; `--json` reports `archived` and `markedDone` separately |
-| `config show / config set` | the four threshold keys and their validation |
+| `sweep thresholds` | the declared settings edit through `bb plugin config focus-board` (host-validated); the plugin CLI carries no config commands (see Breaking changes) |
 
 Every command keeps accepting `--json`. Output is additive-safe: new fields
 may appear, existing fields never change shape or meaning without a major
-bump. Removing or renaming a command is a major bump.
+bump. Removing or renaming a command is a major bump. Recorded exception
+(2026-10-10, operator ruling in thread thr_2vjgvw98xc): `bb focus-board
+config show|set` retired in 1.2.x ahead of the next major — the commands
+duplicated the declared-settings door `bb plugin config focus-board`, and
+the board's settings modal covers the thresholds too.
 
 ### Stored state (server side, via `bb.storage.kv` and per-thread plugin metadata)
 

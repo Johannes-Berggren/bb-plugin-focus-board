@@ -23,6 +23,11 @@ export const UNRELEASED_ITEMS: readonly { text: string; children: string[]; grou
     "children": []
   },
   {
+    "text": "**The configuration page mirrors the Appearance tab.** Beside the declared settings on Focus Board's plugins page, a section re-renders the card animation and motion choices and the wallpaper picker, writing the same per-browser values the modal writes, so an edit in either place covers both.",
+    "children": [],
+    "group": "Settings"
+  },
+  {
     "text": "**A family box drags by its label.** Grabbing the group name moves the whole box and ranks it wherever the drop lands, the same move grabbing a member card already made. A snoozed lead member still refuses to drag, and a click without the drag still renames.",
     "children": [],
     "group": "Groups and family boxes"
@@ -48,6 +53,11 @@ export const UNRELEASED_ITEMS: readonly { text: string; children: string[]; grou
   },
   {
     "text": "**The Appearance tab is now the wallpaper's only home.** The board toolbar drops its wallpaper icon, and the picker renders inline in the settings' Appearance tab instead of popping over the toolbar; a wallpaper already stored keeps painting the board.",
+    "children": [],
+    "group": "Settings"
+  },
+  {
+    "text": "**The plugin CLI drops its config commands.** Sweep thresholds are set through `bb plugin config focus-board` or the board settings modal, so `bb focus-board config show` and `config set` retire and the CLI help names the surviving door.",
     "children": [],
     "group": "Settings"
   },

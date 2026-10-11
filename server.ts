@@ -2126,21 +2126,12 @@ export default async function plugin(bb: BbPluginApi) {
   // --- CLI: bb focus-board ---
   //
   // Manages plugin-owned state only (the standing rule from the CLI
-  // musing): done list/mark/clear over the board's own metadata, the
-  // sweep over the board's own eligibility rules and settings, and the
-  // threshold config. It never re-spells `bb thread` commands.
-
-  const settingsKeys = [
-    "doneArchiveValue",
-    "doneArchiveUnit",
-    "idleArchiveValue",
-    "idleArchiveUnit",
-  ] as const;
-  /** Count caps mirror the descriptor schemas (in the configured unit). */
-  const settingsCaps = {
-    doneArchiveValue: 365,
-    idleArchiveValue: 3650,
-  } as const;
+  // musing): done list/mark/clear over the board's own metadata, and the
+  // sweep over the board's own eligibility rules and settings. It never
+  // re-spells `bb thread` commands, and it no longer carries config
+  // commands: the declared settings already edit through
+  // `bb plugin config focus-board` and the board settings modal's Behavior
+  // tab, and a second threshold door was one more copy to keep true.
 
   /** The SDK's thread row shape, as returned by `threads.list`. */
   type ThreadRow = Awaited<ReturnType<typeof bb.sdk.threads.list>>[number];
@@ -2953,100 +2944,6 @@ export default async function plugin(bb: BbPluginApi) {
     },
   });
 
-  const configShow = cliCommand({
-    summary: "Show the sweep threshold settings and their defaults",
-    options: {
-      json: { type: "boolean", description: "Emit machine-readable JSON" },
-    },
-    async run(input) {
-      const values = await settings.get();
-      const defaults: Record<(typeof settingsKeys)[number], number | string> = {
-        doneArchiveValue: DEFAULT_ARCHIVE_VALUE,
-        doneArchiveUnit: DEFAULT_ARCHIVE_UNIT,
-        idleArchiveValue: DEFAULT_ARCHIVE_VALUE,
-        idleArchiveUnit: DEFAULT_ARCHIVE_UNIT,
-      };
-      const rows = (Object.keys(defaults) as Array<keyof typeof defaults>).map(
-        (key) => ({
-          key,
-          value: values[key],
-          default: defaults[key],
-          overridden: values[key] !== defaults[key],
-        }),
-      );
-      const stdout = input.options.json
-        ? JSON.stringify(rows, null, 2) + "\n"
-        : rows
-            .map(
-              (row) =>
-                `${row.key}=${row.value} (default ${row.default}${row.overridden ? ", overridden" : ""})`,
-            )
-            .join("\n") + "\n";
-      return { exitCode: 0, stdout };
-    },
-  });
-
-  const configSet = cliCommand({
-    summary: `Set a sweep threshold setting (${settingsKeys.join(" | ")})`,
-    positionals: [
-      {
-        name: "key",
-        description:
-          "doneArchiveValue, doneArchiveUnit, idleArchiveValue, or idleArchiveUnit",
-        required: true,
-      },
-      {
-        name: "value",
-        description:
-          "Count for the value keys; hours | days | weeks for the unit keys",
-        required: true,
-      },
-    ],
-    options: {
-      json: { type: "boolean", description: "Emit machine-readable JSON" },
-    },
-    async run(input) {
-      const key = input.positionals.key;
-      if (!(settingsKeys as readonly string[]).includes(key)) {
-        throw new PluginCliError(`unknown setting '${key}'`, {
-          code: "invalid_value",
-          hint: `Valid keys: ${settingsKeys.join(", ")}`,
-        });
-      }
-      const raw = input.positionals.value;
-      let value: number | string;
-      if (key === "doneArchiveUnit" || key === "idleArchiveUnit") {
-        if (!(ARCHIVE_UNITS as readonly string[]).includes(raw)) {
-          throw new PluginCliError(`invalid value '${raw}' for ${key}`, {
-            code: "invalid_value",
-            hint: `Expected one of: ${ARCHIVE_UNITS.join(", ")}.`,
-          });
-        }
-        value = raw;
-      } else {
-        const cap = settingsCaps[key as keyof typeof settingsCaps];
-        const parsed = Number(raw);
-        if (!Number.isInteger(parsed) || parsed < 1 || parsed > cap) {
-          throw new PluginCliError(`invalid value '${raw}' for ${key}`, {
-            code: "invalid_value",
-            hint: `Expected an integer between 1 and ${cap} (in the configured unit).`,
-          });
-        }
-        value = parsed;
-      }
-      // The key is one of the four declared settings and `value` matches
-      // that key's type (branch above), so the computed write is shape-safe.
-      const next = await settings.experimental_set({
-        [key]: value,
-      } as Parameters<typeof settings.experimental_set>[0]);
-      const effective = next[key as (typeof settingsKeys)[number]];
-      const stdout = input.options.json
-        ? JSON.stringify({ key, value: effective }, null, 2) + "\n"
-        : `${key}=${effective}\n`;
-      return { exitCode: 0, stdout };
-    },
-  });
-
   // Board-linked tracker items: the agent surface (issue #13). The tool's
   // `instructions` nudge — the AGENTS.md-style push — rides with the tool's
   // presence in the session's tool set, so any thread's agent learns to link
@@ -3156,7 +3053,7 @@ export default async function plugin(bb: BbPluginApi) {
       name: "focus-board",
       summary: "Manage the Focus Board plugin's own state",
       description:
-        "Done list/mark/clear, feature groups (group list), linked tracker items (link list/set/clear), snooze list/set/clear, autotitle availability/probe diagnostics, sweep (archive old Done + long-idle, dry-run by default), and the sweep thresholds.",
+        "Done list/mark/clear, feature groups (group list), linked tracker items (link list/set/clear), snooze list/set/clear, autotitle availability/probe diagnostics, and sweep (archive old Done + long-idle, dry-run by default). Sweep thresholds live in the declared plugin settings (`bb plugin config focus-board`) and the board settings modal; this CLI no longer carries its own config commands.",
       commands: {
         "done list": doneList,
         "done mark": doneMark,
@@ -3172,8 +3069,6 @@ export default async function plugin(bb: BbPluginApi) {
         "autotitle prompt": autotitlePrompt,
         "autotitle probe": autotitleProbe,
         sweep,
-        "config show": configShow,
-        "config set": configSet,
       },
     }),
   );

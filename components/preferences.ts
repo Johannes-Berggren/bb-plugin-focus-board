@@ -86,6 +86,45 @@ export function collapsedFamiliesStoredValue(ids: ReadonlySet<string>): string {
 }
 
 /**
+ * The localStorage access the board preferences share: every stored value
+ * parses through its own tolerant reader above, and these three wrap the
+ * raw window access (it can throw in embedded contexts) so callers keep one
+ * implementation.
+ */
+export function readStored<T extends string>(
+  key: string,
+  allowed: readonly T[],
+  fallback: T,
+): T {
+  try {
+    const value = window.localStorage.getItem(key);
+    if (value !== null && (allowed as readonly string[]).includes(value)) {
+      return value as T;
+    }
+  } catch {
+    // localStorage can throw in embedded contexts; fall through to default.
+  }
+  return fallback;
+}
+
+export function readStoredText(key: string, fallback: string): string {
+  try {
+    return window.localStorage.getItem(key) ?? fallback;
+  } catch {
+    // localStorage can throw in embedded contexts; fall through to default.
+  }
+  return fallback;
+}
+
+export function writeStored(key: string, value: string): void {
+  try {
+    window.localStorage.setItem(key, value);
+  } catch {
+    // Best effort only; the board still works without persistence.
+  }
+}
+
+/**
  * The server-declared boolean setting backing the thread pane's Escape
  * behavior (see server.ts `escStopsRunningThread`). Only an explicit stored
  * `false` is off: while loading, unset (default applied host-side as true),

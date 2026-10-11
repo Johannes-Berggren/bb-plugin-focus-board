@@ -445,7 +445,7 @@ describe("bb focus-board sweep", () => {
   });
 
   describe("settings integration", () => {
-    it("respects a config-set threshold change, including the unit", async () => {
+    it("respects a declared-settings threshold change, including the unit", async () => {
       await load();
       // One day idle: under the 2-day default threshold, so not eligible.
       listedThreads = [idleThread("thr_mid", 1)];
@@ -455,10 +455,12 @@ describe("bb focus-board sweep", () => {
         ),
       ).toEqual({ eligible: [], count: 0 });
 
-      // Switching the unit and count moves the threshold to 12 hours:
+      // The declared settings write the way the host's settings save does
+      // (the plugin CLI no longer carries config commands; the door is
+      // `bb plugin config focus-board` or the modal's Behavior tab):
+      // switching the unit and count moves the threshold to 12 hours, and
       // the one-day-old thread is now eligible.
-      await harness.behavior.runCli(["config", "set", "idleArchiveUnit", "hours"]);
-      await harness.behavior.runCli(["config", "set", "idleArchiveValue", "12"]);
+      await harness.behavior.setSettings({ idleArchiveUnit: "hours", idleArchiveValue: 12 });
       const after = await harness.behavior.runCli(["sweep", "--json"]);
       const body = JSON.parse(after.stdout) as {
         eligible: Array<{ id: string }>;

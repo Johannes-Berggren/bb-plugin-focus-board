@@ -24,16 +24,14 @@ const browser = await puppeteer.launch({
   defaultViewport: { width: 1920, height: 1080, deviceScaleFactor: 2 },
 });
 
+// Each verify run launches a fresh browser profile, so localStorage starts
+// empty; blocks order their writes so later assertions see earlier picks.
 async function open(query) {
   const page = await browser.newPage();
-  // The appearance defaults read the persisted card-transport choice; the
-  // harness browser carries one from earlier runs, so the opening board
-  // gets a cleared key (an unparseable value yields the shipped default).
-  await page.evaluateOnNewDocument(() => {
-    window.localStorage.removeItem("focus-board:cardTransport");
-  });
   await page.goto(`${BASE}${query}`, { waitUntil: "domcontentloaded", timeout: 60_000 });
-  await page.waitForSelector("div[data-focus-board-panel]", { timeout: 30_000 });
+  // The board panel or the standalone config section (`?page=configuration`),
+  // whichever the query mounts.
+  await page.waitForSelector("div[data-focus-board-panel], [data-focus-board-config-section]", { timeout: 30_000 });
   await new Promise((resolve) => setTimeout(resolve, 400));
   return page;
 }
@@ -271,6 +269,40 @@ const selectedTab = (page) =>
     ok("footer gear registration titled Focus Board configuration");
   } else fail(`footer gear registration wrong: ${JSON.stringify(footer)}`);
   await page.close();
+}
+
+// The configuration page: `?page=configuration` mounts the plugin's
+// settingsSection registration bare (the Appearance mirror beside bb's
+// declared settings). Same controls, same localStorage truth as the modal.
+{
+  const page = await open("?page=configuration&groupBy=status");
+  const section = await page.evaluate(() => ({
+    mounted: document.querySelector("[data-focus-board-config-section]") !== null,
+    groups: [...document.querySelectorAll('[role="radiogroup"]')].map((g) => g.getAttribute("aria-label")),
+    checked: [...document.querySelectorAll('[role="radio"][aria-checked="true"]')].map((r) => r.textContent),
+    wallpaper: document.querySelector('input[aria-label="Wallpaper image url"]') !== null,
+  }));
+  const mountOk = section.mounted && JSON.stringify(section.groups) === JSON.stringify(["Card animations", "Motion"]) && section.wallpaper;
+  if (mountOk) ok(`config page mounts the Appearance mirror (${section.checked.join(", ")})`);
+  else fail(`config page section wrong: ${JSON.stringify(section)}`);
+
+  // A pick writes the modal's localStorage key; a fresh page reads it back.
+  await page.evaluate(() => {
+    [...document.querySelectorAll('[role="radio"]')].find((r) => r.textContent === "None")?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+  });
+  await new Promise((resolve) => setTimeout(resolve, 300));
+  const stored = await page.evaluate(() => window.localStorage.getItem("focus-board:cardTransport"));
+  if (stored === "none") ok("a config-page pick wrote the shared localStorage key");
+  else fail(`config-page pick wrote nothing (stored: ${stored})`);
+  await page.close();
+
+  const reloaded = await open("?page=configuration&groupBy=status");
+  const mirrored = await reloaded.evaluate(() =>
+    [...document.querySelectorAll('[role="radio"][aria-checked="true"]')].map((r) => r.textContent));
+  if (JSON.stringify(mirrored) === JSON.stringify(["None", "Use my system setting"])) {
+    ok("a fresh config page renders the picked value (the mirror reads the truth, not a copy)");
+  } else fail(`fresh config page ignored the pick: ${JSON.stringify(mirrored)}`);
+  await reloaded.close();
 }
 
 await browser.close();
