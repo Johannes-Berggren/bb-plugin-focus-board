@@ -93,11 +93,11 @@ export function escStopsRunningFromSetting(
 
 /**
  * The card-transport appearance choice (the settings modal's Appearance tab),
- * localStorage-backed. `teleport` is the running transporter dissolve and
- * the default, so existing boards keep today's behavior; `none` relocates a
- * card instantly with no ghost and no wipe (what the board did before the
- * transporter existed); `zoom` is a future zoom-out/zoom-in read — the tab
- * shows it disabled until it is built.
+ * localStorage-backed. `zoom` (the shrink-out/grow-in portal read) is the
+ * shipped default — the operator flipped it in from the dissolve — so fresh
+ * boards and any unparseable stored value play the zoom;
+ * `teleport` deliberately selects the dissolve, and `none` relocates a card
+ * instantly with no ghost and no wipe.
  */
 export type CardTransportPref = "none" | "teleport" | "zoom";
 
@@ -105,10 +105,12 @@ export const CARD_TRANSPORT_KEY = "focus-board:cardTransport";
 
 const ALLOWED_CARD_TRANSPORT: readonly CardTransportPref[] = ["none", "teleport", "zoom"];
 
+const DEFAULT_CARD_TRANSPORT: CardTransportPref = "zoom";
+
 export function parseCardTransportStored(raw: string | null): CardTransportPref {
   return (ALLOWED_CARD_TRANSPORT as readonly string[]).includes(raw ?? "")
     ? (raw as CardTransportPref)
-    : "teleport";
+    : DEFAULT_CARD_TRANSPORT;
 }
 
 export function cardTransportStoredValue(value: CardTransportPref): CardTransportPref {

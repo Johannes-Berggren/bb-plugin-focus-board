@@ -66,8 +66,16 @@ describe("a card relocating between lanes plays the transport dissolve", () => {
       thread({ id: "thr_a", isPinned: true, pinnedAt: 1, pinSortKey: 1, updatedAt: NOW - 1000 }),
       thread({ id: "thr_b", isUnread: true, updatedAt: NOW - 2000 }),
     ];
-    const { rerender } = render(<Board {...boardProps("status", before)} />);
-    rerender(<Board {...boardProps("status", after)} />);
+    // The dissolve pins declare the variant at the harness seam explicitly:
+    // the default cardTransport read is zoom now, and these pins speak the
+    // dissolve variant by name (the zoom pins do the same for zoom in
+    // tests/board-transport-zoom.test.tsx).
+    const { rerender } = render(
+      <Board {...boardProps("status", before, undefined, { transportVariant: "dissolve" })} />,
+    );
+    rerender(
+      <Board {...boardProps("status", after, undefined, { transportVariant: "dissolve" })} />,
+    );
 
     // Old lane: a ghost holds the slot (aria-hidden, inert to clicks) while
     // the wipe-out runs.
@@ -227,8 +235,16 @@ describe("a box run relocating between lanes transports as ONE unit", () => {
   it("the dashed container wipes out whole in the old lane and wipes in whole at the new one", async () => {
     vi.useFakeTimers();
     const { before, after, groupBoxOf } = boxScenario();
-    const { rerender } = render(<Board {...boardProps("status", before, groupBoxOf)} />);
-    rerender(<Board {...boardProps("status", after, groupBoxOf)} />);
+    // Dissolve-variant pin: the variant that carries the glint shimmer, so
+    // this suite keeps speaking the box's one-shape dissolve by name.
+    const { rerender } = render(
+      <Board
+        {...boardProps("status", before, groupBoxOf, { transportVariant: "dissolve" })}
+      />,
+    );
+    rerender(
+      <Board {...boardProps("status", after, groupBoxOf, { transportVariant: "dissolve" })} />,
+    );
 
     // Old lane: ONE ghost — the dashed box container itself, holding both
     // member cards — not two per-card ghosts.
@@ -327,7 +343,7 @@ describe("a box run relocating between lanes transports as ONE unit", () => {
   });
 });
 
-describe("cardTransport: teleport (the default) dissolves; none teleports instantly", () => {
+describe("cardTransport: the shipped default is zoom; none teleports instantly", () => {
   const before = [
     thread({ id: "thr_a", isUnread: true, updatedAt: NOW - 1000 }),
     thread({ id: "thr_b", isUnread: true, updatedAt: NOW - 2000 }),
@@ -336,13 +352,6 @@ describe("cardTransport: teleport (the default) dissolves; none teleports instan
     thread({ id: "thr_a", isPinned: true, pinnedAt: 1, pinSortKey: 1, updatedAt: NOW - 1000 }),
     thread({ id: "thr_b", isUnread: true, updatedAt: NOW - 2000 }),
   ];
-
-  it("unspecified keeps today's dissolve (existing boards change nothing)", () => {
-    vi.useFakeTimers();
-    const { rerender } = render(<Board {...boardProps("status", before)} />);
-    rerender(<Board {...boardProps("status", after)} />);
-    expect(document.querySelector("[data-transport-out]")).not.toBeNull();
-  });
 
   it("none plans no ghost and no arrival slot — the card teleports", () => {
     vi.useFakeTimers();
@@ -355,15 +364,42 @@ describe("cardTransport: teleport (the default) dissolves; none teleports instan
     expect(document.querySelector("[data-transport-ghost]")).toBeNull();
   });
 
-  it("teleport plans the dissolve exactly like the unspecified default", () => {
+  it("teleport plans the dissolve, sparks included — distinct from the variant seam", () => {
     vi.useFakeTimers();
     const { rerender } = render(
-      <Board {...boardProps("status", before, undefined, { cardTransport: "teleport" })} />,
+      <Board
+        {...boardProps("status", before, undefined, {
+          cardTransport: "teleport",
+          transportVariant: "zoom", // even against the harness seam's zoom
+        })}
+      />,
     );
     rerender(
-      <Board {...boardProps("status", after, undefined, { cardTransport: "teleport" })} />,
+      <Board
+        {...boardProps("status", after, undefined, {
+          cardTransport: "teleport",
+          transportVariant: "zoom",
+        })}
+      />,
     );
     expect(document.querySelector("[data-transport-out]")).not.toBeNull();
+    expect(document.querySelector("[data-transport-sparks]")).not.toBeNull();
+  });
+
+  it("zoom chosen explicitly matches the variant seam's zoom read (no sparks)", () => {
+    vi.useFakeTimers();
+    const { rerender } = render(
+      <Board
+        {...boardProps("status", before, undefined, { cardTransport: "zoom" })}
+      />,
+    );
+    rerender(
+      <Board
+        {...boardProps("status", after, undefined, { cardTransport: "zoom" })}
+      />,
+    );
+    expect(document.querySelector("[data-transport-out]")).not.toBeNull();
+    expect(document.querySelector("[data-transport-sparks]")).toBeNull();
   });
 
   it("the motion override suppresses the wipes without killing the choreography", () => {
