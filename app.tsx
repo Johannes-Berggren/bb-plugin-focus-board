@@ -2514,6 +2514,7 @@ function BoardPage({ subPath }: { subPath: string }) {
             activeThreadId={openThreadId}
             cardTransport={cardTransport}
             motionPref={motionPref}
+            transportVariant={cardTransport === "zoom" ? "zoom" : undefined}
             doneIds={doneIds}
             nestedChildrenByParent={nestedChildrenByParent}
             childCountByParent={assembly?.childCountByParent ?? new Map()}

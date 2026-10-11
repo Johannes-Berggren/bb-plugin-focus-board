@@ -130,10 +130,10 @@ const selectedTab = (page) =>
       JSON.stringify([
         ["None", false, false],
         ["Teleport", true, false],
-        ["Zoom out / in", false, true],
+        ["Zoom out / in", false, false],
       ]) &&
     motionGroup.options.length === 3;
-  if (okAppearance) ok("Appearance tab: defaults (Teleport, system motion) and the disabled zoom choice");
+  if (okAppearance) ok("Appearance tab: defaults (Teleport, system motion), zoom live");
   else fail(`Appearance tab radio state wrong: ${JSON.stringify(radioInfo)}`);
   const wallpaperTrigger = await page.$('button[aria-label="Wallpaper"]');
   if (wallpaperTrigger === null) fail("Appearance tab shows no wallpaper picker trigger");

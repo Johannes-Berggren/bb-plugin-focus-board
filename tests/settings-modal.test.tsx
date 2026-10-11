@@ -250,20 +250,35 @@ describe("settings modal: Appearance tab", () => {
     const none = screen.getByRole("radio", { name: "None" });
     fireEvent.click(none);
     expect(onSetCardTransport).toHaveBeenCalledWith("none");
+    fireEvent.click(screen.getByRole("radio", { name: "Zoom out / in" }));
+    expect(onSetCardTransport).toHaveBeenCalledWith("zoom");
   });
 
-  it("the zoom choice exists but is not yet livable — disabled with a coming-soon name", () => {
-    renderModal({ tab: "appearance", cardTransport: "teleport" });
-    const zoom = screen.getByRole("radio", { name: /Zoom out \/ in/ });
-    expect(zoom.getAttribute("aria-disabled")).toBe("true");
-    fireEvent.click(zoom);
-    // A disabled radio must not report a selection: the card transport can
-    // never end on a value the board cannot run.
-    expect(
-      document
-        .querySelector('[role="radiogroup"][aria-label="Card animations"]')
-        ?.querySelectorAll('[role="radio"][aria-checked="true"]'),
-    ).toHaveLength(1);
+  it("the zoom choice selects and deselects like the others (it maps to the navbar's zoom variant)", () => {
+    // The build runs every transport variant (zoom included), so the tab
+    // never offers a choice the board cannot play.
+    render(
+      <SettingsModal
+        open={true}
+        tab="appearance"
+        entries={ENTRIES}
+        escStopsRunningThread={undefined}
+        cardTransport="teleport"
+        motionPref="system"
+        wallpaper={NULL_WALLPAPER}
+        onSetEscStopsRunningThread={vi.fn()}
+        onSetCardTransport={vi.fn()}
+        onSetMotionPref={vi.fn()}
+        onWallpaperChange={vi.fn()}
+        onOpenChange={vi.fn()}
+      />,
+    );
+    const zoom = screen.getByRole("radio", { name: "Zoom out / in" });
+    expect(zoom.getAttribute("aria-disabled")).toBeNull();
+    const checked = document
+      .querySelector('[role="radiogroup"][aria-label="Card animations"]')
+      ?.querySelectorAll('[role="radio"][aria-checked="true"]');
+    expect(checked).toHaveLength(1);
   });
 
   it("offers the motion preference with the system's media query selected by default", () => {

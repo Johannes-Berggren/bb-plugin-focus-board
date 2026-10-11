@@ -176,8 +176,7 @@ function AppearanceContent({
           {
             value: "zoom",
             name: "Zoom out / in",
-            title: "Coming soon — the zoom read is not built yet.",
-            disabled: true,
+            title: "The card shrinks into its old slot's portal and grows back as the new slot opens.",
           },
         ]}
         selected={cardTransport}
