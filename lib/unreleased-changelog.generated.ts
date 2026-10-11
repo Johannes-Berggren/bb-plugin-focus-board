@@ -19,6 +19,10 @@ export const UNRELEASED_ITEMS: readonly { text: string; children: string[]; grou
     ]
   },
   {
+    "text": "**A hover checkbox marks a card done.** Hovering a not-done card shows an empty checkbox; the first click arms it with a \"Mark Done\" tag, the second click settles the thread into Done, and hovering away disarms so a stray pointer settles nothing.",
+    "children": []
+  },
+  {
     "text": "**A family box drags by its label.** Grabbing the group name moves the whole box and ranks it wherever the drop lands, the same move grabbing a member card already made. A snoozed lead member still refuses to drag, and a click without the drag still renames.",
     "children": [],
     "group": "Groups and family boxes"

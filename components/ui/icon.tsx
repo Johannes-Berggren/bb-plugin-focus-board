@@ -21,6 +21,7 @@ import Cancel01Icon from "@hugeicons/core-free-icons/Cancel01Icon";
 import CancelCircleIcon from "@hugeicons/core-free-icons/CancelCircleIcon";
 import CheckListIcon from "@hugeicons/core-free-icons/CheckListIcon";
 import CheckmarkCircle02Icon from "@hugeicons/core-free-icons/CheckmarkCircle02Icon";
+import CheckmarkSquare01Icon from "@hugeicons/core-free-icons/CheckmarkSquare01Icon";
 import CircleIcon from "@hugeicons/core-free-icons/CircleIcon";
 import ComputerTerminal01Icon from "@hugeicons/core-free-icons/ComputerTerminal01Icon";
 import Copy01Icon from "@hugeicons/core-free-icons/Copy01Icon";
@@ -45,6 +46,7 @@ import MessageQuestionIcon from "@hugeicons/core-free-icons/MessageQuestionIcon"
 import MoreHorizontalIcon from "@hugeicons/core-free-icons/MoreHorizontalIcon";
 import Search01Icon from "@hugeicons/core-free-icons/Search01Icon";
 import Settings01Icon from "@hugeicons/core-free-icons/Settings01Icon";
+import SquareIcon from "@hugeicons/core-free-icons/SquareIcon";
 import Tag01Icon from "@hugeicons/core-free-icons/Tag01Icon";
 import SidebarLeftIcon from "@hugeicons/core-free-icons/SidebarLeftIcon";
 import SlidersHorizontalIcon from "@hugeicons/core-free-icons/SlidersHorizontalIcon";
@@ -247,6 +249,13 @@ const CORE_ICON_MAP = {
   SectionMove: SectionMoveStrokeRoundedIcon,
   Settings: Settings01Icon,
   SlidersHorizontal: SlidersHorizontalIcon,
+  // The card's two-click Mark Done checkbox: the empty square is the idle
+  // hover state, the check-in-square is the ARMED state (next click marks
+  // the thread done). Core-map entries, not extended: the checkbox first
+  // renders under hover, and an async lazy-load flash on that first hover
+  // would read as a broken control.
+  Checkbox: SquareIcon,
+  CheckboxChecked: CheckmarkSquare01Icon,
   Spinner: DashedLineCircleIcon,
   Tag: Tag01Icon,
   Target: Target02Icon,
