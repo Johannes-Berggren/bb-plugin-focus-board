@@ -19,7 +19,7 @@ export function WhatsNewFeed({ entries }: { entries: readonly WhatsNewEntry[] })
           ? `You are on version ${APP_VERSION}.`
           : "Recent changes since you last looked."}
       </p>
-      <div className="mt-3 max-h-[55vh] min-h-0 overflow-y-auto">
+      <div className="mt-3" data-whats-new-feed>
         {entries.map((entry) => (
           <section key={entry.version} className="mb-3 last:mb-0">
             <h3 className="mb-1 text-xs font-semibold text-foreground">
