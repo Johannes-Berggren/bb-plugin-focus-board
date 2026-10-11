@@ -62,6 +62,14 @@ interface ParentLaneBoardProps {
    * chip (lane minis show the clock alone).
    */
   snoozeFor?: (threadId: string) => number | null;
+  /**
+   * Attention reporting (components/attention-freeze): the card a pointer
+   * enters, and the card it leaves. The caller pins each entered card's
+   * LANE ORDER slot and row placement — the parent view's lane order is
+   * recency-derived, so this is what keeps an attended lane from sliding.
+   */
+  onAttentionEnter?: (threadId: string) => void;
+  onAttentionLeave?: (threadId: string) => void;
 }
 
 /** Ruler+wrap board chrome measurements (shared with parent-lane-layout.ts). */
@@ -232,6 +240,8 @@ export function ParentLaneBoard({
   onNewTask,
   menuActionsFor,
   snoozeFor,
+  onAttentionEnter,
+  onAttentionLeave,
 }: ParentLaneBoardProps) {
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const spacerRef = useRef<HTMLDivElement | null>(null);
@@ -836,6 +846,8 @@ export function ParentLaneBoard({
                           stateDot={<LaneStateDot thread={cell.thread} />}
                           isActive={cell.thread.id === activeThreadId}
                           isDone={doneIds.has(cell.thread.id)}
+                          onAttentionEnter={onAttentionEnter}
+                          onAttentionLeave={onAttentionLeave}
                           projectName={projectNameFor(cell.thread.projectId)}
                           repoHrefBase={repoBaseFor(cell.thread.projectId) ?? undefined}
                           statusFor={statusFor}

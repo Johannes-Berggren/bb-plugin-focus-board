@@ -47,19 +47,12 @@ export const UNRELEASED_ITEMS: readonly { text: string; children: string[]; grou
     "group": "Toolbar search"
   },
   {
-    "text": "**The Behavior tab hosts the sweep thresholds.** Each arm's count and unit edit the same declared settings Focus Board's configuration page already edits, the values render live in both places, and a rejected write names its failure right under the row.",
-    "children": [],
-    "group": "Settings"
-  },
-  {
-    "text": "**The sidebar's footer gear retitles to Focus Board configuration.** The board's own gear keeps opening the settings modal; the footer gear still jumps to the plugin page in Tools, and two gears no longer share one name.",
-    "children": [],
-    "group": "Settings"
-  },
-  {
-    "text": "**Card animations default to zoom.** The Appearance tab's default read is now the shrink-out/grow-in portal transport instead of the dissolve; Teleport stays the explicit name for the transporter read and None snaps the card instantly.",
-    "children": [],
-    "group": "Card animations"
+    "text": "**A card the board sees you attending holds its place.** Hovering a card, or keeping it open in the thread pane, pins its lane, its slot, and the lane of its family or box, so live updates re-sort the board around it instead of moving it; the pin lifts when the pointer leaves or the pane closes.",
+    "children": [
+      "The parent thread view pins the attended card's lane order and its row slot the same way.",
+      "Your own moves still land: a drag, drop, or menu action releases the pin for that gesture and re-pins the settled result."
+    ],
+    "group": "Card placement"
   },
   {
     "text": "**A card's chips group by provider, at most two to a row.** All of a provider's issue ids share one chip and its pull ids another, with the provider mark at the head linking to that kind's list page: the repo's filtered page when the repo is known, GitHub's global one otherwise; long id lists wrap onto extra lines. Each id keeps its own item link in the muted chip color; merged ids strike through in grey and pop purple on hover, every id's state answers on its hover title, and a kindless `#N` whose status names a PR swaps to the pull glyph.",

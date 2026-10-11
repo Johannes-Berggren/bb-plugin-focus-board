@@ -419,6 +419,14 @@ export function buildColumns(
   now: number = Date.now(),
   ranks: RankStore = {},
   columnOverrides: ReadonlyMap<string, { id: string; label: string }> = new Map(),
+  /**
+   * The attention freeze's lane pins (components/attention-freeze): the
+   * rendered lane a card under attention held at capture time. These win
+   * over every claim — family R4 overrides and box overrides included —
+   * because an attended card MUST NOT move: the family resumes live
+   * re-laning the moment attention releases.
+   */
+  attentionColumns: ReadonlyMap<string, { id: string; label: string }> = new Map(),
 ): BoardColumn[] {
   // Threads marked Done form their own column, always farthest right on the
   // Attention board and present (dimmed) on every other grouping.
@@ -442,7 +450,10 @@ export function buildColumns(
   for (const thread of unpinned) {
     assignments.set(
       thread.id,
-      columnOverrides.get(thread.id) ?? frozenColumns.get(thread.id) ?? columnFor(thread, groupBy, context, now),
+      attentionColumns.get(thread.id) ??
+        columnOverrides.get(thread.id) ??
+        frozenColumns.get(thread.id) ??
+        columnFor(thread, groupBy, context, now),
     );
   }
 

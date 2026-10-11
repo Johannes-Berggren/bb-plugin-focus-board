@@ -47,7 +47,22 @@ import {
   assembleBoard,
 } from "./components/nesting";
 import { buildParentLanes } from "./components/parent-lanes";
+import type { ParentLane } from "./components/parent-lanes";
+import type { GroupBox } from "./components/group-boxes";
 import { ParentLaneBoard } from "./components/parent-lane-board";
+import {
+  applyLaneFreezes,
+  capturesEqual,
+  columnPlacementOf,
+  compileAttentionFreezes,
+  laneCaptureOf,
+  stripCapturedIds,
+  EMPTY_ATTENTION_FREEZE,
+  type AttentionCapture,
+  type AttentionOrigin,
+  type AttentionSlot,
+  type LaneCapture,
+} from "./components/attention-freeze";
 import { GroupDialog } from "./components/group-dialog";
 import { filterWithGroupBoxes, planGroupBoxes } from "./components/group-boxes";
 import { applyUnitMoveVisible } from "./lib/rank-unit-move";
@@ -169,6 +184,10 @@ const PANEL_PATH = "board";
 /** The nesting map when there is none (flat board, parent grouping): a stable
  *  empty, so the auto-expand effect's inputs never churn identity per render. */
 const EMPTY_NESTED: ReadonlyMap<string, readonly PluginSidebarThread[]> = new Map();
+
+/** No natural-lane capture: the attention freeze owns the pane's pin now, so
+ *  app passes a stable empty to assembleBoard's legacy frozenColumns param. */
+const EMPTY_FROZEN_COLUMNS: ReadonlyMap<string, { id: string; label: string }> = new Map();
 
 /**
  * `toPluginPanel` is typed `void`, but the host may return `false` when it
@@ -929,10 +948,6 @@ function BoardPage({ subPath }: { subPath: string }) {
     setSettingsTab(tab);
     setSettingsOpen(true);
   }, []);
-  // Rail switches inside an open modal land on the same activation: the
-  // What's-new tab is stamped the moment its content becomes visible,
-  // whatever route the reader took. Re-activating in the same open shows a
-  // muted group — the delta was already presented.
   const handleTabChange = useCallback((tab: SettingsTab) => {
     if (tab === "whats-new") {
       activateWhatsNew();
@@ -956,12 +971,188 @@ function BoardPage({ subPath }: { subPath: string }) {
       ),
     [whatsNewUnseen, lastSeenVersion, unreleasedNewLeads],
   );
-  // The selected thread's column is captured when it is opened and held until
-  // it is deselected, so live state/age changes cannot slide the card.
-  const [frozenColumn, setFrozenColumn] = useState<{
-    threadId: string;
-    column: { id: string; label: string };
+  // ---- The attention freeze (components/attention-freeze).
+  // A card the operator attends to — the pointer on it, or the pane open on
+  // it — holds the placement captured at attention time: its lane, its slot,
+  // its family's lane claim, its row on the parent view. Live data churn
+  // re-sorts the board AROUND the attended placement; the placement rules
+  // run again the moment attention releases (mouse out / pane close).
+  // User-initiated placements (drops, rank moves, menu actions, pane
+  // toggles) strip the pin first so the gesture's move lands; the recapture
+  // effect below re-pins the settled result.
+  const [paneCapture, setPaneCapture] = useState<AttentionCapture | null>(null);
+  const [paneLaneCapture, setPaneLaneCapture] = useState<LaneCapture | null>(null);
+  const [hoverCaptures, setHoverCaptures] = useState<
+    ReadonlyMap<string, AttentionCapture>
+  >(new Map());
+  const [hoverLaneCaptures, setHoverLaneCaptures] = useState<
+    ReadonlyMap<string, LaneCapture>
+  >(new Map());
+  // The capture's inputs (assembly, parent lanes, family index, group-box
+  // plan) arrive later in the render; the ref bridges them to the event-time
+  // capture callbacks — the same latest-value pattern the scroll managers run.
+  const attentionInputRef = useRef<{
+    parent: boolean;
+    view: GroupBy;
+    assembly: ReturnType<typeof assembleBoard> | null;
+    parentLanes: readonly ParentLane[] | null;
+    parentOf: ReadonlyMap<string, string>;
+    groupBoxOf: ReadonlyMap<string, GroupBox>;
   } | null>(null);
+  // Capture one attention on the column board: the focus card's rendered
+  // lane and slot, its family root's card, and every member of its group
+  // box (a half-pinned box would render split across lanes).
+  const captureThreadAttention = useCallback(
+    (threadId: string, origin: AttentionOrigin): AttentionCapture | null => {
+      const input = attentionInputRef.current;
+      if (input === null || input.parent) return null;
+      const assembly = input.assembly;
+      if (assembly === null) return null;
+      const slots: AttentionSlot[] = [];
+      const focusSlot = columnPlacementOf(assembly.columns, threadId);
+      if (focusSlot !== null) slots.push(focusSlot);
+      // The family root's card: the family does not re-lane while its
+      // member is attended (the R4 override's "family wins" rule resumes
+      // when the attention releases).
+      let rootId = threadId;
+      while (input.parentOf.has(rootId)) rootId = input.parentOf.get(rootId) as string;
+      if (rootId !== threadId) {
+        const rootSlot = columnPlacementOf(assembly.columns, rootId);
+        if (rootSlot !== null) slots.push(rootSlot);
+      }
+      const box = input.groupBoxOf.get(threadId);
+      if (box !== undefined) {
+        for (const member of box.members) {
+          if (slots.some((slot) => slot.threadId === member.id)) continue;
+          const slot = columnPlacementOf(assembly.columns, member.id);
+          if (slot !== null) slots.push(slot);
+        }
+      }
+      let rowPin: AttentionCapture["rowPin"] = null;
+      if (focusSlot === null) {
+        // Not rendered standalone: a nested child row (or a done child under
+        // the family's Done projection card). Pin its row slot instead.
+        const parentId = input.parentOf.get(threadId);
+        if (parentId === undefined) return null;
+        for (const rows of [assembly.nestedChildrenByParent.get(parentId), assembly.doneChildrenByParent.get(parentId)]) {
+          if (rows === undefined) continue;
+          const index = rows.findIndex((card) => card.id === threadId);
+          if (index === -1) continue;
+          rowPin = { parentId, childId: threadId, index };
+          break;
+        }
+      }
+      if (slots.length === 0 && rowPin === null) return null;
+      return { origin, view: input.view, focusId: threadId, slots, rowPin, capturedAt: Date.now() };
+    },
+    [],
+  );
+  const capturePaneAttention = useCallback((threadId: string): void => {
+    const input = attentionInputRef.current;
+    if (input === null) return;
+    if (input.parent) {
+      // The parent view's freeze is a lane-order capture, not a column one.
+      setPaneCapture(null);
+      setPaneLaneCapture(
+        input.parentLanes === null
+          ? null
+          : laneCaptureOf(input.parentLanes, threadId, {
+              origin: "selection",
+              capturedAt: Date.now(),
+            }),
+      );
+      return;
+    }
+    setPaneLaneCapture(null);
+    setPaneCapture(captureThreadAttention(threadId, "selection"));
+  }, [captureThreadAttention]);
+  // Strip the pin for every thread a user-initiated placement touched, so
+  // the gesture's write lands instead of snapping the attended card back.
+  const releaseAttentionFor = useCallback((removedIds: ReadonlySet<string>) => {
+    setPaneCapture((current) =>
+      current === null ? null : stripCapturedIds(current, removedIds),
+    );
+    setHoverCaptures((current) => {
+      if (current.size === 0) return current;
+      let changed = false;
+      const next = new Map<string, AttentionCapture>();
+      for (const [threadId, capture] of current) {
+        const stripped = stripCapturedIds(capture, removedIds);
+        if (stripped !== capture) changed = true;
+        next.set(threadId, stripped);
+      }
+      return changed ? next : current;
+    });
+    setPaneLaneCapture((current) =>
+      current === null
+        ? null
+        : removedIds.has(current.focusId)
+          ? // Keep the focus; the placement is void until the recapture pass
+            // re-pins the gesture's settled result (an all-empty lane id
+            // matches no lane, so the void capture pins nothing meanwhile).
+            { ...current, laneId: "", laneIndex: -1, row: null }
+          : current,
+    );
+    setHoverLaneCaptures((current) => {
+      if (current.size === 0) return current;
+      let changed = false;
+      const next = new Map<string, LaneCapture>();
+      for (const [threadId, capture] of current) {
+        if (removedIds.has(threadId)) {
+          changed = true;
+          next.set(threadId, { ...capture, laneId: "", laneIndex: -1, row: null });
+          continue;
+        }
+        next.set(threadId, capture);
+      }
+      return changed ? next : current;
+    });
+  }, []);
+  // On attention: capture the entered card's rendered placement (its lane
+  // and slot; on the parent view, its lane order slot and row). The capture
+  // replaces nothing — a per-thread map, so sibling cards (nested rows
+  // under an attended family card) hold their own pins independently.
+  const attentionEnter = useCallback(
+    (threadId: string) => {
+      const input = attentionInputRef.current;
+      if (input === null) return;
+      if (input.parent) {
+        const capture =
+          input.parentLanes === null
+            ? null
+            : laneCaptureOf(input.parentLanes, threadId, {
+                origin: "hover",
+                capturedAt: Date.now(),
+              });
+        if (capture === null) return;
+        setHoverLaneCaptures((current) =>
+          current.has(threadId) ? current : new Map(current).set(threadId, capture),
+        );
+        return;
+      }
+      const capture = captureThreadAttention(threadId, "hover");
+      if (capture === null) return;
+      setHoverCaptures((current) =>
+        current.has(threadId) ? current : new Map(current).set(threadId, capture),
+      );
+    },
+    [captureThreadAttention],
+  );
+  // Off attention: release that card's pin (the placement rules run again).
+  const attentionLeave = useCallback((threadId: string) => {
+    setHoverCaptures((current) => {
+      if (!current.has(threadId)) return current;
+      const next = new Map(current);
+      next.delete(threadId);
+      return next;
+    });
+    setHoverLaneCaptures((current) => {
+      if (!current.has(threadId)) return current;
+      const next = new Map(current);
+      next.delete(threadId);
+      return next;
+    });
+  }, []);
 
   const persistGroupBy = useCallback((value: GroupBy) => {
     setGroupBy(value);
@@ -1144,21 +1335,19 @@ function BoardPage({ subPath }: { subPath: string }) {
   // render a box, which lane each box lands in. Computed over the FULL
   // non-hidden set — a member a search hid is dimmed inside its passing
   // box, never dropped from the group's count.
-  // The plan's lane also beats the pane's frozen column ("Family wins,
-  // always"): the lane comes from the members' live states — the most
-  // attention-needing member's — so opening a card never teleports its
-  // family into the open card's captured lane. buildColumns applies box
-  // overrides (and R4 family lanes) ahead of any frozen capture; the freeze
-  // keeps owning cards no family lane claims. Because the plan places every
-  // box member, the box is always whole in exactly one column — the split
-  // the 2026-10-10 report drove the pane-follows rule against cannot render.
-  const frozenColumns = useMemo(() => {
-    const frozen = new Map<string, { id: string; label: string }>();
-    if (openThreadId !== null && frozenColumn !== null && frozenColumn.threadId === openThreadId) {
-      frozen.set(frozenColumn.threadId, frozenColumn.column);
+  // The plan's lane beats the PANE's natural-lane capture ("family wins") —
+  // EXCEPT while a card's attention freeze is live: an attended card holds
+  // its rendered placement over every claim, and the family/box lanes run
+  // again the moment the attention releases. A capture taken under another
+  // grouping is inert here (its lane names a grouping that no longer runs).
+  const attentionFreezePlan = useMemo(() => {
+    const captures: AttentionCapture[] = [];
+    if (paneCapture !== null && paneCapture.view === groupBy) captures.push(paneCapture);
+    for (const capture of hoverCaptures.values()) {
+      if (capture.view === groupBy) captures.push(capture);
     }
-    return frozen;
-  }, [openThreadId, frozenColumn]);
+    return captures.length === 0 ? EMPTY_ATTENTION_FREEZE : compileAttentionFreezes(captures);
+  }, [groupBy, paneCapture, hoverCaptures]);
   // The grouping context, extended once with the feature-group maps: under
   // the "group" grouping `columnFor` resolves a thread's column from its
   // assignment (and the box plan rides the same maps, so its column
@@ -1212,9 +1401,21 @@ function BoardPage({ subPath }: { subPath: string }) {
   // counted per card's own space (live children on a live card; done rows on
   // a Done card). With nesting OFF the board is flat: no rows, no chips.
   const isParentGroupBy = groupBy === "parent";
+  // Lane captures feed the parent view's freezes: the pane's lane capture
+  // plus every hovered lane cell. A capture taken under another grouping is
+  // inert (lane captures only exist under the parent view).
+  const laneFreezes = useMemo(() => {
+    const captures: LaneCapture[] = [];
+    if (paneLaneCapture !== null) captures.push(paneLaneCapture);
+    for (const capture of hoverLaneCaptures.values()) captures.push(capture);
+    return captures;
+  }, [paneLaneCapture, hoverLaneCaptures]);
   const parentLanes = useMemo(
-    () => (isParentGroupBy ? buildParentLanes(searched, doneIds, Date.now(), doneTimes) : null),
-    [isParentGroupBy, searched, doneIds, doneTimes],
+    () =>
+      isParentGroupBy
+        ? applyLaneFreezes(buildParentLanes(searched, doneIds, Date.now(), doneTimes), laneFreezes)
+        : null,
+    [isParentGroupBy, searched, doneIds, doneTimes, laneFreezes],
   );
   const parentLaneChildrenByParent = useMemo(
     () => (isParentGroupBy ? familyIndex.childrenByParent : new Map<string, readonly PluginSidebarThread[]>()),
@@ -1224,19 +1425,92 @@ function BoardPage({ subPath }: { subPath: string }) {
     () =>
       isParentGroupBy
         ? null
-        : assembleBoard(searched, groupBy, groupContext, frozenColumns, doneIds, Date.now(), {
+        : assembleBoard(searched, groupBy, groupContext, EMPTY_FROZEN_COLUMNS, doneIds, Date.now(), {
             nestingEnabled: nestChildren,
             ranks,
             doneTimes,
             extraColumnOverrides: groupBoxPlan.columnOverrides,
+            attentionFreeze: attentionFreezePlan,
           }),
-    [isParentGroupBy, searched, groupBy, groupContext, frozenColumns, doneIds, nestChildren, ranks, doneTimes, groupBoxPlan],
+    [isParentGroupBy, searched, groupBy, groupContext, doneIds, nestChildren, ranks, doneTimes, groupBoxPlan, attentionFreezePlan],
   );
   const columns = assembly?.columns ?? [];
   // The map that actually renders as nested rows (nesting rules applied, so a
   // promoted, un-nested, or cross-axis child is absent — expanding the card
   // could never reveal it). Stable across renders.
   const nestedChildrenByParent = assembly?.nestedChildrenByParent ?? EMPTY_NESTED;
+  // The capture bridge (attention-freeze): refreshed every render, read at
+  // attention events and in the recapture effect below.
+  attentionInputRef.current = {
+    parent: isParentGroupBy,
+    view: groupBy,
+    assembly,
+    parentLanes,
+    parentOf: familyIndex.parentOf,
+    groupBoxOf: groupBoxPlan.groupBoxOf,
+  };
+  // Attention recapture: re-resolve every live capture against the current
+  // board. A user-initiated placement stripped its pin first (release-
+  // AttentionFor above), so the strip's write lands unpinned and this pass
+  // re-pins the settled placement. A pin nothing stripped rebuilds to its
+  // pinned placement — the pass is a no-op (capturesEqual) — and a focus
+  // whose card left the board prunes its capture.
+  useEffect(() => {
+    setPaneCapture((current) => {
+      if (current === null) return current;
+      const rebuilt = captureThreadAttention(current.focusId, current.origin);
+      return capturesEqual(rebuilt, current) ? current : rebuilt;
+    });
+    setHoverCaptures((current) => {
+      if (current.size === 0) return current;
+      let changed = false;
+      const next = new Map<string, AttentionCapture>();
+      for (const [threadId, capture] of current) {
+        const rebuilt = captureThreadAttention(threadId, capture.origin);
+        if (rebuilt !== null && capturesEqual(rebuilt, capture)) {
+          next.set(threadId, capture);
+          continue;
+        }
+        changed = true;
+        if (rebuilt !== null) next.set(threadId, rebuilt);
+      }
+      return changed ? next : current;
+    });
+    setPaneLaneCapture((current) => {
+      if (current === null) return current;
+      const input = attentionInputRef.current;
+      if (input === null || !input.parent || input.parentLanes === null) return current;
+      const rebuilt = laneCaptureOf(input.parentLanes, current.focusId, {
+        origin: current.origin,
+        capturedAt: current.capturedAt,
+      });
+      return rebuilt !== null && rebuilt.laneId === current.laneId && rebuilt.laneIndex === current.laneIndex
+        ? current
+        : rebuilt ?? null;
+    });
+    setHoverLaneCaptures((current) => {
+      if (current.size === 0) return current;
+      const input = attentionInputRef.current;
+      if (input === null || !input.parent || input.parentLanes === null) return current;
+      let changed = false;
+      const next = new Map<string, LaneCapture>();
+      for (const [threadId, capture] of current) {
+        const rebuilt = laneCaptureOf(input.parentLanes, threadId, {
+          origin: capture.origin,
+          capturedAt: capture.capturedAt,
+        });
+        if (rebuilt !== null) {
+          next.set(threadId, rebuilt);
+          if (rebuilt.laneId !== capture.laneId || rebuilt.laneIndex !== capture.laneIndex || rebuilt.row?.id !== capture.row?.id || rebuilt.row?.index !== capture.row?.index) {
+            changed = true;
+          }
+          continue;
+        }
+        changed = true;
+      }
+      return changed ? next : current;
+    });
+  }, [captureThreadAttention, ranks, doneIds, threads, groupBy, paneCapture, hoverCaptures, paneLaneCapture, hoverLaneCaptures]);
 
   // The old collapsed-family auto-expand is gone: an attention child now
   // un-nests (nesting.ts `childPlacement`) and surfaces as its own card
@@ -1722,22 +1996,16 @@ function BoardPage({ subPath }: { subPath: string }) {
           subPath: paneSubPathFor(threadId),
         }),
       );
-      const thread = threads.find((candidate) => candidate.id === threadId);
-      setFrozenColumn(
-        thread === undefined || groupBy === "parent"
-          ? null
-          : {
-              threadId,
-              column: columnFor(thread, groupBy, groupContext),
-            },
-      );
+      // The attention freeze: the pane's card captures its rendered
+      // placement (lane, slot, family lane, lane view) at open time.
+      capturePaneAttention(threadId);
       if (rejected && openThreadId !== threadId) {
         // Without a working history integration the subPath never changes, so
         // open locally: the pane opens now and closes via onClose below.
         setFallbackPaneThreadId(threadId);
       }
     },
-    [navigate, openThreadId, threads, groupBy, groupContext],
+    [navigate, openThreadId, capturePaneAttention],
   );
 
   // The composer modal resolved a spawn: remember the project it landed in
@@ -1794,25 +2062,31 @@ function BoardPage({ subPath }: { subPath: string }) {
     // External navigation onto a thread the board has open elsewhere in its
     // history: adopt the URL's thread so the pane follows the route owner.
     // The freeze is captured once per adopted thread — live thread updates
-    // must never re-freeze, or a thread that moved columns would slide the
-    // card after the fact (the same contract a click-opened pane has).
+    // must never re-freeze, or a thread that moved placements would slide the
+    // card after the fact (the same contract a click-opened pane has); the
+    // recapture pass below is the only re-pin, and it reads the pinned board.
     if (paneThreadId !== null) {
       setFallbackPaneThreadId(null);
-      setFrozenColumn((current) => {
-        if (current !== null && current.threadId === paneThreadId) return current;
-        const thread = threads.find((candidate) => candidate.id === paneThreadId);
-        return thread === undefined || groupBy === "parent"
-          ? current
-          : {
-              threadId: paneThreadId,
-              column: columnFor(thread, groupBy, groupContext),
-            };
+      setPaneCapture((current) => {
+        if (current !== null && current.focusId === paneThreadId) return current;
+        const rebuilt = captureThreadAttention(paneThreadId, "selection");
+        return rebuilt;
+      });
+      setPaneLaneCapture((current) => {
+        if (current !== null && current.focusId === paneThreadId) return current;
+        const input = attentionInputRef.current;
+        if (input === null || !input.parent || input.parentLanes === null) return current;
+        return laneCaptureOf(input.parentLanes, paneThreadId, {
+          origin: "selection",
+          capturedAt: Date.now(),
+        });
       });
     } else {
       setFallbackPaneThreadId(null);
-      setFrozenColumn(null);
+      setPaneCapture(null);
+      setPaneLaneCapture(null);
     }
-  }, [paneThreadId, threads, groupBy, groupContext]);
+  }, [paneThreadId, captureThreadAttention]);
 
   // Project creation needs a host checkout path; the personal workspace's
   // host hosts every project, so create under the first known host.
@@ -1975,6 +2249,10 @@ function BoardPage({ subPath }: { subPath: string }) {
       if (current === null || current.columnId !== columnId) return;
       if (sweepRun !== null) return; // one run at a time
       const threadIds = confirmSweep(current, true);
+      // The sweep's runner moves (or removes) the confirmed cards: release
+      // their pins so the gestures land; the attention rules resume for
+      // what remains on the board.
+      releaseAttentionFor(new Set(threadIds));
       const destination = sweepDestination(columnId);
       if (destination === null) {
         // Not a sweepable column: a confirm here is a caller bug. Refuse —
@@ -2073,7 +2351,7 @@ function BoardPage({ subPath }: { subPath: string }) {
         });
       });
     },
-    [actions, armedSweep, exitPinnedLane, rpc, sdk, sweepRun, threads],
+        [actions, armedSweep, exitPinnedLane, releaseAttentionFor, rpc, sdk, sweepRun, threads],
   );
 
   // Undo a cancelled run, reversing exactly what it settled: unarchive the
@@ -2090,6 +2368,9 @@ function BoardPage({ subPath }: { subPath: string }) {
   const undoSweepFor = useCallback(
     (threadIds: readonly string[], destination: SweepDestination) => {
       void (async () => {
+        // User-initiated: the undone cards return to their previous lanes;
+        // release their pins so the restoration lands, then recapture.
+        releaseAttentionFor(new Set(threadIds));
         const failed: string[] = [];
         for (const threadId of threadIds) {
           try {
@@ -2123,7 +2404,7 @@ function BoardPage({ subPath }: { subPath: string }) {
         });
       })();
     },
-    [actions, clearParkPin, rpc, sdk],
+    [actions, clearParkPin, releaseAttentionFor, rpc, sdk],
   );
 
   // The state-truth reaction to a thread BECOMING unread — fired by our own
@@ -2317,6 +2598,9 @@ function BoardPage({ subPath }: { subPath: string }) {
       // app.tsx keeps the side effects; lib/card-menu owns the order,
       // labels, icons and dividers (the grouping contract the card-menu
       // tests pin). Bodies are the pre-extraction run code, verbatim.
+      // Attention contract: these actions move (or re-lane) the card —
+      // release its pin first so the gesture's placement lands; the
+      // recapture pass re-pins the settled placement while attention holds.
       return cardMenuActions(
         {
           thread,
@@ -2452,9 +2736,15 @@ function BoardPage({ subPath }: { subPath: string }) {
           },
           requestDelete: () => actions.requestDelete(thread.id),
         },
-      );
+      ).map((action) => ({
+        ...action,
+        run: () => {
+          releaseAttentionFor(new Set([thread.id]));
+          action.run();
+        },
+      }));
     },
-    [actions, applyUnreadStateEffects, clearParkPin, clearSnooze, doneAgeSource, doneIds, exitPinnedLane, groupAssignments, openNewChildThread, pendingStateClaimsRef, requestReveal, restoreParkedPin, runBrowserReveal, rpc, setBrowserNotice, setDoneExtras, setDoneIds, setGroupDialogFor, setSnoozeDialogFor, snoozedIds, sdk],
+    [actions, applyUnreadStateEffects, clearParkPin, clearSnooze, doneAgeSource, doneIds, exitPinnedLane, groupAssignments, openNewChildThread, pendingStateClaimsRef, releaseAttentionFor, requestReveal, restoreParkedPin, runBrowserReveal, rpc, setBrowserNotice, setDoneExtras, setDoneIds, setGroupDialogFor, setSnoozeDialogFor, snoozedIds, sdk],
   );
 
   if (sidebarStatus === "loading" && threads.length === 0) {
@@ -2544,6 +2834,8 @@ function BoardPage({ subPath }: { subPath: string }) {
             onNewTask={openNewThread}
             menuActionsFor={menuActionsFor}
             snoozeFor={snoozeFor}
+            onAttentionEnter={attentionEnter}
+            onAttentionLeave={attentionLeave}
           />
         ) : boardCount === 0 ? (
           <div className="p-4">
@@ -2565,7 +2857,12 @@ function BoardPage({ subPath }: { subPath: string }) {
             childCountByParent={assembly?.childCountByParent ?? new Map()}
             doneChildrenByParent={assembly?.doneChildrenByParent ?? new Map()}
             groupBoxOf={groupBoxPlan.groupBoxOf}
-            onJoinGroup={setThreadGroup}
+            onJoinGroup={(droppedId, groupId) => {
+              // User-initiated: joining a lane moves the card; the pin
+              // releases for the gesture.
+              releaseAttentionFor(new Set([droppedId]));
+              setThreadGroup(droppedId, groupId);
+            }}
             onRenameGroup={renameGroup}
             onDeleteGroup={deleteGroup}
             onNewThreadInGroup={openNewThreadInGroup}
@@ -2581,6 +2878,8 @@ function BoardPage({ subPath }: { subPath: string }) {
             onClosePane={closeThreadPane}
             onNewTask={openNewThread}
             snoozeFor={snoozeFor}
+            onAttentionEnter={attentionEnter}
+            onAttentionLeave={attentionLeave}
             onHideLane={groupBy === "project" || groupBy === "group" ? hideLane : undefined}
             sweepCandidatesFor={sweepCandidatesFor}
             armedSweep={armedSweep}
@@ -2598,6 +2897,8 @@ function BoardPage({ subPath }: { subPath: string }) {
             onSweepConfirm={confirmSweepFor}
             onSweepCancel={cancelSweepFor}
             onDropDone={(threadId) => {
+              // User-initiated: the pin releases for this gesture's move.
+              releaseAttentionFor(new Set([threadId]));
               const thread = threads.find((candidate) => candidate.id === threadId);
               const next = new Set(doneIds);
               next.add(threadId);
@@ -2611,6 +2912,7 @@ function BoardPage({ subPath }: { subPath: string }) {
               exitPinnedLane(threadId);
             }}
             onDropUnread={(threadId) => {
+              releaseAttentionFor(new Set([threadId]));
               const thread = threads.find((candidate) => candidate.id === threadId);
               if (thread === undefined) return;
               if (thread.isPinned) {
@@ -2635,6 +2937,7 @@ function BoardPage({ subPath }: { subPath: string }) {
             // pinned card's drop is a same-lane reorder (claimed by the card
             // or lane handler) and never reaches this path.
             onDropPinned={(threadId) => {
+              releaseAttentionFor(new Set([threadId]));
               const thread = threads.find((candidate) => candidate.id === threadId);
               if (thread !== undefined && !thread.isPinned) {
                 void actions.setPinned(threadId, true);
@@ -2642,16 +2945,26 @@ function BoardPage({ subPath }: { subPath: string }) {
             }}
             rankStore={ranks}
             rawParentOf={familyIndex.rawParentOf}
-            onReparent={(childId, parentThreadId) =>
+            onReparent={(childId, parentThreadId) => {
+              // User-initiated: a re-rooting re-places both ends; release
+              // their pins so the gesture's placement lands.
+              const touched = parentThreadId === null
+                ? new Set([childId])
+                : new Set([childId, parentThreadId]);
+              releaseAttentionFor(touched);
               // The host owns the write (threads.update → thread:changed →
               // the sidebar hook refetches → nesting re-derives). The board
               // surfaces rejections; the guard re-checked fresh rows
               // server-side, so a rejection means stale UI data.
-              rpc.call("thread_reparent", { threadId: childId, parentThreadId }).then(
+              return rpc.call("thread_reparent", { threadId: childId, parentThreadId }).then(
                 () => undefined,
-              )
-            }
+              );
+            }}
             onRankMove={(columnKey, threadId, beforeId, toEnd, visibleIds, unitIds) => {
+              // User-initiated movement: strip the affected column's pins
+              // first, so the gesture's snap lands and the recapture pass
+              // re-pins the settled order.
+              releaseAttentionFor(new Set(visibleIds));
               // Optimistic: the card (or whole box, unitIds) snaps to its
               // slot immediately, and the rank-changed refetch confirms. A
               // rejected write settles back to the stored order on the next
@@ -2699,6 +3012,8 @@ function BoardPage({ subPath }: { subPath: string }) {
           snoozeWakeAt={openThreadId === null ? null : snoozeFor(openThreadId)}
           onToggleDone={(done) => {
             if (openThreadId === null) return;
+            // User-initiated: release this card's pin so the move lands.
+            releaseAttentionFor(new Set([openThreadId]));
             // Current intent: a state change lifts any snooze first.
             if (snoozedIds.has(openThreadId)) clearSnooze(openThreadId);
             setDoneIds((current) => {
@@ -2719,6 +3034,8 @@ function BoardPage({ subPath }: { subPath: string }) {
           }}
           onTogglePinned={() => {
             if (openThreadId === null || openThreadActive === null) return;
+            // User-initiated: release this card's pin so the move lands.
+            releaseAttentionFor(new Set([openThreadId]));
             // Same semantics as the card menu's pin: a state change lifts any
             // snooze first, and a live intent beats the parked value.
             if (snoozedIds.has(openThreadId)) clearSnooze(openThreadId);
@@ -2749,6 +3066,8 @@ function BoardPage({ subPath }: { subPath: string }) {
           }}
           onToggleUnread={() => {
             if (openThreadId === null || openThreadActive === null) return;
+            // User-initiated: release this card's pin so the move lands.
+            releaseAttentionFor(new Set([openThreadId]));
             // Current intent: a state change lifts any snooze first.
             if (snoozedIds.has(openThreadId)) clearSnooze(openThreadId);
             if (openThreadActive.isUnread) {
