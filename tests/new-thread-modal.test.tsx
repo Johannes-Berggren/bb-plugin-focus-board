@@ -139,6 +139,41 @@ describe("NewThreadModal", () => {
     expect(view.queryByText("Stub composer submit")).toBeNull();
   });
 
+  it("leaves the composer's popup menus unclipped: no scroll/hidden overflow ancestor between the composer and the dialog", () => {
+    // Why a DOM-structure test and not a rendered check: jsdom cannot measure
+    // clipping (no layout), so this asserts the invariant the modal controls:
+    // any ancestor of the composer form with overflow other than visible
+    // clips the host composer's typeahead menu. Proof from the real browser
+    // (desktop tab, 1280x720): the host menu renders position:absolute
+    // `bottom-full` against the promptbox form — for "Ask anything." at
+    // y=306, the @-menu rect was y=265..299 (above the form; the menu
+    // escapes static siblings like the host's own data-promptbox-main
+    // because its containing block is the form) — but the modal's
+    // max-h-[70vh] overflow-y-auto wrapper sat at y=306..470 and IS an
+    // ancestor of that containing block, so it erased the menu entirely
+    // (menu in the DOM, invisible; bb's main view and the board's chat-pane
+    // composer, which have no clipping ancestor above the prompt form, show
+    // the same menu fine). The same clipping path also erased the composer's
+    // "/" command menu. No wrapper — the menu escapes to overlap the dialog
+    // freely.
+    renderModal({ open: true });
+    const composer = document.querySelector('button[type="button"]:not([aria-label="Close"]):not([aria-label="Maximize new thread"])');
+    expect(composer).not.toBeNull();
+    const dialog = composer!.closest('[role="dialog"]');
+    expect(dialog).not.toBeNull();
+    const clipping = /overflow-(y-auto|auto|y-clip|clip|y-hidden|hidden)\b/;
+    const offenders: string[] = [];
+    for (
+      let node: Element | null = composer!.parentElement;
+      node && node !== dialog;
+      node = node.parentElement
+    ) {
+      const className = typeof node.className === "string" ? node.className : "";
+      if (clipping.test(className)) offenders.push(className);
+    }
+    expect(offenders).toEqual([]);
+  });
+
   it("seeds the composer with the project from the board filter", () => {
     renderModal({ defaultProjectId: "proj_a", focusRequest: 3 });
     expect(lastComposerProps).not.toBeNull();

@@ -199,16 +199,22 @@ export function NewThreadModal({
             bb could not start the thread. Your draft is kept — try again.
           </p>
         ) : null}
-        <div className="max-h-[70vh] min-h-0 overflow-y-auto">
-          <NewThreadComposer
-            defaultProjectId={defaultProjectId}
-            {...(defaultEnvironment !== undefined ? { defaultEnvironment } : {})}
-            {...(defaultProviderId !== undefined ? { defaultProviderId } : {})}
-            {...(defaultModel !== undefined ? { defaultModel } : {})}
-            focusRequest={focusRequest}
-            onSubmit={handleSubmit}
-          />
-        </div>
+        {/* No scroll wrapper around the composer: the host promptbox's
+        typeahead menus (@-mentions and "/" commands) render position:absolute
+        against the prompt form and reach ABOVE it; any overflow-scroll/hidden
+        ancestor of that form erases them (found live: with the wrapper, the
+        @-menu was in the DOM but invisible). The composer is short — the
+        overflow risk the old max-h-[70vh] guard chased does not warrant
+        resurrecting the clipper; the host keeps its own internal editor
+        scroll. */}
+        <NewThreadComposer
+          defaultProjectId={defaultProjectId}
+          {...(defaultEnvironment !== undefined ? { defaultEnvironment } : {})}
+          {...(defaultProviderId !== undefined ? { defaultProviderId } : {})}
+          {...(defaultModel !== undefined ? { defaultModel } : {})}
+          focusRequest={focusRequest}
+          onSubmit={handleSubmit}
+        />
       </DialogContent>
     </Dialog>
   );
