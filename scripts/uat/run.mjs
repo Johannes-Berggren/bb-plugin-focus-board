@@ -517,8 +517,11 @@ const pageClickCard = ({ card }) => {
   return { ok: true };
 };
 
-/** Click a control by accessible name: an aria-label, else the button's own text. */
-const pageClickAria = ({ label }) => {
+/** Click a control by accessible name: an aria-label, else the button's own
+ * text. The payload is either the label string itself (the `gestures:` list
+ * spells `- { click_aria: "Label" }`) or `{ label: "…" }`. */
+const pageClickAria = (payload) => {
+  const label = typeof payload === "string" ? payload : payload?.label;
   const el =
     document.querySelector(`button[aria-label="${CSS.escape(label)}"]`) ??
     document.querySelector(`[aria-label="${CSS.escape(label)}"]`) ??
@@ -528,6 +531,16 @@ const pageClickAria = ({ label }) => {
   if (!el) throw new Error(`click_aria: nothing labelled ${label}`);
   el.click();
   return { ok: true };
+};
+
+/** Focus a labelled form control, the setup half of a `type` gesture (the
+ * keystrokes themselves travel through Puppeteer's input pipeline from Node,
+ * so controlled React inputs see real input events, not a value assignment). */
+const pageFocusLabelled = ({ label }) => {
+  const el = document.querySelector(`[aria-label="${CSS.escape(label)}"]`);
+  if (!el) throw new Error(`type: nothing labelled ${label}`);
+  el.focus();
+  return { ok: true, tag: el.tagName };
 };
 
 /**
@@ -1251,6 +1264,27 @@ async function check(step, page, gestureResults = []) {
       );
       expect(`no ${method} call`, calls.length === 0, `${calls.length} call(s) made`);
     }
+    if (rule.rpc_last !== undefined) {
+      // The LAST call of a method carries the args the handler actually
+      // received ({ method, args } subset-match), so a suite can assert the
+      // path a control chose (e.g. thread_autotitle with useThreadModel:
+      // true, or a pluginId/serviceId override pair from the fallback modal).
+      const { method, args: wantArgs } = rule.rpc_last;
+      const last = await page.evaluate(
+        (name) => globalThis.__uat.calls().filter((call) => call.method === name).at(-1) ?? null,
+        method,
+      );
+      const hit =
+        last !== null &&
+        last.args !== undefined &&
+        typeof last.args === "object" &&
+        Object.entries(wantArgs).every(([k, v]) => last.args[k] === v);
+      expect(
+        `${method} last called with ${JSON.stringify(wantArgs)}`,
+        hit,
+        `last ${method} call args ${JSON.stringify(last?.args ?? null)}`,
+      );
+    }
     if (rule.nest_ring !== undefined) {
       // Hover first (the ring rides the dragover commit), then sample.
       const want = rule.nest_ring; // { to: id, shown: boolean }
@@ -1413,7 +1447,7 @@ async function runSuite(file, { port, browser }) {
       // is insertion order), not in this runner's historical fixed order — a
       // pane-history step sequences pushes and backs deliberately, and
       // silently reordering them rewrites the history under test.
-      const GESTURE_ORDER = ["drag", "drag_unidentified", "drag_to_column", "drag_child_to_floor", "drag_child_to_header", "hover_header", "hover", "key", "back", "click", "click_aria", "menu", "scroll", "wheel_pan", "resize", "sleep", "press_escape", "push_url"];
+      const GESTURE_ORDER = ["drag", "drag_unidentified", "drag_to_column", "drag_child_to_floor", "drag_child_to_header", "hover_header", "hover", "key", "back", "click", "click_aria", "type", "menu", "scroll", "wheel_pan", "resize", "sleep", "press_escape", "push_url"];
       let gestureFailed = false;
       // A gesture that cannot even run (its own element is absent — a
       // regression deleted what the step targets) records the step and
@@ -1518,6 +1552,14 @@ async function runSuite(file, { port, browser }) {
             await sleep(300);
           } else if (gesture === "click_aria") {
             await page.evaluate(pageClickAria, payload);
+            await sleep(300);
+          } else if (gesture === "type") {
+            // Focus the labelled field, then type through the real input
+            // pipeline (per-keystroke input events, not a value assignment) —
+            // the same path an operator's keyboard uses, which controlled
+            // React inputs require. `{ into: <aria-label>, text: "…" }`.
+            await page.evaluate(pageFocusLabelled, { label: payload.into });
+            await page.keyboard.type(payload.text, { delay: 15 });
             await sleep(300);
           } else if (gesture === "menu") {
             // Right-click a card and choose an item (e.g. "Pin"): the menu is

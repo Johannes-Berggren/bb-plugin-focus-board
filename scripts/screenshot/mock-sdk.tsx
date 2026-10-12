@@ -208,6 +208,16 @@ export function experimental_useSidebarThreads(): unknown {
  *  unfolded in the attention lanes. UAT suites never set the flag, so their
  *  lane and column-order assertions see exactly the base fixture. */
 const DEMO_MODE = new URLSearchParams(window.location.search).get("demo") === "1";
+// `?failautotitle=` (comma list): autotitle call kinds that fail ONCE, then
+// succeed — the UAT suite walks a failure into the fallback modal and out
+// through an alternative. Kinds: "plain" (the bare ✨ call), "threadmodel"
+// (the useThreadModel probe), "pair:<pluginId>/<serviceId>" (an override).
+const FAIL_AUTOTITLE_KINDS = new Set(
+  (new URLSearchParams(window.location.search).get("failautotitle") ?? "")
+    .split(",")
+    .map((kind) => kind.trim())
+    .filter(Boolean),
+);
 let simThreads: readonly SimThread[] = DEMO_MODE
   ? [...SIM_THREADS, ...SIM_DEMO_THREADS]
   : SIM_THREADS;
@@ -248,7 +258,17 @@ export function experimental_useSidebarThreadActions(): unknown {
       mockRender();
     },
     setRead: async () => {},
-    rename: async () => {},
+    // Mirror the real host: the rename lands in the simulated sidebar and
+    // re-renders, so a ✨ commit (thread-pane's commit path) is visibly the
+    // new title on the closed editor — what the UAT suite asserts.
+    rename: async (threadId: string, nextTitle: string) => {
+      const before = simThreads.find((candidate) => candidate.id === threadId);
+      if (before === undefined) throw new Error(`rename: unknown thread ${threadId}`);
+      simThreads = simThreads.map((candidate) =>
+        candidate.id === threadId ? { ...candidate, displayTitle: nextTitle } : candidate,
+      );
+      mockRender();
+    },
     // The pane's actions menu archives through this sidebar hook (the
     // sweep's awaited archive rides sdk.threads.archive below). Mirror the
     // real host: move the thread out of the simulated sidebar into the
@@ -552,6 +572,30 @@ const rpcCall = async (method: string, args?: unknown): Promise<unknown> => {
       serviceId?: string;
       useThreadModel?: boolean;
     };
+    // `?failautotitle=` seeds ONE failing call per named kind, so a suite
+    // step can walk a failure (the modal opens), then a success. Kinds map
+    // onto the failure shapes found LIVE on the operator's board: `plain`
+    // throws the unset title-task selection error every first click saw;
+    // `openrouter` throws the bridge-overflow 400 the long-opener pick saw.
+    const kind =
+      useThreadModel === true
+        ? "threadmodel"
+        : pluginId === undefined && serviceId === undefined
+          ? "plain"
+          : `pair:${pluginId}/${serviceId}`;
+    if (FAIL_AUTOTITLE_KINDS.delete(kind)) {
+      if (kind === "plain") {
+        throw new Error(
+          "Title task is not set to a plugin AI service. Choose one under Settings → AI services → thread-title (bb cloud and automatic run inside bb and cannot be invoked from plugins).",
+        );
+      }
+      if (useThreadModel === true) {
+        throw new Error(
+          "thread_autotitle: the title probe turn did not finish within 120s on sim-provider/sim-model",
+        );
+      }
+      throw new Error("HTTP 400: rpc input validation failed");
+    }
     if (useThreadModel === true) {
       return { title: "Simulated thread-model title" };
     }
@@ -565,12 +609,16 @@ const rpcCall = async (method: string, args?: unknown): Promise<unknown> => {
   if (method === "thread_autotitle_services") {
     // The fallback modal's menu: one ready alternative (the simulated
     // selection itself is excluded), one disabled with its blocker, and the
-    // thread-model probe available.
+    // thread-model probe available. `sim-nobridge` mirrors the live shape
+    // the real board carries (bb cloud / provider-codex): ready, but
+    // without the complete bridge — it must render BLOCKED, because a pick
+    // routes thread_autotitle at a plugin whose RPC surface has no method.
     return {
       selected: { pluginId: "openrouter-inference", serviceId: "default" },
       services: [
         { pluginId: "openrouter-inference", serviceId: "default", displayName: "OpenRouter", ready: true, message: null, bridge: true, bridgeReason: null },
         { pluginId: "sim-alternative", serviceId: "other", displayName: "Simulated other service", ready: true, message: null, bridge: true, bridgeReason: null },
+        { pluginId: "sim-nobridge", serviceId: "x", displayName: "Simulated unbridged service", ready: true, message: null, bridge: false, bridgeReason: "sim-nobridge does not expose the complete bridge focus-board calls (only plugins implementing one can serve the ✨)" },
         { pluginId: "sim-offline", serviceId: "down", displayName: "Simulated offline service", ready: false, message: "Simulated sign-in needed", bridge: false, bridgeReason: null },
       ],
       threadModel: { available: true, reason: null },

@@ -131,6 +131,7 @@ export function AutotitleFallbackModal({
                     <button
                       type="button"
                       disabled={!bridged}
+                      aria-label={service.displayName}
                       onClick={(event) => {
                         event.stopPropagation();
                         onPick({

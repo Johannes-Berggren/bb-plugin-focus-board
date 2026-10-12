@@ -163,6 +163,18 @@ export function resolveTitleTarget(
   return { ok: true, pluginId, serviceId };
 }
 
+/**
+ * bb's aiServices bridge cap on the `complete` prompt, live-proven: calling
+ * it with a >4000-char prompt answers "Too big: expected string to have
+ * <=4000 characters" (bb core's own schema; the openrouter-inference fork
+ * passes the call through). The built title prompt — instructions PLUS task
+ * text — must fit under this in full: clamping only the task text to
+ * AUTOTITLE_PROMPT_MAX_CHARS and then adding the instruction block overflowed
+ * the cap for long openers (3731 live), and every ✨ pick of the bridged
+ * service died "HTTP 400: rpc input validation failed".
+ */
+export const AUTOTITLE_BRIDGE_PROMPT_MAX_CHARS = 4000;
+
 /** Hard cap on prompt text sent for titling; titles come from beginnings. */
 export const AUTOTITLE_PROMPT_MAX_CHARS = 4000;
 
@@ -212,17 +224,28 @@ export function clampPromptText(
 /**
  * The ✨ title prompt: bb's own generateThreadMetadata guidance, then the
  * thread text as the payload. Models follow a trailing payload better than
- * a trailing instruction for this shape.
+ * a trailing instruction for this shape. The TOTAL stays under bb's
+ * aiServices bridge cap (AUTOTITLE_BRIDGE_PROMPT_MAX_CHARS): the task text
+ * is clamped to whatever budget the instruction block leaves, so long
+ * openers shorten instead of failing the bridge's input validation.
  */
+const AUTOTITLE_INSTRUCTION_LINES = [
+  "You create concise titles for coding tasks.",
+  "Reply with only the title: short, clear, sentence case, in the same language as the task.",
+  "Keep it under about 40 characters. Summarize the task in your own words instead of copying its text.",
+  "No quotes, no trailing punctuation, no explanation.",
+  "",
+  "The task:",
+];
+
 export function buildAutotitlePrompt(threadPrompt: string): string {
+  const instructionOverhead = AUTOTITLE_INSTRUCTION_LINES.join("\n").length + "\n".length;
   return [
-    "You create concise titles for coding tasks.",
-    "Reply with only the title: short, clear, sentence case, in the same language as the task.",
-    "Keep it under about 40 characters. Summarize the task in your own words instead of copying its text.",
-    "No quotes, no trailing punctuation, no explanation.",
-    "",
-    "The task:",
-    clampPromptText(threadPrompt),
+    ...AUTOTITLE_INSTRUCTION_LINES,
+    clampPromptText(
+      threadPrompt,
+      AUTOTITLE_BRIDGE_PROMPT_MAX_CHARS - instructionOverhead,
+    ),
   ].join("\n");
 }
 

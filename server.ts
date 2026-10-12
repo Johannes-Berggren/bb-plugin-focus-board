@@ -2031,7 +2031,9 @@ export default async function plugin(bb: BbPluginApi) {
         method: "complete",
         input: { prompt: buildAutotitlePrompt(threadPrompt) },
         outputSchema: z.object({ text: z.string() }).passthrough(),
-        signal: AbortSignal.timeout(20_000),
+        // Above the provider plugin's own 30s completion budget: a slow,
+        // healthy completion must abort in the provider, not in this bridge.
+        signal: AbortSignal.timeout(35_000),
       })) as { text?: unknown };
       if (typeof reply?.text !== "string") {
         throw new Error(

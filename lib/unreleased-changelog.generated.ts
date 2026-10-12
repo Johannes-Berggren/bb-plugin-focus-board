@@ -123,6 +123,11 @@ export const UNRELEASED_ITEMS: readonly { text: string; children: string[]; grou
     "group": "The title editor"
   },
   {
+    "text": "**The ✨ auto-rename's service picks fit bb's bridge prompt cap again.** A thread whose opener text ran long built a title prompt over bb's 4000-character bridge limit, so the only usable service answered \"HTTP 400: rpc input validation failed\" on every pick; the built prompt now clamps to the cap with the instructions included, and the bridge wait rises above the provider plugin's own 30s budget so slow completions abort there, not in the bridge.",
+    "children": [],
+    "group": "The title editor"
+  },
+  {
     "text": "**The \"@\" mention menu works in the New thread dialog again.** A left-over scroll wrapper clipped the composer's popup menus out of the dialog; the @ picker and the / command menu now open like they do everywhere else in bb.",
     "children": [],
     "group": "The New thread composer"

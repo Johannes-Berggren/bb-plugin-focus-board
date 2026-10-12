@@ -1,0 +1,112 @@
+# The ✨ auto-rename failure walk, in real Chrome: the fallback modal, its
+# blocked rows, and the paths out of it. The behavior under test is the
+# frontend contract the live failure needed: a failed generation opens the
+# modal naming the reason (and never closes the editor), a ready-but-unbridged
+# service renders BLOCKED (the live board carries bb cloud / provider-codex in
+# exactly that shape — a pick would 404 on a plugin with no RPC method), a
+# pick routes the override the row names, and a success commits the rename on
+# the closed editor.
+#
+# The failure MESSAGES are the ones live bb produced (captured from the real
+# board): the unset title-task selection every first ✨ click answered, and
+# the bridge-overflow "HTTP 400: rpc input validation failed" a long-opener
+# pick of the bridged service returned. The mock serves them via
+# `?failautotitle=` (one failing call per named kind, then success), so one
+# page load walks failure → alternatives → success exactly as the operator
+# walked it.
+#
+# Run: npm run uat -- tests/manual/uat-autotitle.yaml
+suite: autotitle
+harness:
+  config: scripts/screenshot/vite.config.ts
+  port: 5182
+defaults:
+  groupBy: status
+  theme: dark
+
+steps:
+  - id: failed-autotitle-opens-the-naming-modal
+    title: A failed ✨ opens the fallback modal naming the reason, with blocked rows blocked by name
+    goto: "?failautotitle=plain&groupBy=status&uat=1#/plugins/focus-board/board/t/thr_uat_queue"
+    gestures:
+      - { click_aria: "Queue the UAT pass for the rank lane" }
+      - { click_aria: "Auto-rename from the thread prompt" }
+    assert:
+      - text_visible: "Auto-rename failed"
+      - text_visible: "Title task is not set to a plugin AI service"
+      # The menu serves the ready-and-bridged alternatives, the ready-but-
+      # unbridged row with ITS blocker named, and the thread-model row.
+      - text_visible: "Simulated other service"
+      - text_visible: "Simulated unbridged service"
+      - text_visible: "does not expose the complete bridge focus-board calls"
+      - text_visible: "The thread's active model"
+
+  - id: thread-model-pick-probes-and-commits
+    title: Picking the thread's active model sends useThreadModel and commits the rename on the closed editor
+    goto: "?failautotitle=plain&groupBy=status&uat=2#/plugins/focus-board/board/t/thr_uat_queue"
+    gestures:
+      - { click_aria: "Queue the UAT pass for the rank lane" }
+      - { click_aria: "Auto-rename from the thread prompt" }
+      - { click_aria: "Use the thread's active model" }
+    assert:
+      - rpc_last:
+          method: thread_autotitle
+          args: { useThreadModel: true }
+      - text_visible: "Simulated thread-model title"
+
+  - id: bridged-pick-routes-the-override
+    title: A bridged alternative routes the pluginId/serviceId override the row names
+    goto: "?failautotitle=plain&groupBy=status&uat=3#/plugins/focus-board/board/t/thr_uat_queue"
+    gestures:
+      - { click_aria: "Queue the UAT pass for the rank lane" }
+      - { click_aria: "Auto-rename from the thread prompt" }
+      - { click_aria: "Simulated other service" }
+    assert:
+      - rpc_last:
+          method: thread_autotitle
+          args: { pluginId: "sim-alternative", serviceId: "other" }
+      - text_visible: "Simulated other title"
+
+  - id: bridged-pick-failure-reopens-the-modal-with-the-reason
+    title: A failing bridged pick reopens the modal naming the bridge error it ran into
+    goto: "?failautotitle=plain,pair:sim-alternative/other&groupBy=status&uat=4#/plugins/focus-board/board/t/thr_uat_queue"
+    gestures:
+      - { click_aria: "Queue the UAT pass for the rank lane" }
+      - { click_aria: "Auto-rename from the thread prompt" }
+      - { click_aria: "Simulated other service" }
+    assert:
+      - rpc_last:
+          method: thread_autotitle
+          args: { pluginId: "sim-alternative", serviceId: "other" }
+      - text_visible: "Auto-rename failed"
+      - text_visible: "HTTP 400: rpc input validation failed"
+
+  - id: recovery-continues-from-the-bridged-failure
+    title: After a failed bridged pick, the thread-model path still probes, commits, and closes the modal
+    goto: "?failautotitle=plain,pair:sim-alternative/other&groupBy=status&uat=5#/plugins/focus-board/board/t/thr_uat_queue"
+    gestures:
+      - { click_aria: "Queue the UAT pass for the rank lane" }
+      - { click_aria: "Auto-rename from the thread prompt" }
+      - { click_aria: "Simulated other service" }
+      - { click_aria: "Use the thread's active model" }
+    assert:
+      - rpc_last:
+          method: thread_autotitle
+          args: { useThreadModel: true }
+      - text_visible: "Simulated thread-model title"
+
+  - id: manual-rename-commits-from-the-modal
+    title: A typed manual title commits from the modal without any further generation attempt
+    goto: "?failautotitle=plain&groupBy=status&uat=6#/plugins/focus-board/board/t/thr_uat_queue"
+    gestures:
+      - { click_aria: "Queue the UAT pass for the rank lane" }
+      - { click_aria: "Auto-rename from the thread prompt" }
+      - { type: { into: "Manual title", text: "Typed from the fallback modal" } }
+      - { click_aria: "Use this title" }
+    assert:
+      # The only thread_autotitle call is the failing first click — a manual
+      # rename never generates again (no override, no probe).
+      - rpc_last:
+          method: thread_autotitle
+          args: { threadId: "thr_uat_queue" }
+      - text_visible: "Typed from the fallback modal"
