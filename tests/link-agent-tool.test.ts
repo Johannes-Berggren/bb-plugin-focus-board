@@ -73,6 +73,17 @@ describe("focus_board_link_issue registration", () => {
     expect(tool.instructions!.length).toBeLessThanOrEqual(4096);
     expect(tool.instructions).toMatch(/focus_board_link_issue/);
   });
+
+  // Copilot CLI (gh-copilot) sessions accept ACP session/new's mcpServers but
+  // never register the bb-bridge tools, so the tool call itself fails there
+  // with the agent's own "tool isn't available in this session" message. The
+  // instructions must hand those sessions a working fallback instead.
+  it("nudge teaches the bb focus-board link set CLI fallback for sessions without the tool", async () => {
+    const { host } = await setup();
+    const instructions = registered(host)[0].instructions!;
+    expect(instructions).toMatch(/focus-board link set/);
+    expect(instructions).toMatch(/BB_THREAD_ID/);
+  });
 });
 
 describe("focus_board_link_issue execution (url form)", () => {

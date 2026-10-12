@@ -2962,6 +2962,12 @@ export default async function plugin(bb: BbPluginApi) {
       "chip text when the conversation turns such an item up. One call per",
       "item; prefer the URL form (a bare GitHub number needs a GitHub remote",
       "on the thread's project).",
+      "If focus_board_link_issue is unavailable in your session (Copilot CLI",
+      "sessions, for one, are not served bb plugin tools), fall back to the",
+      "bb CLI instead of telling the user the tool is missing:",
+      'run `bb focus-board link set "$BB_THREAD_ID" <url>` (add',
+      "--label \"<chip text>\" for external trackers). Verify success from",
+      "the command's output; report the linked URL either way.",
     ].join("\n"),
     parameters: z
       .object({
