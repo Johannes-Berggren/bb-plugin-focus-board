@@ -12,20 +12,18 @@
 //   members drift into Pinned or Done simply loses those members from the
 //   box — they keep their own lanes, the same way a family's done children
 //   leave the nest.
-// - The whole box lands in ONE column: the lane of the most
-//   attention-driving thread across its members' FAMILIES (status
-//   grouping), or — under recency — the freshest family drive's bucket.
-//   This is the family placement rule (familyColumnOverrides via the shared
-//   familyDriveMembers walk) — so "behaves like a family for column
-//   selection" is literally the same algorithm.
-// - A grouping that renders per-thread columns (status, none, recency,
-//   project, provider, machine) keeps boxes active: the box lands in ONE
-//   column — the lane of its most attention-needing member, pulled there by
-//   the plan's columnOverrides exactly as the status side already does
-//   (buildColumns honours overrides under every grouping). "Parent" is the
-//   one exclusion: its lanes are family projections, not thread lanes, so a
-//   box around a family's lanes has no meaning — families are their own
-//   unit system there.
+// - SPLIT DEFAULT (the 2026-10-12 behavior change, issue #86): a group does
+//   NOT gather into its most attention-deserving lane. Members keep their
+//   own lanes and the dashed frame wraps each lane's slice — the frame
+//   appears in EVERY lane holding at least one live member, a slice of one
+//   included (the frame is still the drag-into target there). The plan
+//   emits no column overrides: buildColumns places each member by its own
+//   data, and a growing group dilutes into lanes instead of occupying one.
+//   The operator re-gathers the group's footprint on demand: clicking a
+//   member or a frame amber-highlights every lane's frame of that group.
+//   "Parent" is the one exclusion: its lanes are family projections, not
+//   thread lanes, so a box around a family's lanes has no meaning —
+//   families are their own unit system there.
 // - A box owns its members' placement: members leave the flat list
 //   whenever the box does, and the runs pass below keeps them contiguous,
 //   in the column's own display order.
@@ -40,9 +38,8 @@ import type {
   GroupingContext,
   ThreadState,
 } from "./grouping";
-import { columnFor, groupFilterMisses, matchesFilter, stateFilterPasses, threadState } from "./grouping";
+import { groupFilterMisses, matchesFilter, stateFilterPasses } from "./grouping";
 import { STATUS_COLUMN_ORDER } from "./grouping";
-import { buildFamilyIndex, familyDriveMembers } from "./nesting";
 import type { MoveTarget } from "../lib/rank";
 import type { TicketRef } from "../lib/tickets";
 
@@ -76,9 +73,11 @@ export interface GroupBoxPlan {
    */
   groupBoxOf: ReadonlyMap<string, GroupBox>;
   /**
-   * Member id → the column the member's box lands in, shaped like the
-   * columnOverrides entries buildColumns already accepts. Empty when no
-   * grouping has boxes active.
+   * Always empty: the split default emits no lane claims (members render in
+   * their own lanes, the frame wraps each lane's slice). The field stays so
+   * callers can keep passing plan.columnOverrides to buildColumns without a
+   * branch; it exists so a gather rule can return if the design ever
+   * re-introduces one.
    */
   columnOverrides: ReadonlyMap<string, { id: string; label: string }>;
   /** True when `planGroupBoxes` found at least one box. */
@@ -121,73 +120,26 @@ export function planGroupBoxes(
     if (members === undefined) candidatesByGroup.set(groupId, [thread]);
     else members.push(thread);
   }
-  // One family index over the same visible set serves every member's lane
-  // pick: the box drives by families (the family is the unit of visibility),
-  // and the index is the single authoritative hide of archived members.
-  const byId = new Map(threads.map((thread) => [thread.id, thread]));
-  const familyIndex = buildFamilyIndex(threads);
+  // Split default: the plan claims NO lane for any member. Each member
+  // renders where its own data places it (columnFor via buildColumns), and
+  // the frame wraps this lane's slice of the group wherever it renders — so
+  // a large group spreads across the lanes its members already occupy and
+  // the attention lane keeps hosting whatever actually wants attention.
   for (const [groupId, members] of candidatesByGroup) {
     // A group of one keeps its box: the solitary dashed outline is the
     // drag-into target, so the group stays visible and joinable with a
     // single member (the "evaporates at last assignment cleared" rule
     // lives in the RPC GC, not the board render).
     const box: GroupBox = { groupId, name: groupNames.get(groupId) as string, members: [] };
-    // The box lands in the lane of the most attention-driving thread across
-    // the members' FAMILIES — the family is the unit of visibility (the
-    // BV-INC-10 sighting: an idle member's running child sat in a box the
-    // member-scoped pick pinned to Idle · Recent). `familyDriveMembers`
-    // already drops the copied-out descendants (a Needs-you child, a done
-    // child, a pinned child keep their own lanes and do not drive) and the
-    // archived ones; the member itself always drives. Idle drives tie on
-    // state; the freshest drive breaks the tie (the box is as current as its
-    // freshest visible member). Under recency the bucket IS the age, so the
-    // freshest drive's bucket wins outright.
-    let best: PluginSidebarThread | undefined;
-    for (const member of members) {
-      for (const driver of familyDriveMembers(member.id, byId, familyIndex, doneIds)) {
-        if (
-          best === undefined ||
-          memberIsElevated(memberPriority(driver, groupBy), memberPriority(best, groupBy))
-        ) {
-          best = driver;
-        }
-      }
-    }
-    if (best === undefined) continue;
-    const column = columnFor(best, groupBy, context, now);
     for (const member of members) {
       groupBoxOf.set(member.id, box);
-      columnOverrides.set(member.id, column);
       box.members.push(member);
     }
   }
   return { groupBoxOf, columnOverrides, active: groupBoxOf.size >= 1 };
 }
 
-/**
- * Drive priority for the box's lane pick, compared as a tuple: smallest
- * primary, then largest secondary — the fresher idle (or, under recency,
- * newer) family drive carries the box. status ranks attention(0) < unread(1)
- * < working(2) < idle(3).
- */
-function memberPriority(
-  member: PluginSidebarThread,
-  groupBy: GroupBy,
-): readonly [number, number] {
-  const state = threadState(member);
-  if (groupBy === "recency") return [0, member.updatedAt];
-  const primary = state === "idle" ? 3 : stateIndexOf(state);
-  return [primary, state === "idle" ? member.updatedAt : 0];
-}
-
-function memberIsElevated(
-  a: readonly [number, number],
-  b: readonly [number, number],
-): boolean {
-  if (a[0] !== b[0]) return a[0] < b[0];
-  return a[1] > b[1];
-}
-
+/** The state's index in the status lane order (unknown states sort last). */
 function stateIndexOf(state: ThreadState): number {
   const index = STATUS_COLUMN_ORDER.indexOf(state);
   return index === -1 ? Number.MAX_SAFE_INTEGER : index;
@@ -197,11 +149,11 @@ function stateIndexOf(state: ThreadState): number {
  * Wrap each column's display order into runs: box members gather into one
  * contiguous box item at the position of the FIRST member in the column's
  * own order, preserving relative member order; standalone cards keep their
- * slots. A group of one yields a box run around its single member (the
- * solitary outline stays). A member that landed in a different column (a
- * frozen selection, or a caller that skipped the overrides) renders plain
- * there — the box renders in the column holding at least two of a
- * multi-member box's members in this path.
+ * slots. Under the split default the frame appears in EVERY lane holding at
+ * least one live member: a slice of one (a group of one, or a multi-member
+ * group's lone member in a lane) yields a box run around its single member —
+ * role "solo" downstream, so it drags as a plain card but keeps the frame
+ * (the outline is the drag-into target, and it is the highlight carrier).
  */
 export function runsFromColumns(
   columns: readonly BoardColumn[],
@@ -224,11 +176,11 @@ export interface RunColumnLike {
  * One column's display order walked into runs: box members gather into one
  * contiguous box item at the position of the FIRST member in the column's
  * own order, preserving relative member order; standalone cards keep their
- * slots. A group of one yields a box run around its single member (the
- * solitary outline stays). A member that landed in a different column (a
- * frozen selection, or a caller that skipped the overrides) renders plain
- * there — the box renders in the column holding at least two of a
- * multi-member box's members in this path.
+ * slots. Under the split default the frame appears in EVERY lane holding at
+ * least one live member: a slice of one (a group of one, or a multi-member
+ * group's lone member in a lane) yields a box run around its single member —
+ * role "solo" downstream, so it drags as a plain card but keeps the frame
+ * (the outline is the drag-into target, and it is the highlight carrier).
  */
 export function columnRunItems(
   column: RunColumnLike,
@@ -255,14 +207,6 @@ export function columnRunItems(
     // sequence, looking exactly like "reorder not working").
     const memberIds = new Set(box.members.map((member) => member.id));
     const members = column.threads.filter((candidate) => memberIds.has(candidate.id));
-    // A lone member of a MULTI-member box in THIS column (its box split
-    // by a frozen selection or a caller that skipped the overrides)
-    // renders plain — a split pair never becomes two boxes of one. A
-    // group whose WHOLE membership is this one member keeps its box.
-    if (members.length < 2 && box.members.length > 1) {
-      items.push({ kind: "single", thread });
-      continue;
-    }
     for (const member of members) consumedThisColumn.add(member.id);
     items.push({ kind: "box", box: { ...box, members } });
   }
@@ -297,27 +241,33 @@ export type GroupBoxMap = ReadonlyMap<string, GroupBoxRef & Pick<GroupBox, "memb
  * drop: a dragged card joins `targetGroupId` when it is unassigned, or a
  * member of ANOTHER group (one group per thread — joining moves it). The
  * refuse cases: dropping a thread back onto its own group (nothing to
- * change), and dragging a multi-member box unit (membership is per-thread;
- * the unit keeps moving as an order unit, never dissolves into a group).
- * A lone box member is still a single named card, so it may move.
+ * change), and dragging a card that renders inside a MULTI-member run
+ * (membership is per-thread; the unit keeps moving as an order unit, never
+ * dissolves into a group). Under the split default the drag unit is the
+ * LANE'S SLICE — a lone slice member is still a single named card, so it
+ * may move; the caller reports whether such a run exists for the dragged
+ * card (`draggedRendersUnit`), falling back to the whole-group membership
+ * shape when only the plan map is known.
  */
 export function canJoinGroup(
   droppedId: string,
   targetGroupId: string,
   groupBoxOf: GroupBoxMap,
+  draggedRendersUnit?: boolean,
 ): boolean {
   const droppedRun = groupBoxOf.get(droppedId);
   if (droppedRun === undefined) return true;
   if (droppedRun.groupId === targetGroupId) return false;
+  if (draggedRendersUnit !== undefined) return !draggedRendersUnit;
   return droppedRun.members.length <= 1;
 }
 
 /**
  * Run membership per thread of ONE column: members of the same group that
- * landed (by the overrides or otherwise) in the same column take box roles
- * in display order; a member alone in its column renders plain (role
- * "solo", no decoration, no unit) — one box per render, never a box of
- * one card.
+ * landed in the same column take box roles in display order; a member alone
+ * in its column keeps role "solo" — the container decoration and its data
+ * attributes stay (the frame is the join target and the highlight carrier),
+ * and the member drags as a plain card (a run of one is no unit).
  */
 export function columnRunInfo(
   columnThreads: readonly PluginSidebarThread[],
@@ -337,11 +287,10 @@ export function columnRunInfo(
     const box = groupBoxOf.get(thread.id);
     if (box === undefined) continue;
     const memberIds = byGroup.get(box.groupId) ?? [];
-    // A lone member of a MULTI-member box in this column (a split) drags
-    // plain. A group-of-one's member IS its run: role "solo" — it keeps the
-    // container decoration and its data attributes, and drags as a plain
-    // card (a run of one is no unit).
-    if (memberIds.length < 2 && box.members.length > 1) continue;
+    // Every boxed member keeps an entry: a slice of one (a lone member of a
+    // multi-member group under the split default, or a group-of-one) is role
+    // "solo" — the container decoration and its data attributes stay, and it
+    // drags as a plain card (a run of one is no unit).
     const at = memberIds.indexOf(thread.id);
     const role: ColumnRunInfo["role"] =
       memberIds.length === 1 ? "solo" : at === 0 ? "first" : at === memberIds.length - 1 ? "last" : "mid";

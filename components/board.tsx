@@ -260,6 +260,16 @@ interface BoardProps {
    */
   onJoinGroup?: (droppedId: string, groupId: string) => void;
   /**
+   * The feature group the operator last group-clicked (issue #86): every
+   * lane's frame of this group renders amber. Null clears. The board's
+   * click surface drives it — a member card's click marks the card's group,
+   * a frame's own surface toggles, and a click on anything that is not a
+   * group frame clears.
+   */
+  highlightedGroupId?: string | null;
+  /** Sets the amber group highlight (null clears). Unwired → frames never highlight. */
+  onHighlightGroup?: (groupId: string | null) => void;
+  /**
    * Rename a registry group from the box label: clicking the label turns it
    * into an inline text input, Enter (or blur) commits the trimmed name,
    * Escape cancels. The caller settles the shared record — every member
@@ -572,6 +582,8 @@ export function Board({
   childCountByParent,
   doneChildrenByParent,
   groupBoxOf,
+  highlightedGroupId = null,
+  onHighlightGroup,
   transportVariant = TRANSPORT_VARIANT,
   onRenameGroup,
   onDeleteGroup,
@@ -1184,15 +1196,38 @@ export function Board({
 
   const sweepActive = sweepCandidatesFor !== undefined && onSweepArm !== undefined;
   // Clicking empty board area (anything that is not a card, control, or link)
-  // while a thread is open closes the pane.
+  // while a thread is open closes the pane. The same surface clears the amber
+  // group highlight — any click outside a group frame does — so the
+  // highlight never needs its own Escape or dismiss control.
   const handleBackgroundClick = (event: MouseEvent) => {
-    if (activeThreadId === null || onClosePane === undefined) return;
     const target = event.target;
+    if (onHighlightGroup !== undefined && target instanceof Element) {
+      // A click inside a group frame already ran the frame's own handler
+      // (set or toggle); anything else — a plain card, a control, the
+      // empty board — clears.
+      if (target.closest("[data-group-box]") === null) onHighlightGroup(null);
+    }
+    if (activeThreadId === null || onClosePane === undefined) return;
     if (!(target instanceof Element)) return;
     if (target.closest("[data-thread-card], button, a, input, textarea, select, [role='menu'], [role='menuitem']") !== null) return;
     onClosePane();
   };
   const ranking = rankStore !== undefined && onRankMove !== undefined;
+  // Which boxed threads drag as a multi-member run: the thread's LANE SLICE
+  // (its group's run in the column rendering it) holds ≥ 2 members. The
+  // join decision reads this — under the split default a lone slice member
+  // drags plain and may join another group, while a co-located run moves as
+  // a unit and never dissolves into a group.
+  const boxedUnitIds = useMemo(() => {
+    const ids = new Set<string>();
+    if (groupBoxOf === undefined) return ids;
+    for (const column of columns) {
+      for (const [threadId, info] of columnRunInfo(column.threads, groupBoxOf)) {
+        if (info.role !== "solo") ids.add(threadId);
+      }
+    }
+    return ids;
+  }, [columns, groupBoxOf]);
 
   // Announce a completed move so a reorder is legible without sight of the
   // insertion line, which is the only feedback a screen reader would miss.
@@ -1552,7 +1587,12 @@ export function Board({
       lane &&
       zone !== "onto" &&
       droppedId !== "" &&
-      canJoinGroup(droppedId, memberBoxId, groupBoxOf ?? EMPTY_GROUP_BOXES)
+      canJoinGroup(
+        droppedId,
+        memberBoxId,
+        groupBoxOf ?? EMPTY_GROUP_BOXES,
+        boxedUnitIds.has(droppedId),
+      )
     );
   }
 
@@ -2998,7 +3038,7 @@ export function Board({
                               const memberEl = target?.closest("[data-group-box-member]") ?? null;
                               const droppedId = draggingIdRef.current;
                               if (droppedId === null || droppedId === "") return;
-                              if (!canJoinGroup(droppedId, runItem.box.groupId, groupBoxOf ?? EMPTY_GROUP_BOXES)) return;
+                              if (!canJoinGroup(droppedId, runItem.box.groupId, groupBoxOf ?? EMPTY_GROUP_BOXES, boxedUnitIds.has(droppedId))) return;
                               if (memberEl !== null) {
                                 if (!isLaneDrag(event.dataTransfer.types, rankKey)) return;
                                 const memberZone = dropZoneFor(
@@ -3057,7 +3097,7 @@ export function Board({
                               const droppedId = draggedIdFor(event, draggingIdRef.current);
                               if (
                                 droppedId === "" ||
-                                !canJoinGroup(droppedId, runItem.box.groupId, groupBoxOf ?? EMPTY_GROUP_BOXES)
+                                !canJoinGroup(droppedId, runItem.box.groupId, groupBoxOf ?? EMPTY_GROUP_BOXES, boxedUnitIds.has(droppedId))
                               ) {
                                 return; // unclaimed: the column's own drop path decides
                               }
@@ -3071,6 +3111,9 @@ export function Board({
                           >
                             <div
                               data-group-box-join-hover={joinHoverId === runItem.box.groupId ? "" : undefined}
+                              data-group-box-highlight={
+                                highlightedGroupId === runItem.box.groupId ? "" : undefined
+                              }
                               data-transport-fade={
                                 boxArrivalFor(runItem.box.groupId) !== undefined &&
                                 !prefersReducedMotion
@@ -3099,7 +3142,38 @@ export function Board({
                                 // the lane-colored insertion line.
                                 joinHoverId === runItem.box.groupId &&
                                   "ring-2 ring-amber-500/80 border-amber-500/70",
+                                // The clicked group's frames: amber in EVERY
+                                // lane the group renders in (issue #86) —
+                                // the operator's one-click look-at-the-whole-
+                                // footprint affordance.
+                                highlightedGroupId === runItem.box.groupId &&
+                                  "border-amber-500 bg-amber-500/5 ring-2 ring-amber-500/60",
                               )}
+                              onClick={(event) => {
+                                if (onHighlightGroup === undefined) return;
+                                const target = event.target instanceof Element ? event.target : null;
+                                if (target === null) return;
+                                // The label's own controls keep their clicks
+                                // (rename editor, ungroup) — they never toggle
+                                // the highlight.
+                                if (
+                                  target.closest(
+                                    "[data-group-box-label], [data-group-rename-input], [data-group-label-delete]",
+                                  ) !== null
+                                ) {
+                                  return;
+                                }
+                                if (target.closest("[data-group-box-member]") !== null) {
+                                  // A member card's click (the same click opens
+                                  // the pane) marks the card's group everywhere.
+                                  onHighlightGroup(runItem.box.groupId);
+                                  return;
+                                }
+                                // The frame's own surface toggles its highlight.
+                                onHighlightGroup(
+                                  highlightedGroupId === runItem.box.groupId ? null : runItem.box.groupId,
+                                );
+                              }}
                             >
                               {renamingBoxId === runItem.box.groupId ? (
                                 <div className="absolute -top-2.5 left-3 z-20 flex items-center gap-0.5 rounded-sm bg-muted px-0.5">
@@ -3183,7 +3257,12 @@ export function Board({
                                   onDragStart={(event) => beginBoxLabelDrag(event, runItem.box)}
                                   onDragEnd={() => rankDragLifecycle(null)}
                                   onClick={() => startLabelRename(runItem.box.groupId)}
-                                  className="absolute -top-2 left-3 z-10 max-w-48 truncate rounded-sm bg-muted px-1 text-left text-[10.5px] leading-[14px] text-muted-foreground hover:text-foreground"
+                                  className={cn(
+                                    "absolute -top-2 left-3 z-10 max-w-48 truncate rounded-sm bg-muted px-1 text-left text-[10.5px] leading-[14px] text-muted-foreground hover:text-foreground",
+                                    highlightedGroupId === runItem.box.groupId
+                                      ? "text-amber-600 dark:text-amber-400"
+                                      : undefined,
+                                  )}
                                 >
                                   {runItem.box.name}
                                 </button>
@@ -3194,7 +3273,12 @@ export function Board({
                                   draggable
                                   onDragStart={(event) => beginBoxLabelDrag(event, runItem.box)}
                                   onDragEnd={() => rankDragLifecycle(null)}
-                                  className="absolute -top-2 left-3 z-10 rounded-sm bg-muted px-1 text-[10.5px] leading-[14px] text-muted-foreground"
+                                  className={cn(
+                                    "absolute -top-2 left-3 z-10 rounded-sm bg-muted px-1 text-[10.5px] leading-[14px] text-muted-foreground",
+                                    highlightedGroupId === runItem.box.groupId
+                                      ? "text-amber-600 dark:text-amber-400"
+                                      : undefined,
+                                  )}
                                 >
                                   {runItem.box.name}
                                 </span>

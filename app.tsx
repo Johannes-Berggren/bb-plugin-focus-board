@@ -49,7 +49,6 @@ import {
 } from "./components/nesting";
 import { buildParentLanes } from "./components/parent-lanes";
 import type { ParentLane } from "./components/parent-lanes";
-import type { GroupBox } from "./components/group-boxes";
 import { ParentLaneBoard } from "./components/parent-lane-board";
 import {
   applyLaneFreezes,
@@ -829,6 +828,11 @@ function BoardPage({ subPath }: { subPath: string }) {
   // everything surfaced — the side panel itself is that feedback.
   const [browserNotice, setBrowserNotice] = useState<BrowserRevealNotice | null>(null);
   const clearBrowserNotice = useCallback(() => setBrowserNotice(null), []);
+  // The amber group highlight (issue #86): the feature group the last group
+  // click marked. Split groups render a frame per lane; the highlight makes
+  // the whole footprint legible in one gesture. Board state is not persisted:
+  // a click elsewhere clears it (see Board's background click).
+  const [highlightedGroupId, setHighlightedGroupId] = useState<string | null>(null);
   const disarmSweep = useCallback(() => setArmedSweep(null), []);
   // Click-away and Escape disarm only an idle arm — and only from outside
   // the armed column: its cards' clicks toggle the sweep selection, so the
@@ -959,21 +963,20 @@ function BoardPage({ subPath }: { subPath: string }) {
   const [hoverLaneCaptures, setHoverLaneCaptures] = useState<
     ReadonlyMap<string, LaneCapture>
   >(new Map());
-  // The capture's inputs (assembly, parent lanes, family index, group-box
-  // plan) arrive later in the render; the ref bridges them to the event-time
-  // capture callbacks — the same latest-value pattern the scroll managers run.
+  // The capture's inputs (assembly, parent lanes, family index) arrive later
+  // in the render; the ref bridges them to the event-time capture callbacks —
+  // the same latest-value pattern the scroll managers run.
   const attentionInputRef = useRef<{
     parent: boolean;
     view: GroupBy;
     assembly: ReturnType<typeof assembleBoard> | null;
     parentLanes: readonly ParentLane[] | null;
     parentOf: ReadonlyMap<string, string>;
-    groupBoxOf: ReadonlyMap<string, GroupBox>;
   } | null>(null);
   // Capture one attention on the column board (components/attention-freeze's
-  // captureColumnAttention): the focus card's rendered lane and slot, its
-  // family root's card, and every member of whichever group box holds either
-  // (a half-pinned box would render split across lanes).
+  // captureColumnAttention): the focus card's rendered lane and slot and its
+  // family root's card. Group members are deliberately absent — under the
+  // split default the group renders across lanes on purpose.
   const captureThreadAttention = useCallback(
     (threadId: string, origin: AttentionOrigin): AttentionCapture | null => {
       const input = attentionInputRef.current;
@@ -1266,15 +1269,18 @@ function BoardPage({ subPath }: { subPath: string }) {
         : filterIndividually(nonHiddenThreads, filter, search.trim(), projectNameFor, ticketRefsFor, groupNameFor, groupsByThread, Date.now()),
     [nestChildren, groupBy, nonHiddenThreads, familyIndex, filter, search, projectNameFor, ticketRefsFor, groupNameFor, groupsByThread],
   );
-  // The feature-group plan (the decided family-box design): which groups
-  // render a box, which lane each box lands in. Computed over the FULL
+  // The feature-group plan (issue #86's split default): which groups render
+  // a box, and each member's box identity. The plan claims NO lane —
+  // members render where their own data places them, and the frame wraps
+  // each lane's slice (a lone slice included). Computed over the FULL
   // non-hidden set — a member a search hid is dimmed inside its passing
   // box, never dropped from the group's count.
-  // The plan's lane beats the PANE's natural-lane capture ("family wins") —
-  // EXCEPT while a card's attention freeze is live: an attended card holds
-  // its rendered placement over every claim, and the family/box lanes run
-  // again the moment the attention releases. A capture taken under another
-  // grouping is inert here (its lane names a grouping that no longer runs).
+  // The FAMILY lane still beats the PANE's natural-lane capture ("family
+  // wins") — EXCEPT while a card's attention freeze is live: an attended
+  // card holds its rendered placement over every claim, and the family
+  // lanes run again the moment the attention releases. A capture taken
+  // under another grouping is inert here (its lane names a grouping that no
+  // longer runs).
   const attentionFreezePlan = useMemo(() => {
     const captures: AttentionCapture[] = [];
     if (paneCapture !== null && paneCapture.view === groupBy) captures.push(paneCapture);
@@ -1285,9 +1291,8 @@ function BoardPage({ subPath }: { subPath: string }) {
   }, [groupBy, paneCapture, hoverCaptures]);
   // The grouping context, extended once with the feature-group maps: under
   // the "group" grouping `columnFor` resolves a thread's column from its
-  // assignment (and the box plan rides the same maps, so its column
-  // overrides agree with the natural buckets). Other groupings ignore the
-  // extra fields.
+  // assignment (so the split group's frames agree with the natural group
+  // columns — no overrides needed). Other groupings ignore the extra fields.
   const groupContext = useMemo(
     () => ({
       projects,
@@ -1382,7 +1387,6 @@ function BoardPage({ subPath }: { subPath: string }) {
     assembly,
     parentLanes,
     parentOf: familyIndex.parentOf,
-    groupBoxOf: groupBoxPlan.groupBoxOf,
   };
   // Attention recapture: re-resolve every live capture against the current
   // board. A user-initiated placement stripped its pin first (release-
@@ -2790,6 +2794,8 @@ function BoardPage({ subPath }: { subPath: string }) {
             childCountByParent={assembly?.childCountByParent ?? new Map()}
             doneChildrenByParent={assembly?.doneChildrenByParent ?? new Map()}
             groupBoxOf={groupBoxPlan.groupBoxOf}
+            highlightedGroupId={highlightedGroupId}
+            onHighlightGroup={setHighlightedGroupId}
             onJoinGroup={(droppedId, groupId) => {
               // User-initiated: joining a lane moves the card; the pin
               // releases for the gesture.

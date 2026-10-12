@@ -4,8 +4,8 @@
 // "Attending to" means the pointer hovers the card, or the card is open in
 // the thread pane; "released" means the mouse moved away or the pane closed.
 // While attention holds, live data churn (state flips, age buckets, family
-// recency, group-box re-laning) re-sorts the board AROUND the attended
-// placement instead of moving it; the board's own placement rules run again
+// recency) re-sorts the board AROUND the attended placement instead of
+// moving it; the board's own placement rules run again
 // the moment attention releases. The codebase has been here before: the
 // retired sweep gather re-sorted cards mid-gesture and was removed precisely
 // because a moving card under a working pointer reads as a board that
@@ -26,7 +26,6 @@
 import type { PluginSidebarThread } from "@get-bb/plugin-sdk/app";
 import type { BoardColumn, GroupBy } from "./grouping";
 import type { ParentLane } from "./parent-lanes";
-import type { GroupBoxMap } from "./group-boxes";
 
 /** What opened a freeze: the pointer, the open thread pane, or an open
  *  card context menu (the popover is a portal outside the card's DOM, so
@@ -45,10 +44,12 @@ export interface AttentionSlot {
 
 /**
  * One capture on the column board: every card the freeze pins while the
- * focus thread is attended. The slots cover the focus card itself, its
- * family root's card (the family does not re-lane while its member is
- * attended), and — for feature-group boxes — all of the box's members (a
- * half-pinned box would render split across lanes).
+ * focus thread is attended — the focus card itself, its family root's card
+ * (the family does not re-lane while its member is attended), and the
+ * attended child's row slot. Feature-group members are NOT covered: under
+ * the split default the group renders across lanes on purpose, so only the
+ * attended card's own placement pins (its group's other members re-place
+ * freely, each in its own lane).
  */
 export interface AttentionCapture {
   origin: AttentionOrigin;
@@ -254,7 +255,6 @@ export interface ColumnAttentionInput {
     doneChildrenByParent: ReadonlyMap<string, readonly PluginSidebarThread[]>;
   } | null;
   parentOf: ReadonlyMap<string, string>;
-  groupBoxOf: GroupBoxMap;
 }
 
 /**
@@ -265,16 +265,13 @@ export interface ColumnAttentionInput {
  * - the focus card itself (absent when the focus renders as a nested row —
  *   the caller pins its row slot instead),
  * - its family root's card — the family does not re-lane while its member is
- *   attended,
- * - the focus's OWN group box, whole (a half-pinned box would render split
- *   across lanes),
- * - the family root's group box, whole: the attended focus can be a nested
- *   child the box has never boxed, while the root card it cloned IS a box
- *   member. Without this pass the box's other members re-lane around the
- *   frozen root on the next status change — the root holds its lane, the
- *   rest land elsewhere, and the box renders split (reproduced live
- *   2026-10-10: a pane opened on a family child froze the parent card in
- *   Unread while the chat-imagegen box re-laned to Working without it).
+ *   attended (the R4 override's "family wins" rule resumes when the attention
+ *   releases).
+ *
+ * Feature-group members are deliberately absent: under the split default
+ * (issue #86) the group renders across lanes on purpose, so a half-frozen
+ * group is the intended render, not a defect — the attended member holds its
+ * own placement and the rest re-place freely.
  *
  * Returns null when nothing renders (no assembly, parent view, a focus a
  * column and no row both miss).
@@ -293,16 +290,6 @@ export function captureColumnAttention(
     const slot = columnPlacementOf(assembly.columns, threadId);
     if (slot !== null) slots.push(slot);
   };
-  // The group box a thread renders in pins WHOLE: every member at its
-  // rendered placement, already-pinned members skipped.
-  const pinBoxOf = (threadId: string): void => {
-    const box = input.groupBoxOf.get(threadId);
-    if (box === undefined) return;
-    for (const member of box.members) {
-      if (slots.some((slot) => slot.threadId === member.id)) continue;
-      pinThread(member.id);
-    }
-  };
   pinThread(focusId);
   // The family root's card: the family does not re-lane while its member is
   // attended (the R4 override's "family wins" rule resumes when the attention
@@ -310,8 +297,6 @@ export function captureColumnAttention(
   let rootId = focusId;
   while (input.parentOf.has(rootId)) rootId = input.parentOf.get(rootId) as string;
   if (rootId !== focusId) pinThread(rootId);
-  pinBoxOf(rootId);
-  pinBoxOf(focusId);
   let rowPin: AttentionCapture["rowPin"] = null;
   const focusSlot = slots.find((slot) => slot.threadId === focusId);
   if (focusSlot === undefined) {

@@ -199,7 +199,10 @@ describe("runUnits", () => {
     expect(units.get("grp_1")?.memberIds).toEqual(["thr_m1"]);
   });
 
-  it("drops a split box (a lone multi-member-box member renders plain, no unit)", () => {
+  it("drops a split group's units: per-lane slices never fold (per-thread transports)", () => {
+    // Issue #86's split default: the same group renders a slice per column.
+    // Folding needs one group in ONE column; a split group's members move
+    // per-thread instead.
     const m1 = thread({ id: "thr_m1" });
     const m2 = thread({ id: "thr_m2" });
     const units = runUnits(
