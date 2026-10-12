@@ -20,6 +20,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 #### Groups and family boxes
 
+- **The CLI can manage feature groups, not just list them.** `bb focus-board group` grows create, rename, delete, add, remove, and move, and every command accepts the group's id or its exact name, so agents and scripts can place threads without opening the board.
+  - `group add` leaves a thread that is already in the group alone and refuses the batch when a thread sits in a different group; `group move <threads> --to <group>` is the mover.
+- **An agent can put a thread in a feature group by name.** The `focus_board_group_set` tool assigns the thread or one you name to a group quoted from the conversation, and sessions without plugin tools keep the `bb focus-board group add` fallback.
 - **A family box drags by its label.** Grabbing the group name moves the whole box and ranks it wherever the drop lands, the same move grabbing a member card already made. A snoozed lead member still refuses to drag, and a click without the drag still renames.
 - **A right-click on a family box offers the group's actions in one menu.** New thread in group… opens the composer preset to the group, Rename group… opens the label editor, and Ungroup all members keeps its click-again confirm.
   - The spawned thread lands with the majority of the members' settings: the most common project and the most common provider/model pair seeded into the composer, each member's model resolved through its own settings.

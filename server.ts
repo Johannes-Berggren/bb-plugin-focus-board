@@ -889,6 +889,168 @@ export default async function plugin(bb: BbPluginApi) {
     );
   }
 
+  // --- Feature-group writes shared by every surface ---
+  //
+  // The RPC contract, the `bb focus-board group` CLI commands (issue #84),
+  // and the focus_board_group_set agent tool all run these five flows; the
+  // registry, the per-thread metadata, and the group-changed signal move in
+  // exactly one place each.
+
+  /**
+   * Resolve a group reference coming from operator or agent input: an exact
+   * registry id wins, then a unique exact-name match. Duplicate names are
+   * legal state (group_create does not enforce uniqueness), so an ambiguous
+   * name fails loud naming the ids instead of silently picking one.
+   */
+  async function resolveGroupRef(
+    ref: string,
+  ): Promise<{ id: string; name: string; createdAt: string }> {
+    const store = await readGroupsStore();
+    const direct = store[ref];
+    if (direct !== undefined) return { id: ref, ...direct };
+    const matches = Object.entries(store).filter(
+      ([, record]) => record.name === ref,
+    );
+    if (matches.length === 1) {
+      const [id, record] = matches[0] as [string, GroupRecord];
+      return { id, ...record };
+    }
+    if (matches.length > 1) {
+      const ids = matches.map(([id]) => id).sort();
+      throw new PluginCliError(
+        `group name ${JSON.stringify(ref)} matches ${matches.length} groups: ${ids.join(", ")}`,
+        {
+          code: "invalid_value",
+          hint: "Duplicate names are ambiguous; pass the group id instead (list shows every id).",
+        },
+      );
+    }
+    throw new PluginCliError(
+      `group ${JSON.stringify(ref)} does not exist`,
+      { code: "invalid_value", hint: "List groups with `bb focus-board group list`." },
+    );
+  }
+
+  /**
+   * Create (idempotent): a group with the exact same name already exists →
+   * return its record unchanged (created false); several duplicates resolve
+   * to the earliest creation stamp, ties broken by id, so a repeated call
+   * always lands on the same group deterministically. Otherwise a fresh
+   * uuid record is written and the group-changed signal publishes.
+   */
+  async function createGroupNamed(
+    name: string,
+  ): Promise<{ id: string; record: GroupRecord; created: boolean }> {
+    const settled = normalizeGroupName(name);
+    if (settled === null) {
+      throw new PluginCliError(
+        `group name must be 1-80 non-blank characters, got ${JSON.stringify(name)}`,
+        { code: "invalid_value" },
+      );
+    }
+    const store = await readGroupsStore();
+    const matches = Object.entries(store)
+      .filter(([, record]) => record.name === settled)
+      .sort(([idA, recA], [idB, recB]) =>
+        recA.createdAt === recB.createdAt
+          ? idA.localeCompare(idB)
+          : recA.createdAt.localeCompare(recB.createdAt),
+      );
+    if (matches.length > 0) {
+      const [id, record] = matches[0] as [string, GroupRecord];
+      return { id, record, created: false };
+    }
+    const id = crypto.randomUUID();
+    const record = createGroupRecord(settled, new Date());
+    await writeGroupsStore({ ...store, [id]: record });
+    bb.realtime.publish(GROUP_CHANGED, { threadId: null });
+    return { id, record, created: true };
+  }
+
+  async function renameGroupById(groupId: string, name: string): Promise<GroupRecord> {
+    const store = await readGroupsStore();
+    if (store[groupId] === undefined) throw unknownGroupError(groupId);
+    const settled = normalizeGroupName(name);
+    if (settled === null) {
+      throw new PluginCliError(
+        `group name must be 1-80 non-blank characters, got ${JSON.stringify(name)}`,
+        { code: "invalid_value" },
+      );
+    }
+    const record = { ...store[groupId], name: settled };
+    await writeGroupsStore({ ...store, [groupId]: record });
+    bb.realtime.publish(GROUP_CHANGED, { threadId: null });
+    return record;
+  }
+
+  /**
+   * Assign or clear one thread's group (null clears). Returns what it
+   * replaced (from, and the name as it read BEFORE the write — the GC this
+   * write triggers can remove the record the pointer just left) for CLI
+   * and tool outputs to name; the RPC contract keeps its bare
+   * { threadId, groupId } pair. The GC runs after the write because the
+   * assignment this cleared may be the group's last.
+   */
+  async function setThreadGroup(
+    threadId: string,
+    groupId: string | null,
+  ): Promise<{
+    threadId: string;
+    groupId: string | null;
+    from: string | null;
+    fromName: string | null;
+  }> {
+    const current = await readGroupAssignment(threadId);
+    const from = current?.groupId ?? null;
+    const store = await readGroupsStore();
+    if (groupId !== null && store[groupId] === undefined) {
+      throw unknownGroupError(groupId);
+    }
+    const fromName =
+      from === null ? null : store[from]?.name ?? `unknown group ${from}`;
+    // Idempotent at the core: the value already held is settled — no
+    // rewrite, no GC scan, no group-changed signal (a re-run of any
+    // surface reports the settled call instead of re-publishing).
+    if (from === groupId) {
+      return { threadId, groupId, from, fromName };
+    }
+    await writeGroupAssignment(threadId, groupId);
+    await pruneGroupsToMembers();
+    bb.realtime.publish(GROUP_CHANGED, { threadId });
+    return { threadId, groupId, from, fromName };
+  }
+
+  /**
+   * Delete a group outright (NOT idempotent: an unknown id or name is
+   * refused, a typo must not "delete" nothing successfully). Strip the
+   * assignment from every member first: live AND archived rows (an
+   * archived member keeps its metadata, so it would outlive the record as
+   * an orphan pointing at a group groups_list can never name). One signal
+   * carries both halves (assignment clears + row removal); the realtime
+   * surface refetches everything group-shaped from it.
+   */
+  async function deleteGroup(
+    groupId: string,
+  ): Promise<{ groupId: string; cleared: string[] }> {
+    const store = await readGroupsStore();
+    if (store[groupId] === undefined) throw unknownGroupError(groupId);
+    const [liveRows, archivedRows] = await Promise.all([
+      bb.sdk.threads.list({}),
+      bb.sdk.threads.list({ archived: true, limit: 200 }),
+    ]);
+    const cleared: string[] = [];
+    for (const row of [...liveRows, ...archivedRows]) {
+      const record = await readGroupAssignment(row.id);
+      if (record?.groupId !== groupId) continue;
+      await writeGroupAssignment(row.id, null);
+      cleared.push(row.id);
+    }
+    const { [groupId]: _removed, ...rest } = store;
+    await writeGroupsStore(rest);
+    bb.realtime.publish(GROUP_CHANGED, { threadId: cleared[cleared.length - 1] ?? null });
+    return { groupId, cleared };
+  }
+
   // Linked GitHub items (issue #13): the chip feed that works when neither
   // the title nor the branch name carries a text ticket ref.
 
@@ -2055,70 +2217,19 @@ export default async function plugin(bb: BbPluginApi) {
       return { groups: groupsRowFromStore(store), memberships };
     },
     group_create: async ({ name }) => {
-      const settled = normalizeGroupName(name);
-      if (settled === null) {
-        throw new PluginCliError(
-          `group name must be 1-80 non-blank characters, got ${JSON.stringify(name)}`,
-          { code: "invalid_value" },
-        );
-      }
-      const store = await readGroupsStore();
-      const id = crypto.randomUUID();
-      const record = createGroupRecord(settled, new Date());
-      await writeGroupsStore({ ...store, [id]: record });
-      bb.realtime.publish(GROUP_CHANGED, { threadId: null });
+      const { id, record } = await createGroupNamed(name);
       return { group: { id, ...record } };
     },
     group_rename: async ({ groupId, name }) => {
-      const store = await readGroupsStore();
-      if (store[groupId] === undefined) throw unknownGroupError(groupId);
-      const settled = normalizeGroupName(name);
-      if (settled === null) {
-        throw new PluginCliError(
-          `group name must be 1-80 non-blank characters, got ${JSON.stringify(name)}`,
-          { code: "invalid_value" },
-        );
-      }
-      const record = { ...store[groupId], name: settled };
-      await writeGroupsStore({ ...store, [groupId]: record });
-      bb.realtime.publish(GROUP_CHANGED, { threadId: null });
+      const record = await renameGroupById(groupId, name);
       return { group: { id: groupId, ...record } };
     },
     group_set: async ({ threadId, groupId }) => {
-      if (groupId !== null) {
-        const store = await readGroupsStore();
-        if (store[groupId] === undefined) throw unknownGroupError(groupId);
-      }
-      await writeGroupAssignment(threadId, groupId);
-      // GC after the write: the assignment this cleared may be the group's
-      // last; the "exists only while assigned" lifecycle is enforced here,
-      // not by any client.
-      await pruneGroupsToMembers();
-      bb.realtime.publish(GROUP_CHANGED, { threadId });
+      await setThreadGroup(threadId, groupId);
       return { threadId, groupId };
     },
     group_delete: async ({ groupId }) => {
-      const store = await readGroupsStore();
-      if (store[groupId] === undefined) throw unknownGroupError(groupId);
-      // Strip the assignment from every member first: live AND archived rows
-      // (an archived member keeps its metadata, so it would outlive the
-      // record as an orphan pointing at a group groups_list can never name).
-      const [liveRows, archivedRows] = await Promise.all([
-        bb.sdk.threads.list({}),
-        bb.sdk.threads.list({ archived: true, limit: 200 }),
-      ]);
-      let lastCleared: string | null = null;
-      for (const row of [...liveRows, ...archivedRows]) {
-        const record = await readGroupAssignment(row.id);
-        if (record?.groupId !== groupId) continue;
-        await writeGroupAssignment(row.id, null);
-        lastCleared = row.id;
-      }
-      const { [groupId]: _removed, ...rest } = store;
-      await writeGroupsStore(rest);
-      // One signal carries both halves (assignment clears + row removal);
-      // the realtime surface refetches everything group-shaped from it.
-      bb.realtime.publish(GROUP_CHANGED, { threadId: lastCleared });
+      await deleteGroup(groupId);
       return { groupId };
     },
   });
@@ -2356,6 +2467,258 @@ export default async function plugin(bb: BbPluginApi) {
                 .join("\n")
             : "") +
           "\n";
+      return { exitCode: 0, stdout };
+    },
+  });
+
+  // Issue #84: the group CLI grows beyond its read-only list. Every
+  // command accepts a group id or its exact name, both of which fail loud
+  // on anything they cannot resolve uniquely. Idempotency follows
+  // `done mark`: re-running converges (create/add/remove/move report the
+  // unchanged call instead of erroring) EXCEPT delete, which refuses an
+  // unknown group so a typo cannot "delete" nothing and print success.
+  const groupCreate = cliCommand({
+    summary: "Create a feature group (idempotent: an existing exact name returns it)",
+    positionals: [
+      {
+        name: "name",
+        description: "New group name (1-80 non-blank characters)",
+        required: true,
+      },
+    ],
+    options: {
+      json: { type: "boolean", description: "Emit machine-readable JSON" },
+    },
+    async run(input) {
+      const { id, record, created } = await createGroupNamed(
+        input.positionals["name"] as string,
+      );
+      const stdout = input.options.json
+        ? JSON.stringify({ group: { id, ...record }, created }, null, 2) + "\n"
+        : created
+          ? `created ${id}\t${record.name}\n`
+          : `already exists ${id}\t${record.name}\n`;
+      return { exitCode: 0, stdout };
+    },
+  });
+
+  const groupRename = cliCommand({
+    summary: "Rename a feature group",
+    description:
+      "The first positional accepts the group id or its exact current name; the second is the new name (1-80 non-blank characters). Renames propagate through the registry, so every member shows the new name at once.",
+    positionals: [
+      {
+        name: "group",
+        description: "Group id or exact current name",
+        required: true,
+      },
+      {
+        name: "name",
+        description: "New name",
+        required: true,
+      },
+    ],
+    options: {
+      json: { type: "boolean", description: "Emit machine-readable JSON" },
+    },
+    async run(input) {
+      const resolved = await resolveGroupRef(input.positionals["group"] as string);
+      const record = await renameGroupById(
+        resolved.id,
+        input.positionals["name"] as string,
+      );
+      const stdout = input.options.json
+        ? JSON.stringify({ group: { id: resolved.id, ...record } }, null, 2) + "\n"
+        : `renamed ${resolved.id}\t${record.name}\n`;
+      return { exitCode: 0, stdout };
+    },
+  });
+
+  const groupDelete = cliCommand({
+    summary: "Delete a feature group; every member's assignment clears with it",
+    description:
+      "Strips the group key from every member (live and archived) and removes the registry record. Refuses an unknown group so a typo cannot report a successful delete of nothing.",
+    positionals: [
+      {
+        name: "group",
+        description: "Group id or exact name",
+        required: true,
+      },
+    ],
+    options: {
+      json: { type: "boolean", description: "Emit machine-readable JSON" },
+    },
+    async run(input) {
+      const resolved = await resolveGroupRef(input.positionals["group"] as string);
+      const { cleared } = await deleteGroup(resolved.id);
+      const stdout = input.options.json
+        ? JSON.stringify(
+            { deleted: { id: resolved.id, name: resolved.name }, cleared },
+            null,
+            2,
+          ) + "\n"
+        : `deleted ${resolved.id}\t${resolved.name}${
+            cleared.length > 0
+              ? `\n  cleared ${cleared.length} member assignment(s)\n`
+              : "\n"
+          }`;
+      return { exitCode: 0, stdout };
+    },
+  });
+
+  const groupAdd = cliCommand({
+    summary: "Assign threads to a feature group (idempotent; never moves between groups)",
+    description:
+      "A thread already in this group is left alone (reported as already). A thread already in a DIFFERENT group refuses the whole batch — use `group move` to change a thread's group. Group membership is per-thread: assigning never touches parent/child lineage, and a parent sits in a different group from its children without any cascade.",
+    positionals: [
+      {
+        name: "group",
+        description: "Group id or exact name",
+        required: true,
+      },
+      {
+        name: "thread-id",
+        description: "Thread id(s) to assign",
+        required: true,
+        variadic: true,
+      },
+    ],
+    options: {
+      json: { type: "boolean", description: "Emit machine-readable JSON" },
+    },
+    async run(input) {
+      const resolved = await resolveGroupRef(input.positionals["group"] as string);
+      const threadIds = input.positionals["thread-id"] as string[];
+      // Pre-pass before any write: a batch with a thread in another group
+      // is refused whole (fail loud, no partial assignment).
+      const store = await readGroupsStore();
+      const conflicts: string[] = [];
+      for (const threadId of threadIds) {
+        const current = await readGroupAssignment(threadId);
+        if (current === null || current.groupId === resolved.id) continue;
+        const holder = store[current.groupId];
+        conflicts.push(
+          `${threadId} (in ${holder !== undefined ? JSON.stringify(holder.name) : "an unknown group"} ${current.groupId})`,
+        );
+      }
+      if (conflicts.length > 0) {
+        throw new PluginCliError(
+          `${conflicts.length} thread(s) already sit in other groups: ${conflicts.join(", ")}`,
+          {
+            code: "invalid_value",
+            hint: "Use `bb focus-board group move <thread...> --to <group>` to change a thread's group.",
+          },
+        );
+      }
+      const added: string[] = [];
+      const already: string[] = [];
+      for (const threadId of threadIds) {
+        if ((await readGroupAssignment(threadId))?.groupId === resolved.id) {
+          already.push(threadId);
+          continue;
+        }
+        await setThreadGroup(threadId, resolved.id);
+        added.push(threadId);
+      }
+      const stdout = input.options.json
+        ? JSON.stringify({ added, already }, null, 2) + "\n"
+        : added.map((id) => `added ${id}`).join("\n") +
+            already.map((id) => `already ${id}`).join("\n") +
+            "\n";
+      return { exitCode: 0, stdout };
+    },
+  });
+
+  const groupRemove = cliCommand({
+    summary: "Remove threads from their group (idempotent)",
+    description:
+      "An unassigned thread is a no-op. A group emptied by this write loses its registry record — the only-exists-while-assigned lifecycle the board's own writes run. Membership is per-thread, so no parent or child moves with it.",
+    positionals: [
+      {
+        name: "thread-id",
+        description: "Thread id(s) to remove from their group",
+        required: true,
+        variadic: true,
+      },
+    ],
+    options: {
+      json: { type: "boolean", description: "Emit machine-readable JSON" },
+    },
+    async run(input) {
+      const removed: Array<{ threadId: string; groupId: string | null; fromName: string | null }> = [];
+      for (const threadId of input.positionals["thread-id"] as string[]) {
+        const { from, fromName } = await setThreadGroup(threadId, null);
+        removed.push({ threadId, groupId: from, fromName });
+      }
+      const stdout = input.options.json
+        ? JSON.stringify(
+            {
+              removed: removed.map(({ threadId, groupId }) => ({ threadId, groupId })),
+            },
+            null,
+            2,
+          ) + "\n"
+        : removed
+            .map((row) =>
+              row.groupId === null
+                ? `removed ${row.threadId} (was not in a group)`
+                : `removed ${row.threadId} (was in ${JSON.stringify(row.fromName ?? `unknown group ${row.groupId}`)})`,
+            )
+            .join("\n") + "\n";
+      return { exitCode: 0, stdout };
+    },
+  });
+
+  const groupMove = cliCommand({
+    summary: "Move threads into a feature group, replacing any current group",
+    description:
+      "The explicit mover: a thread in another group, or unassigned, relocates to the target; a thread already in the target is unchanged. The target accepts the group id or its exact name, passed with --to.",
+    positionals: [
+      {
+        name: "thread-id",
+        description: "Thread id(s) to move",
+        required: true,
+        variadic: true,
+      },
+    ],
+    options: {
+      to: {
+        type: "string",
+        description: "Target group (id or exact name)",
+        required: true,
+      },
+      json: { type: "boolean", description: "Emit machine-readable JSON" },
+    },
+    async run(input) {
+      const resolved = await resolveGroupRef(input.options.to);
+      const moved: Array<{ threadId: string; from: string | null; fromName: string | null }> = [];
+      const unchanged: string[] = [];
+      for (const threadId of input.positionals["thread-id"] as string[]) {
+        const current = await readGroupAssignment(threadId);
+        if (current?.groupId === resolved.id) {
+          unchanged.push(threadId);
+          continue;
+        }
+        const { from, fromName } = await setThreadGroup(threadId, resolved.id);
+        moved.push({ threadId, from, fromName });
+      }
+      const stdout = input.options.json
+        ? JSON.stringify(
+            {
+              moved: moved.map(({ threadId, from }) => ({ threadId, from })),
+              unchanged,
+            },
+            null,
+            2,
+          ) + "\n"
+        : moved
+            .map((row) =>
+              row.from === null
+                ? `moved ${row.threadId} (was not in a group)`
+                : `moved ${row.threadId} (from ${JSON.stringify(row.fromName ?? `unknown group ${row.from}`)})`,
+            )
+            .concat(unchanged.map((id) => `unchanged ${id} (already in ${resolved.name})`))
+            .join("\n") + "\n";
       return { exitCode: 0, stdout };
     },
   });
@@ -3054,17 +3417,92 @@ export default async function plugin(bb: BbPluginApi) {
     },
   });
 
+  // Feature groups (issue #84): the agent surface, mirroring the link
+  // tool's pattern. An agent creates a thread that belongs to an existing
+  // feature group and can now put it there without the board's UI; the
+  // group accepts its exact name (the one people quote in conversation)
+  // or its id, and assigning replaces any current group with the move
+  // reported, so the agent sees what it changed.
+  const GROUP_AGENT_TOOL = "focus_board_group_set";
+  bb.agents.registerTool({
+    name: GROUP_AGENT_TOOL,
+    description:
+      "Assign a Focus Board feature group (family box) to this bb thread, or to another thread id, so the card joins that group on the board's Group view. Pass the group's exact name, or its id. Assigning replaces any previous group.",
+    instructions: [
+      "Feature groups: when the conversation settles that this thread belongs",
+      "to a named feature group (a family box on the Focus Board's Group view),",
+      "call focus_board_group_set with the group's name as given (its id works",
+      "too). Assigning replaces any previous group. Create a missing group",
+      'first with `bb focus-board group create "<name>"`. If the tool is',
+      "unavailable in your session, fall back to the bb CLI instead of telling",
+      "the user the tool is missing:",
+      '`bb focus-board group add "<group>" "$BB_THREAD_ID"` (or',
+      '`group move <thread id> --to "<group>" for a thread other than this',
+      "one). Verify success from the command's output.",
+    ].join("\n"),
+    parameters: z.object({
+      group: z.string().min(1).max(80),
+      threadId: z.string().min(1).optional(),
+    }),
+    execute: async (params, ctx) => {
+      const groupError = (text: string) => ({
+        content: [{ type: "text" as const, text }],
+        isError: true as const,
+      });
+      try {
+        const resolved = await resolveGroupRef(params.group);
+        const targetId = params.threadId ?? ctx.threadId;
+        const { from, fromName } = await setThreadGroup(targetId, resolved.id);
+        if (from === resolved.id) {
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: `Thread ${targetId} is already in group ${resolved.name} (${resolved.id}); nothing changed.`,
+              },
+            ],
+          };
+        }
+        const replaced =
+          from === null
+            ? "Assigned"
+            : `Moved (was in ${JSON.stringify(fromName ?? `unknown group ${from}`)})`;
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: `${replaced} thread ${targetId} into group ${resolved.name} (${resolved.id}).`,
+            },
+          ],
+        };
+      } catch (error: unknown) {
+        const detail = error instanceof Error ? error.message : String(error);
+        return groupError(
+          `Cannot assign the group: ${detail}. List the existing groups with ` +
+            "`bb focus-board group list`, or create one first with " +
+            '`bb focus-board group create "<name>".',
+        );
+      }
+    },
+  });
+
   bb.cli.register(
     defineCli({
       name: "focus-board",
       summary: "Manage the Focus Board plugin's own state",
       description:
-        "Done list/mark/clear, feature groups (group list), linked tracker items (link list/set/clear), snooze list/set/clear, autotitle availability/probe diagnostics, and sweep (archive old Done + long-idle, dry-run by default). Sweep thresholds live in the declared plugin settings (`bb plugin config focus-board`) and the board settings modal; this CLI no longer carries its own config commands.",
+        "Done list/mark/clear, feature groups (group list/create/rename/delete/add/remove/move, each taking the id or the exact name), linked tracker items (link list/set/clear), snooze list/set/clear, autotitle availability/probe diagnostics, and sweep (archive old Done + long-idle, dry-run by default). Sweep thresholds live in the declared plugin settings (`bb plugin config focus-board`) and the board settings modal; this CLI no longer carries its own config commands.",
       commands: {
         "done list": doneList,
         "done mark": doneMark,
         "done clear": doneClear,
         "group list": groupList,
+        "group create": groupCreate,
+        "group rename": groupRename,
+        "group delete": groupDelete,
+        "group add": groupAdd,
+        "group remove": groupRemove,
+        "group move": groupMove,
         "link list": linkList,
         "link set": linkSet,
         "link clear": linkClear,

@@ -116,6 +116,13 @@ The plugin registers one `bb` subcommand for managing its own state:
 bb focus-board done list [--json]
 bb focus-board done mark <thread-id>...
 bb focus-board done clear <thread-id>...
+bb focus-board group list [--json]
+bb focus-board group create <name>
+bb focus-board group rename <group> <name>
+bb focus-board group delete <group>
+bb focus-board group add <group> <thread-id>...
+bb focus-board group remove <thread-id>...
+bb focus-board group move <thread-id>... --to <group>
 bb focus-board link list [--json]
 bb focus-board link set <thread-id> <number-or-url> [--repo owner/repo] [--pull] [--label text]
 bb focus-board link clear <thread-id> [<number>...]
@@ -135,7 +142,8 @@ exits 1. Sweep thresholds live in the declared settings above, editable from
 ## Data and privacy
 
 The board reads bb's live thread view through the plugin SDK and writes only
-pin state, read state, Done marks, and per-thread tracker-item links (GitHub
+pin state, read state, Done marks, feature-group assignments, and per-thread
+tracker-item links (GitHub
 issues/PRs and other https tracker items) through bb's own stores — never
 thread content. For ticket status dots it reads the official GitHub plugin's
 local cache read-only; validating a text-scanned `#N` may also fetch the item

@@ -59,10 +59,13 @@ describe("focus_board_link_issue external URL forms", () => {
 });
 
 describe("focus_board_link_issue registration", () => {
-  it("registers exactly one agent tool named focus_board_link_issue", async () => {
+  it("registers exactly the link and group tools (no misnamed extras)", async () => {
     const { host } = await setup();
     const tools = registered(host);
-    expect(tools.map((tool) => tool.name)).toEqual(["focus_board_link_issue"]);
+    expect(tools.map((tool) => tool.name).sort()).toEqual([
+      "focus_board_group_set",
+      "focus_board_link_issue",
+    ]);
   });
 
   it("carries a sub-4096-char instructions nudge (the AGENTS.md-style push)", async () => {

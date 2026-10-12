@@ -28,6 +28,18 @@ export const UNRELEASED_ITEMS: readonly { text: string; children: string[]; grou
     "group": "Settings"
   },
   {
+    "text": "**The CLI can manage feature groups, not just list them.** `bb focus-board group` grows create, rename, delete, add, remove, and move, and every command accepts the group's id or its exact name, so agents and scripts can place threads without opening the board.",
+    "children": [
+      "`group add` leaves a thread that is already in the group alone and refuses the batch when a thread sits in a different group; `group move <threads> --to <group>` is the mover."
+    ],
+    "group": "Groups and family boxes"
+  },
+  {
+    "text": "**An agent can put a thread in a feature group by name.** The `focus_board_group_set` tool assigns the thread or one you name to a group quoted from the conversation, and sessions without plugin tools keep the `bb focus-board group add` fallback.",
+    "children": [],
+    "group": "Groups and family boxes"
+  },
+  {
     "text": "**A family box drags by its label.** Grabbing the group name moves the whole box and ranks it wherever the drop lands, the same move grabbing a member card already made. A snoozed lead member still refuses to drag, and a click without the drag still renames.",
     "children": [],
     "group": "Groups and family boxes"
