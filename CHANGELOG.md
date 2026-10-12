@@ -65,6 +65,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- **Thread agents still link tickets when the linking tool is missing from their session.** GitHub Copilot CLI sessions run without bb plugin tools, so the agent read the linking instructions, tried the call, and could only apologize. The tool's instructions now carry the CLI fallback, `bb focus-board link set "$BB_THREAD_ID" <url>`, so those sessions file the Linear or Jira chip instead of reporting the tool unavailable.
 - **A group box never splits across lanes while its family card is attended.** Opening the pane on a child of a boxed parent used to freeze only the parent's card: another member's status change then re-laned the box without it, leaving the family in one lane and the group in another until the pane closed. The attention capture now pins the parent's whole box alongside the family, and the box moves together again when the attention releases.
 - **The white drop rectangle around a lane no longer sticks after the drag ends.** Escape mid-drag, a drop claimed by a card, and a drop that relocates the card out from under its own element all clear the lane's ring now, where only a drop onto empty lane space did before.
 
