@@ -43,6 +43,7 @@ function makeDataTransfer() {
 function renderBoard(
   threads: readonly PluginSidebarThread[],
   groupBoxOf: ReadonlyMap<string, { groupId: string; name: string }>,
+  extra: Partial<BoardProps> = {},
 ) {
   const props = {
     groupBy: "status" as const,
@@ -64,6 +65,7 @@ function renderBoard(
     onDropUnread: () => {},
     onDropPinned: () => {},
     menuActionsFor: () => [],
+    ...extra,
   } as unknown as BoardProps;
   render(<Board {...props} />);
 }
@@ -168,55 +170,84 @@ describe("the family box renders as one container around its members", () => {
     expect(document.querySelector('[data-group-box]')).toBeNull();
   });
 
-  it("a member alone in its column (its box split) renders plain there", () => {
-    // Two members, but only one of them is in any column of this board:
-    // the split pair renders as two plain cards, never a box of one.
+  it("a member alone in its column (a split slice) keeps its frame there", () => {
+    // Issue #86's split default: the group renders across lanes on purpose.
+    // Two members, but only one of them is in any column of this board: the
+    // lone slice still carries the dashed frame — the outline is the
+    // drag-into target and the highlight carrier in every lane.
     renderBoard(
       [thread({ id: "thr_a", status: "active", updatedAt: NOW - 1000 })],
       boxes,
     );
-    expect(document.querySelector('[data-group-box]')).toBeNull();
+    const box = document.querySelector('[data-group-box="grp_1"]');
+    expect(box).not.toBeNull();
+    expect(box?.querySelectorAll('[data-group-box-member="grp_1"]')).toHaveLength(1);
+    expect(
+      box?.querySelector('[data-group-box-label="grp_1"]')?.textContent,
+    ).toBe("Auth rework");
+  });
+
+  it("the whole group's frame appears in every lane holding a member", () => {
+    // thr_a (active → Working) and thr_b (idle → Idle · Recent): two lanes,
+    // two framed slices, both carrying the group's name.
+    renderBoard(
+      [
+        thread({ id: "thr_a", status: "active", updatedAt: NOW - 1000 }),
+        thread({ id: "thr_b", updatedAt: NOW - 2000 }),
+      ],
+      boxes,
+    );
+    const frames = document.querySelectorAll('[data-group-box="grp_1"]');
+    expect(frames).toHaveLength(2);
+    const labels = document.querySelectorAll('[data-group-box-label="grp_1"]');
+    expect(labels).toHaveLength(2);
+    for (const label of labels) expect(label.textContent).toBe("Auth rework");
+    // Each frame holds the member rendering in ITS lane.
+    const slots = document.querySelectorAll('[data-group-box-member="grp_1"]');
+    expect(slots).toHaveLength(2);
   });
 });
 
 describe("group boxes render on the Project view (groupBy === 'project')", () => {
-  // The Project grouping renders per-thread columns like status does. The
-  // plan's columnOverrides pull every member into ONE project column — the
-  // freshest member's (thr_a, updatedAt NOW-1000), Beta — exactly the
-  // status-side box-follows-best-member rule.
+  // Issue #86's split default: no overrides — each member renders in its own
+  // project column and the frame follows: TWO framed slices, one per lane,
+  // both carrying the group's name.
   const members = [
     thread({ id: "thr_a", projectId: "proj_b", displayTitle: "Card A", status: "active", updatedAt: NOW - 1000 }),
     thread({ id: "thr_b", projectId: "proj_a", displayTitle: "Card B", status: "active", updatedAt: NOW - 2000 }),
   ];
-  const overrides = new Map([
-    ["thr_a", { id: "proj_b", label: "Beta" }],
-    ["thr_b", { id: "proj_b", label: "Beta" }],
-  ]);
   const boxes = new Map([
     ["thr_a", { groupId: "grp_1", name: "Auth rework", members }],
     ["thr_b", { groupId: "grp_1", name: "Auth rework", members }],
   ]);
 
-  it("the dashed box renders around both members inside the project column", () => {
-    renderProjectColumns(members, overrides, boxes);
-    const box = document.querySelector('[data-group-box="grp_1"]');
-    expect(box).not.toBeNull();
-    expect(box?.querySelectorAll('[data-group-box-member="grp_1"]')).toHaveLength(2);
-    expect(document.querySelector('[data-group-box-label="grp_1"]')?.textContent).toBe(
-      "Auth rework",
-    );
+  it("each project lane frames its own slice of the split group", () => {
+    renderProjectColumns(members, new Map(), boxes);
+    const frames = document.querySelectorAll('[data-group-box="grp_1"]');
+    expect(frames).toHaveLength(2);
+    const alpha = document.querySelector('[data-column-id="proj_a"]');
+    const beta = document.querySelector('[data-column-id="proj_b"]');
+    expect(alpha?.querySelector('[data-group-box-member="grp_1"]')?.textContent).toContain("Card B");
+    expect(beta?.querySelector('[data-group-box-member="grp_1"]')?.textContent).toContain("Card A");
+    expect(
+      alpha?.querySelector('[data-group-box-label="grp_1"]')?.textContent,
+    ).toBe("Auth rework");
+    expect(
+      beta?.querySelector('[data-group-box-label="grp_1"]')?.textContent,
+    ).toBe("Auth rework");
   });
 
-  it("boxed member cards keep their run roles (first/last) in project columns", () => {
-    renderProjectColumns(members, overrides, boxes);
-    const first = document.querySelector('[data-group-box-first="grp_1"]');
-    const last = document.querySelector('[data-group-box-last="grp_1"]');
-    expect(first).not.toBeNull();
-    expect(last).not.toBeNull();
-    // thr_a is the column's first member, thr_b its last — the roles carry
-    // the drag unit and the memberEdge join deferral, grouping-blind.
-    expect(first?.textContent).toContain("Card A");
-    expect(last?.textContent).toContain("Card B");
+  it("boxed member cards keep their run roles (first) in split project columns", () => {
+    renderProjectColumns(members, new Map(), boxes);
+    // A co-located pair is first/last; a split lane's lone slice carries
+    // role "first" (the run's single member) in each lane here.
+    const firsts = document.querySelectorAll('[data-group-box-first="grp_1"]');
+    expect(firsts).toHaveLength(2);
+    expect([...firsts].map((el) => el.textContent)).toEqual([
+      expect.stringContaining("Card B"),
+      expect.stringContaining("Card A"),
+    ]);
+    expect(document.querySelector('[data-group-box-last="grp_1"]')).toBeNull();
   });
 });
 
@@ -656,5 +687,95 @@ describe("drop-to-join reaches the member cards (a tall member used to hide the 
     const drag = beginDrag("thr_free", parentAnchor());
     expect(drag.hoverArmed()).toBe(false);
     expect(() => drag.finishDrop()).not.toThrow();
+  });
+});
+describe("the amber group highlight (issue #86)", () => {
+  // A split group renders a frame per lane; clicking a member card or the
+  // frame's own surface marks the GROUP, and every lane's frame of it reads
+  // amber at once — the whole footprint in one gesture. A click anywhere
+  // that is not a group frame clears it.
+  const memberA = thread({ id: "thr_a", status: "active", updatedAt: NOW - 1000, displayTitle: "Card A" });
+  const memberB = thread({ id: "thr_b", updatedAt: NOW - 2000, displayTitle: "Card B" }); // idle
+  const free = thread({ id: "thr_free", status: "active", updatedAt: NOW - 5000, displayTitle: "Free" });
+  const members = [memberA, memberB];
+  const boxes = new Map([
+    ["thr_a", { groupId: "grp_1", name: "Auth rework", members }],
+    ["thr_b", { groupId: "grp_1", name: "Auth rework", members }],
+  ]);
+
+  function renderHighlightBoard(
+    highlightedGroupId: string | null,
+    onHighlightGroup: (groupId: string | null) => void,
+  ) {
+    renderBoard([memberA, memberB, free], boxes, {
+      highlightedGroupId,
+      onHighlightGroup,
+      onClosePane: () => {},
+    });
+  }
+
+  it("clicking a member card marks the group: every lane's frame carries the highlight", () => {
+    const onHighlightGroup = vi.fn();
+    renderHighlightBoard("grp_1", onHighlightGroup);
+    const card = document.querySelector('[data-thread-card="thr_b"] a[draggable]') as HTMLElement;
+    fireEvent.click(card);
+    expect(onHighlightGroup).toHaveBeenCalledWith("grp_1");
+    // Both frames (Working and Idle · Recent) render amber.
+    const frames = document.querySelectorAll("[data-group-box-highlight]");
+    expect(frames).toHaveLength(2);
+  });
+
+  it("clicking the frame's own surface toggles the highlight", () => {
+    const set = vi.fn();
+    const props = {
+      groupBy: "status" as const,
+      columns: buildColumns([memberA, memberB, free], "status", context, new Map(), new Set<string>(), NOW, {}),
+      activeThreadId: null,
+      doneIds: new Set<string>(),
+      nestedChildrenByParent: new Map(),
+      doneChildrenByParent: new Map(),
+      childCountByParent: new Map<number, never>(),
+      dimmedIds: new Set<string>(),
+      rankStore: {},
+      onRankMove: () => {},
+      groupBoxOf: boxes,
+      highlightedGroupId: "grp_1",
+      onHighlightGroup: (groupId: string | null) => {
+        set(groupId);
+      },
+      onClosePane: () => {},
+      projectNameFor: () => "",
+      repoBaseFor: () => null,
+      onOpenThread: () => {},
+      onNewTask: () => {},
+      onDropDone: () => {},
+      onDropUnread: () => {},
+      onDropPinned: () => {},
+      menuActionsFor: () => [],
+    } as unknown as BoardProps;
+    render(<Board {...props} />);
+    // The dashed container itself (the padding around the member list), not
+    // the outer li — the handler lives on the frame surface.
+    const surface = document.querySelector('[data-group-box="grp_1"] > div') as HTMLElement;
+    fireEvent.click(surface);
+    expect(set).toHaveBeenCalledWith(null); // already highlighted → toggles off
+  });
+
+  it("clicking a card outside any frame clears the highlight", () => {
+    const onHighlightGroup = vi.fn();
+    renderHighlightBoard("grp_1", onHighlightGroup);
+    const card = document.querySelector('[data-thread-card="thr_free"] a[draggable]') as HTMLElement;
+    fireEvent.click(card);
+    expect(onHighlightGroup).toHaveBeenCalledWith(null);
+  });
+
+  it("a highlighted frame also carries its label in amber, and an unwired board never highlights", () => {
+    renderBoard([memberA, memberB], boxes, {
+      highlightedGroupId: "grp_1",
+      onHighlightGroup: undefined,
+    });
+    for (const frame of document.querySelectorAll('[data-group-box="grp_1"]')) {
+      expect(frame.querySelector("[data-group-box-label]")?.className).toContain("text-amber-600");
+    }
   });
 });

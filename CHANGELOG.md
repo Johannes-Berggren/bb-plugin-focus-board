@@ -52,10 +52,15 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - **Card animations default to zoom.** The Appearance tab's default read is now the shrink-out/grow-in portal transport instead of the dissolve; Teleport stays the explicit name for the transporter read and None snaps the card instantly.
 
+#### Groups
+
+- **Feature groups default to splitting across lanes.** A group's members stay in the lanes their own state puts them in, and each lane holds a dashed frame around its slice of the group (a lone slice included), instead of the whole box gathering in the busiest member's lane; a lane view that had a large box land on it now keeps that lane's cards.
+- **Clicking a group marks every lane it renders in.** A clicked member card, or the dashed frame's own surface, ambers that group's every frame across the board, so the whole footprint reads in one gesture; clicking the frame again (or anything outside the group) clears it.
+
 #### Card placement
 
-- **A family card or group box follows the busiest thread inside it.** A running child lifts its quiet parent and the whole box into Working, and under Last activity a fresh child lifts the family's bucket the same way. A child with a lane of its own (Needs you, Done, Pinned) keeps that lane without dragging the family along.
-- **A card the board sees you attending holds its place.** Hovering a card, or keeping it open in the thread pane, pins its lane, its slot, and the lane of its family or box, so live updates re-sort the board around it instead of moving it; the pin lifts when the pointer leaves or the pane closes.
+- **A family card follows the busiest thread inside it.** A running child lifts its quiet parent into Working, and under Last activity a fresh child lifts the family's bucket the same way. A child with a lane of its own (Needs you, Done, Pinned) keeps that lane without dragging the family along. Feature groups no longer ride this rule; they default to splitting across lanes (see Groups).
+- **A card the board sees you attending holds its place.** Hovering a card, or keeping it open in the thread pane, pins its lane, its slot, and the lane of its family, so live updates re-sort the board around it instead of moving it; the pin lifts when the pointer leaves or the pane closes.
   - The parent thread view pins the attended card's lane order and its row slot the same way.
   - An open context menu holds the card too, whatever closes it (a menu action, a backdrop click, Escape); the menu's pop-over does not count as the pointer leaving.
   - The pin also holds the card against a rank order that changes while attention lasts: stored rankings are never rewritten, and the held card renders its ranked slot again when the pin lifts.
@@ -73,7 +78,6 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **The "@" mention menu works in the New thread dialog again.** A left-over scroll wrapper clipped the composer's popup menus out of the dialog; the @ picker and the / command menu now open like they do everywhere else in bb.
 
 - **Thread agents still link tickets when the linking tool is missing from their session.** GitHub Copilot CLI sessions run without bb plugin tools, so the agent read the linking instructions, tried the call, and could only apologize. The tool's instructions now carry the CLI fallback, `bb focus-board link set "$BB_THREAD_ID" <url>`, so those sessions file the Linear or Jira chip instead of reporting the tool unavailable.
-- **A group box never splits across lanes while its family card is attended.** Opening the pane on a child of a boxed parent used to freeze only the parent's card: another member's status change then re-laned the box without it, leaving the family in one lane and the group in another until the pane closed. The attention capture now pins the parent's whole box alongside the family, and the box moves together again when the attention releases.
 - **The white drop rectangle around a lane no longer sticks after the drag ends.** Escape mid-drag, a drop claimed by a card, and a drop that relocates the card out from under its own element all clear the lane's ring now, where only a drop onto empty lane space did before.
 
 ## [1.2.0] - 2026-10-10

@@ -1,11 +1,9 @@
-// The attention capture's group-box unity rule (components/attention-freeze's
-// captureColumnAttention): a capture on a nested family child pins the family
-// root's card — and, when the root renders inside a feature-group box, EVERY
-// member of that box. Only the root would freeze while the box's other
-// members re-lane on the next status change, splitting the box across lanes
-// (reproduced live 2026-10-10: a pane opened on "Add model to lightbox bar"
-// froze its family parent's card in Unread while the chat-imagegen box
-// re-laned to Working without it).
+// The attention capture under the split default (issue #86): a capture on a
+// nested family child pins the family root's card, and NOTHING ELSE — the
+// old "pin the whole group box" pass is gone, because the group renders
+// across lanes on purpose now. A half-frozen group is the intended render,
+// not a defect: the attended card holds its own placement while the group's
+// other members re-place freely.
 import { describe, expect, it } from "vitest";
 import type { PluginSidebarThread } from "@get-bb/plugin-sdk/app";
 import {
@@ -17,6 +15,9 @@ function threadsFor(ids: readonly string[]): PluginSidebarThread[] {
   return ids.map((id) => ({ id, updatedAt: 0 }) as unknown as PluginSidebarThread);
 }
 
+// The same board the pre-split test froze: the family root is a
+// chat-imagegen member, four group siblings sit in Working, and the attended
+// child nests under the root. The capture must leave the four siblings out.
 const input = {
   parent: false,
   view: "status" as const,
@@ -35,17 +36,6 @@ const input = {
     doneChildrenByParent: new Map<string, readonly PluginSidebarThread[]>(),
   },
   parentOf: new Map<string, string>([["thr_child", "thr_parent"]]),
-  // The family root is a chat-imagegen member; the attended child is not.
-  groupBoxOf: new Map<string, { groupId: string; name: string; members: readonly PluginSidebarThread[] }>([
-    [
-      "thr_parent",
-      {
-        groupId: "g1",
-        name: "chat-imagegen",
-        members: threadsFor(["thr_parent", "thr_zimage", "thr_relay_split", "thr_improve_ux", "thr_relay_service"]),
-      },
-    ],
-  ]),
 };
 
 const capturedAt = 1_000;
@@ -54,29 +44,24 @@ function slotIds(slots: readonly AttentionSlot[]): readonly string[] {
   return slots.map((slot) => slot.threadId);
 }
 
-describe("captureColumnAttention's root group-box unity", () => {
-  it("a child of a boxed family root pins the WHOLE root's box", () => {
+describe("captureColumnAttention under the split default (no box pinning)", () => {
+  it("a child of a family root that renders inside a group pins only the root's card", () => {
     const capture = captureColumnAttention("thr_child", input, "selection", capturedAt);
     expect(capture).not.toBeNull();
     expect(capture!.rowPin).toEqual({ parentId: "thr_parent", childId: "thr_child", index: 0 });
-    // The root card plus every box member — the root alone is a split box.
-    expect(new Set(slotIds(capture!.slots))).toEqual(
-      new Set(["thr_parent", "thr_zimage", "thr_relay_split", "thr_improve_ux", "thr_relay_service"]),
-    );
-    // Each member pins at its own rendered placement (the parent stays in
-    // Unread's slot 0, the box members in Working where the board had them).
-    for (const slot of capture!.slots) {
-      expect(slot.columnId).toBe(slot.threadId === "thr_parent" ? "unread" : "working");
-    }
+    // The root card only — the group's other members stay free to re-place
+    // (each in its own lane, per the split default).
+    expect(slotIds(capture!.slots)).toEqual(["thr_parent"]);
+    expect(capture!.slots[0]!.columnId).toBe("unread");
+    expect(capture!.slots[0]!.index).toBe(0);
   });
 
-  it("a child of a root outside any box still pins just the root card", () => {
-    const bare = {
-      ...input,
-      groupBoxOf: new Map<string, { groupId: string; name: string; members: readonly PluginSidebarThread[] }>(),
-    };
-    const capture = captureColumnAttention("thr_child", bare, "hover", capturedAt);
+  it("an attended member card of a split group holds its OWN placement only", () => {
+    const capture = captureColumnAttention("thr_relay_split", input, "hover", capturedAt);
     expect(capture).not.toBeNull();
-    expect(slotIds(capture!.slots)).toEqual(["thr_parent"]);
+    expect(capture!.rowPin).toBeNull();
+    expect(slotIds(capture!.slots)).toEqual(["thr_relay_split"]);
+    expect(capture!.slots[0]!.columnId).toBe("working");
+    expect(capture!.slots[0]!.index).toBe(1);
   });
 });

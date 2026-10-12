@@ -893,11 +893,12 @@ describe("assembleBoard — family columns (R4: the family moves as one unit)", 
     expect(idsIn(result.columns, "idle-earlier")).toEqual([]);
   });
 
-  it("a group box lands in its plan lane even when a member is open in the pane", () => {
-    // Live repro (2026-10-10 screenshot): the relay thread was active, the
-    // parent idle for an hour. Opening the parent froze Idle·Today and (under
-    // the pane-follows rule) dragged the running member into it. Family wins,
-    // always: the plan lane (strongest member → Working) beats the capture.
+  it("a hand override beats the pane's frozen column for both its members", () => {
+    // Generic mechanism test (the option assembleBoard hands buildColumns;
+    // familyColumnOverrides is its only live producer since the group plan
+    // stopped claiming lanes — issue #86): an override on a thread whose
+    // pane capture froze another lane still lands it where the override
+    // says, freeze notwithstanding. The family wins, always.
     const parent = thread({ id: "p", updatedAt: NOW - HOUR });
     const relay = thread({ id: "r", status: "active", updatedAt: NOW - HOUR / 4 });
     const boxLane = { id: "working", label: "Working" };

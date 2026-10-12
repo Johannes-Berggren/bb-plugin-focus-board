@@ -272,9 +272,11 @@ export interface RunUnit {
 /**
  * The run units per commit, read off the columns' own display order via the
  * same walker the render path uses (one source of truth for what a box is).
- * A group id appears once — the first column that forms the run wins (a
- * box split ≥ 2 + ≥ 2 across columns is a degenerate caller state; the
- * overrides keep a box whole in one lane).
+ * Only a group that renders WHOLE in one column folds: a unit transport is
+ * one dashed shape relocating. Under the split default the walker yields a
+ * slice per column — the same box run item appearing in several lanes — and
+ * a split group keeps its per-thread transports (each member relocates on
+ * its own; one ghost, per lane, is the honest animation for that).
  */
 export function runUnits(
   columns: readonly {
@@ -284,18 +286,28 @@ export function runUnits(
   groupBoxOf: GroupBoxMap,
 ): ReadonlyMap<string, RunUnit> {
   const units = new Map<string, RunUnit>();
+  const byGroup = new Map<string, { columns: Set<string>; unit: RunUnit }>();
   for (const column of columns) {
     for (const item of columnRunItems(column, groupBoxOf)) {
       if (item.kind !== "box") continue;
       const groupId = item.box.groupId;
-      if (units.has(groupId)) continue;
-      units.set(groupId, {
+      const existing = byGroup.get(groupId);
+      if (existing !== undefined) {
+        existing.columns.add(column.id);
+        continue;
+      }
+      const unit: RunUnit = {
         groupId,
         name: item.box.name,
         columnId: column.id,
         memberIds: item.box.members.map((member) => member.id),
-      });
+      };
+      byGroup.set(groupId, { columns: new Set([column.id]), unit });
     }
+  }
+  for (const [groupId, entry] of byGroup) {
+    if (entry.columns.size !== 1) continue; // a split group: per-thread transports
+    units.set(groupId, entry.unit);
   }
   return units;
 }

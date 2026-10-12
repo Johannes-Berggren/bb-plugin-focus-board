@@ -27,7 +27,7 @@ const groupOf = (assignments: Record<string, string>): Map<string, string> =>
   new Map(Object.entries(assignments));
 
 describe("planGroupBoxes", () => {
-  it("two members under the status grouping form a box, overrides to each member", () => {
+  it("two members under the status grouping form one box identity over both", () => {
     const threads = [
       thread({ id: "thr_a", updatedAt: NOW - 1000 }),
       thread({ id: "thr_b", status: "active", updatedAt: NOW - 1000 }),
@@ -47,9 +47,11 @@ describe("planGroupBoxes", () => {
     // Members of the same box share its identity object.
     expect(plan.groupBoxOf.get("thr_b")?.groupId).toBe("grp_auth");
     expect(plan.groupBoxOf.get("thr_a")).toBe(plan.groupBoxOf.get("thr_b"));
+    // The split default: the plan claims NO lane.
+    expect(plan.columnOverrides.size).toBe(0);
   });
 
-  it("a group of one keeps its box: the lone member is boxed with its override", () => {
+  it("a group of one keeps its box: the lone member is boxed in its own lane", () => {
     const threads = [thread({ id: "thr_a" })];
     const plan = planGroupBoxes(
       threads,
@@ -67,7 +69,7 @@ describe("planGroupBoxes", () => {
     expect(box?.groupId).toBe("grp_auth");
     expect(box?.name).toBe("Auth rework");
     expect(box?.members.map((t) => t.id)).toEqual(["thr_a"]);
-    expect(plan.columnOverrides.has("thr_a")).toBe(true);
+    expect(plan.columnOverrides.has("thr_a")).toBe(false);
   });
 
   it("boxed members stay out of the plan when done or pinned", () => {
@@ -97,10 +99,13 @@ describe("planGroupBoxes", () => {
     expect(plan.groupBoxOf.get("thr_a")?.members.map((t) => t.id)).toEqual(["thr_a", "thr_b"]);
   });
 
-  it("an attention member pulls the box into Needs you", () => {
+  it("the group splits across lanes: each member renders where its own state lands it", () => {
+    // Issue #86's example: an attention member and an idle member. The old
+    // gather rule pulled both into the attention lane; the split default
+    // leaves each in its own, buildColumns deciding by thread data alone.
     const threads = [
       thread({ id: "thr_a", status: "active", updatedAt: NOW - 1000 }),
-      thread({ id: "thr_b", updatedAt: NOW - 1000 }), // idle
+      thread({ id: "thr_b", updatedAt: NOW - 5000 }), // idle
     ];
     const plan = planGroupBoxes(
       threads,
@@ -111,27 +116,16 @@ describe("planGroupBoxes", () => {
       new Set(),
       NOW,
     );
-    expect(plan.columnOverrides.get("thr_b")).toEqual({ id: "working", label: "Working" });
+    expect(plan.columnOverrides.size).toBe(0);
+    const columns = buildColumns(threads, "status", context, new Map(), new Set(), NOW);
+    expect(
+      columns.find((column) => column.id === "working")?.threads.map((entry) => entry.id),
+    ).toEqual(["thr_a"]);
+    const recent = columns.find((column) => column.id === "idle-recent");
+    expect(recent?.threads.map((entry) => entry.id)).toContain("thr_b");
   });
 
-  it("two attention members land the box in Needs you", () => {
-    const threads = [
-      thread({ id: "thr_a", indicator: "unread-error", updatedAt: NOW - 1000 }),
-      thread({ id: "thr_b", status: "active", updatedAt: NOW - 1000 }),
-    ];
-    const plan = planGroupBoxes(
-      threads,
-      groupOf({ thr_a: "grp_auth", thr_b: "grp_auth" }),
-      NAMES,
-      "status",
-      context,
-      new Set(),
-      NOW,
-    );
-    expect(plan.columnOverrides.get("thr_a")?.id).toBe("attention");
-  });
-
-  it("idle members tie on the bucket the freshest idle member would take", () => {
+  it("idle members each keep their own bucket under the split default", () => {
     const threads = [
       thread({ id: "thr_old", updatedAt: NOW - 8 * 24 * 60 * 60 * 1000 }),
       thread({ id: "thr_new", updatedAt: NOW - 1000 }),
@@ -145,14 +139,15 @@ describe("planGroupBoxes", () => {
       new Set(),
       NOW,
     );
-    // Both idle → the freshest member's bucket wins ("Today"-ish slot).
-    expect(plan.columnOverrides.get("thr_old")?.id).toBe(
-      plan.columnOverrides.get("thr_new")?.id,
-    );
-    expect(plan.columnOverrides.get("thr_new")?.id).toBe("idle-recent");
+    expect(plan.columnOverrides.size).toBe(0);
+    const columns = buildColumns(threads, "status", context, new Map(), new Set(), NOW);
+    const recent = columns.find((column) => column.id === "idle-recent");
+    const older = columns.find((column) => column.id === "idle-awhile");
+    expect(recent?.threads.map((entry) => entry.id)).toEqual(["thr_new"]);
+    expect(older?.threads.map((entry) => entry.id)).toEqual(["thr_old"]);
   });
 
-  it("boxes render under the project grouping: the box lands in the freshest member's project column", () => {
+  it("boxes render under the project grouping with each member in its own project column", () => {
     const projects = [
       { id: "proj_a", name: "Alpha" },
       { id: "proj_b", name: "Beta" },
@@ -173,10 +168,13 @@ describe("planGroupBoxes", () => {
     expect(plan.active).toBe(true);
     expect(plan.groupBoxOf.get("thr_a")?.groupId).toBe("grp_auth");
     expect(plan.groupBoxOf.get("thr_a")).toBe(plan.groupBoxOf.get("thr_b"));
-    // Both members override into ONE column: the freshest member's project
-    // (both idle, so the fresher member carries the box, same as status).
-    expect(plan.columnOverrides.get("thr_a")).toEqual({ id: "proj_b", label: "Beta" });
-    expect(plan.columnOverrides.get("thr_b")).toEqual({ id: "proj_b", label: "Beta" });
+    // Split: both members stay in their project's own column.
+    expect(plan.columnOverrides.size).toBe(0);
+    const columns = buildColumns(threads, "project", { projects, providers: [] }, new Map(), new Set(), NOW);
+    const alpha = columns.find((column) => column.id === "proj_a");
+    const beta = columns.find((column) => column.id === "proj_b");
+    expect(alpha?.threads.map((entry) => entry.id)).toEqual(["thr_b"]);
+    expect(beta?.threads.map((entry) => entry.id)).toEqual(["thr_a"]);
   });
 
   it("a group of one boxes its lone member under the project grouping too", () => {
@@ -192,15 +190,15 @@ describe("planGroupBoxes", () => {
     );
     expect(plan.active).toBe(true);
     expect(plan.groupBoxOf.get("thr_a")?.name).toBe("Auth rework");
-    expect(plan.columnOverrides.get("thr_a")).toEqual({ id: "proj_a", label: "Alpha" });
+    expect(plan.columnOverrides.size).toBe(0);
   });
 
-  it("provider and machine groupings box too (per-thread-column groupings)", () => {
+  it("provider and machine groupings box too (per-thread-column groupings), split across lanes", () => {
     const threads = [
       thread({ id: "thr_a", providerId: "opencode", updatedAt: NOW - 1000 }),
       thread({ id: "thr_b", providerId: "pi", updatedAt: NOW - 2000 }),
     ];
-    // Provider: one box, overridden into the freshest member's provider column.
+    // Provider: one box identity, members in their provider columns.
     const plan = planGroupBoxes(
       threads,
       groupOf({ thr_a: "grp_auth", thr_b: "grp_auth" }),
@@ -212,8 +210,7 @@ describe("planGroupBoxes", () => {
     );
     expect(plan.active).toBe(true);
     expect(plan.groupBoxOf.get("thr_a")).toBe(plan.groupBoxOf.get("thr_b"));
-    expect(plan.columnOverrides.get("thr_a")).toEqual({ id: "opencode", label: "OpenCode" });
-    expect(plan.columnOverrides.get("thr_b")).toEqual({ id: "opencode", label: "OpenCode" });
+    expect(plan.columnOverrides.size).toBe(0);
     // Machine: members without a host degrade to the "No machine" lane.
     const machinePlan = planGroupBoxes(
       [thread({ id: "thr_a" }), thread({ id: "thr_b" })],
@@ -225,7 +222,7 @@ describe("planGroupBoxes", () => {
       NOW,
     );
     expect(machinePlan.active).toBe(true);
-    expect(machinePlan.columnOverrides.get("thr_a")).toEqual({ id: "none", label: "No machine" });
+    expect(machinePlan.columnOverrides.size).toBe(0);
   });
 
   it("boxes stay off under the parent grouping (families are their own unit system)", () => {
@@ -246,30 +243,33 @@ describe("planGroupBoxes", () => {
     expect(plan.groupBoxOf.size).toBe(0);
   });
 
-  it("boxes stay on under the group grouping and land in the group's own column", () => {
+  it("boxes stay on under the group grouping; the plan claims no lane of its own", () => {
     const threads = [
       thread({ id: "thr_a", updatedAt: NOW - 1000 }),
       thread({ id: "thr_b", updatedAt: NOW - 2000 }),
     ];
+    const assignments = groupOf({ thr_a: "grp_auth", thr_b: "grp_auth" });
     const plan = planGroupBoxes(
       threads,
-      groupOf({ thr_a: "grp_auth", thr_b: "grp_auth" }),
+      assignments,
       NAMES,
       "group",
       {
         ...context,
-        groupsByThread: groupOf({ thr_a: "grp_auth", thr_b: "grp_auth" }),
+        groupsByThread: assignments,
         groupNames: NAMES,
       },
       new Set(),
       NOW,
     );
     expect(plan.active).toBe(true);
-    expect(plan.columnOverrides.get("thr_a")).toEqual({ id: "grp_auth", label: "Auth rework" });
-    expect(plan.columnOverrides.get("thr_b")).toEqual({ id: "grp_auth", label: "Auth rework" });
+    // Under the group grouping the members' NATURAL column IS the group's
+    // own column (columnFor resolves it from the assignment), so the plan
+    // needs — and emits — no override at all.
+    expect(plan.columnOverrides.size).toBe(0);
   });
 
-  it("under recency, the box lands in the freshest member's bucket", () => {
+  it("under recency, each member keeps its own bucket (the freshest does not drag the rest)", () => {
     const threads = [
       thread({ id: "thr_old", updatedAt: NOW - 8 * 24 * 60 * 60 * 1000 }),
       thread({ id: "thr_new", updatedAt: NOW - 1000 }),
@@ -283,7 +283,29 @@ describe("planGroupBoxes", () => {
       new Set(),
       NOW,
     );
-    expect(plan.columnOverrides.get("thr_old")?.id).toBe("recent");
+    expect(plan.columnOverrides.size).toBe(0);
+    const columns = buildColumns(threads, "recency", context, new Map(), new Set(), NOW);
+    const recent = columns.find((column) => column.id === "recent");
+    const older = columns.find((column) => column.id === "awhile");
+    expect(recent?.threads.map((entry) => entry.id)).toEqual(["thr_new"]);
+    expect(older?.threads.map((entry) => entry.id)).toEqual(["thr_old"]);
+  });
+
+  it("under recency, the old gather rule is gone (the override map stays empty)", () => {
+    const threads = [
+      thread({ id: "thr_old", updatedAt: NOW - 8 * 24 * 60 * 60 * 1000 }),
+      thread({ id: "thr_new", updatedAt: NOW - 1000 }),
+    ];
+    const plan = planGroupBoxes(
+      threads,
+      groupOf({ thr_old: "grp_auth", thr_new: "grp_auth" }),
+      NAMES,
+      "recency",
+      context,
+      new Set(),
+      NOW,
+    );
+    expect(plan.columnOverrides.size).toBe(0);
   });
 
   it("a member with no registry record is ignored (nameless box cannot render)", () => {
@@ -427,6 +449,82 @@ describe("runsFromColumns", () => {
     const runs = runsFromColumns(columns, plan.groupBoxOf);
     const flat = flattenRuns(runs.get("working") as never);
     expect(flat.map((t) => t.id)).toEqual(["thr_x", "thr_a", "thr_b"]);
+  });
+});
+
+describe("runsFromColumns under the split default — the frame follows every lane", () => {
+  // Issue #86: no overrides mean the members land in their own lanes, and
+  // the frame renders in EVERY lane holding a member — a slice of one
+  // included (the outline is the join target and the highlight carrier).
+  const threads = [
+    thread({ id: "thr_a", status: "active", updatedAt: NOW - 1000 }), // working
+    thread({ id: "thr_b", updatedAt: NOW - 2000 }), // idle → Idle · Recent
+    thread({ id: "thr_x", indicator: "unread-error", updatedAt: NOW - 3000 }), // attention
+  ];
+  const plan = planGroupBoxes(
+    threads,
+    groupOf({ thr_a: "grp_auth", thr_b: "grp_auth", thr_x: "grp_auth" }),
+    NAMES,
+    "status",
+    context,
+    new Set(),
+    NOW,
+  );
+  const runsOf = (columnId: string) => {
+    const columns = buildColumns(threads, "status", context, new Map(), new Set(), NOW, {}, plan.columnOverrides);
+    const column = columns.find((candidate) => candidate.id === columnId);
+    const runs = runsFromColumns([column as never], plan.groupBoxOf);
+    return (runs as Map<string, readonly { kind: string; box?: { members: { id: string }[] } }[]>).get(
+      columnId,
+    );
+  };
+
+  it("a group of three spreads over three lanes; each lane frames its own slice", () => {
+    const working = runsOf("working");
+    const recent = runsOf("idle-recent");
+    const attention = runsOf("attention");
+    expect(working).toMatchObject([{ kind: "box" }]);
+    expect(recent).toMatchObject([{ kind: "box" }]);
+    expect(attention).toMatchObject([{ kind: "box" }]);
+    // The same box identity — one group, three frames.
+  });
+
+  it("a slice of one keeps its run roles honest (role solo, joins as a plain card)", () => {
+    const info = columnRunInfo(
+      [
+        thread({ id: "thr_a", status: "active", updatedAt: NOW - 1000 }),
+      ],
+      plan.groupBoxOf,
+    );
+    expect(info.get("thr_a")).toMatchObject({ boxId: "grp_auth", role: "solo" });
+  });
+
+  it("co-located members still gather into one run in their shared lane", () => {
+    // Two active members (no ranks): both land in Working naturally, so the
+    // walker gathers the lane's whole slice into one box run — the same
+    // gather the rank contract keeps contiguous.
+    const coLocated = [
+      thread({ id: "thr_a", status: "active", updatedAt: NOW - 1000 }),
+      thread({ id: "thr_b", status: "active", updatedAt: NOW - 2000 }),
+      thread({ id: "thr_x", status: "active", updatedAt: NOW - 3000 }),
+    ];
+    const coPlan = planGroupBoxes(
+      coLocated,
+      groupOf({ thr_a: "grp_auth", thr_b: "grp_auth" }),
+      NAMES,
+      "status",
+      context,
+      new Set(),
+      NOW,
+    );
+    const columns = buildColumns(coLocated, "status", context, new Map(), new Set(), NOW);
+    const working = columns.find((candidate) => candidate.id === "working");
+    const runs = runsFromColumns([working as never], coPlan.groupBoxOf);
+    const items = (runs as Map<string, readonly { kind: string; box?: { members: { id: string }[] } }[]>).get("working");
+    expect(items).toHaveLength(2);
+    expect(items![0]).toMatchObject({ kind: "box" });
+    expect(items![0]!.box!.members.map((entry) => entry.id)).toEqual(["thr_a", "thr_b"]);
+    expect(items![1]).toMatchObject({ kind: "single" });
   });
 });
 
@@ -656,13 +754,12 @@ describe("columnRunInfo and unitMoveTarget", () => {
   });
 });
 
-describe("the box plan's lane beats the pane's frozen column", () => {
-  // The pane-follows exception shipped 2026-10-10 pulled a whole box into the
-  // open card's stale lane — a working sibling rode an idle parent's capture
-  // into Idle·Today the moment the pane opened. The operator's rule: the
-  // family's lane priority never depends on the pane. The plan covers EVERY
-  // box member, so the override wins and a split box is structurally
-  // impossible (there is no second lane to split into).
+describe("the split plan leaves the frozen lane to the pane", () => {
+  // The 2026-10-10 pane-follows saga ended in "the plan beats the pane".
+  // Issue #86 removes the plan's lane claim entirely, so the anti-slide
+  // contract now always wins for a boxed member the way it wins for an
+  // unboxed one: the capture holds the card's rendered placement, and the
+  // split frame simply wraps whatever lanes its members render in.
   const threads = [
     thread({ id: "thr_a", updatedAt: NOW - 1000 }), // idle — the card open in the pane
     thread({ id: "thr_b", status: "active", updatedAt: NOW - 2000 }), // working
@@ -678,7 +775,7 @@ describe("the box plan's lane beats the pane's frozen column", () => {
   );
   const frozen = new Map([["thr_a", { id: "idle-today", label: "Idle · Today" }]]);
 
-  it("an open member's frozen lane never moves the box: the plan lane wins", () => {
+  it("an open member holds its frozen lane; the group splits around it", () => {
     const columns = buildColumns(
       threads,
       "status",
@@ -689,11 +786,9 @@ describe("the box plan's lane beats the pane's frozen column", () => {
       {},
       plan.columnOverrides,
     );
-    const working = columns.find((column) => column.id === "working");
-    expect(working?.threads.map((entry) => entry.id) ?? []).toEqual(
-      expect.arrayContaining(["thr_a", "thr_b"]),
-    );
-    expect(columns.some((column) => column.id === "idle-today")).toBe(false);
+    expect(columns.some((column) => column.id === "idle-today")).toBe(true);
+    const frozenLane = columns.find((column) => column.id === "idle-today");
+    expect(frozenLane?.threads.map((entry) => entry.id)).toEqual(["thr_a"]);
   });
 
   it("a frozen thread the plan says nothing about keeps its frozen lane", () => {
@@ -826,74 +921,70 @@ describe("canJoinGroup (the drop-into-the-box gesture's decision)", () => {
   it("a lone box member moves to another group (one group per thread)", () => {
     expect(canJoinGroup("thr_solo", "grp_search", boxes)).toBe(true);
   });
+
+  it("a split group's lone slice member joins another group (it drags as a plain card)", () => {
+    // Issue #86: the drag unit is the LANE SLICE. `thr_boxed`'s slice here
+    // renders alone (one member in its lane), so the join is offered even
+    // though the group's whole membership is bigger.
+    expect(canJoinGroup("thr_boxed", "grp_search", boxes, false)).toBe(true);
+  });
+
+  it("a slice co-located with a sibling (role not solo) never joins another group", () => {
+    expect(canJoinGroup("thr_boxed", "grp_search", boxes, true)).toBe(false);
+    // Same-group drops refuse either way, before the unit question.
+    expect(canJoinGroup("thr_boxed", "grp_auth", boxes, false)).toBe(false);
+  });
 });
 
-describe("planGroupBoxes — the family is the unit of lane driving", () => {
-  // The operator's rule (2026-10-11, the BV-INC-10 board sighting): a box
-  // lands in the lane of its most attention-driving member FAMILY — what
-  // renders inside the member's card drives the box. A child copied OUT to
-  // its own lane (Needs you, Done, Pinned) keeps that placement and does not
-  // drive; copy-out is dual membership, not removal. Archived descendants
-  // render nowhere and never drive.
+describe("planGroupBoxes under the split default — families keep their own lane rule", () => {
+  // The 2026-10-11 family rule lives in nestUnderParents's
+  // familyColumnOverrides (tested in nesting.test.ts) — the family is the
+  // unit of ITS lane priority. The group plan no longer drives lanes at all
+  // (issue #86): what these pins hold is that every scenario that used to
+  // lift a box — an active child, a copied-out Needs-you/done/pinned child,
+  // an archived one, a fresher recency child — now claims NO lane, and the
+  // parent member's card still renders inside the box identity.
   const MINUTE = 60 * 1000;
   const HOUR = 60 * MINUTE;
 
-  it("a member's active child lifts the box to Working", () => {
+  const boxedPlan = (
+    threads: readonly PluginSidebarThread[],
+    doneIds: ReadonlySet<string> = new Set(),
+    groupBy: "status" | "recency" = "status",
+  ) =>
+    planGroupBoxes(threads, groupOf({ thr_root: "grp_auth" }), NAMES, groupBy, context, doneIds, NOW);
+
+  it("a member's active child lifts nothing: the plan emits no lane claim", () => {
     const threads = [
       thread({ id: "thr_root", updatedAt: NOW - 5 * MINUTE }),
       thread({ id: "thr_kid", status: "active", updatedAt: NOW - MINUTE, parentThreadId: "thr_root" }),
     ];
-    const plan = planGroupBoxes(
-      threads,
-      groupOf({ thr_root: "grp_auth" }),
-      NAMES,
-      "status",
-      context,
-      new Set(),
-      NOW,
-    );
-    expect(plan.columnOverrides.get("thr_root")).toEqual({ id: "working", label: "Working" });
+    const plan = boxedPlan(threads);
+    expect(plan.columnOverrides.size).toBe(0);
+    expect(plan.groupBoxOf.has("thr_root")).toBe(true);
   });
 
-  it("a Needs-you child is copied out: it keeps its own lane and does not drive the box", () => {
+  it("a Needs-you child is copied out; the parent keeps boxing itself, no lane claimed", () => {
     const threads = [
       thread({ id: "thr_root", updatedAt: NOW - 5 * MINUTE }),
       thread({ id: "thr_kid", hasPendingInteraction: true, updatedAt: NOW - MINUTE, parentThreadId: "thr_root" }),
     ];
-    const plan = planGroupBoxes(
-      threads,
-      groupOf({ thr_root: "grp_auth" }),
-      NAMES,
-      "status",
-      context,
-      new Set(),
-      NOW,
-    );
-    const override = plan.columnOverrides.get("thr_root");
-    expect(override?.id).toBe("idle-recent");
-    expect(override?.label).toBe("Idle · Recent");
+    const plan = boxedPlan(threads);
+    expect(plan.columnOverrides.size).toBe(0);
+    expect(plan.groupBoxOf.has("thr_root")).toBe(true);
   });
 
-  it("a done child is copied out: it does not drive the box", () => {
+  it("a done child is copied out", () => {
     const threads = [
       thread({ id: "thr_root", updatedAt: NOW - 5 * MINUTE }),
       thread({ id: "thr_kid", status: "active", updatedAt: NOW - MINUTE, parentThreadId: "thr_root" }),
     ];
-    const plan = planGroupBoxes(
-      threads,
-      groupOf({ thr_root: "grp_auth" }),
-      NAMES,
-      "status",
-      context,
-      new Set(["thr_kid"]),
-      NOW,
-    );
-    const override = plan.columnOverrides.get("thr_root");
-    expect(override?.id).toBe("idle-recent");
-    expect(override?.label).toBe("Idle · Recent");
+    const plan = boxedPlan(threads, new Set(["thr_kid"]));
+    expect(plan.columnOverrides.size).toBe(0);
+    expect(plan.groupBoxOf.has("thr_root")).toBe(true);
   });
 
-  it("a pinned child is copied out: it does not drive the box", () => {
+  it("a pinned child is copied out", () => {
     const threads = [
       thread({ id: "thr_root", updatedAt: NOW - 5 * MINUTE }),
       thread({
@@ -904,21 +995,12 @@ describe("planGroupBoxes — the family is the unit of lane driving", () => {
         parentThreadId: "thr_root",
       }),
     ];
-    const plan = planGroupBoxes(
-      threads,
-      groupOf({ thr_root: "grp_auth" }),
-      NAMES,
-      "status",
-      context,
-      new Set(),
-      NOW,
-    );
-    const override = plan.columnOverrides.get("thr_root");
-    expect(override?.id).toBe("idle-recent");
-    expect(override?.label).toBe("Idle · Recent");
+    const plan = boxedPlan(threads);
+    expect(plan.columnOverrides.size).toBe(0);
+    expect(plan.groupBoxOf.has("thr_root")).toBe(true);
   });
 
-  it("an archived child is invisible to the pick", () => {
+  it("an archived child renders nowhere and claims nothing", () => {
     const threads = [
       thread({ id: "thr_root", updatedAt: NOW - 5 * MINUTE }),
       thread({
@@ -929,61 +1011,19 @@ describe("planGroupBoxes — the family is the unit of lane driving", () => {
         parentThreadId: "thr_root",
       }),
     ];
-    const plan = planGroupBoxes(
-      threads,
-      groupOf({ thr_root: "grp_auth" }),
-      NAMES,
-      "status",
-      context,
-      new Set(),
-      NOW,
-    );
-    const override = plan.columnOverrides.get("thr_root");
-    expect(override?.id).toBe("idle-recent");
-    expect(override?.label).toBe("Idle · Recent");
+    const plan = boxedPlan(threads);
+    expect(plan.columnOverrides.size).toBe(0);
+    expect(plan.groupBoxOf.has("thr_root")).toBe(true);
   });
 
-  it("under Last activity, a fresher nested child lifts the box's bucket", () => {
+  it("under Last activity a fresher nested child lifts nothing either", () => {
     const threads = [
       thread({ id: "thr_root", updatedAt: NOW - 3 * HOUR }),
       thread({ id: "thr_kid", updatedAt: NOW - 5 * MINUTE, parentThreadId: "thr_root" }),
     ];
-    const plan = planGroupBoxes(
-      threads,
-      groupOf({ thr_root: "grp_auth" }),
-      NAMES,
-      "recency",
-      context,
-      new Set(),
-      NOW,
-    );
-    const override = plan.columnOverrides.get("thr_root");
-    expect(override?.id).toBe("recent");
-    expect(override?.label).toBe("Recent");
-  });
-
-  it("under Last activity, a copied-out child's freshness does not lift the box", () => {
-    const threads = [
-      thread({ id: "thr_root", updatedAt: NOW - 3 * HOUR }),
-      thread({
-        id: "thr_kid",
-        hasPendingInteraction: true,
-        updatedAt: NOW - 5 * MINUTE,
-        parentThreadId: "thr_root",
-      }),
-    ];
-    const plan = planGroupBoxes(
-      threads,
-      groupOf({ thr_root: "grp_auth" }),
-      NAMES,
-      "recency",
-      context,
-      new Set(),
-      NOW,
-    );
-    const override = plan.columnOverrides.get("thr_root");
-    expect(override?.id).toBe("today");
-    expect(override?.label).toBe("Today");
+    const plan = boxedPlan(threads, new Set(), "recency");
+    expect(plan.columnOverrides.size).toBe(0);
+    expect(plan.groupBoxOf.has("thr_root")).toBe(true);
   });
 });
 
