@@ -11,6 +11,11 @@ export const UNRELEASED_ITEMS: readonly { text: string; children: string[]; grou
     "group": "New Thread composer"
   },
   {
+    "text": "**A child thread joins the parent's group.** Starting a child thread from a grouped parent (card menu or pane menu) writes the parent's group membership onto the spawn, so the child counts as a real member of the box and the group filter everywhere, including after the parent is archived. The dialog names the group before the prompt is spent (\"Will join the group …\").",
+    "children": [],
+    "group": "Groups and family boxes"
+  },
+  {
     "text": "**A burst of realtime signals refetches the board once, not once per signal.** The done, link, ack, snooze, rank, and group echoes now wait out one quiet window: ten signals landing together settle as a single coalesced refetch pass, so a board with hundreds of threads stops repainting on every echo.",
     "children": [],
     "group": "Board scale"

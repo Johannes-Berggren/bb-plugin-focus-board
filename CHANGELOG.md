@@ -15,6 +15,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - **The overview board opens the New Thread composer on a keyboard shortcut.** Pressing the configured key (default C) with no pane open opens the same composer the New Thread button does; typing in a pane never triggers it, and the key is changeable or switchable off in Settings → Behavior.
 
+#### Groups and family boxes
+
+- **A child thread joins the parent's group.** Starting a child thread from a grouped parent (card menu or pane menu) writes the parent's group membership onto the spawn, so the child counts as a real member of the box and the group filter everywhere, including after the parent is archived. The dialog names the group before the prompt is spent ("Will join the group …").
+
 ### Changed
 
 #### Board scale

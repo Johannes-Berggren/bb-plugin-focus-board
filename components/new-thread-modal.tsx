@@ -51,6 +51,7 @@ export function NewThreadModal({
   parentThreadId,
   parentThreadTitle,
   spawnParentTitle,
+  parentGroupName,
   groupName,
   onMaximize,
   rememberProjectId,
@@ -92,6 +93,13 @@ export function NewThreadModal({
    * that case; absent when display and spawn agree.
    */
   spawnParentTitle?: string;
+  /**
+   * The preset parent's feature group ("New child thread…" from a grouped
+   * parent): the dialog's hint names it, the same transparency the group
+   * preset gets. The inheritance itself happens app-side after the spawn —
+   * the modal only announces it.
+   */
+  parentGroupName?: string;
   /**
    * The group the composer will tag the spawned thread into ("New thread in
    * group…" preset): the dialog's hint names it. The tagging itself happens
@@ -210,6 +218,19 @@ export function NewThreadModal({
                   <span className="text-foreground">{spawnParentTitle}</span>
                 </>
               ) : null}
+            </p>
+          ) : null}
+          {parentThreadId !== undefined && parentGroupName !== undefined ? (
+            // Same transparency for a grouped parent: the child inherits the
+            // parent's feature-group membership at spawn — named before the
+            // prompt is spent.
+            <p
+              data-new-child-group-hint=""
+              className="text-xs font-medium text-muted-foreground"
+            >
+              <Icon name="Tag" className="mr-1 inline size-3.5 align-[-2px]" aria-hidden />
+              Will join the group{" "}
+              <span className="text-foreground">{parentGroupName}</span>
             </p>
           ) : null}
           {groupName !== undefined ? (
