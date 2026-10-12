@@ -23,6 +23,16 @@ export interface AutotitleTimelineRow {
   kind: string;
   role?: string;
   text?: string;
+  /**
+   * The conversation row's attachment summary (bb's timelineConversationRow
+   * schema; optional here because probe rows and older fixtures lack it).
+   * The pasted-opener recovery reads `localFilePaths` off the row the text
+   * read could not use — see server.ts's threadOriginatingPrompt.
+   */
+  attachments?: {
+    localFilePaths?: readonly string[];
+    localImagePaths?: readonly string[];
+  } | null;
   /** Source-thread conversation rows carry a sequence stamp (probe rows are stamped at read time). */
   sourceSeqStart?: number;
   createdAt?: number;
@@ -49,6 +59,35 @@ export function firstUserPromptFromTimeline(
     if (row.kind !== "conversation" || row.role !== "user") continue;
     if (typeof row.text !== "string" || row.text.trim() === "") continue;
     return row.text;
+  }
+  return null;
+}
+
+/**
+ * The pasted-file opener a text-only read cannot see: the oldest user
+ * conversation row whose `attachments.localFilePaths` name a stored paste
+ * (bb saves a composer paste as a localFile part; the row's text is then
+ * empty and `firstUserPromptFromTimeline` has nothing to return). Images
+ * and assistant/system rows say nothing. Returns the oldest usable stored
+ * path, or null when no row carried one — the caller only consults this
+ * after the text tier missed.
+ */
+export function firstUserPromptFileFromTimeline(
+  rows: readonly AutotitleTimelineRow[],
+): string | null {
+  const chronological = [...rows].sort(
+    (a, b) =>
+      (a.sourceSeqStart ?? a.createdAt ?? 0) -
+      (b.sourceSeqStart ?? b.createdAt ?? 0),
+  );
+  for (const row of chronological) {
+    if (row.kind !== "conversation" || row.role !== "user") continue;
+    const storedPath = (row.attachments?.localFilePaths ?? []).find(
+      (candidate) => typeof candidate === "string" && candidate.trim() !== "",
+    );
+    if (typeof storedPath === "string" && storedPath.trim() !== "") {
+      return storedPath.trim();
+    }
   }
   return null;
 }

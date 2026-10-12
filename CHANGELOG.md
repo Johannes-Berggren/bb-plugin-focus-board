@@ -143,6 +143,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+#### The title editor
+
+- **The ✨ auto-rename titles threads that open with a pasted file.** Such a thread carries an empty opener text row, so every option in the fallback modal (each AI service, and the thread's own model) failed "no prompt text to title from" before any model was even called; the prompt now recovers the paste's content from bb's attachments store, and a missing, escaping, or non-text paste fails with the file named.
+
 #### The New thread composer
 
 - **The "@" mention menu works in the New thread dialog again.** A left-over scroll wrapper clipped the composer's popup menus out of the dialog; the @ picker and the / command menu now open like they do everywhere else in bb.
