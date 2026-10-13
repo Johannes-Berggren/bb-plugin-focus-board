@@ -208,21 +208,58 @@ describe("wallpaper picker (Appearance tab content)", () => {
     });
   });
 
-  it("the focal grid commits focusX/focusY, marks the active point, and no-ops while no wallpaper is active", () => {
-    const none = renderPicker(NO_WALLPAPER);
-    fireEvent.click(screen.getByRole("button", { name: "Wallpaper focal point: top left" }));
-    expect(none.onWallpaperChange).not.toHaveBeenCalled();
-    none.unmount();
+  it("the board viewport preview renders only while a wallpaper is active", () => {
+    const noWallpaper = renderPicker(NO_WALLPAPER);
+    expect(document.querySelector("[data-wallpaper-viewport]")).toBeNull();
+    noWallpaper.unmount();
+    renderPicker({
+      version: 1,
+      global: { url: "https://example.com/w.png", dim: 0.5 },
+    });
+    expect(document.querySelector("[data-wallpaper-viewport]")).not.toBeNull();
+  });
+
+  it("dragging the viewport's focus rectangle commits free focal percentages, carrying the layer's fields", () => {
     const withActive = renderPicker({
       version: 1,
-      global: { url: "https://example.com/w.png", dim: 0.5, focusY: 100 },
+      global: { url: "https://example.com/w.png", dim: 0.5, darkUrl: "https://example.com/w-dark.png", fit: "cover" },
     });
-    const bottomCenter = screen.getByRole("button", { name: "Wallpaper focal point: bottom" });
-    expect(bottomCenter.getAttribute("aria-pressed")).toBe("true");
-    fireEvent.click(screen.getByRole("button", { name: "Wallpaper focal point: top left" }));
+    const root = document.querySelector("[data-wallpaper-viewport]") as HTMLElement;
+    Object.defineProperty(root, "getBoundingClientRect", {
+      value: () => ({ left: 0, top: 0, width: 100, height: 100, right: 100, bottom: 100, x: 0, y: 0, toJSON: () => ({}) }),
+    });
+    fireEvent.pointerDown(root, { pointerId: 1, clientX: 30, clientY: 70 });
     expect(withActive.onWallpaperChange).toHaveBeenCalledWith({
       version: 1,
-      global: { url: "https://example.com/w.png", dim: 0.5, focusX: 0, focusY: 0 },
+      global: {
+        url: "https://example.com/w.png",
+        dim: 0.5,
+        darkUrl: "https://example.com/w-dark.png",
+        fit: "cover",
+        focusX: 30,
+        focusY: 70,
+      },
+    });
+  });
+
+  it("pinching the viewport commits the scaled zoom, carrying the layer's fields", () => {
+    const withActive = renderPicker({
+      version: 1,
+      global: { url: "https://example.com/w.png", dim: 0.5 },
+    });
+    const root = document.querySelector("[data-wallpaper-viewport]") as HTMLElement;
+    Object.defineProperty(root, "getBoundingClientRect", {
+      value: () => ({ left: 0, top: 0, width: 100, height: 100, right: 100, bottom: 100, x: 0, y: 0, toJSON: () => ({}) }),
+    });
+    fireEvent.pointerDown(root, { pointerId: 1, clientX: 0, clientY: 50 });
+    fireEvent.pointerDown(root, { pointerId: 2, clientX: 40, clientY: 50 });
+    fireEvent.pointerMove(root, { pointerId: 2, clientX: 80, clientY: 50 });
+    // The press itself focused (0, 50); the pinch then carries the focal
+    // edit (focusX 0) while it scales the zoom. The mock parent never
+    // commits back, so focusY stays unstored and is omitted at its default.
+    expect(withActive.onWallpaperChange).toHaveBeenCalledWith({
+      version: 1,
+      global: { url: "https://example.com/w.png", dim: 0.5, focusX: 0, zoom: 2 },
     });
   });
 

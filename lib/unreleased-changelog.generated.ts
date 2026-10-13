@@ -23,7 +23,7 @@ export const UNRELEASED_ITEMS: readonly { text: string; children: string[]; grou
     "children": []
   },
   {
-    "text": "**A wallpaper can fill the board instead of letterboxing.** The picker gains a fit toggle (Letterbox / Fill), a zoom slider, and a nine-point focal grid for picking the crop region and zoom anchor; every control carries forward untouched, typed url edits keep a layer's dark variant, and stored wallpapers without the new fields render exactly as before.",
+    "text": "**A wallpaper crops to the board, tuned on a live viewport of the real board.** The picker shows the panel's true aspect with translucent lane and card silhouettes at scale: dragging sets the focal point, pinching zooms, the focus rectangle takes arrow keys, and a Letterbox/Fill toggle plus zoom slider stay for pointer users; every edit carries the layer's other settings, typed url edits keep the dark variant, and stored wallpapers without crop fields render exactly as before.",
     "children": [
       "Fits and zooms that paint past the board edge are clipped, so a zoomed wallpaper never scrolls or resizes the board."
     ],
