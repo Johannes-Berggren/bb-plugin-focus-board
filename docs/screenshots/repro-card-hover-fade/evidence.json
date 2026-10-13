@@ -1,6 +1,10 @@
 {
+  "pass": true,
+  "failures": [],
   "cardInfo": {
     "id": "thr_ship_release",
+    "faded": false,
+    "sweepHighlighted": false,
     "rect": {
       "x": 18,
       "y": 89,
@@ -14,6 +18,14 @@
   },
   "siblingInfo": {
     "id": "thr_roadmap",
+    "faded": false,
+    "sweepHighlighted": false,
+    "rect": {
+      "x": 18,
+      "y": 172,
+      "width": 244,
+      "height": 61
+    },
     "style": {
       "backgroundColor": "oklch(0.195 0 0)",
       "opacity": "1"
@@ -21,12 +33,16 @@
   },
   "hoverInfo": {
     "hovered": {
-      "backgroundColor": "oklab(0.27495 0 0 / 0.5)",
-      "opacity": "1"
+      "backgroundColor": "oklch(0.27495 0 0)",
+      "opacity": "1",
+      "faded": false,
+      "sweepHighlighted": false
     },
     "sibling": {
       "backgroundColor": "oklch(0.195 0 0)",
-      "opacity": "1"
+      "opacity": "0.7",
+      "faded": false,
+      "sweepHighlighted": false
     }
   }
 }
