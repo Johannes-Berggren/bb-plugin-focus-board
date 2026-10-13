@@ -847,7 +847,7 @@ export function BoardToolbar({
   );
   if (compact) {
     return (
-      <div className="flex flex-wrap items-center gap-2 border-b border-border px-3 py-2">
+      <div className="flex flex-wrap items-center gap-2 border-b border-border bg-muted/50 px-3 py-2">
         {newThreadButton}
         {searchBox}
         <button
@@ -891,8 +891,11 @@ export function BoardToolbar({
       </div>
     );
   }
+  // The band's muted tint separates the header from the board body (cards
+  // sit on the plain background), so the control row reads at a glance in
+  // both light and dark schemes.
   return (
-    <div className="flex flex-wrap items-center gap-2 border-b border-border px-3 py-2">
+    <div className="flex flex-wrap items-center gap-2 border-b border-border bg-muted/50 px-3 py-2">
       {newThreadButton}
       <div className="flex items-center gap-2">
         {searchBox}
