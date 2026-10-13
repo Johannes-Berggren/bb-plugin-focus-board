@@ -64,7 +64,7 @@ import {
   type LaneCapture,
 } from "./components/attention-freeze";
 import { GroupDialog } from "./components/group-dialog";
-import { filterWithGroupBoxes, planGroupBoxes } from "./components/group-boxes";
+import { planGroupBoxes } from "./components/group-boxes";
 import { applyUnitMoveVisible } from "./lib/rank-unit-move";
 import { doneAtToEpochMs } from "./lib/done-metadata";
 import { projectDisplayName } from "./lib/project-name";
@@ -1324,18 +1324,13 @@ function BoardPage({ subPath }: { subPath: string }) {
       ),
     [liveThreads, groupsByThread, groupContext, groupBy, doneIds],
   );
-  // Group keep-and-dim applies over the family result (a member a failed
-  // family dropped cannot keep its box on the board); the two dim sets merge.
-  const groupBoxFiltered = useMemo(
-    () =>
-      groupBoxPlan.active
-        ? filterWithGroupBoxes(familyFiltered.kept, groupBoxPlan.groupBoxOf, filter, search.trim(), projectNameFor, ticketRefsFor, groupNameFor, groupsByThread, Date.now())        : { kept: familyFiltered.kept, dimmedIds: new Set<string>() as ReadonlySet<string> },
-    [groupBoxPlan, familyFiltered, filter, search, projectNameFor, ticketRefsFor, groupNameFor, groupsByThread]  );
-  const dimmedAll = useMemo(
-    () => new Set([...familyFiltered.dimmedIds, ...groupBoxFiltered.dimmedIds]),
-    [familyFiltered, groupBoxFiltered],
-  );
-  const filtered = groupBoxFiltered.kept;
+  // ONE keep pass: the family filter is the board's only filter rule. The
+  // retired group-box pass re-gated its input and dropped dimmed family
+  // members whenever a frame existed (Defect 1 of the derived ruleset);
+  // deletion restores the plan's decision 4 — a passing family renders
+  // whole, misses dimmed, frames never re-gate.
+  const filtered = familyFiltered.kept;
+  const dimmedIds = familyFiltered.dimmedIds;
 
   const searchActive = search.trim() !== "";
   // Search runs inside filterFamilies (it keeps the whole family on a hit and
@@ -1842,7 +1837,6 @@ function BoardPage({ subPath }: { subPath: string }) {
     [searched],
   );
   const emptyBecauseFiltered = liveThreads.length > 0 && boardCount === 0 && anyFilterActive;
-  const dimmedIds = dimmedAll;
 
   // The open pane's thread can vanish from the active view (archived,
   // deleted); the archived list keeps it resolvable so the pane stays open

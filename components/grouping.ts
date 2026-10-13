@@ -258,8 +258,8 @@ export function matchesFilter(
 
 /**
  * The state-filter half of a thread's pass check, shared by every filter
- * entry point (filterThreads, filterWithGroupBoxes, nesting's
- * threadPassesFilter): an EMPTY selection shows every state; a plain state
+ * entry point (filterThreads, nesting's threadPassesFilter): an EMPTY
+ * selection shows every state; a plain state
  * value matches that state; an idle-bucket value matches an idle thread
  * whose updatedAt falls in that age bucket — the same bucketing the
  * Attention board's idle lanes use, so a checked box is exactly one lane.
@@ -277,19 +277,47 @@ export function stateFilterPasses(
   return selected.has(ageBucketFor(now - thread.updatedAt, IDLE_BUCKETS).id);
 }
 
+/**
+ * The single per-thread pass predicate, the board's one filter rule:
+ * state/project/provider filters plus the group gate plus search, archived
+ * never passing. Every filter entry point (filterFamilies,
+ * filterIndividually, filterThreads) rides this one function — a rule the
+ * derived ruleset names "one match test". Search passes through its
+ * arguments so each caller keeps its own wiring.
+ */
+export function threadPassesFilter(
+  thread: PluginSidebarThread,
+  filter: FilterState,
+  searchQuery: string,
+  projectNameFor?: (projectId: string) => string,
+  ticketRefsFor?: (thread: PluginSidebarThread) => readonly TicketRef[],
+  groupNameFor?: (thread: PluginSidebarThread) => string,
+  groupsByThread?: ReadonlyMap<string, string>,
+  now: number = Date.now(),
+): boolean {
+  if (thread.isArchived) return false;
+  if (filter.projects.size > 0 && !filter.projects.has(thread.projectId)) return false;
+  if (filter.providers.size > 0 && !filter.providers.has(thread.providerId)) return false;
+  if (!stateFilterPasses(thread, filter.states, now)) return false;
+  if (groupFilterMisses(thread, filter, groupsByThread)) return false;
+  if (
+    searchQuery.trim() !== "" &&
+    !matchesFilter(thread, searchQuery.trim(), projectNameFor, ticketRefsFor, groupNameFor)
+  ) {
+    return false;
+  }
+  return true;
+}
+
 export function filterThreads(
   threads: readonly PluginSidebarThread[],
   filter: FilterState,
   groupsByThread?: ReadonlyMap<string, string>,
   now: number = Date.now(),
 ): PluginSidebarThread[] {
-  return threads.filter((thread) => {
-    if (filter.projects.size > 0 && !filter.projects.has(thread.projectId)) return false;
-    if (filter.providers.size > 0 && !filter.providers.has(thread.providerId)) return false;
-    if (!stateFilterPasses(thread, filter.states, now)) return false;
-    if (groupFilterMisses(thread, filter, groupsByThread)) return false;
-    return true;
-  });
+  return threads.filter((thread) =>
+    threadPassesFilter(thread, filter, "", undefined, undefined, undefined, groupsByThread, now),
+  );
 }
 
 /** The bucket id the "No group" column uses — shared by columnFor, the
@@ -308,10 +336,9 @@ export function groupBucketFor(
 
 /**
  * The group-filter half of a thread's pass check, shared by every filter
- * entry point (filterThreads, threadPassesFilter, filterWithGroupBoxes):
- * an EMPTY (or absent — a legacy stored filter) restrict shows every
- * bucket; a non-empty restrict misses buckets outside the selection, the
- * No-group sentinel included. */
+ * entry point (filterThreads, threadPassesFilter): an EMPTY (or absent — a
+ * legacy stored filter) restrict shows every bucket; a non-empty restrict
+ * misses buckets outside the selection, the No-group sentinel included. */
 export function groupFilterMisses(
   thread: PluginSidebarThread,
   filter: FilterState,

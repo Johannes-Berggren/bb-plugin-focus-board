@@ -13,8 +13,7 @@ import {
   derivedCompare,
   doneRecencyCompare,
   groupFilterMisses,
-  matchesFilter,
-  stateFilterPasses,
+  threadPassesFilter,
   threadState,
 } from "./grouping";
 import {
@@ -929,36 +928,6 @@ export function filterFamilies(
     }
   }
   return { kept, dimmedIds };
-}
-
-/**
- * The per-thread predicate shared by both filters: state/project/provider
- * filters plus search. R2: an archived thread NEVER passes — archived
- * members cannot contribute a match (family filtering) and cannot render
- * standalone (individual filtering).
- */
-function threadPassesFilter(
-  thread: PluginSidebarThread,
-  filter: FilterState,
-  searchQuery: string,
-  projectNameFor?: (projectId: string) => string,
-  ticketRefsFor?: (thread: PluginSidebarThread) => readonly TicketRef[],
-  groupNameFor?: (thread: PluginSidebarThread) => string,
-  groupsByThread?: ReadonlyMap<string, string>,
-  now: number = Date.now(),
-): boolean {
-  if (thread.isArchived) return false;
-  if (filter.projects.size > 0 && !filter.projects.has(thread.projectId)) return false;
-  if (filter.providers.size > 0 && !filter.providers.has(thread.providerId)) return false;
-  if (!stateFilterPasses(thread, filter.states, now)) return false;
-  if (groupFilterMisses(thread, filter, groupsByThread)) return false;
-  if (
-    searchQuery.trim() !== "" &&
-    !matchesFilter(thread, searchQuery.trim(), projectNameFor, ticketRefsFor, groupNameFor)
-  ) {
-    return false;
-  }
-  return true;
 }
 
 /**
