@@ -10,6 +10,8 @@
     "build": "node scripts/generate-unreleased.mjs && node scripts/generate-whats-new.mjs && bb plugin build",
     "preuat": "node scripts/check-node-modules.mjs",
     "uat": "node scripts/uat/run.mjs",
+  "release-shots": "node scripts/uat/release-shots.mjs",
+  "release-safety": "node scripts/check-node-modules.mjs && npm run build && npm run uat && npm run release-shots",
     "typecheck": "tsc --noEmit",
     "gates": "node scripts/security-gates.mjs"
   },
