@@ -6,12 +6,32 @@ body:
   - type: markdown
     attributes:
       value: |
-        Describe the problem before the solution. The best fix is not always the feature you first had in mind.
+        Describe the problem before the solution. The best fix is not always the feature you first had in mind. Search open and closed issues and the changelog first, and check that the latest release does not already do this. Behavior that contradicts the docs is a bug, so use the bug form for it.
+  - type: textarea
+    id: references
+    attributes:
+      label: Related issues or pull requests
+      description: >-
+        Link each related item with its number and title, for example `#85 (group CLI: create/rename/delete/add/remove/move)`. Write "None" if there are none.
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: The version and surface this request is written against, so a reader can tell whether a newer release already covers it.
+      placeholder: |
+        Focus Board: 1.2.0 (from the About tab)
+        bb: 0.43.2
+        OS: macOS 15.2
+        Surface: desktop app / browser (name and version)
+    validations:
+      required: true
   - type: textarea
     id: problem
     attributes:
       label: Problem
-      description: What you were trying to do and what got in the way, with a concrete example (the lane, card, setting, or command involved).
+      description: What you were trying to do and what got in the way, with a concrete example (the lane, card, setting, or command involved). Attach a screenshot of the current behavior when you can.
     validations:
       required: true
   - type: textarea
@@ -36,9 +56,16 @@ body:
     id: alternatives
     attributes:
       label: Alternatives and workarounds
-      description: What you do today, or other shapes the fix could take. Write "None" if there are none.
+      description: What you do today, or other shapes the fix could take, each with an example. Write "None known" if there are none.
     validations:
       required: true
+  - type: textarea
+    id: recommendation
+    attributes:
+      label: Request or recommendation
+      description: Optional. A proposed design, a priority, a scope boundary, or an offer to contribute the change.
+    validations:
+      required: false
   - type: dropdown
     id: authorship
     attributes:

@@ -28,7 +28,17 @@ One bug per report. Every claim carries a concrete example with real values, suc
 
 ## Requesting a feature
 
-Use the **Feature request** form: the problem you hit, the goal, and a sketch of how you would know it works. Describe the problem first, because the best fix is not always the feature you had in mind.
+Use the **Feature request** form, which covers new features and improvements to existing behavior. Fill the sections in this order, writing "None" or "None known" where there is nothing to say:
+
+1. Related issues or pull requests (number plus title)
+2. Environment (the Focus Board version and surface the request is written against)
+3. Problem (what you were doing and what got in the way, with a concrete example)
+4. Goal (the outcome that should be possible, stated as behavior and not as an implementation)
+5. Acceptance sketch (numbered steps and the result you would see)
+6. Alternatives and workarounds
+7. Request or recommendation (optional: a proposed design, priority, or offer to contribute)
+
+Describe the problem first, because the best fix is not always the feature you had in mind. Search open and closed issues and the [changelog](CHANGELOG.md) first, and check that the latest release does not already do it. Behavior that contradicts the docs is a bug, so use the bug form for it. One request per issue.
 
 ## Setting up
 
