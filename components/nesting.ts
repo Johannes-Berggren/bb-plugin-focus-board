@@ -103,19 +103,11 @@ export interface NestingOptions {
   doneTimes?: ReadonlyMap<string, number>;
   /**
    * Threads marked Done. `childPlacement` needs them: a Done parent stays in
-   * the Done lane, so its live children still promote (raw-state
-   * comparison); its done children nest under its Done card; a live
-   * parent's done children project into the Done column.
+   * the Done lane, so a live child always stands alone (same-space rule);
+   * its done children nest under its Done card; a live parent's done
+   * children project into the Done column.
    */
   doneIds?: ReadonlySet<string>;
-  /**
-   * Feature-group box overrides (components/group-boxes): member id → the
-   * column the member's box lands in. Merged OVER the family overrides —
-   * a thread that is both a family root and a box member takes the box's
-   * lane, because the box is the surface the operator wrapped the cards
-   * with.
-   */
-  extraColumnOverrides?: ReadonlyMap<string, { id: string; label: string }>;
   /**
    * The attention freeze (components/attention-freeze): the plan compiled
    * from the captures app.tsx holds for attended cards — the lane pins that
@@ -176,10 +168,9 @@ export function assembleBoard(
   const attention = options.attentionFreeze;
   const attentionColumns = attention?.columns ?? new Map();
   if (!nestingEnabled) {
-    // Flat board: no families — but group boxes are NOT family machinery,
-    // they are the operator's own container, so their column overrides
-    // still move a box's members into one lane and runsFromColumns wraps
-    // them there (the board keeps this plan's groupBoxOf).
+    // Flat board: no families, no rows, no chips, no projections. Group
+    // boxes ride along untouched (their plan's groupBoxOf goes straight to
+    // the board, and the split default claims no lane).
     return {
       columns: withSlotPins(
         buildColumns(
@@ -190,7 +181,6 @@ export function assembleBoard(
           doneIds,
           now,
           ranks,
-          options.extraColumnOverrides ?? new Map(),
           attentionColumns,
         ),
         attention?.slots ?? new Map(),
@@ -206,8 +196,7 @@ export function assembleBoard(
   const familyIndex = buildFamilyIndex(visible);
   // R4: under the status grouping a family lands in the column of its most
   // attention-requiring live member, so the parent card carries the family's
-  // urgency instead of splitting from its children. Group-box overrides
-  // merge over them (a thread in both takes the box's lane).
+  // urgency instead of splitting from its children.
   const familyOverrides = familyColumnOverrides(
     visible,
     familyIndex,
@@ -216,11 +205,6 @@ export function assembleBoard(
     doneIds,
     now,
   );
-  const extraOverrides = options.extraColumnOverrides;
-  const columnOverrides =
-    extraOverrides !== undefined && extraOverrides.size > 0
-      ? new Map([...familyOverrides, ...extraOverrides])
-      : familyOverrides;
   const nested = nestUnderParents(
     buildColumns(
       visible,
@@ -230,7 +214,7 @@ export function assembleBoard(
       doneIds,
       now,
       ranks,
-      columnOverrides,
+      familyOverrides,
       attentionColumns,
     ),
     visible,
@@ -257,7 +241,7 @@ export function assembleBoard(
     );
   }
   return {
-    columns: withSlotPins(nested.columns, attention?.slots ?? new Map()),
+    columns: nested.columns,
     nestedChildrenByParent: nested.childrenByParent,
     doneChildrenByParent: nested.doneChildrenByParent,
     childCountByParent,
@@ -466,10 +450,7 @@ export function familyDriveMembers(
     seen.add(id);
     const member = byId.get(id);
     if (member === undefined || member.isArchived) continue;
-    if (
-      member.id === rootId ||
-      (!doneIds.has(member.id) && !member.isPinned && threadState(member) !== "attention")
-    ) {
+    if (member.id === rootId || familyRowMember(member, doneIds)) {
       drive.push(member);
     }
     for (const child of familyIndex.childrenByParent.get(id) ?? []) {
@@ -477,6 +458,21 @@ export function familyDriveMembers(
     }
   }
   return drive;
+}
+
+/**
+ * The members that render as the family card's own rows (the same
+ * exclusions `childPlacement` applies before its space-key step: done has
+ * its own space, a pinned child keeps its pin, an attention child
+ * stands alone). `familyDriveMembers` reads it to build the drive set;
+ * keep the two in step — a row member a placement rule dropped must not
+ * drive the family's lane.
+ */
+function familyRowMember(
+  member: PluginSidebarThread,
+  doneIds: ReadonlySet<string>,
+): boolean {
+  return !doneIds.has(member.id) && !member.isPinned && threadState(member) !== "attention";
 }
 
 function driveElevates(
@@ -620,7 +616,7 @@ export function nestUnderParents(
     const child = threadById.get(childId);
     const parent = threadById.get(parentId);
     if (child === undefined) continue; // hidden outright (archived children render nowhere)
-    if (parent === undefined || parent.isArchived) {
+    if (parent === undefined) {
       flatIds.add(childId);
       continue;
     }

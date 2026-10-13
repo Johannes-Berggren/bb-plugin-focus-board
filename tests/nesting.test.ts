@@ -963,17 +963,22 @@ describe("assembleBoard — family columns (R4: the family moves as one unit)", 
     expect(idsIn(result.columns, "idle-earlier")).toEqual([]);
   });
 
-  it("a hand override beats the pane's frozen column for both its members", () => {
-    // Generic mechanism test (the option assembleBoard hands buildColumns;
-    // familyColumnOverrides is its only live producer since the group plan
-    // stopped claiming lanes — issue #86): an override on a thread whose
-    // pane capture froze another lane still lands it where the override
-    // says, freeze notwithstanding. The family wins, always.
+  it("a family override beats the pane's frozen column for its members", () => {
+    // The claim ladder's family rung (familyColumnOverrides is the only
+    // lane-override producer since the group plan stopped claiming lanes —
+    // issue #86): an override on a thread whose pane capture froze another
+    // lane still lands it where the override says, freeze notwithstanding.
+    // The family wins, always.
     const parent = thread({ id: "p", updatedAt: NOW - HOUR });
-    const relay = thread({ id: "r", status: "active", updatedAt: NOW - HOUR / 4 });
-    const boxLane = { id: "working", label: "Working" };
-    const extraColumnOverrides = new Map([["p", boxLane], ["r", boxLane]]);
+    const relay = thread({
+      id: "r",
+      status: "active",
+      parentThreadId: "p",
+      updatedAt: NOW - HOUR / 4,
+    });
     const frozenColumns = new Map([["p", { id: "idle-today", label: "Idle · Today" }]]);
+    const override = familyColumnOverrides([parent, relay], buildFamilyIndex([parent, relay]), "status", CONTEXT, new Set(), NOW);
+    expect(override.get("p")?.id).toBe("working");
     const result = assembleBoard(
       [parent, relay],
       "status",
@@ -981,10 +986,11 @@ describe("assembleBoard — family columns (R4: the family moves as one unit)", 
       frozenColumns,
       new Set(),
       NOW,
-      { extraColumnOverrides },
     );
-    expect(idsIn(result.columns, "working")).toContain("p");
-    expect(idsIn(result.columns, "working")).toContain("r");
+    // The frozen idle bucket loses to the family's lane: p lifts to Working
+    // and the running relay child rides it as its row.
+    expect(idsIn(result.columns, "working")).toEqual(["p"]);
+    expect(ids(result.nestedChildrenByParent.get("p") ?? [])).toEqual(["r"]);
     expect(idsIn(result.columns, "idle-today")).toEqual([]);
   });
 

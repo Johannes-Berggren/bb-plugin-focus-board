@@ -95,32 +95,6 @@ describe("attention freeze through board assembly", () => {
     expect(placementOf(pinned, "p")!.columnId).toBe(quietColumnId);
   });
 
-  it("attention wins over a group-box lane override while the member is attended", () => {
-    const threads = [fixture("m1", { updatedAt: 5000 }), fixture("m2", { updatedAt: 4000 })];
-    const boxOverrides = new Map([
-      ["m1", { id: "proj_b", label: "proj_b" }],
-      ["m2", { id: "proj_b", label: "proj_b" }],
-    ]);
-    const live = assembleBoard(threads, "project", context, new Map(), new Set<string>(), NOW, {
-      nestingEnabled: false,
-      extraColumnOverrides: boxOverrides,
-    });
-    expect(placementOf(live, "m1")!.columnId).toBe("proj_b");
-
-    const plan: AttentionFreezePlan = {
-      columns: new Map([["m1", { id: "proj_a", label: "proj_a" }]]),
-      slots: new Map(),
-      stayNested: new Set(),
-      rowSlots: new Map(),
-    };
-    const pinned = assembleBoard(threads, "project", context, new Map(), new Set<string>(), NOW, {
-      nestingEnabled: false,
-      extraColumnOverrides: boxOverrides,
-      attentionFreeze: plan,
-    });
-    expect(placementOf(pinned, "m1")!.columnId).toBe("proj_a");
-  });
-
   it("an attended nested child stays nested and keeps its row slot", () => {
     const quiet = [
       fixture("p", { updatedAt: 5000 }),

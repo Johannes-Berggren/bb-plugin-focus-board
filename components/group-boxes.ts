@@ -69,14 +69,6 @@ export interface GroupBoxPlan {
    * member these days).
    */
   groupBoxOf: ReadonlyMap<string, GroupBox>;
-  /**
-   * Always empty: the split default emits no lane claims (members render in
-   * their own lanes, the frame wraps each lane's slice). The field stays so
-   * callers can keep passing plan.columnOverrides to buildColumns without a
-   * branch; it exists so a gather rule can return if the design ever
-   * re-introduces one.
-   */
-  columnOverrides: ReadonlyMap<string, { id: string; label: string }>;
   /** True when `planGroupBoxes` found at least one box. */
   active: boolean;
 }
@@ -99,9 +91,8 @@ export function planGroupBoxes(
   now: number = Date.now(),
 ): GroupBoxPlan {
   const groupBoxOf = new Map<string, GroupBox>();
-  const columnOverrides = new Map<string, { id: string; label: string }>();
   if (NO_BOX_GROUPINGS.has(groupBy)) {
-    return { groupBoxOf, columnOverrides, active: false };
+    return { groupBoxOf, active: false };
   }
   // Candidates: live members only — done members keep the Done lane's
   // placement, pinned members keep the Pinned lane's, archived never pass
@@ -133,7 +124,7 @@ export function planGroupBoxes(
       box.members.push(member);
     }
   }
-  return { groupBoxOf, columnOverrides, active: groupBoxOf.size >= 1 };
+  return { groupBoxOf, active: groupBoxOf.size >= 1 };
 }
 
 /** The state's index in the status lane order (unknown states sort last). */

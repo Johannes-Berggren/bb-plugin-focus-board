@@ -1373,10 +1373,9 @@ function BoardPage({ subPath }: { subPath: string }) {
             nestingEnabled: nestChildren,
             ranks,
             doneTimes,
-            extraColumnOverrides: groupBoxPlan.columnOverrides,
             attentionFreeze: attentionFreezePlan,
           }),
-    [isParentGroupBy, searched, groupBy, groupContext, doneIds, nestChildren, ranks, doneTimes, groupBoxPlan, attentionFreezePlan],
+    [isParentGroupBy, searched, groupBy, groupContext, doneIds, nestChildren, ranks, doneTimes, attentionFreezePlan],
   );
   const columns = assembly?.columns ?? [];
   // The map that actually renders as nested rows (nesting rules applied, so a
