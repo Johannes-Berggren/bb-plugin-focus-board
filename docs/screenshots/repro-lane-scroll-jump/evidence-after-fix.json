@@ -1,0 +1,261 @@
+{
+ "target": "thr_big_c8",
+ "writes": [
+  {
+   "t": 3608,
+   "prop": "scrollLeft",
+   "value": 624,
+   "site": "runCorrections (http://localhost:5212/@fs/Users/cristos/.bb/plugins/environment-git-worktree/host-data/worktrees/thr_gb7a8r7p6e-1/bb-plugin-focus-board/components/parent-lane-board.tsx:244:44) <- http://localhost:5212/@fs/Users/cristos/.bb/plugins/environment-git-worktree/host-data/worktrees/thr_gb7a8r7p6e-1/bb-plugin-focus-board/components/parent-lane-board.tsx:283:5"
+  },
+  {
+   "t": 3608,
+   "prop": "scrollTop",
+   "value": 82,
+   "site": "runCorrections (http://localhost:5212/@fs/Users/cristos/.bb/plugins/environment-git-worktree/host-data/worktrees/thr_gb7a8r7p6e-1/bb-plugin-focus-board/components/parent-lane-board.tsx:251:36) <- http://localhost:5212/@fs/Users/cristos/.bb/plugins/environment-git-worktree/host-data/worktrees/thr_gb7a8r7p6e-1/bb-plugin-focus-board/components/parent-lane-board.tsx:283:5"
+  },
+  {
+   "t": 4854,
+   "prop": "scrollLeft",
+   "value": 624,
+   "site": "runCorrections (http://localhost:5212/@fs/Users/cristos/.bb/plugins/environment-git-worktree/host-data/worktrees/thr_gb7a8r7p6e-1/bb-plugin-focus-board/components/parent-lane-board.tsx:244:44) <- Object.lockTo [as current] (http://localhost:5212/@fs/Users/cristos/.bb/plugins/environment-git-worktree/host-data/worktrees/thr_gb7a8r7p6e-1/bb-plugin-focus-board/components/parent-lane-board.tsx:395:5) <- http://localhost:5212/@fs/Users/cristos/.bb/plugins/environment-git-worktree/host-data/worktrees/thr_gb7a8r7p6e-1/bb-plugin-focus-board/components/parent-lane-board.tsx:486:13 <- Object.react_stack_bottom_frame (http://localhost:5212/@fs/Users/cristos/.bb/plugins/environment-git-worktree/host-data/worktrees/thr_gb7a8r7p6e-1/bb-plugin-focus-board/node_modules/.vite/deps/react-dom_client.js"
+  }
+ ],
+ "samples": [
+  {
+   "t": 2991,
+   "scrollTop": 0
+  },
+  {
+   "t": 3141,
+   "scrollTop": 0
+  },
+  {
+   "t": 3291,
+   "scrollTop": 0
+  },
+  {
+   "t": 3441,
+   "scrollTop": 0
+  },
+  {
+   "t": 3592,
+   "scrollTop": 0
+  },
+  {
+   "t": 3741,
+   "scrollTop": 82
+  },
+  {
+   "t": 3892,
+   "scrollTop": 82
+  },
+  {
+   "t": 4041,
+   "scrollTop": 82
+  },
+  {
+   "t": 4191,
+   "scrollTop": 82
+  },
+  {
+   "t": 4340,
+   "scrollTop": 766
+  },
+  {
+   "t": 4491,
+   "scrollTop": 766
+  },
+  {
+   "t": 4642,
+   "scrollTop": 766
+  },
+  {
+   "t": 4792,
+   "scrollTop": 766
+  },
+  {
+   "t": 4941,
+   "scrollTop": 766
+  },
+  {
+   "t": 5091,
+   "scrollTop": 766
+  },
+  {
+   "t": 5242,
+   "scrollTop": 766
+  },
+  {
+   "t": 5391,
+   "scrollTop": 766
+  },
+  {
+   "t": 5541,
+   "scrollTop": 766
+  },
+  {
+   "t": 5691,
+   "scrollTop": 766
+  },
+  {
+   "t": 5842,
+   "scrollTop": 766
+  },
+  {
+   "t": 5991,
+   "scrollTop": 766
+  },
+  {
+   "t": 6142,
+   "scrollTop": 766
+  },
+  {
+   "t": 6291,
+   "scrollTop": 60
+  },
+  {
+   "t": 6441,
+   "scrollTop": 60
+  },
+  {
+   "t": 6591,
+   "scrollTop": 60
+  },
+  {
+   "t": 6742,
+   "scrollTop": 60
+  },
+  {
+   "t": 6891,
+   "scrollTop": 60
+  },
+  {
+   "t": 7041,
+   "scrollTop": 60
+  },
+  {
+   "t": 7192,
+   "scrollTop": 60
+  },
+  {
+   "t": 7341,
+   "scrollTop": 60
+  },
+  {
+   "t": 7491,
+   "scrollTop": 60
+  },
+  {
+   "t": 7642,
+   "scrollTop": 60
+  },
+  {
+   "t": 7792,
+   "scrollTop": 60
+  },
+  {
+   "t": 7942,
+   "scrollTop": 60
+  },
+  {
+   "t": 8092,
+   "scrollTop": 60
+  },
+  {
+   "t": 8241,
+   "scrollTop": 60
+  },
+  {
+   "t": 8391,
+   "scrollTop": 60
+  },
+  {
+   "t": 8541,
+   "scrollTop": 60
+  },
+  {
+   "t": 8691,
+   "scrollTop": 60
+  },
+  {
+   "t": 8841,
+   "scrollTop": 60
+  },
+  {
+   "t": 8991,
+   "scrollTop": 60
+  },
+  {
+   "t": 9141,
+   "scrollTop": 60
+  },
+  {
+   "t": 9291,
+   "scrollTop": 60
+  },
+  {
+   "t": 9441,
+   "scrollTop": 60
+  },
+  {
+   "t": 9591,
+   "scrollTop": 60
+  },
+  {
+   "t": 9741,
+   "scrollTop": 60
+  },
+  {
+   "t": 9891,
+   "scrollTop": 60
+  },
+  {
+   "t": 10041,
+   "scrollTop": 460
+  },
+  {
+   "t": 10191,
+   "scrollTop": 460
+  },
+  {
+   "t": 10341,
+   "scrollTop": 460
+  },
+  {
+   "t": 10491,
+   "scrollTop": 460
+  },
+  {
+   "t": 10641,
+   "scrollTop": 460
+  },
+  {
+   "t": 10791,
+   "scrollTop": 460
+  },
+  {
+   "t": 10942,
+   "scrollTop": 833
+  },
+  {
+   "t": 11091,
+   "scrollTop": 833
+  },
+  {
+   "t": 11241,
+   "scrollTop": 833
+  },
+  {
+   "t": 11392,
+   "scrollTop": 833
+  },
+  {
+   "t": 11542,
+   "scrollTop": 833
+  },
+  {
+   "t": 11691,
+   "scrollTop": 833
+  }
+ ]
+}

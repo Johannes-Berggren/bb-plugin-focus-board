@@ -596,12 +596,47 @@ export function ParentLaneBoard({
   // cancels Chrome's previous one, so it would kill the horizontal pin
   // glide mid-flight and leave the board drifting. The correction rides the
   // post-pin schedule instead (assign → 300ms post-transition).
+  //
+  // The refire gates like the column board's keep-in-view: only a real
+  // relocation re-asserts scroll. The selection changing (new active card,
+  // or its lane index moving) re-locks, and so does a viewport-width change
+  // (pane opening, drag resize — the board narrows and the glide target
+  // must be recomputed, like the column board's ResizeObserver refit). A
+  // mere lane-assembly rebuild — a hover capture joining `laneFreezes`, an
+  // ambient touch re-sorting cards inside the locked lane — changes none
+  // of those, and its new `flat` identity would otherwise re-run the
+  // same-lane correction on every render, yanking the operator's vertical
+  // scroll back to the selected card (issue #124).
+  const activeRelocationRef = useRef<{
+    threadId: string;
+    laneIndex: number;
+    viewportW: number;
+  } | null>(null);
   useEffect(() => {
     const el = scrollRef.current;
-    if (el === null || activeThreadId === null || activeLaneId === null) return;
+    if (el === null || activeThreadId === null || activeLaneId === null) {
+      activeRelocationRef.current = null;
+      return;
+    }
     const index = flat.findIndex((entry) => entry.lane.id === activeLaneId);
-    if (index >= 0) lockToRef.current(index);
-  }, [activeThreadId, activeLaneId, flat]);
+    if (index < 0) {
+      // The active card left the lanes (a filter or grouping pass); arm the
+      // ref so its return re-locks — the column board refits on reappearance.
+      activeRelocationRef.current = null;
+      return;
+    }
+    const prev = activeRelocationRef.current;
+    activeRelocationRef.current = { threadId: activeThreadId, laneIndex: index, viewportW };
+    if (
+      prev !== null &&
+      prev.threadId === activeThreadId &&
+      prev.laneIndex === index &&
+      prev.viewportW === viewportW
+    ) {
+      return;
+    }
+    lockToRef.current(index);
+  }, [activeThreadId, activeLaneId, viewportW, flat]);
 
   // FLIP: cards moved by a recut glide from their pre-recut rects into place.
   useLayoutEffect(() => {
