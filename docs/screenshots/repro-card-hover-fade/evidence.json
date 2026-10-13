@@ -33,7 +33,7 @@
   },
   "hoverInfo": {
     "hovered": {
-      "backgroundColor": "oklch(0.27495 0 0)",
+      "backgroundColor": "oklab(0.156 0 0)",
       "opacity": "1",
       "faded": false,
       "sweepHighlighted": false

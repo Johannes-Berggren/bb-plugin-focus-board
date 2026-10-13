@@ -207,6 +207,15 @@ export const NESTED_ROWS_SCROLL_THRESHOLD = 5;
  * wearing `data-card-faded` (done / dimmed / snoozed, whose own opacity or
  * under-scrim already fades them — a second dim on top would fight it).
  */
+/** The hovered card's surface, one source of truth: the card token mixed
+ *  toward BLACK — an OPAQUE surface DARKER than the rest state in both themes
+ *  (issue #123 and its follow-up). `accent` was the first cut: it reads
+ *  ink-ward, so on the dark canvas it LIGHTENED the hovered card (27.5% over
+ *  19.5%), the opposite of the prominence the operator asked for. The 80%
+ *  share is the "a bit darker" step; the ring hover emphasis rides along. */
+export const HOVER_SURFACE =
+  "hover:bg-[color-mix(in_oklab,var(--card)_80%,black)]";
+
 export const CARD_SPOTLIGHT_CLASSES = [
   "has-[div[data-thread-card]:hover]:[&_div[data-thread-card]:not(:hover):not([data-sweep-highlighted]):not([data-card-faded])]:opacity-70",
 ].join(" ");
@@ -748,12 +757,13 @@ export function ThreadCard({
         // alone has no opacity to animate, and an armed-rule transition would
         // vanish in the same recalc as the dim it eases.
         "transition-[color,background-color,border-color,outline-color,text-decoration-color,opacity,fill,stroke]",
-        // Hover = MORE prominence, never less (issue #123): an OPAQUE accent
-        // surface, never a translucent background-color on the card itself —
-        // card-level transparency lets the lane background / wallpaper bleed
-        // through (the lesson the wallpaper-contrast under-scrim already
-        // teaches). The ring below carries the emphasis along with it.
-        "hover:bg-accent",
+        // Hover = MORE prominence, never less (issue #123): an OPAQUE surface
+        // DARKER than the rest state (`--card` mixed toward black), never a
+        // translucent background-color on the card itself — card-level
+        // transparency lets the lane background / wallpaper bleed through
+        // (the lesson the wallpaper-contrast under-scrim already teaches).
+        // The ring below carries the emphasis along with it.
+        HOVER_SURFACE,
         // A card with a child section needs bottom padding beyond the body's
         // own 8px: the rows (or the folded strip) would otherwise sit flush
         // against the card's bottom edge.
