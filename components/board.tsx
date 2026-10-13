@@ -21,7 +21,7 @@ import {
   type SweepNotice,
   type SweepRunView,
 } from "../lib/sweep";
-import { ThreadCard } from "./thread-card";
+import { CARD_SPOTLIGHT_CLASSES, ThreadCard } from "./thread-card";
 import { MenuPopover } from "./menu-popover";
 import type { ThreadLink } from "../lib/link-metadata";
 import { groupBoxMenuActions } from "../lib/group-metadata";
@@ -1803,7 +1803,10 @@ export function Board({
         ref={scrollRef}
         onClick={handleBackgroundClick}
         data-columns-board
-        className="min-h-0 flex-1 overflow-x-auto overflow-y-hidden px-3 pb-3 pt-2"
+        className={cn(
+          "min-h-0 flex-1 overflow-x-auto overflow-y-hidden px-3 pb-3 pt-2",
+          CARD_SPOTLIGHT_CLASSES,
+        )}
       >
         {/* The insertion line is the only visual feedback a reorder gives, so
             a screen reader gets the same information in words. */}

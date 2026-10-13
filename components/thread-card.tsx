@@ -196,6 +196,22 @@ const STATUS_ICON_CLASS: Record<string, string> = {
 export const NESTED_ROWS_SCROLL_THRESHOLD = 5;
 
 /**
+ * The card spotlight (issue #123): while ONE card is under the pointer, the
+ * other cards recede a step and the hovered one never does. Pure CSS — a
+ * board root (`[data-columns-board]` / `[data-parent-board]`) arms once it
+ * `:has` a hovered card div, and only card divs that are NOT the hovered one
+ * take the dim; child rows are anchors, so a family's rows never dim with
+ * their parent. The dim eases in and out through the card's own persistent
+ * color+opacity transition. The exemptions keep the existing dim systems in
+ * charge: sweep-highlighted cards (a selection the pointer reads) and cards
+ * wearing `data-card-faded` (done / dimmed / snoozed, whose own opacity or
+ * under-scrim already fades them — a second dim on top would fight it).
+ */
+export const CARD_SPOTLIGHT_CLASSES = [
+  "has-[div[data-thread-card]:hover]:[&_div[data-thread-card]:not(:hover):not([data-sweep-highlighted]):not([data-card-faded])]:opacity-70",
+].join(" ");
+
+/**
  * One provider-grouped chip (lib/ticket-chips.ts): all the provider's IDs of
  * one kind (issue or pull) inside a single chip shell — the provider mark
  * leading, the kind glyph naming the chip's kind, then one link per ID.
@@ -700,6 +716,11 @@ export function ThreadCard({
       data-sweep-highlighted={isSweepHighlighted ? "" : undefined}
       data-sweep-active={isSweeping ? "" : undefined}
       data-snoozed={snoozed ? "" : undefined}
+      // The spotlight's exemption marker (see CARD_SPOTLIGHT_CLASSES): a card
+      // whose life already fades it (done / dimmed / snoozed, by whole-card
+      // opacity or the under-scrim) is marked, so the spotlight recede never
+      // stacks a second dim on top of its own.
+      data-card-faded={fades ? "" : undefined}
       // `group` drives the hover-revealed done checkbox below.
       onPointerLeave={armedDone ? () => setArmedDone(false) : undefined}
       onMouseEnter={
@@ -720,8 +741,19 @@ export function ThreadCard({
             }
       }
       className={cn(
-        "group relative overflow-hidden rounded-md bg-card transition-colors",
-        "hover:bg-accent/50",
+        "group relative overflow-hidden rounded-md bg-card",
+        // Colors AND opacity both ease: the spotlight (CARD_SPOTLIGHT_CLASSES)
+        // dims and un-dims sibling cards from a board-root rule, so the
+        // opacity transition must live on the card itself — `transition-colors`
+        // alone has no opacity to animate, and an armed-rule transition would
+        // vanish in the same recalc as the dim it eases.
+        "transition-[color,background-color,border-color,outline-color,text-decoration-color,opacity,fill,stroke]",
+        // Hover = MORE prominence, never less (issue #123): an OPAQUE accent
+        // surface, never a translucent background-color on the card itself —
+        // card-level transparency lets the lane background / wallpaper bleed
+        // through (the lesson the wallpaper-contrast under-scrim already
+        // teaches). The ring below carries the emphasis along with it.
+        "hover:bg-accent",
         // A card with a child section needs bottom padding beyond the body's
         // own 8px: the rows (or the folded strip) would otherwise sit flush
         // against the card's bottom edge.
