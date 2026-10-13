@@ -169,7 +169,9 @@ The screenshots in `docs/screenshots/` are captured with a harness in
 
 Issues and PRs are welcome at
 [github.com/cristoslc/bb-plugin-focus-board](https://github.com/cristoslc/bb-plugin-focus-board).
-Run `npm test` and `npx tsc --noEmit` before submitting.
+Read [CONTRIBUTING.md](CONTRIBUTING.md) first; it covers people and AI agents
+alike. Run `npm test` and `npx tsc --noEmit` before submitting, and report
+security problems privately per [SECURITY.md](SECURITY.md).
 
 ## License
 

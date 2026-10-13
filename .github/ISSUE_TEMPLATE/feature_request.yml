@@ -1,0 +1,51 @@
+name: Feature request
+description: Suggest a new capability or a change to existing behavior.
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Describe the problem before the solution. The best fix is not always the feature you first had in mind.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What you were trying to do and what got in the way, with a concrete example (the lane, card, setting, or command involved).
+    validations:
+      required: true
+  - type: textarea
+    id: goal
+    attributes:
+      label: Goal
+      description: What should be possible once this exists, in one or two sentences.
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance sketch
+      description: How you would know it works. Steps and the result you would see, so a reviewer can check it.
+      placeholder: |
+        1. Open the View menu.
+        2. Pick ...
+        3. The board shows ...
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives and workarounds
+      description: What you do today, or other shapes the fix could take. Write "None" if there are none.
+    validations:
+      required: true
+  - type: dropdown
+    id: authorship
+    attributes:
+      label: Who wrote this request
+      options:
+        - A person, by hand
+        - A person, drafted with an AI agent and checked by them
+        - An AI agent on behalf of a person
+    validations:
+      required: true

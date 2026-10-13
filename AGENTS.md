@@ -79,6 +79,15 @@ changelog sections; never move a
 tag. Full reference:
 `.agents/agents-md-detail/release.md`
 
+## Contributing
+
+Filing issues, opening pull requests, branch and commit conventions, the
+issue and PR templates, and what an agent does differently all live in
+`CONTRIBUTING.md` (the source of truth, linked from here rather than copied)
+and `.agents/agents-md-detail/contribution.md` (the agent-specific spoke).
+Read both before the first issue, comment, or PR of a session. Security
+findings go through `SECURITY.md`, never a public issue.
+
 ## Test coverage matrix
 
 Master coverage matrix: `docs/test-coverage-matrix.md`

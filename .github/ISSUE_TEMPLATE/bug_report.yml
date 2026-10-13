@@ -1,0 +1,91 @@
+name: Bug report
+description: Something in Focus Board does not work as it should. One bug per report.
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Reproduce the bug before you file it, headlessly when you can (the screenshot harness in `scripts/screenshot` mounts the real app). Write the steps from what the successful run did. Fill every section: when one has nothing to report, write "None".
+        Security problems do not go here. Use the private advisory link on the issue chooser.
+  - type: textarea
+    id: references
+    attributes:
+      label: Related issues or pull requests
+      description: >-
+        Link each related item with its number and title, for example `#85 (group CLI: create/rename/delete/add/remove/move)`. Write "None" if there are none.
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Enough detail for a reader to match your conditions.
+      placeholder: |
+        Focus Board: 1.2.0 (from the About tab)
+        bb: 0.43.2
+        OS: macOS 15.2
+        Surface: desktop app / browser (name and version)
+        Settings that matter: grouping, filters, wallpaper, nesting toggle
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Reproduction steps
+      description: Numbered, minimal, deterministic. Start from a known state and include sample data such as thread ids, lane names, or the setting values. Show the broken state, never the fix.
+      placeholder: |
+        1. Open the board with grouping set to Group.
+        2. Drag the card for thread `thr_abc123` onto the box labeled "Release".
+        3. ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected result
+      description: What should happen when the steps are followed. Name the exact thing you expected to see.
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual result
+      description: What happens instead. Quote error messages and logs verbatim in fenced code blocks. Attach screenshots or video. If you could not reproduce the bug, say so here and name the environment you tried.
+    validations:
+      required: true
+  - type: dropdown
+    id: reproduction
+    attributes:
+      label: How you reproduced it
+      options:
+        - Headlessly (scripted run or screenshot harness)
+        - Manually in the app
+        - Not reproduced (seen once, steps are a best guess)
+    validations:
+      required: true
+  - type: textarea
+    id: workarounds
+    attributes:
+      label: Workarounds
+      description: Known ways to avoid or reduce the impact, each with an example. Write "None known" if there are none.
+    validations:
+      required: true
+  - type: textarea
+    id: recommendation
+    attributes:
+      label: Request or recommendation
+      description: Optional. A fix, a triage call, a priority, or a direction you suggest.
+    validations:
+      required: false
+  - type: dropdown
+    id: authorship
+    attributes:
+      label: Who wrote this report
+      description: Agent-filed reports are welcome. A person must have checked the reproduction.
+      options:
+        - A person, by hand
+        - A person, drafted with an AI agent and checked by them
+        - An AI agent on behalf of a person
+    validations:
+      required: true
