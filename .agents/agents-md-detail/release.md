@@ -186,6 +186,26 @@ merging into `dev`, releasing, changelog writing, or tagging.
   either removed or allowlisted with a comment naming the audit that
   approved it — never silenced.
 
+## 2b. Release-safety gate (required before tagging a nightly release)
+
+- `npm run release-safety` — it builds, runs every automated UAT suite in
+  `tests/manual` against the real app (reports land in `docs/uat/`), and
+  captures six harness screenshots of the board and the open thread pane
+  at desktop 1920×1080, tablet 768×1024, and phone 390×844 into
+  `docs/release-safety/`. Any failing UAT step stops the release: fix it
+  in a normal landing, never by editing a suite green on release day.
+- The screenshots get a judgement pass before tagging. A non-vision agent
+  asks a vision-capable model per its vision-dispatch spoke (`llm -m kimi
+  -f <prompt-file> -a <shots...>`), demanding a SHOT-OK or SHOT-BROKEN
+  verdict with a reason per image. Lanes that continue past the right
+  edge under horizontal scrolling are normal for the board; SHOT-BROKEN
+  is for unreadable or clipped-mid-word text at a real width, overlapping
+  elements, missing board sections, collapsed or unrenderable layout, or
+  a pane that fails to open. Any SHOT-BROKEN verdict stops the release.
+- On any gate failure, keep the artifacts (`docs/uat/` and
+  `docs/release-safety/`) for the follow-up, leave the tree clean, and
+  notify per the release notification contract naming the gate.
+
 ## 3. Finalize commit (on the dev lineage)
 
 If your branch doesn't contain `origin/dev` yet, rebase it onto
