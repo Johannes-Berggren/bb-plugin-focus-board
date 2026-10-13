@@ -173,43 +173,54 @@ export interface RunColumnLike {
 }
 
 /**
- * One column's display order walked into runs: box members gather into one
- * contiguous box item at the position of the FIRST member in the column's
- * own order, preserving relative member order; standalone cards keep their
- * slots. Under the split default the frame appears in EVERY lane holding at
- * least one live member: a slice of one (a group of one, or a multi-member
- * group's lone member in a lane) yields a box run around its single member —
- * role "solo" downstream, so it drags as a plain card but keeps the frame
- * (the outline is the drag-into target, and it is the highlight carrier).
+ * One column's display order walked into runs: same-group members gather
+ * into a box run while they are CONTIGUOUS in the column's own order, and a
+ * card (or another box's member) landing between the members closes the run
+ * and opens a new one — each slice keeps its frame at its own slot. Standalone
+ * cards keep their slots. Under the split default the frame appears in EVERY
+ * lane holding at least one live member: a slice of one (a group of one, or a
+ * multi-member group's lone member in a lane) yields a box run around its
+ * single member — role "solo" downstream, so it drags as a plain card but
+ * keeps the frame (the outline is the drag-into target, and it is the
+ * highlight carrier).
+ *
+ * The contiguity rule is what keeps the lane's readable order honest
+ * (issue #106): the rank contract keeps a boxed unit contiguous through rank
+ * writes, but a recency-ordered lane can legally interleave a non-member
+ * between two members — a menu unpin returning a card to its own lane does
+ * exactly that. Gathering the scattered members into one box at the first
+ * member's slot displaced the interleaved card and hid the trailing member
+ * from the lane's top-level order entirely. Slices split; nothing moves.
  */
 export function columnRunItems(
   column: RunColumnLike,
   groupBoxOf: GroupBoxMap,
 ): readonly GroupRunItem[] {
   const items: GroupRunItem[] = [];
-  const consumedThisColumn = new Set<string>();
+  let open: { box: GroupBoxRef; members: PluginSidebarThread[] } | null = null;
+  const flush = (): void => {
+    if (open === null) return;
+    items.push({ kind: "box", box: { ...open.box, members: open.members } });
+    open = null;
+  };
   for (const thread of column.threads) {
-    if (consumedThisColumn.has(thread.id)) continue;
     const box = groupBoxOf.get(thread.id);
     if (box === undefined) {
+      flush();
       items.push({ kind: "single", thread });
       continue;
     }
-    // The box's members in THIS COLUMN'S OWN DISPLAY ORDER — read off
-    // `column.threads` as they appear, never from the plan's `box.members`
-    // (which planGroupBoxes collected in recency-iteration order). The
-    // rank contract keeps a boxed run contiguous in the column order, so
-    // the walk reproduces that order exactly — and an in-box reorder,
-    // whose write reorders the members inside the run's span, actually
-    // STICKS: rendering from the plan's recency order instead un-renders
-    // every in-box reorder the moment the store updates (reproduced live
-    // 2026-10-10 — the box read reordered ranks and displayed the old
-    // sequence, looking exactly like "reorder not working").
-    const memberIds = new Set(box.members.map((member) => member.id));
-    const members = column.threads.filter((candidate) => memberIds.has(candidate.id));
-    for (const member of members) consumedThisColumn.add(member.id);
-    items.push({ kind: "box", box: { ...box, members } });
+    if (open === null || open.box.groupId !== box.groupId) {
+      // A member of another box (or the first member of any): close what the
+      // walk has gathered and open a fresh run here.
+      flush();
+      open = { box, members: [thread] };
+      continue;
+    }
+    // Same box and nothing interposed: the run stays contiguous.
+    open.members.push(thread);
   }
+  flush();
   return items;
 }
 
@@ -264,10 +275,12 @@ export function canJoinGroup(
 
 /**
  * Run membership per thread of ONE column: members of the same group that
- * landed in the same column take box roles in display order; a member alone
- * in its column keeps role "solo" — the container decoration and its data
- * attributes stay (the frame is the join target and the highlight carrier),
- * and the member drags as a plain card (a run of one is no unit).
+ * landed CONTIGUOUSLY in the column's display order take box roles in that
+ * order; a run's span holds only contiguous members — a card interposed
+ * between two members splits the slices (issue #106), and each slice-of-one
+ * keeps role "solo" — the container decoration and its data attributes stay,
+ * the frame is the join target and the highlight carrier, and the member
+ * drags as a plain card (a run of one is no unit).
  */
 export function columnRunInfo(
   columnThreads: readonly PluginSidebarThread[],
@@ -275,28 +288,60 @@ export function columnRunInfo(
 ): ReadonlyMap<string, ColumnRunInfo> {
   const info = new Map<string, ColumnRunInfo>();
   if (groupBoxOf.size === 0) return info;
-  const byGroup = new Map<string, string[]>();
-  for (const thread of columnThreads) {
-    const box = groupBoxOf.get(thread.id);
-    if (box === undefined) continue;
-    const ids = byGroup.get(box.groupId);
-    if (ids === undefined) byGroup.set(box.groupId, [thread.id]);
-    else ids.push(thread.id);
-  }
-  for (const thread of columnThreads) {
-    const box = groupBoxOf.get(thread.id);
-    if (box === undefined) continue;
-    const memberIds = byGroup.get(box.groupId) ?? [];
-    // Every boxed member keeps an entry: a slice of one (a lone member of a
-    // multi-member group under the split default, or a group-of-one) is role
-    // "solo" — the container decoration and its data attributes stay, and it
-    // drags as a plain card (a run of one is no unit).
-    const at = memberIds.indexOf(thread.id);
-    const role: ColumnRunInfo["role"] =
-      memberIds.length === 1 ? "solo" : at === 0 ? "first" : at === memberIds.length - 1 ? "last" : "mid";
-    info.set(thread.id, { boxId: box.groupId, boxName: box.name, role, memberIds });
+  for (const run of boxMemberRuns(columnThreads, groupBoxOf)) {
+    const memberIds = run.members.map((thread) => thread.id);
+    run.members.forEach((thread, at) => {
+      const role: ColumnRunInfo["role"] =
+        memberIds.length === 1
+          ? "solo"
+          : at === 0
+            ? "first"
+            : at === memberIds.length - 1
+              ? "last"
+              : "mid";
+      info.set(thread.id, {
+        boxId: run.box.groupId,
+        boxName: run.box.name,
+        role,
+        memberIds,
+      });
+    });
   }
   return info;
+}
+
+/**
+ * The contiguous stretches of same-group members in one column's display
+ * order, in that order. The shared walk behind `columnRunItems` and
+ * `columnRunInfo`: a role chain must never span a memberless gap the same
+ * way a box run must never swallow the card sitting between its members.
+ */
+function boxMemberRuns(
+  columnThreads: readonly PluginSidebarThread[],
+  groupBoxOf: GroupBoxMap,
+): readonly { box: GroupBoxRef; members: PluginSidebarThread[] }[] {
+  const runs: { box: GroupBoxRef; members: PluginSidebarThread[] }[] = [];
+  let open: { box: GroupBoxRef; members: PluginSidebarThread[] } | null = null;
+  const flush = (): void => {
+    if (open === null) return;
+    runs.push(open);
+    open = null;
+  };
+  for (const thread of columnThreads) {
+    const box = groupBoxOf.get(thread.id);
+    if (box === undefined) {
+      flush();
+      continue;
+    }
+    if (open === null || open.box.groupId !== box.groupId) {
+      flush();
+      open = { box, members: [thread] };
+      continue;
+    }
+    open.members.push(thread);
+  }
+  flush();
+  return runs;
 }
 
 /**
