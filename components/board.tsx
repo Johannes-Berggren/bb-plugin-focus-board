@@ -759,14 +759,31 @@ export function Board({
   // (or when the host-applied state it was waiting on lands). Consumed
   // exactly once (seq-gated, key = last-seen seq), so data refreshes and
   // passive state changes never yank the user's scroll.
-  const revealClaimRef = useRef<{ seq: number; threadId: string } | null>(null);
+  //
+  // The claim is never re-armed for the same seq after it has scrolled: the
+  // stale `reveal` prop stays set in app state (it is replaced, not cleared,
+  // by the next action), so a null-and-re-arm here made the SAME reveal
+  // re-arm on every later `columns` commit and kept yanking the board back
+  // to the revealed card's lane (issue #119). The consumed claim stays in
+  // the ref with its seq, so the re-arm gate (`reveal.seq !== claimed seq`)
+  // only fires for a genuinely new request; an armed-but-not-yet-found
+  // claim keeps `consumed: false` and is honoured on a later commit.
+  const revealClaimRef = useRef<{
+    seq: number;
+    threadId: string;
+    consumed: boolean;
+  } | null>(null);
   useLayoutEffect(() => {
     if (reveal !== null && reveal.seq !== revealClaimRef.current?.seq) {
-      revealClaimRef.current = { seq: reveal.seq, threadId: reveal.threadId };
+      revealClaimRef.current = {
+        seq: reveal.seq,
+        threadId: reveal.threadId,
+        consumed: false,
+      };
     }
     const claim = revealClaimRef.current;
     const container = scrollRef.current;
-    if (claim === null || container === null) return;
+    if (claim === null || claim.consumed || container === null) return;
     const card = firstRealCard(container, claim.threadId);
     if (!(card instanceof HTMLElement)) {
       // Not on the board in this commit (a filter may hide the card, or the
@@ -780,7 +797,7 @@ export function Board({
     if (list instanceof HTMLElement) {
       list.scrollTop += listScrollY(list.getBoundingClientRect(), cardRect);
     }
-    revealClaimRef.current = null;
+    claim.consumed = true;
   }, [reveal, columns]);
 
   // ── The lane transport dissolve ─────────────────────────────────────────

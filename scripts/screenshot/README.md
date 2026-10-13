@@ -39,6 +39,15 @@ host app involved.
   `phone-thread-pane.png`. Run the vite harness first (same as above),
   then `node scripts/screenshot/repro-markread-mobile.mjs`; honors the
   same `CHROME_PATH` and `HARNESS_URL` overrides.
+- `repro-done-scroll-yank.mjs` — one-shot headless regression driver for the
+  post-done re-scroll yank (#119): opens a pane on the Unread card
+  (`thr_uat_queue`) at 1280x800, marks it done via the on-card checkbox,
+  closes the pane, jumps the board to `scrollLeft` 0, forces hover/refresh
+  re-renders, and exits non-zero unless the board rests at 0. Artifacts land
+  in `docs/screenshots/repro-done-scroll-yank/` (five stage screenshots plus
+  `evidence.json`). Run the vite harness first (same as above), then
+  `node scripts/screenshot/repro-done-scroll-yank.mjs`; honors the same
+  `CHROME_PATH`, `HARNESS_URL`, and `OUT_DIR` overrides.
 
 Regenerate the screenshots:
 
