@@ -19,6 +19,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+#### Lane transport
+
+- **The lane-move dissolve leaves the active-card marker on the card, not its ghost.** Relocating the open card played its old-lane ghost with the marker still claiming `aria-current`, so the marker and the keep-in-view scroll pointed at different cards. The ghost is inert decoration and never reports the marker now; the card the board followed owns it.
+
 #### Card hover
 
 - **Hovering a card makes it more prominent, not less.** The hovered card keeps its opaque background instead of going translucent (the lane background and wallpaper no longer bleed through it), the hover surface darkens below the resting card in both themes for stronger contrast, and the other cards recede slightly while one is hovered. Done, dimmed, snoozed, and sweep-highlighted cards keep their own fade treatment.
