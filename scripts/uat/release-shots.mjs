@@ -1,10 +1,16 @@
 /**
  * Release-safety screenshots: render the harness across the states a nightly
- * release's judgement gate reviews before tagging — board and open thread
- * pane at desktop 1920x1080, narrow-desktop 1280x800, tablet 768x1024, and
- * phone 390x844; the compact filter ribbon open on phone (below the 767px
- * compact breakpoint the palette collapses into a header toggle);
- * and a light-theme board.
+ * release's judgement gate reviews before tagging —
+ *   - board and open thread pane at desktop 1920x1080, narrow-desktop
+ *     1280x800, tablet 768x1024, and phone 390x844;
+ *   - the two layouts other than the status columns: the parent-lane board
+ *     (groupBy=parent, a separate component) and the group/family-boxes view
+ *     (groupBy=group);
+ *   - the compact filter ribbon open on phone (below the 767px compact
+ *     breakpoint the palette collapses into a header toggle);
+ *   - a light-theme board; and
+ *   - the three toolbar modals: settings (Behavior tab), new thread, and
+ *     What's new (seeded unseen via ?lastSeenVersion).
  *
  * Run after `npm run build` (the harness loads dist/app.css), e.g. via
  * `npm run release-shots`. Uses the system Chrome through puppeteer-core
@@ -80,21 +86,65 @@ async function openFilterRibbon(target) {
   await new Promise((resolve) => setTimeout(resolve, 500));
 }
 
+/** The toolbar's gear/gift button and the New thread button both open a
+ *  dialog; the modal's tabs (Behavior, Appearance, What's new) switch via
+ *  role="tab" inside it. On a prerelease dev build with unreleased bullets
+ *  the gear always renders as the gift, so the settings-tab shots open it
+ *  through the gift and then click their tab. */
+async function openToolbarModal(target, titleOrText) {
+  await target.evaluate((label) => {
+    const button = [...document.querySelectorAll("button")].find(
+      (el) =>
+        el.getAttribute("title") === label || el.textContent?.trim() === label,
+    );
+    if (!button) throw new Error(`toolbar button "${label}" not found`);
+    button.click();
+  }, titleOrText);
+  await target.waitForSelector('[role="dialog"]', { timeout: 5_000 });
+  await new Promise((resolve) => setTimeout(resolve, 500));
+}
+
+async function selectModalTab(target, label) {
+  await target.evaluate((name) => {
+    const tab = [...document.querySelectorAll('[role="tab"]')].find(
+      (el) => el.textContent?.trim() === name,
+    );
+    if (!tab) throw new Error(`modal tab "${name}" not found`);
+    tab.click();
+  }, label);
+  await new Promise((resolve) => setTimeout(resolve, 500));
+}
+
+const BASE_PARAMS = "groupBy=status&demo=1&collapsed=thr_demo_needs,thr_demo_work";
+const LANES_PARAMS = "groupBy=parent&demo=1&collapsed=thr_demo_needs,thr_demo_work";
+// A stale (never-current) unreleased fingerprint keeps What's-new content
+// unseen: the toolbar's double-duty button always renders as the gift that
+// opens the modal, whatever a previous page in this browser profile stored.
+// The prerelease check in lib/whats-new.ts keys on this fingerprint, not on
+// lastSeenVersion.
+const MODAL_PARAMS = `${BASE_PARAMS}&lastSeenVersion=0.1.0&lastSeenUnreleased=0`;
+
 const SHOTS = [
-  { name: "board-desktop", viewport: "desktop", pane: false },
+  { name: "board-desktop", viewport: "desktop" },
   { name: "pane-desktop", viewport: "desktop", pane: true },
-  { name: "board-narrow-desktop", viewport: "narrowDesktop", pane: false },
+  { name: "board-narrow-desktop", viewport: "narrowDesktop" },
   { name: "pane-narrow-desktop", viewport: "narrowDesktop", pane: true },
-  { name: "board-tablet", viewport: "tablet", pane: false },
+  { name: "board-tablet", viewport: "tablet" },
   { name: "pane-tablet", viewport: "tablet", pane: true },
-  { name: "board-phone", viewport: "phone", pane: false },
+  { name: "board-phone", viewport: "phone" },
   { name: "pane-phone", viewport: "phone", pane: true },
   { name: "palette-phone", viewport: "phone", palette: true },
   { name: "board-desktop-light", viewport: "desktop", theme: "light" },
+  { name: "lanes-desktop", viewport: "desktop", url: LANES_PARAMS },
+  { name: "lanes-phone", viewport: "phone", url: LANES_PARAMS },
+  { name: "families-desktop", viewport: "desktop", url: "groupBy=group&demo=1&collapsed=thr_demo_needs,thr_demo_work" },
+  { name: "modal-whats-new-desktop", viewport: "desktop", url: MODAL_PARAMS, toolbarButton: "What's new" },
+  { name: "modal-settings-desktop", viewport: "desktop", url: MODAL_PARAMS, toolbarButton: "What's new", modalTab: "Behavior" },
+  { name: "modal-appearance-desktop", viewport: "desktop", url: MODAL_PARAMS, toolbarButton: "What's new", modalTab: "Appearance" },
+  { name: "modal-new-thread-desktop", viewport: "desktop", toolbarButton: "New thread" },
 ];
 
 const harness = await startHarness(5199);
-const boardUrl = `${harness.base}?groupBy=status&demo=1&collapsed=thr_demo_needs,thr_demo_work`;
 
 const browser = await puppeteer.launch({
   executablePath: CHROME,
@@ -118,7 +168,8 @@ try {
       await page.emulateMediaFeatures([
         { name: "prefers-color-scheme", value: theme },
       ]);
-      await page.goto(boardUrl, { waitUntil: "domcontentloaded", timeout: 60_000 });
+      const url = `${harness.base}?${shot.url ?? BASE_PARAMS}`;
+      await page.goto(url, { waitUntil: "domcontentloaded", timeout: 60_000 });
       await page.waitForSelector("section[aria-label]", { timeout: 30_000 });
       await page.evaluate((mode) => {
         document.documentElement.classList.toggle("dark", mode === "dark");
@@ -126,6 +177,10 @@ try {
       await new Promise((resolve) => setTimeout(resolve, 400));
       if (shot.pane) await openPane(page);
       if (shot.palette) await openFilterRibbon(page);
+      if (shot.toolbarButton) {
+        await openToolbarModal(page, shot.toolbarButton);
+        if (shot.modalTab) await selectModalTab(page, shot.modalTab);
+      }
       await page.screenshot({
         path: `${OUT_DIR}${name}.png`,
         timeout: 30_000,
