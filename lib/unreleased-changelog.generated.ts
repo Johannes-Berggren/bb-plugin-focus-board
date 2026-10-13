@@ -9,5 +9,10 @@ export const UNRELEASED_ITEMS: readonly { text: string; children: string[]; grou
     "text": "**Closing the thread pane releases the card it froze.** The pane-open push consumed its settle marker in a way that also ate the close's, so a closed pane's attention capture survived and the frozen family card stopped following live state (a running child could never lift it into Working until the next open or a drag). Now the close settle clears the capture, the fallback close clears it without a settle, and the decision lives in one pure `paneRouteAction` map.",
     "children": [],
     "group": "Board layout"
+  },
+  {
+    "text": "**Mark Done no longer drags the board back to the Done column.** The reveal request stayed set after it scrolled once, and every later board refresh re-armed the same request, yanking the view back to the done card's lane against the operator's scroll. The claim now records that it was consumed, so a fresh reveal (the next Mark Done, Pin, or read state change) still scrolls while refreshes leave the pan alone.",
+    "children": [],
+    "group": "Reveal scroll"
   }
 ];

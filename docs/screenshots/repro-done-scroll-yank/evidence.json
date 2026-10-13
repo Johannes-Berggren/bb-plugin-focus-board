@@ -1,0 +1,261 @@
+{
+  "issue": 119,
+  "instrument": {
+    "scrollWidth": 2444,
+    "clientWidth": 1280,
+    "scrollLeft": 0
+  },
+  "afterClose": {
+    "scrollLeft": 1164,
+    "pane": false,
+    "doneCardRect": {
+      "left": 1030,
+      "right": 1274,
+      "top": 89,
+      "bottom": 166
+    },
+    "doneCardVisible": true,
+    "hash": "#/plugins/focus-board/board"
+  },
+  "timeline": [
+    {
+      "phase": "wheel-left",
+      "i": 0,
+      "scrollLeft": 1164,
+      "pane": false,
+      "doneCardRect": {
+        "left": 1030,
+        "right": 1274,
+        "top": 89,
+        "bottom": 166
+      },
+      "doneCardVisible": true,
+      "hash": "#/plugins/focus-board/board"
+    },
+    {
+      "phase": "wheel-left",
+      "i": 1,
+      "scrollLeft": 1164,
+      "pane": false,
+      "doneCardRect": {
+        "left": 1030,
+        "right": 1274,
+        "top": 89,
+        "bottom": 166
+      },
+      "doneCardVisible": true,
+      "hash": "#/plugins/focus-board/board"
+    },
+    {
+      "phase": "wheel-left",
+      "i": 2,
+      "scrollLeft": 1164,
+      "pane": false,
+      "doneCardRect": {
+        "left": 1030,
+        "right": 1274,
+        "top": 89,
+        "bottom": 166
+      },
+      "doneCardVisible": true,
+      "hash": "#/plugins/focus-board/board"
+    },
+    {
+      "phase": "wheel-left",
+      "i": 3,
+      "scrollLeft": 1164,
+      "pane": false,
+      "doneCardRect": {
+        "left": 1030,
+        "right": 1274,
+        "top": 89,
+        "bottom": 166
+      },
+      "doneCardVisible": true,
+      "hash": "#/plugins/focus-board/board"
+    },
+    {
+      "phase": "wheel-left",
+      "i": 4,
+      "scrollLeft": 1164,
+      "pane": false,
+      "doneCardRect": {
+        "left": 1030,
+        "right": 1274,
+        "top": 89,
+        "bottom": 166
+      },
+      "doneCardVisible": true,
+      "hash": "#/plugins/focus-board/board"
+    },
+    {
+      "phase": "wheel-left",
+      "i": 5,
+      "scrollLeft": 1164,
+      "pane": false,
+      "doneCardRect": {
+        "left": 1030,
+        "right": 1274,
+        "top": 89,
+        "bottom": 166
+      },
+      "doneCardVisible": true,
+      "hash": "#/plugins/focus-board/board"
+    },
+    {
+      "phase": "hard-jump-0",
+      "scrollLeft": 0,
+      "pane": false,
+      "doneCardRect": {
+        "left": 2194,
+        "right": 2438,
+        "top": 89,
+        "bottom": 166
+      },
+      "doneCardVisible": false,
+      "hash": "#/plugins/focus-board/board"
+    },
+    {
+      "phase": "post-hover",
+      "i": 0,
+      "scrollLeft": 0,
+      "pane": false,
+      "doneCardRect": {
+        "left": 2194,
+        "right": 2438,
+        "top": 89,
+        "bottom": 166
+      },
+      "doneCardVisible": false,
+      "hash": "#/plugins/focus-board/board"
+    },
+    {
+      "phase": "post-hover",
+      "i": 1,
+      "scrollLeft": 0,
+      "pane": false,
+      "doneCardRect": {
+        "left": 2194,
+        "right": 2438,
+        "top": 89,
+        "bottom": 166
+      },
+      "doneCardVisible": false,
+      "hash": "#/plugins/focus-board/board"
+    },
+    {
+      "phase": "post-hover",
+      "i": 2,
+      "scrollLeft": 0,
+      "pane": false,
+      "doneCardRect": {
+        "left": 2194,
+        "right": 2438,
+        "top": 89,
+        "bottom": 166
+      },
+      "doneCardVisible": false,
+      "hash": "#/plugins/focus-board/board"
+    },
+    {
+      "phase": "post-hover",
+      "i": 3,
+      "scrollLeft": 0,
+      "pane": false,
+      "doneCardRect": {
+        "left": 2194,
+        "right": 2438,
+        "top": 89,
+        "bottom": 166
+      },
+      "doneCardVisible": false,
+      "hash": "#/plugins/focus-board/board"
+    },
+    {
+      "phase": "post-hover",
+      "i": 4,
+      "scrollLeft": 0,
+      "pane": false,
+      "doneCardRect": {
+        "left": 2194,
+        "right": 2438,
+        "top": 89,
+        "bottom": 166
+      },
+      "doneCardVisible": false,
+      "hash": "#/plugins/focus-board/board"
+    },
+    {
+      "phase": "post-hover",
+      "i": 5,
+      "scrollLeft": 0,
+      "pane": false,
+      "doneCardRect": {
+        "left": 2194,
+        "right": 2438,
+        "top": 89,
+        "bottom": 166
+      },
+      "doneCardVisible": false,
+      "hash": "#/plugins/focus-board/board"
+    },
+    {
+      "phase": "post-hover",
+      "i": 6,
+      "scrollLeft": 0,
+      "pane": false,
+      "doneCardRect": {
+        "left": 2194,
+        "right": 2438,
+        "top": 89,
+        "bottom": 166
+      },
+      "doneCardVisible": false,
+      "hash": "#/plugins/focus-board/board"
+    },
+    {
+      "phase": "post-hover",
+      "i": 7,
+      "scrollLeft": 0,
+      "pane": false,
+      "doneCardRect": {
+        "left": 2194,
+        "right": 2438,
+        "top": 89,
+        "bottom": 166
+      },
+      "doneCardVisible": false,
+      "hash": "#/plugins/focus-board/board"
+    },
+    {
+      "phase": "post-hover",
+      "i": 8,
+      "scrollLeft": 0,
+      "pane": false,
+      "doneCardRect": {
+        "left": 2194,
+        "right": 2438,
+        "top": 89,
+        "bottom": 166
+      },
+      "doneCardVisible": false,
+      "hash": "#/plugins/focus-board/board"
+    },
+    {
+      "phase": "post-hover",
+      "i": 9,
+      "scrollLeft": 0,
+      "pane": false,
+      "doneCardRect": {
+        "left": 2194,
+        "right": 2438,
+        "top": 89,
+        "bottom": 166
+      },
+      "doneCardVisible": false,
+      "hash": "#/plugins/focus-board/board"
+    }
+  ],
+  "verdict": "REST: board rests at scrollLeft 0 through hover/refresh re-renders",
+  "writesCount": 4
+}
