@@ -148,6 +148,127 @@ describe("wallpaper picker (Appearance tab content)", () => {
     });
   });
 
+  it("the fit toggle commits fit: cover carrying the layer's url, dim, dark variant, and set crop fields", () => {
+    const { onWallpaperChange } = renderPicker({
+      version: 1,
+      global: {
+        url: "https://example.com/w.png",
+        dim: 0.5,
+        darkUrl: "https://example.com/w-dark.png",
+        zoom: 1.5,
+      },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Wallpaper fit: fill" }));
+    expect(onWallpaperChange).toHaveBeenCalledWith({
+      version: 1,
+      global: {
+        url: "https://example.com/w.png",
+        dim: 0.5,
+        darkUrl: "https://example.com/w-dark.png",
+        zoom: 1.5,
+        fit: "cover",
+      },
+    });
+  });
+
+  it("the fit toggle commits fit: contain when the active layer already stores a cover", () => {
+    const { onWallpaperChange } = renderPicker({
+      version: 1,
+      global: { url: "https://example.com/w.png", dim: 0.5, fit: "cover" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Wallpaper fit: letterbox" }));
+    expect(onWallpaperChange).toHaveBeenCalledWith({
+      version: 1,
+      global: { url: "https://example.com/w.png", dim: 0.5, fit: "contain" },
+    });
+  });
+
+  it("the fit toggle marks the stored mode with aria-pressed and no-ops while no wallpaper is active", () => {
+    const { onWallpaperChange } = renderPicker(NO_WALLPAPER);
+    const letterbox = screen.getByRole("button", { name: "Wallpaper fit: letterbox" });
+    expect(letterbox.getAttribute("aria-pressed")).toBe("true");
+    expect(screen.getByRole("button", { name: "Wallpaper fit: fill" }).getAttribute("aria-pressed")).toBe("false");
+    fireEvent.click(screen.getByRole("button", { name: "Wallpaper fit: fill" }));
+    expect(onWallpaperChange).not.toHaveBeenCalled();
+  });
+
+  it("the zoom slider commits a zoom factor and no-ops while no wallpaper is active", () => {
+    const none = renderPicker(NO_WALLPAPER);
+    fireEvent.change(screen.getByRole("slider", { name: "Wallpaper zoom" }), { target: { value: "2" } });
+    expect(none.onWallpaperChange).not.toHaveBeenCalled();
+    none.unmount();
+    const withActive = renderPicker({
+      version: 1,
+      global: { url: "https://example.com/w.png", dim: 0.5 },
+    });
+    fireEvent.change(screen.getByRole("slider", { name: "Wallpaper zoom" }), { target: { value: "2" } });
+    expect(withActive.onWallpaperChange).toHaveBeenCalledWith({
+      version: 1,
+      global: { url: "https://example.com/w.png", dim: 0.5, zoom: 2 },
+    });
+  });
+
+  it("the focal grid commits focusX/focusY, marks the active point, and no-ops while no wallpaper is active", () => {
+    const none = renderPicker(NO_WALLPAPER);
+    fireEvent.click(screen.getByRole("button", { name: "Wallpaper focal point: top left" }));
+    expect(none.onWallpaperChange).not.toHaveBeenCalled();
+    none.unmount();
+    const withActive = renderPicker({
+      version: 1,
+      global: { url: "https://example.com/w.png", dim: 0.5, focusY: 100 },
+    });
+    const bottomCenter = screen.getByRole("button", { name: "Wallpaper focal point: bottom" });
+    expect(bottomCenter.getAttribute("aria-pressed")).toBe("true");
+    fireEvent.click(screen.getByRole("button", { name: "Wallpaper focal point: top left" }));
+    expect(withActive.onWallpaperChange).toHaveBeenCalledWith({
+      version: 1,
+      global: { url: "https://example.com/w.png", dim: 0.5, focusX: 0, focusY: 0 },
+    });
+  });
+
+  it("typing a url while a wallpaper is active keeps its dark variant and stored crop controls", () => {
+    const { onWallpaperChange } = renderPicker({
+      version: 1,
+      global: {
+        url: "https://example.com/old.png",
+        dim: 0.4,
+        darkUrl: "https://example.com/old-dark.png",
+        fit: "cover",
+        zoom: 2,
+      },
+    });
+    fireEvent.change(screen.getByRole("textbox", { name: "Wallpaper image url" }), {
+      target: { value: "https://example.com/new.png" },
+    });
+    expect(onWallpaperChange).toHaveBeenCalledWith({
+      version: 1,
+      global: {
+        url: "https://example.com/new.png",
+        dim: 0.4,
+        darkUrl: "https://example.com/old-dark.png",
+        fit: "cover",
+        zoom: 2,
+      },
+    });
+  });
+
+  it("a preset click while active carries the shown dim and the stored crop controls", () => {
+    const { onWallpaperChange } = renderPicker({
+      version: 1,
+      global: { url: "https://example.com/w.png", dim: 0.6, fit: "cover", zoom: 2 },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Picsum: focus-board-3" }));
+    expect(onWallpaperChange).toHaveBeenCalledWith({
+      version: 1,
+      global: {
+        url: "https://picsum.photos/seed/focus-board-3/1920/1080",
+        dim: 0.6,
+        fit: "cover",
+        zoom: 2,
+      },
+    });
+  });
+
   it("a preset swatch previews the current scheme's variant and flips live with the OS scheme", () => {
     const listeners: Array<() => void> = [];
     const state = { matches: false };

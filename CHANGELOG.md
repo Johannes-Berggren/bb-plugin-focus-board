@@ -14,6 +14,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   - **Appearance joins the tabs.** Card animations pick the transporter read (None snaps into place, Teleport dissolves, Zoom out / in waits visibly), motion can force quieter or fuller animation than the OS setting, and the wallpaper picker lives here; the rail marks the read tab with an accent bar, and What's-new lines fresh on dev tint amber.
 - **A status-dot checkbox settles threads.** Hovering a card swaps its state dot for a checkbox, empty on not-done cards and checked on done; the first click arms it ("Mark Done" or "Mark Not Done" joins the header row) and the second click writes, with hovering away disarming so a stray pointer settles nothing.
 
+#### Wallpaper
+
+- **A wallpaper can fill the board instead of letterboxing.** The picker gains a fit toggle (Letterbox / Fill), a zoom slider, and a nine-point focal grid for picking the crop region and zoom anchor; every control carries forward untouched, typed url edits keep a layer's dark variant, and stored wallpapers without the new fields render exactly as before.
+  - Fits and zooms that paint past the board edge are clipped, so a zoomed wallpaper never scrolls or resizes the board.
+
 #### Settings
 
 - **The configuration page mirrors the Appearance tab.** Beside the declared settings on Focus Board's plugins page, a section re-renders the card animation and motion choices and the wallpaper picker, writing the same per-browser values the modal writes, so an edit in either place covers both.

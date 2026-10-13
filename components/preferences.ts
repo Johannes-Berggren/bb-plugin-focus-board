@@ -239,8 +239,12 @@ export function motionStoredValue(value: MotionPref): MotionPref {
  */
 export const WALLPAPER_KEY = "focus-board:wallpaper";
 
-/** One wallpaper layer: where the image lives and how strongly the theme
- *  background wash covers it. */
+/** One wallpaper layer: where the image lives, how strongly the theme
+ *  background wash covers it, and how it fits the board's screen ratio
+ *  (crop controls; all optional — a layer without them paints the
+ *  letterboxed look, so older stored documents render unchanged). */
+export type WallpaperFit = "contain" | "cover";
+
 export interface WallpaperLayer {
   /** http(s) or data URL. Anything else is refused at parse time so a
    *  javascript:-style string can never reach a CSS url(). */
@@ -252,6 +256,19 @@ export interface WallpaperLayer {
   darkUrl?: string;
   /** Overlay opacity in [0, 0.9]; 0 = untinted image, high dim keeps cards readable. */
   dim: number;
+  /** Paint fit: "contain" fits the whole image with letterbox bars (the
+   *  default), "cover" fills the board and crops the overflow. A garbage
+   *  stored value degrades to the default by dropping the FIELD. */
+  fit?: WallpaperFit;
+  /** Zoom factor in [1, 4]; 1 = unfitted, > 1 scales the painted image
+   *  (with overflow clipped) around the focal point. */
+  zoom?: number;
+  /** Focal point as a horizontal percent in [0, 100]: with "cover" it
+   *  picks the crop region, with zoom it anchors the scale, and with
+   *  "contain" it shifts the letterboxed image. */
+  focusX?: number;
+  /** The focal point's vertical percent, same rules as `focusX`. */
+  focusY?: number;
 }
 
 export interface WallpaperSettings {
@@ -272,6 +289,25 @@ function clampWallpaperDim(raw: unknown): number {
     WALLPAPER_DIM_MAX,
     Math.max(WALLPAPER_DIM_MIN, raw),
   );
+}
+
+/** Zoom bounds for a stored zoom field; anything else degrades to unset. */
+const WALLPAPER_ZOOM_MIN = 1;
+const WALLPAPER_ZOOM_MAX = 4;
+
+function parseWallpaperFit(raw: unknown): WallpaperFit | undefined {
+  return raw === "contain" || raw === "cover" ? raw : undefined;
+}
+
+function clampWallpaperZoom(raw: unknown): number | undefined {
+  if (typeof raw !== "number" || !Number.isFinite(raw)) return undefined;
+  return Math.min(WALLPAPER_ZOOM_MAX, Math.max(WALLPAPER_ZOOM_MIN, raw));
+}
+
+/** Focal-axis clamp: a percent in [0, 100]; garbage degrades to unset. */
+function clampWallpaperFocus(raw: unknown): number | undefined {
+  if (typeof raw !== "number" || !Number.isFinite(raw)) return undefined;
+  return Math.min(100, Math.max(0, raw));
 }
 
 /** True for http(s) and data image-reference URLs; everything else (a
@@ -301,13 +337,24 @@ function parseWallpaperLayer(raw: unknown): WallpaperLayer | null {
   }
   // A missing dim takes the default; a garbage-typed dim drops the whole
   // layer, so no stale image ever renders untinted by accident.
+  // The crop fields follow the darkUrl tolerance instead: a garbage value
+  // drops the FIELD only, so an old layer survives a partial corruption.
   if (record.dim === undefined) {
     return darkUrl === undefined ? { url, dim: WALLPAPER_DIM_DEFAULT } : { url, dim: WALLPAPER_DIM_DEFAULT, darkUrl };
   }
   if (typeof record.dim !== "number" || !Number.isFinite(record.dim)) return null;
-  return darkUrl === undefined
+  const layer: WallpaperLayer = darkUrl === undefined
     ? { url, dim: clampWallpaperDim(record.dim) }
     : { url, dim: clampWallpaperDim(record.dim), darkUrl };
+  const fit = parseWallpaperFit(record.fit);
+  if (fit !== undefined) layer.fit = fit;
+  const zoom = clampWallpaperZoom(record.zoom);
+  if (zoom !== undefined) layer.zoom = zoom;
+  const focusX = clampWallpaperFocus(record.focusX);
+  if (focusX !== undefined) layer.focusX = focusX;
+  const focusY = clampWallpaperFocus(record.focusY);
+  if (focusY !== undefined) layer.focusY = focusY;
+  return layer;
 }
 
 /**
@@ -322,9 +369,13 @@ export function resolvedWallpaperUrl(
 }
 
 /**
- * The style object the panel root paints a wallpaper with, letterboxed
- * (contain, no-repeat, centered — full-fit beats aggressive cropping), with
- * the url escaped so quotes and backslashes can never break out of url().
+ * The style object the panel root paints a wallpaper with. A layer without
+ * crop controls paints the original letterbox exactly (contain, no-repeat,
+ * centered, no transform); stored fit/zoom/focal fields upgrade the paint:
+ * "cover" fills the panel and crops, the focal point picks the crop region
+ * (and anchors the zoom), zoom > 1 scales around that point — the caller
+ * clips the overflow with an overflow-hidden wrapper. URL escaped so quotes
+ * and backslashes can never break out of url().
  * Null = no wallpaper (the caller paints no background style at all).
  */
 export function wallpaperBackgroundStyle(
@@ -333,12 +384,23 @@ export function wallpaperBackgroundStyle(
 ): CSSProperties | null {
   if (layer === null) return null;
   const url = resolvedWallpaperUrl(layer, isDark).replace(/["\\]/gu, "\\$&");
-  return {
+  const fit = layer.fit ?? "contain";
+  const zoom = clampWallpaperZoom(layer.zoom) ?? 1;
+  const focusX = clampWallpaperFocus(layer.focusX);
+  const focusY = clampWallpaperFocus(layer.focusY);
+  const style: CSSProperties = {
     backgroundImage: `url("${url}")`,
-    backgroundSize: "contain",
+    backgroundSize: fit === "cover" ? "cover" : "contain",
     backgroundRepeat: "no-repeat",
-    backgroundPosition: "center",
+    backgroundPosition: focusX === undefined && focusY === undefined ? "center" : `${focusX ?? 50}% ${focusY ?? 50}%`,
   };
+  if (zoom > 1) {
+    const origin =
+      focusX === undefined && focusY === undefined ? "50% 50%" : `${focusX ?? 50}% ${focusY ?? 50}%`;
+    style.transform = `scale(${zoom})`;
+    style.transformOrigin = origin;
+  }
+  return style;
 }
 
 /**
