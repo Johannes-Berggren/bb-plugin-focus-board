@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-// [REDWORK] Regression for issue #119: marking a thread done kept re-scrolling
+// Regression for issue #119: marking a thread done kept re-scrolling
 // the board to the Done column. Board's reveal layout effect consumed a claim
 // by nulling revealClaimRef, but the stale `reveal` prop stayed set in
 // app.tsx — on every later `columns` commit the same claim re-armed (the seq
