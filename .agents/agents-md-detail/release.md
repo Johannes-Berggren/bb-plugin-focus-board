@@ -144,6 +144,26 @@ merging into `dev`, releasing, changelog writing, or tagging.
   entries flat exactly as before; sections that skip the headings lose
   nothing. Every new Unreleased bullet earns a surface heading unless the
   whole group shares one surface.
+- **Standing surfaces.** The modal's groups are the headings' literal
+  strings, merged across the subsections, so loose names fragment the feed:
+  the 1.3.0 draft accumulated twelve groups for thirty bullets with five
+  bullets untagged, one-bullet singletons (State filter, Ticket chips), and
+  near-duplicate names (`Groups` beside `Groups and family boxes`), which is
+  the failure shape. Write Unreleased bullets under the standing surface
+  list, name verbatim: **Card animations**, **Settings**, **Groups and
+  family boxes**, **Cards and chips**, **Board layout**, **Search and
+  filters**, **The New thread composer**. The list grows only by deliberate
+  spoke edit, and only when a feature family no standing name covers will
+  carry multiple bullets; until then a bullet takes its nearest standing
+  surface.
+- **No-singleton rule.** Before a finalize, the section under review must
+  hold no one-bullet surface and no untagged bullet (a whole-group-shares-
+  one-surface section may skip headings entirely). A bullet whose surface
+  would land alone folds into its nearest standing neighbor, even at the
+  cost of precision, because a modal with twelve groups for thirty items
+  reads worse than a slightly loose one; a release feed whose grouped
+  view shows singletons or flat-untagged leads fails the review pass and
+  the grouping is fixed in the section before the tag, never after.
 - The gift button's pulse on dev keys to the group's CONTENT, not the
   version: the fingerprint is written only when the modal opens, so an
   unopened dev build pulses its standing group (if it has bullets) and
@@ -247,7 +267,11 @@ therefore includes a marketplace check before the cut is reported done:
   `#### <surface>` headings ride through as each item's `group` (section 1's
   surface-grouping bullet), and the modal merges same-surface items across
   the subsections; sections with no headings render flat, past and future
-  both.
+  both. Section 1's standing surface list and no-singleton rule govern the
+  group names, so the derived entry's group set is part of the release
+  review: the modal should read as the plugin's feature families, and
+  singletons or flat-untagged leads in it mean the section needs regrouping
+  before the tag.
 - The item rules are therefore just the rules for writing a section's
   first sentences: one user-facing sentence (at most two), "surface first,
   then the behavior"; behavior, never implementation — "Child threads now
