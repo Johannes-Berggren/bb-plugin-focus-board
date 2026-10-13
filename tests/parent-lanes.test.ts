@@ -8,6 +8,7 @@ import {
   type ParentLane,
   type ParentLaneSection,
 } from "../components/parent-lanes";
+import { applyLaneFreezes, type LaneCapture } from "../components/attention-freeze";
 import { STATUS_COLUMN_ORDER, THREAD_STATE_LABELS } from "../components/grouping";
 import { parseGroupStored } from "../components/preferences";
 import { thread } from "./thread-fixture";
@@ -260,6 +261,31 @@ describe("sectionParentLanes", () => {
     const lanes = buildParentLanes([parent, child], new Set(), NOW);
     const sections = sectionParentLanes(lanes, (id) => (id === "x" ? "Chi" : "Other"));
     expect(sections[0].label).toBe("Chi");
+  });
+
+  it("sectioning preserves a lane freeze's on-screen order (Defect 3)", () => {
+    // buildParentLanes recency-sorts, the lane freeze pins attended lanes
+    // back to their captured on-screen positions, and sectioning must NOT
+    // re-sort that order — the attended lane would snap to its recency slot
+    // the moment "By project" engaged.
+    const p1 = thread({ id: "p1", projectId: "a", updatedAt: NOW - 4 * HOUR });
+    const p1c = thread({ id: "p1c", parentThreadId: "p1", projectId: "a", updatedAt: NOW - 5 * HOUR });
+    const p2 = thread({ id: "p2", projectId: "a", updatedAt: NOW - 2 * HOUR });
+    const p2c = thread({ id: "p2c", parentThreadId: "p2", projectId: "a", updatedAt: NOW - 3 * HOUR });
+    const lanes = buildParentLanes([p1, p1c, p2, p2c], new Set(), NOW);
+    expect(laneIds(lanes)).toEqual(["p2", "p1"]);
+    const capture: LaneCapture = {
+      origin: "hover",
+      focusId: "p1",
+      laneId: "p1",
+      laneIndex: 0,
+      row: null,
+      capturedAt: NOW,
+    };
+    const frozen = applyLaneFreezes(lanes, [capture]);
+    expect(laneIds(frozen)).toEqual(["p1", "p2"]);
+    const sections = sectionParentLanes(frozen, () => "Alpha");
+    expect(sectionLaneIds(sections[0])).toEqual(["p1", "p2"]);
   });
 });
 
