@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, afterAll, describe, expect, it, vi } from "vitest";
 import { act } from "react";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { ParentLaneBoard, verticalCardCorrection } from "../components/parent-lane-board";
@@ -327,5 +327,98 @@ describe("scroll snap vs overflowing lanes (issue #22)", () => {
     } finally {
       restore();
     }
+  });
+});
+
+describe("active-card re-lock vs lane assembly refresh (issue #124)", () => {
+  // jsdom has no CSS.escape; runCorrections escapes the active id to build
+  // its card selector.
+  let restoreCss: () => void;
+  beforeAll(() => {
+    const globalWithCss = globalThis as { CSS?: { escape?: unknown } };
+    if (globalWithCss.CSS?.escape !== undefined) {
+      restoreCss = () => {};
+      return;
+    }
+    globalWithCss.CSS = {
+      escape: (value: string) => value.replace(/[^\w-]/g, "\\$&"),
+    };
+    restoreCss = () => {
+      delete globalWithCss.CSS;
+    };
+  });
+  afterAll(() => restoreCss());
+
+  /** Base props shared across rerenders (ids are stable; only lanes change). */
+  const baseProps = {
+    doneIds: new Set<string>(),
+    dimmedIds: new Set<string>(),
+    childrenByParent: new Map(),
+    projectNameFor: () => "Proj",
+    repoBaseFor: () => null,
+    parentLaneOrder: "recency" as const,
+    onParentLaneOrderChange: vi.fn(),
+    onOpenThread: vi.fn(),
+    onClosePane: vi.fn(),
+    onNewTask: vi.fn(),
+    menuActionsFor: () => [],
+  };
+
+  /** Family A (two working children, freshest) then family B (one child,
+   *  older) — recency order is stable across the rebuild, so only the row
+   *  sort inside family A changes. */
+  function families(childAges: [number, number]) {
+    const p0 = thread({ id: "p0", displayTitle: "Family A", updatedAt: NOW - DAY });
+    const p1 = thread({ id: "p1", displayTitle: "Family B", updatedAt: NOW - 2 * DAY });
+    const a0 = thread({ id: "a0", parentThreadId: "p0", status: "active", updatedAt: NOW - childAges[0] });
+    const a1 = thread({ id: "a1", parentThreadId: "p0", status: "active", updatedAt: NOW - childAges[1] });
+    const b0 = thread({ id: "b0", parentThreadId: "p1", status: "active", updatedAt: NOW - 2 * DAY });
+    return [p0, a0, a1, p1, b0];
+  }
+
+  /** Working-row cell order in the locked lane (data-key sequence). */
+  function workingCellOrder(container: HTMLElement): string[] {
+    return [...container.querySelectorAll('section[data-locked] [data-band="working"] [data-cell]')]
+      .map((el) => el.getAttribute("data-key"));
+  }
+
+  it("keeps the operator's vertical scroll when a sibling re-sorts above the selected card", () => {
+    const lanesBefore = buildParentLanes(families([2 * HOUR, HOUR]), new Set(), NOW);
+    const rendered = render(
+      <ParentLaneBoard lanes={lanesBefore} activeThreadId="a1" {...baseProps} />,
+    );
+    const container = rendered.container;
+    // a1 sorts above a0 before the rebuild.
+    expect(workingCellOrder(container)).toEqual(["a1", "a0"]);
+
+    const board = container.querySelector("[data-parent-board]") as HTMLElement;
+    // The operator wheels up to read the cards above the selected one.
+    board.scrollTop = 60;
+    expect(board.scrollTop).toBe(60);
+
+    // A hover capture (or ambient touch) re-sorts the row: a0 jumps above
+    // the selected a1 — sortActiveRow puts the freshest first — and the
+    // parent-lane assembly rebuilds. Lane ids, lane order, and the active
+    // card are all unchanged; only the lanes array identity moves.
+    const lanesAfter = buildParentLanes(families([0, HOUR]), new Set(), NOW);
+    rendered.rerender(<ParentLaneBoard lanes={lanesAfter} activeThreadId="a1" {...baseProps} />);
+    expect(workingCellOrder(container)).toEqual(["a0", "a1"]);
+
+    // The re-sort must not drag the board back down to the selected card.
+    expect(board.scrollTop).toBe(60);
+  });
+
+  it("still brings the selected card into view when the selection changes within its lane", () => {
+    const lanes = buildParentLanes(families([HOUR, HOUR]), new Set(), NOW);
+    const { rerender, container } = render(
+      <ParentLaneBoard lanes={lanes} activeThreadId="a1" {...baseProps} />,
+    );
+    const board = container.querySelector("[data-parent-board]") as HTMLElement;
+    board.scrollTop = 60;
+    // Clicking a sibling in the same lane is explicit intent: the vertical
+    // bring-into-view must still run (jsdom zero rects make every card
+    // "hidden behind the header", so any correction is a negative write).
+    rerender(<ParentLaneBoard lanes={lanes} activeThreadId="a0" {...baseProps} />);
+    expect(board.scrollTop).not.toBe(60);
   });
 });
