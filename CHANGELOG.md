@@ -83,6 +83,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 #### Board scroll
 
 - **The board holds still through ambient resizes.** With a thread selected, any container resize used to slide the whole board back to that card's lane, even height-only changes like the phone keyboard or a composer animation. The re-fit now fires on width changes only, pane openings and drag resizes, so a pan rests where you leave it.
+- **Parent lanes stop the phone snap-back.** A pan at phone widths near 404-467px used to settle by yanking back to the lane it started from, undoing the whole gesture. The pan now rests where you leave it, and lane header clicks still select and lock lanes.
 
 #### Ticket chips
 

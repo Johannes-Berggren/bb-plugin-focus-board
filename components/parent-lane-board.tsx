@@ -252,7 +252,8 @@ export function ParentLaneBoard({
    *  hover. Updated only when the row changes, so pans never re-render. */
   const [bandHover, setBandHover] = useState<string | null>(null);
   const bandHoverRef = useRef<string | null>(null);
-  /** Lanes overflow the viewport (degenerate narrow scrollport): snap-to on
+  /** The viewport is too narrow for lane snapping (a lane overflows, or a
+   *  phone-width scrollport fits fewer than two context columns): snap-to on
    *  scroll is disabled, header clicks select lanes. */
   const snapBlockedRef = useRef(false);
 

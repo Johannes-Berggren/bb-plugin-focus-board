@@ -83,19 +83,26 @@ export function viewportLockedCols(
   return Math.max(1, Math.floor(viewportBudget(viewportWidth, railWidth) / (RULER.w + GAP)));
 }
 
-/** True when the viewport is too narrow to fit even the floored locked lane
- *  (one ruler column) past the rail, the rail→lane gap, and chrome — the
- *  point where the width cap bottoms out and a lane still overflows. The
- *  board answers with no snap-to on scroll (the pan rests where the operator
+/** True when the viewport is too narrow for lane snapping. Two bounds hold
+ *  it: (1) the viewport cannot fit even the floored locked lane (one ruler
+ *  column) past the rail, the rail→lane gap, and chrome — the point where
+ *  the width cap bottoms out and a lane still overflows; (2) phone-width
+ *  scrollports (roughly 404–467px) fit fewer than two context mini columns,
+ *  so the lane rhythm (~160px) sits far below the desktop-scale lane widths
+ *  the grab math assumes — a partial pan rests inside the previous lane's
+ *  grab window and the settle manager yanks it back. Either way the board
+ *  answers with no snap-to on scroll (the pan rests where the operator
  *  leaves it) and header clicks select lanes instead (issue #22 follow-up).
- *  The locked lane's floor binds before any context lane's: one ruler column
- *  (224px) is wider than one mini column (144px), so this single check covers
- *  every lane kind. */
+ *  The locked lane's floor binds before any context lane's on bound (1):
+ *  one ruler column (224px) is wider than one mini column (144px). */
 export function laneOverflowsViewport(
   viewportWidth: number,
   railWidth: number = RAIL_W_DEFAULT,
 ): boolean {
-  return viewportBudget(viewportWidth, railWidth) < lockedLaneWidth(1);
+  const budget = viewportBudget(viewportWidth, railWidth);
+  if (budget < lockedLaneWidth(1)) return true;
+  // Fewer than two context mini columns fit: phones must never snap.
+  return budget < contextLaneWidth(2);
 }
 
 /** Mini-card rows that fit one shared band of the given height. */

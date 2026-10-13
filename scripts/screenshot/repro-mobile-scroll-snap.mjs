@@ -14,10 +14,14 @@ const CHROME = process.env.CHROME_PATH ?? "/Applications/Google Chrome.app/Conte
 const BASE = process.env.HARNESS_URL ?? "http://localhost:5173/";
 const OUT = new URL("../../docs/screenshots/repro-mobile-scroll-snap/", import.meta.url).pathname;
 
-// Two phone sizes: 390 (laneOverflowsViewport should BLOCK snap) and 430
-// (iPhone Pro Max, budget 250 >= 224 so snap stays enabled).
+// Phone sizes spanning the affected band: 390 blocks on the floored locked
+// lane, 404/412/424/430 fit one lane but fewer than two context mini columns
+// so laneOverflowsViewport still blocks snap (the extended narrow-viewport
+// bound).
 const SIZES = [
   { name: "phone-390", width: 390, height: 844 },
+  { name: "phone-412", width: 412, height: 915 },
+  { name: "phone-424", width: 424, height: 844 },
   { name: "phone-430", width: 430, height: 932 },
 ];
 
