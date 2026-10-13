@@ -11,6 +11,11 @@ export const UNRELEASED_ITEMS: readonly { text: string; children: string[]; grou
     "group": "Toolbar"
   },
   {
+    "text": "**Hovering a card makes it more prominent, not less.** The hovered card keeps its opaque background instead of going translucent (the lane background and wallpaper no longer bleed through it), and the other cards recede slightly while one is hovered. Done, dimmed, snoozed, and sweep-highlighted cards keep their own fade treatment.",
+    "children": [],
+    "group": "Card hover"
+  },
+  {
     "text": "**Closing the thread pane releases the card it froze.** The pane-open push consumed its settle marker in a way that also ate the close's, so a closed pane's attention capture survived and the frozen family card stopped following live state (a running child could never lift it into Working until the next open or a drag). Now the close settle clears the capture, the fallback close clears it without a settle, and the decision lives in one pure `paneRouteAction` map.",
     "children": [],
     "group": "Board layout"

@@ -9,7 +9,7 @@ import {
 import type { PluginSidebarThread } from "@get-bb/plugin-sdk/app";
 import { Icon } from "@/components/ui/icon";
 import { cn } from "@/lib/utils";
-import { ThreadCard } from "./thread-card";
+import { CARD_SPOTLIGHT_CLASSES, ThreadCard } from "./thread-card";
 import type { ThreadLink } from "../lib/link-metadata";
 import type { CardMenuAction } from "./thread-card-menu";
 import { EmptyState } from "./empty-state";
@@ -728,7 +728,10 @@ export function ParentLaneBoard({
       onMouseMove={trackBandHover}
       onMouseLeave={clearBandHover}
       data-parent-board
-      className="min-h-0 flex-1 overflow-auto px-3 pb-3 pt-2"
+      className={cn(
+        "min-h-0 flex-1 overflow-auto px-3 pb-3 pt-2",
+        CARD_SPOTLIGHT_CLASSES,
+      )}
     >
       <div className="flex min-h-full w-max items-stretch">
         {/* Row rail: pinned left; labels ride their band heights, so labels
