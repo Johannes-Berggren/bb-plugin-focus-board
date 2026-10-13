@@ -301,6 +301,21 @@ describe("scroll snap vs overflowing lanes (issue #22)", () => {
     }
   });
 
+  it("does not snap-to on scroll at phone widths that fit one lane (424px)", async () => {
+    // 424px fits the floored locked lane (budget 244 >= 224) but fewer than
+    // two context mini columns, so snap-to still stays off — the pan rests.
+    const { board, rendered, scrollTo, restore } = setup(424);
+    try {
+      board.scrollLeft = 4000;
+      fireEvent.scroll(board);
+      await vi.advanceTimersByTimeAsync(3200);
+      expect(rendered.container.querySelector("section[data-locked]")).toBeNull();
+      expect(scrollTo).not.toHaveBeenCalled();
+    } finally {
+      restore();
+    }
+  });
+
   it("header clicks still re-lock and recut lanes when snap is disabled", async () => {
     const { rendered, restore } = setup(380);
     try {

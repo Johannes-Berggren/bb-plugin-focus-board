@@ -232,13 +232,25 @@ describe("computeParentLaneLayout", () => {
 describe("laneOverflowsViewport", () => {
   it("holds when the viewport budget cannot fit even the floored ruler column", () => {
     // Budget = vw - rail - gap - chrome; one ruler column is 224px wide, so
-    // the boundary sits at 404px viewport.
+    // this bound holds below a 404px viewport.
     expect(laneOverflowsViewport(403, RAIL_W)).toBe(true);
     expect(laneOverflowsViewport(300, RAIL_W)).toBe(true);
   });
 
-  it("clears at the exact boundary where one ruler column fits", () => {
-    expect(laneOverflowsViewport(404, RAIL_W)).toBe(false);
+  it("holds across the whole phone band: Android (~412) to iPhone Pro Max (~430)", () => {
+    // Phones fit one locked lane but fewer than two context mini columns, so
+    // the lane rhythm (~160px) sits far below the grab math's desktop-scale
+    // lane widths — a partial pan must rest unhindered, never snap.
+    for (const vw of [390, 404, 412, 424, 430]) {
+      expect(laneOverflowsViewport(vw, RAIL_W)).toBe(true);
+    }
+  });
+
+  it("clears once the budget fits two context columns (desktop widths keep snapping)", () => {
+    // Two context mini columns take 2*136 + gap + padding = 288px of budget,
+    // so the boundary sits at a 468px viewport.
+    expect(laneOverflowsViewport(468, RAIL_W)).toBe(false);
+    expect(laneOverflowsViewport(768, RAIL_W)).toBe(false);
     expect(laneOverflowsViewport(1280, RAIL_W)).toBe(false);
   });
 
