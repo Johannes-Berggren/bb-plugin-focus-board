@@ -69,6 +69,14 @@ beforeEach(() => {
   window.localStorage.clear();
 });
 
+describe("BoardToolbar compact header tint", () => {
+  it("the compact toolbar's root band carries the muted tint", () => {
+    const { container } = renderToolbar();
+    const root = container.firstElementChild as HTMLElement;
+    expect(root.className).toContain("bg-muted/50");
+  });
+});
+
 afterEach(() => {
   cleanup();
 });

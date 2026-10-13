@@ -65,6 +65,13 @@ function openViewMenu(): void {
   fireEvent.click(button);
 }
 
+describe("BoardToolbar header tint", () => {
+  it("the desktop toolbar's root band carries the muted tint", () => {
+    const root = renderToolbar();
+    expect(root.className).toContain("bg-muted/50");
+  });
+});
+
 afterEach(() => {
   cleanup();
 });

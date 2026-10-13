@@ -5,8 +5,6 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
-_Nothing unreleased — bullets land here as work merges._
-
 ### Added
 
 #### Search and filters
@@ -14,6 +12,10 @@ _Nothing unreleased — bullets land here as work merges._
 - **Mobile collapses the filter palette into a header toggle.** On a narrow screen the toolbar keeps New thread, search, the toggle, and the settings gear in one row, while View, the four filters, Clear, and the thread count hide inside an expandable ribbon that badges how many filters are active. The open/closed choice persists per browser and the desktop row is unchanged.
 
 ### Changed
+
+#### Toolbar
+
+- **The toolbar reads as its own band.** The header row paints a muted tint shared by the light and dark themes, so its controls stand apart from the board body and the header is easy to find on a busy board.
 
 ### Fixed
 

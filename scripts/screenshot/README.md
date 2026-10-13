@@ -48,6 +48,14 @@ host app involved.
   `evidence.json`). Run the vite harness first (same as above), then
   `node scripts/screenshot/repro-done-scroll-yank.mjs`; honors the same
   `CHROME_PATH`, `HARNESS_URL`, and `OUT_DIR` overrides.
+- `capture-toolbar-tint.mjs` — one-shot header capture for the toolbar's
+  band tint: shots the toolbar in dark then light, desktop (1920x1080) and
+  phone (390x844), and exits non-zero unless all four states resolve the
+  band's computed `bg-muted/50` background. Artifacts land in
+  `docs/screenshots/repro-toolbar-tint/` (four clips plus `evidence.json`).
+  Run the vite harness first (same as above), then
+  `HARNESS_URL=... node scripts/screenshot/capture-toolbar-tint.mjs`;
+  honors the same `CHROME_PATH` and `HARNESS_URL` overrides.
 
 Regenerate the screenshots:
 

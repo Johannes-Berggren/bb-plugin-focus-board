@@ -1,0 +1,22 @@
+[
+  {
+    "variant": "desktop",
+    "theme": "dark",
+    "toolbarBackground": "oklab(0.2934 0 0 / 0.5)"
+  },
+  {
+    "variant": "desktop",
+    "theme": "light",
+    "toolbarBackground": "oklab(0.8626 0 0 / 0.5)"
+  },
+  {
+    "variant": "phone",
+    "theme": "dark",
+    "toolbarBackground": "oklab(0.2934 0 0 / 0.5)"
+  },
+  {
+    "variant": "phone",
+    "theme": "light",
+    "toolbarBackground": "oklab(0.8626 0 0 / 0.5)"
+  }
+]
