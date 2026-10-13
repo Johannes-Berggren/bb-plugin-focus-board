@@ -4,5 +4,10 @@ export const UNRELEASED_ITEMS: readonly { text: string; children: string[]; grou
     "text": "**Mobile collapses the filter palette into a header toggle.** On a narrow screen the toolbar keeps New thread, search, the toggle, and the settings gear in one row, while View, the four filters, Clear, and the thread count hide inside an expandable ribbon that badges how many filters are active. The open/closed choice persists per browser and the desktop row is unchanged.",
     "children": [],
     "group": "Search and filters"
+  },
+  {
+    "text": "**Closing the thread pane releases the card it froze.** The pane-open push consumed its settle marker in a way that also ate the close's, so a closed pane's attention capture survived and the frozen family card stopped following live state (a running child could never lift it into Working until the next open or a drag). Now the close settle clears the capture, the fallback close clears it without a settle, and the decision lives in one pure `paneRouteAction` map.",
+    "children": [],
+    "group": "Board layout"
   }
 ];
