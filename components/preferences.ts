@@ -80,11 +80,12 @@ export function parseParentLaneOrderStored(raw: string | null): ParentLaneOrder 
 
 /**
  * Collapsed family cards' persistence. The stored list holds the PARENT
- * thread ids whose nested child rows are collapsed; every id absent from it
- * renders expanded (the default), so the list only ever records deliberate
- * collapses. Tolerant like every other stored value: corrupt JSON, a
- * non-array, or non-string entries degrade to fewer (or zero) collapsed
- * families, never to a board that fails to load.
+ * thread ids whose nested child rows are collapsed, plus a Done
+ * projection's prefixed keys (`done:<parent id>`) for its own rows;
+ * every id absent from it renders expanded (the default), so the list only
+ * ever records deliberate collapses. Tolerant like every other stored
+ * value: corrupt JSON, a non-array, or non-string entries degrade to fewer
+ * (or zero) collapsed families, never to a board that fails to load.
  */
 export const COLLAPSED_FAMILIES_KEY = "focus-board:collapsedFamilies";
 

@@ -9,6 +9,7 @@ import { cleanup, fireEvent, render } from "@testing-library/react";
 import type { PluginSidebarThread } from "@get-bb/plugin-sdk/app";
 import { Board } from "../components/board";
 import { buildColumns } from "../components/grouping";
+import { assembleBoard } from "../components/nesting";
 import { thread } from "./thread-fixture";
 
 const NOW = 10_000_000;
@@ -96,5 +97,44 @@ describe("Board collapse wiring", () => {
     fireEvent.click(toggle(false));
     expect(row("thr_c1")).toBeNull();
     expect(toggle(true).textContent).toContain("2 child threads");
+  });
+
+  it("a Done projection card does not inherit the live card's fold (Defect 8)", () => {
+    // A root's live card and its Done projection are two cards; the fold
+    // holds per card, not per root. Folding the live card (its live rows)
+    // must leave the Done projection expanded (its done rows).
+    const parent = thread({ id: "thr_parent", displayTitle: "Parent", updatedAt: NOW - 5000 });
+    const liveChild = thread({
+      id: "thr_c1",
+      parentThreadId: "thr_parent",
+      displayTitle: "Child one",
+      updatedAt: NOW - 4000,
+    });
+    const doneChild = thread({
+      id: "thr_d1",
+      parentThreadId: "thr_parent",
+      displayTitle: "Done child",
+      updatedAt: NOW - 2000,
+      status: "idle",
+    });
+    const assembly = assembleBoard(
+      [parent, liveChild, doneChild],
+      "status",
+      context,
+      new Map(),
+      new Set(["thr_d1"]),
+      NOW,
+    );
+    renderBoard({
+      columns: assembly.columns,
+      nestedChildrenByParent: assembly.nestedChildrenByParent,
+      childCountByParent: assembly.childCountByParent,
+      doneChildrenByParent: assembly.doneChildrenByParent,
+      collapsedFamilyIds: new Set(["thr_parent"]),
+    });
+    // The live card folds: its live child row is gone.
+    expect(row("thr_c1")).toBeNull();
+    // The Done projection stays expanded: the done row still renders.
+    expect(row("thr_d1")).not.toBeNull();
   });
 });
