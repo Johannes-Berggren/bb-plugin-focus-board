@@ -299,15 +299,25 @@ function parseWallpaperFit(raw: unknown): WallpaperFit | undefined {
   return raw === "contain" || raw === "cover" ? raw : undefined;
 }
 
+/** The zoom factor a paint or gesture may use, clamped into [1, 4]. */
+export function clampedWallpaperZoom(raw: number): number {
+  return Math.min(WALLPAPER_ZOOM_MAX, Math.max(WALLPAPER_ZOOM_MIN, raw));
+}
+
 function clampWallpaperZoom(raw: unknown): number | undefined {
   if (typeof raw !== "number" || !Number.isFinite(raw)) return undefined;
-  return Math.min(WALLPAPER_ZOOM_MAX, Math.max(WALLPAPER_ZOOM_MIN, raw));
+  return clampedWallpaperZoom(raw);
+}
+
+/** The focal-axis percent a paint or gesture may use, clamped into [0, 100]. */
+export function clampedWallpaperFocus(raw: number): number {
+  return Math.min(100, Math.max(0, raw));
 }
 
 /** Focal-axis clamp: a percent in [0, 100]; garbage degrades to unset. */
 function clampWallpaperFocus(raw: unknown): number | undefined {
   if (typeof raw !== "number" || !Number.isFinite(raw)) return undefined;
-  return Math.min(100, Math.max(0, raw));
+  return clampedWallpaperFocus(raw);
 }
 
 /** True for http(s) and data image-reference URLs; everything else (a
@@ -324,7 +334,7 @@ export function isAllowedWallpaperUrl(url: string): boolean {
 
 function parseWallpaperLayer(raw: unknown): WallpaperLayer | null {
   if (raw === null || typeof raw !== "object") return null;
-  const record = raw as { url?: unknown; dim?: unknown; darkUrl?: unknown };
+  const record = raw as { url?: unknown; dim?: unknown; darkUrl?: unknown; fit?: unknown; zoom?: unknown; focusX?: unknown; focusY?: unknown };
   if (typeof record.url !== "string") return null;
   const url = record.url.trim();
   if (url === "" || !isAllowedWallpaperUrl(url)) return null;

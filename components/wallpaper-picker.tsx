@@ -9,6 +9,7 @@ import {
   type WallpaperLayer,
   type WallpaperSettings,
 } from "./preferences";
+import { useBoardGeometry, WallpaperViewport } from "./wallpaper-viewport";
 import { usePrefersDarkScheme } from "./ui/hooks/use-media-query";
 import {
   PICSUM_SEEDS,
@@ -29,23 +30,6 @@ import {
  * active. Every gallery write goes through the same store validation the
  * typed url does, so no source can smuggle in an url the document refuses.
  */
-/**
- * The focal grid's nine points: focal percents snap to the 3x3 anchors
- * (the corners, edge midpoints, and center), so the grid is exact clicks,
- * not free sliders.
- */
-const FOCAL_POINTS: readonly { x: number; y: number; label: string }[] = [
-  { x: 0, y: 0, label: "top left" },
-  { x: 50, y: 0, label: "top" },
-  { x: 100, y: 0, label: "top right" },
-  { x: 0, y: 50, label: "left" },
-  { x: 50, y: 50, label: "center" },
-  { x: 100, y: 50, label: "right" },
-  { x: 0, y: 100, label: "bottom left" },
-  { x: 50, y: 100, label: "bottom" },
-  { x: 100, y: 100, label: "bottom right" },
-];
-
 /** A layer's crop fields (fit/zoom/focal), omitted while they sit at their
  *  untouched defaults AND the stored layer never carried them — so a
  *  freshly-default document stores the exact compact shape it always did. */
@@ -73,6 +57,7 @@ export function WallpaperPicker({
 }) {
   const active = wallpaper.global;
   const dark = usePrefersDarkScheme();
+  const geometry = useBoardGeometry();
   const [query, setQuery] = useState<string>(active?.url ?? "");
   const [dim, setDim] = useState<number>(active?.dim ?? 0.35);
   const [fit, setFit] = useState<WallpaperFit>(active?.fit ?? "contain");
@@ -174,6 +159,22 @@ export function WallpaperPicker({
       </div>
       <OpenverseSearch onPick={commitFromGallery} />
       <div className="mt-2 border-t border-border pt-2">
+        {active !== null ? (
+          <WallpaperViewport
+            layer={active}
+            dark={dark}
+            geometry={geometry}
+            onFocusChange={(x, y) => {
+              setFocusX(x);
+              setFocusY(y);
+              commitActive({ focusX: x, focusY: y });
+            }}
+            onZoomChange={(zoom) => {
+              setZoom(zoom);
+              commitActive({ zoom });
+            }}
+          />
+        ) : null}
         <Input
           value={query}
           onChange={(event) => {
@@ -261,36 +262,6 @@ export function WallpaperPicker({
             }}
             className="min-w-0 flex-1 accent-[var(--primary)]"
           />
-        </div>
-        <div className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground">
-          <span className="shrink-0">Focal</span>
-          <div className="grid shrink-0 grid-cols-3 gap-0.5">
-            {FOCAL_POINTS.map((point) => {
-              const pressed = point.x === focusX && point.y === focusY;
-              return (
-                <button
-                  key={point.label}
-                  type="button"
-                  aria-label={`Wallpaper focal point: ${point.label}`}
-                  aria-pressed={pressed}
-                  title={`Focal point: ${point.label} (crop region and zoom anchor)`}
-                  onClick={() => {
-                    setFocusX(point.x);
-                    setFocusY(point.y);
-                    commitActive({ focusX: point.x, focusY: point.y });
-                  }}
-                  className={`flex size-4 items-center justify-center rounded-sm border transition-colors hover:bg-accent ${
-                    pressed ? "border-ring bg-accent" : "border-border"
-                  }`}
-                >
-                  <span
-                    className={`block size-1 rounded-full ${pressed ? "bg-foreground" : "bg-muted-foreground"}`}
-                    aria-hidden
-                  />
-                </button>
-              );
-            })}
-          </div>
         </div>
         {active !== null ? (
           <button
