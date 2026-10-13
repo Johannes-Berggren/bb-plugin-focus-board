@@ -23,6 +23,13 @@ export const UNRELEASED_ITEMS: readonly { text: string; children: string[]; grou
     "children": []
   },
   {
+    "text": "**A wallpaper can fill the board instead of letterboxing.** The picker gains a fit toggle (Letterbox / Fill), a zoom slider, and a nine-point focal grid for picking the crop region and zoom anchor; every control carries forward untouched, typed url edits keep a layer's dark variant, and stored wallpapers without the new fields render exactly as before.",
+    "children": [
+      "Fits and zooms that paint past the board edge are clipped, so a zoomed wallpaper never scrolls or resizes the board."
+    ],
+    "group": "Wallpaper"
+  },
+  {
     "text": "**The configuration page mirrors the Appearance tab.** Beside the declared settings on Focus Board's plugins page, a section re-renders the card animation and motion choices and the wallpaper picker, writing the same per-browser values the modal writes, so an edit in either place covers both.",
     "children": [],
     "group": "Settings"
