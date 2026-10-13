@@ -23,6 +23,32 @@ export function paneSubPathFor(threadId: string): string {
   return `${PANE_PREFIX}${threadId}`;
 }
 
+/** What the pane route effect must do for one settled `subPath` reading:
+ *  `subPath` resolved to `paneThreadId` while `pushedThreadId` is the id a
+ *  pending board-own push is waiting to see land. */
+export type PaneRouteAction =
+  /** The echo of the board's own open push: consume the pushed-id ref,
+   *  keep the capture the click took. */
+  | { kind: "settle-open" }
+  /** The echo of the board's own close push — or any settle with no pane:
+   *  release the attention pin the open captured. */
+  | { kind: "settle-close" }
+  /** A subPath change the board did not push (back arrow, deep link):
+   *  adopt the URL's thread and capture its placement. */
+  | { kind: "adopt"; threadId: string };
+
+/** Decides the action for `paneThreadId` against `pushedThreadId`. */
+export function paneRouteAction(
+  paneThreadId: string | null,
+  pushedThreadId: string | null,
+): PaneRouteAction {
+  if (paneThreadId === pushedThreadId && paneThreadId !== null) {
+    return { kind: "settle-open" };
+  }
+  if (paneThreadId === null) return { kind: "settle-close" };
+  return { kind: "adopt", threadId: paneThreadId };
+}
+
 /**
  * The thread id a panel `subPath` routes to, or null when the subPath is the
  * panel root or anything that is not a single-segment thread route. A null

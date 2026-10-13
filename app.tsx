@@ -94,6 +94,7 @@ import {
 import {
   paneSubPathFor,
   paneThreadIdFromSubPath,
+  paneRouteAction,
 } from "./lib/pane-route";
 import { applyMoveVisible, orderForColumn, type RankStore } from "./lib/rank";
 import {
@@ -1937,7 +1938,12 @@ function BoardPage({ subPath }: { subPath: string }) {
     pushedThreadIdRef.current = null;
     const rejected = pushRejected(() => navigate.toPluginPanel(PANEL_PATH, { subPath: "" }));
     if (rejected && openThreadId !== null) {
+      // The rejected push never settles, so the route effect's close branch
+      // does not run: release the attention pin here instead — fallback mode
+      // owns the pane without URL state, and this close is the whole story.
       setFallbackPaneThreadId(null);
+      setPaneCapture(null);
+      setPaneLaneCapture(null);
     }
   }, [navigate, openThreadId]);
 
@@ -1948,8 +1954,19 @@ function BoardPage({ subPath }: { subPath: string }) {
   // pushed id, so a dropped push (route owner said no) leaves no stale marker
   // and the next back navigation still wins.
   useEffect(() => {
-    if (paneThreadId === pushedThreadIdRef.current) {
-      if (paneThreadId !== null) pushedThreadIdRef.current = null;
+    const action = paneRouteAction(paneThreadId, pushedThreadIdRef.current);
+    if (action.kind === "settle-open") {
+      pushedThreadIdRef.current = null;
+      return;
+    }
+    if (action.kind === "settle-close") {
+      // A close settle — ours (closeThreadPane's push landing) or the board's
+      // back arrow walking to the plain board — releases the attention pin
+      // the open captured; the placement rules run again from here on.
+      pushedThreadIdRef.current = null;
+      setFallbackPaneThreadId(null);
+      setPaneCapture(null);
+      setPaneLaneCapture(null);
       return;
     }
     // External navigation onto a thread the board has open elsewhere in its
@@ -1958,27 +1975,22 @@ function BoardPage({ subPath }: { subPath: string }) {
     // must never re-freeze, or a thread that moved placements would slide the
     // card after the fact (the same contract a click-opened pane has); the
     // recapture pass below is the only re-pin, and it reads the pinned board.
-    if (paneThreadId !== null) {
-      setFallbackPaneThreadId(null);
-      setPaneCapture((current) => {
-        if (current !== null && current.focusId === paneThreadId) return current;
-        const rebuilt = captureThreadAttention(paneThreadId, "selection");
-        return rebuilt;
+    const adoptId = action.threadId;
+    setFallbackPaneThreadId(null);
+    setPaneCapture((current) => {
+      if (current !== null && current.focusId === adoptId) return current;
+      const rebuilt = captureThreadAttention(adoptId, "selection");
+      return rebuilt;
+    });
+    setPaneLaneCapture((current) => {
+      if (current !== null && current.focusId === adoptId) return current;
+      const input = attentionInputRef.current;
+      if (input === null || !input.parent || input.parentLanes === null) return current;
+      return laneCaptureOf(input.parentLanes, adoptId, {
+        origin: "selection",
+        capturedAt: Date.now(),
       });
-      setPaneLaneCapture((current) => {
-        if (current !== null && current.focusId === paneThreadId) return current;
-        const input = attentionInputRef.current;
-        if (input === null || !input.parent || input.parentLanes === null) return current;
-        return laneCaptureOf(input.parentLanes, paneThreadId, {
-          origin: "selection",
-          capturedAt: Date.now(),
-        });
-      });
-    } else {
-      setFallbackPaneThreadId(null);
-      setPaneCapture(null);
-      setPaneLaneCapture(null);
-    }
+    });
   }, [paneThreadId, captureThreadAttention]);
 
   // Project creation needs a host checkout path; the personal workspace's
