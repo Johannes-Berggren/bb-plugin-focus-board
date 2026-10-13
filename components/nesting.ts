@@ -128,7 +128,19 @@ export function withSlotPins(
   slots: ReadonlyMap<string, number>,
 ): BoardColumn[] {
   if (slots.size === 0) return [...columns];
-  return columns.map((column) => ({ ...column, threads: applySlotPins(column.threads, slots) }));
+  return columns.map((column) => {
+    // The plan's slot pins are keyed column AND thread (slotPinKey); only
+    // this column's own entries apply, so a twin card in another lane (a
+    // family's Done projection) keeps its own slot.
+    const own = new Map<string, number>();
+    for (const [key, index] of slots) {
+      const separator = key.indexOf("\u0000");
+      if (separator === -1 || key.slice(0, separator) !== column.id) continue;
+      own.set(key.slice(separator + 1), index);
+    }
+    if (own.size === 0) return column;
+    return { ...column, threads: applySlotPins(column.threads, own) };
+  });
 }
 
 /**

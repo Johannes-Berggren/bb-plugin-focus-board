@@ -11,6 +11,7 @@ import {
   compileAttentionFreezes,
   laneCaptureOf,
   pinRowOrder,
+  slotPinKey,
   type AttentionCapture,
   type LaneCapture,
 } from "../components/attention-freeze";
@@ -134,8 +135,8 @@ describe("compileAttentionFreezes", () => {
     };
     const plan = compileAttentionFreezes([older, newer]);
     expect([...plan.columns.keys()].sort()).toEqual(["f1", "f2"]);
-    expect(plan.slots.get("f1")).toBe(2);
-    expect(plan.slots.get("f2")).toBe(0);
+    expect(plan.slots.get(slotPinKey("col-1", "f1"))).toBe(2);
+    expect(plan.slots.get(slotPinKey("col-2", "f2"))).toBe(0);
     expect(plan.stayNested.has("f2")).toBe(true);
     expect(plan.rowSlots.get("root")?.get("f2")).toBe(1);
   });
@@ -145,7 +146,7 @@ describe("compileAttentionFreezes", () => {
     const newer = captureOf("f1", [["f1", "col-0", "Zero", 0]], 300);
     const plan = compileAttentionFreezes([older, newer]);
     expect(plan.columns.get("f1")).toEqual({ id: "col-0", label: "Zero" });
-    expect(plan.slots.get("f1")).toBe(0);
+    expect(plan.slots.get(slotPinKey("col-0", "f1"))).toBe(0);
   });
 });
 
