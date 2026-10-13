@@ -345,3 +345,64 @@ subordinate to parent cards (smaller text, muted, indent rail).
 | Family filter with archived members | low | auto (live match keeps archived rider) | auto (archived-only match drops family) | auto (archived rider dimmed) | skip |
 | Nesting toggle OFF (assembly) | low | auto (flat, chips empty, promotion bypassed) | auto (archived children hidden) | auto (deep descendants flat) | auto (filter per-thread) |
 | Nesting toggle persistence | low | auto (`parseNestStored` round-trip) | auto (invalid value → default ON) | auto (null → ON) | skip |
+
+## Refinement round 3 (2026-10-13, independent ruleset audit)
+
+An independent derivation (Claude Opus 5.5 thread `thr_zeyu4phivu`, reading the code
+blind to this plan) reconciled the plan against the code and the derived ruleset.
+This round records the decisions that landed then; decisions 1, 3, 4 and R2's
+wording are superseded where the table below says so, and the drift list they
+produced is now resolved.
+
+### Decisions superseded
+
+- **Decision 1 (promotion) is replaced by R4 and the same-space rule.** The live
+  family moves as one unit into the lane of its most attention-requiring live
+  member, so a higher-precedence child nests into that lane instead of
+  promoting; promotion survives only where the family cannot follow. The
+  nesting decision is one same-space test in four steps: done is its own space
+  (a live parent's done children project, a done parent's done children nest),
+  operator-intent cards stand alone (pinned, needs-you, with the attention
+  freeze's stayNested holding an attended row), a done parent shares its space
+  with no live child (every live child of a done root gets its own card, every
+  view), and a child nests only when it shares the root's space key.
+- **Decision 2 gains the feature-group axis.** Project, provider, machine, and
+  the feature-group assignment are data keys a child must match; a cross-key
+  child stays flat in its own lane. The group view never had a key check
+  before this round (it fell into the always-nest default).
+- **Decision 3's `+N more` chip is retired by flattening.** Every descendant is
+  flattened onto the family root as real rows; no chip exists.
+- **Decision 4 is restored to full strength: ONE keep pass.** The group-box
+  filter pass (`filterWithGroupBoxes`) that ran after the family filter
+  re-gated its input and dropped dimmed family members whenever any frame
+  existed (a missed-search parent vanished, its stranded child re-rooted as a
+  lone card, frame members dropped whole when their own box held no matcher).
+  The pass is deleted; the family filter is the board's only filter rule and
+  group frames can never re-gate it.
+- **Decision 7 (in-memory fold) is replaced by persistence.** Fold state saves
+  to localStorage per card, and a Done projection keeps its own fold entry
+  (`done:<parent id>`), separate from the live card's.
+- **R2 (archived children nest with an archived look) is replaced by outright
+  hiding.** Archived members render nowhere; the family index drops them at
+  the door.
+
+### The freeze contract, as recorded
+
+- Slot pins hold column AND thread (`slotPinKey`): a family's live card and its
+  Done projection are two cards, and a thread-only pin moved the twin to the
+  live slot's index.
+- Parent-view sectioning ("By project") is a stable grouping, never a re-sort:
+  the sectioning preserves the order it receives (recency sort in
+  `buildParentLanes`, then the lane freeze's on-screen pins), so a frozen lane
+  keeps its hold across the sectioning; sections themselves still order by
+  their freshest lane.
+- The precedence ladder, one statement: a user's own gesture placement, then
+  the attention freeze, then the family lane, then group frames (which claim
+  nothing), then the member's own data.
+
+### Open (logged in docs/tech-debt)
+
+The pane freeze's view-crossing half (Defect 4 in the audit: a pane capture
+cleared when its view left, a stale lane capture revived on re-entry) rides the
+freeze-store unification (one store, container-keyed pins, view-change
+recapture), not landed here.

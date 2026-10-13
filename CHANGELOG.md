@@ -27,6 +27,22 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - **Hovering a card makes it more prominent, not less.** The hovered card keeps its opaque background instead of going translucent (the lane background and wallpaper no longer bleed through it), the hover surface darkens below the resting card in both themes for stronger contrast, and the other cards recede slightly while one is hovered. Done, dimmed, snoozed, and sweep-highlighted cards keep their own fade treatment.
 
+#### Family frames
+
+- **A search hit keeps the family whole no matter what frames exist.** A second pass re-gated the family filter's output and dropped dimmed family members whenever a group frame existed anywhere on the board, so a missed-search parent card vanished and its child re-rooted as a lone card. The redundant pass is deleted: the family filter is the one keep rule, and frames never touch what it keeps.
+
+#### Family nesting
+
+- **Thread nesting no longer moves a child into a label it does not belong to.** Under the Group view a child nested into the parent's lane even when its feature-group assignment named another group, and that lane just lost it. The same-space rule keys the group assignment like project, provider, and machine, so a cross-group child stands alone in its own group column.
+- **Live work no longer hides under a Done card.** A live child of a Done parent stayed nested as a row inside the Done card whenever the view's own rules said it fit. Every live child of a Done parent now gets its own card, in every view.
+- **A Done projection card folds on its own.** The stored fold held the parent id alone, so folding the live family card also folded the projection sitting in the Done lane; the projection keeps its own fold entry now.
+- **Attending to a family's live card no longer moves its Done projection.** The attention freeze's slot pin was keyed by thread alone and applied in every lane, so the attended card's twin in Done jumped to the live slot's index. The pin holds column and thread now.
+
+#### Parent lanes
+
+- **A frozen parent-lane keeps its hold under By project.** The project sections re-sorted every section's lanes by recency and threw the lane freeze away, so the attended lane snapped back the moment By project engaged. The sectioning now preserves the order it receives, sections themselves still ordering by their freshest lane.
+- **Parent-lane board stops yanking the scroll back to the selected card.** With a card selected, every lane assembly rebuild re-ran the same-lane scroll correction and dragged the vertical scroll back down to the selection. Only a selection change, a lane move, or a viewport resize re-locks now; a hover capture or an ambient re-sort that merely rebuilds the lanes leaves the scroll alone.
+
 #### Board layout
 
 - **Closing the thread pane releases the card it froze.** The pane-open push consumed its settle marker in a way that also ate the close's, so a closed pane's attention capture survived and the frozen family card stopped following live state (a running child could never lift it into Working until the next open or a drag). Now the close settle clears the capture, the fallback close clears it without a settle, and the decision lives in one pure `paneRouteAction` map.
@@ -36,10 +52,6 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 #### Reveal scroll
 
 - **Mark Done no longer drags the board back to the Done column.** The reveal request stayed set after it scrolled once, and every later board refresh re-armed the same request, yanking the view back to the done card's lane against the operator's scroll. The claim now records that it was consumed, so a fresh reveal (the next Mark Done, Pin, or read state change) still scrolls while refreshes leave the pan alone.
-
-#### Parent lanes
-
-- **Parent-lane board stops yanking the scroll back to the selected card.** With a card selected, every lane assembly rebuild re-ran the same-lane scroll correction and dragged the vertical scroll back down to the selection. Only a selection change, a lane move, or a viewport resize re-locks now; a hover capture or an ambient re-sort that merely rebuilds the lanes leaves the scroll alone.
 
 #### Group boxes
 
