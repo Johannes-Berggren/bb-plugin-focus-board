@@ -71,6 +71,11 @@ export const UNRELEASED_ITEMS: readonly { text: string; children: string[]; grou
     "group": "Family nesting"
   },
   {
+    "text": "**A child thread spawned from a child card nests under that card's row.** Right-clicking a nested child card and picking \"New child thread…\" used to leave the new thread beside its parent under the family root, breaking the dialog's \"Will nest under\" promise. Families now follow their real edges one row level deeper (a child row carries its own children as indented sub-rows; deeper members still re-attach to the root), and when the display target differs from the spawn parent, the dialog names both.",
+    "children": [],
+    "group": "Family nesting"
+  },
+  {
     "text": "**A frozen parent-lane keeps its hold under By project.** The project sections re-sorted every section's lanes by recency and threw the lane freeze away, so the attended lane snapped back the moment By project engaged. The sectioning now preserves the order it receives, sections themselves still ordering by their freshest lane.",
     "children": [],
     "group": "Parent lanes"

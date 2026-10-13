@@ -14,7 +14,7 @@ import {
 } from "@/lib/ticket-chips";
 import type { GitHubItemStatus } from "@/lib/tracker-status";
 
-import { DRAG_ID_KEY, rankDragType } from "../lib/rank";
+import { DRAG_ID_KEY, childRankKey, rankDragType } from "../lib/rank";
 import { cardTicketRefs, type ThreadLink } from "../lib/link-metadata";
 import { describeWakeAt } from "../lib/snooze";
 import { ThreadCardMenu, type CardMenuAction } from "./thread-card-menu";
@@ -101,6 +101,13 @@ interface ThreadCardProps {
   menuActions?: readonly CardMenuAction[];
   /** Children that render as nested rows beneath this card, in display order. */
   childThreads?: readonly PluginSidebarThread[];
+  /**
+   * The sub-row tier: parent id → that parent's nested children, for the
+   * rows themselves (a child row nests its own children as sub-rows — issue
+   * #120). The same map the board passes for the card tier, so a child row
+   * and a standalone card draw from one source; absent → rows render childless.
+   */
+  grandchildThreadsByParent?: ReadonlyMap<string, readonly PluginSidebarThread[]>;
   /**
    * The same-family nested-row reorder gesture (the board owns every
    * decision — target, guard, write). Wired only when the rows can actually
@@ -603,6 +610,7 @@ export function ThreadCard({
   validatedHrefs,
   menuActions,
   childThreads,
+  grandchildThreadsByParent,
   childCount,
   dimmed,
   rankKey,
@@ -1044,6 +1052,13 @@ export function ThreadCard({
               <ul className="flex flex-col gap-1">
                 {children.map((child) => {
                   const childDone = doneIds?.has(child.id) ?? false;
+                  // The sub-row tier (issue #120): a child row nests its own
+                  // children, indenting one tier under its indented list.
+                  // Rows' rows render childless themselves — the display
+                  // index caps every display chain at two row levels, so no
+                  // deeper tier ever arrives here.
+                  const subRows = grandchildThreadsByParent?.get(child.id) ?? [];
+                  const subRankKey = childRankKey(child.id);
                   return (
                     <li key={child.id}>
                       <ChildRow
@@ -1060,6 +1075,35 @@ export function ThreadCard({
                         onAttentionEnter={onAttentionEnter}
                         onAttentionLeave={onAttentionLeave}
                       />
+                      {subRows.length > 0 ? (
+                        <ul
+                          data-child-sub-rows=""
+                          className={cn(
+                            // One narrower indent step than the card's
+                            // own rows list, so the tier reads as depth.
+                            "mt-1 flex flex-col gap-1 border-l border-border/50 pl-2 ml-1",
+                            subRows.length > NESTED_ROWS_SCROLL_THRESHOLD &&
+                              "max-h-64 overflow-y-auto",
+                          )}
+                        >
+                          {subRows.map((sub) => (
+                            <li key={sub.id}>
+                              <ChildRow
+                                child={sub}
+                                dimmed={isDone || childDone || doneIds?.has(sub.id) === true}
+                                isActive={sub.id === activeThreadId}
+                                onOpenThread={onOpenThread}
+                                menuActions={childMenuActions?.(sub)}
+                                snoozeFor={snoozeFor}
+                                rankKey={subRankKey}
+                                onRankDragStart={onRankDragStart}
+                                onAttentionEnter={onAttentionEnter}
+                                onAttentionLeave={onAttentionLeave}
+                              />
+                            </li>
+                          ))}
+                        </ul>
+                      ) : null}
                     </li>
                   );
                 })}

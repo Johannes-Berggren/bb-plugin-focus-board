@@ -226,6 +226,39 @@ function draggedIdFor(
   return event.dataTransfer.getData(DRAG_ID_KEY) || fallback || "";
 }
 
+/**
+ * The Done projection card's child-count chip: every member the projection's
+ * Done card carries — its done rows, plus the members nesting under each row
+ * (a done child of a done member nests via the nested map, issue #120), the
+ * sub-row tier included. `doneRowsByParent` holds the projection's own rows;
+ * `nestedRowsByParent` holds the members nested under any of them.
+ */
+function countDoneRows(
+  doneRowsByParent: ReadonlyMap<string, readonly PluginSidebarThread[]>,
+  nestedRowsByParent: ReadonlyMap<string, readonly PluginSidebarThread[]>,
+  parentId: string,
+): number {
+  let count = 0;
+  for (const row of doneRowsByParent.get(parentId) ?? []) {
+    count += 1;
+    for (const sub of nestedRowsByParent.get(row.id) ?? []) {
+      count += 1 + nestedRowCount(nestedRowsByParent, sub.id);
+    }
+  }
+  return count;
+}
+
+function nestedRowCount(
+  nestedRowsByParent: ReadonlyMap<string, readonly PluginSidebarThread[]>,
+  parentId: string,
+): number {
+  let count = 0;
+  for (const row of nestedRowsByParent.get(parentId) ?? []) {
+    count += 1 + nestedRowCount(nestedRowsByParent, row.id);
+  }
+  return count;
+}
+
 interface BoardProps {
   columns: readonly BoardColumn[];
   /** The active grouping — a column's rank key is namespaced by it. */
@@ -2879,9 +2912,17 @@ export function Board({
                               ? projectionChildren
                               : nestedChildrenByParent.get(thread.id)
                           }
+                          grandchildThreadsByParent={
+                            // The sub-row tier draws from the nested map
+                            // everywhere: a child row's own children nest
+                            // there (done children of done parents included,
+                            // the both-done nest rule), so one map serves
+                            // live cards and Done projections alike.
+                            nestedChildrenByParent
+                          }
                           childCount={
                             isDoneProjection
-                              ? (projectionChildren?.length ?? 0)
+                              ? countDoneRows(doneChildrenByParent, nestedChildrenByParent, thread.id)
                               : (childCountByParent.get(thread.id) ?? 0)
                           }
                           isCollapsed={collapsedFamilyIds?.has(

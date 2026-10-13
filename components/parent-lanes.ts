@@ -168,7 +168,21 @@ export function buildParentLanes(
     // The index drops archived members, so an archived child is not a child
     // here (it renders nowhere) and an archived parent leaves its children
     // rootless (they stay loose, in the Attention view).
-    const allChildren = familyIndex.childrenByParent.get(rootId) ?? [];
+    // The lane box holds every family member as a card: the depth cap keeps
+    // grandchild display edges to two row levels elsewhere, but the box is
+    // the family's full surface — walk the whole subtree (archived excluded
+    // by the index).
+    const directChildren = familyIndex.childrenByParent.get(rootId) ?? [];
+    const allChildren: PluginSidebarThread[] = [...directChildren];
+    let queue = [...directChildren];
+    while (queue.length > 0) {
+      const next: PluginSidebarThread[] = [];
+      for (const member of queue) {
+        next.push(...(familyIndex.childrenByParent.get(member.id) ?? []));
+      }
+      allChildren.push(...next);
+      queue = next;
+    }
     if (allChildren.length === 0) continue;
     const parent = threadById.get(rootId);
     if (parent === undefined || parent.isArchived) continue;

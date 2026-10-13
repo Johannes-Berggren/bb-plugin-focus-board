@@ -54,6 +54,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **Live work no longer hides under a Done card.** A live child of a Done parent stayed nested as a row inside the Done card whenever the view's own rules said it fit. Every live child of a Done parent now gets its own card, in every view.
 - **A Done projection card folds on its own.** The stored fold held the parent id alone, so folding the live family card also folded the projection sitting in the Done lane; the projection keeps its own fold entry now.
 - **Attending to a family's live card no longer moves its Done projection.** The attention freeze's slot pin was keyed by thread alone and applied in every lane, so the attended card's twin in Done jumped to the live slot's index. The pin holds column and thread now.
+- **A child thread spawned from a child card nests under that card's row.** Right-clicking a nested child card and picking "New child thread…" used to leave the new thread beside its parent under the family root, breaking the dialog's "Will nest under" promise. Families now follow their real edges one row level deeper (a child row carries its own children as indented sub-rows; deeper members still re-attach to the root), and when the display target differs from the spawn parent, the dialog names both.
 
 #### Parent lanes
 

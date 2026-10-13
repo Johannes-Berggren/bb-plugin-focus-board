@@ -17,8 +17,9 @@
 
 /**
  * The raw parent edges a client already holds. Raw (not the display map's
- * two-level flattening): the loop and already-child checks must see the real
- * tree, so re-parenting a grandchild onto its grandparent counts as a change.
+ * depth cap — rows carry one sub-tier, deeper members re-home onto roots):
+ * the loop and already-child checks must see the real tree, so re-parenting
+ * a grandchild onto its grandparent counts as a change.
  */
 export type ReparentParentOf = ReadonlyMap<string, string>;
 

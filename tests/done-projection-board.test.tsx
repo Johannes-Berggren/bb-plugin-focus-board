@@ -78,6 +78,28 @@ describe("the Done column's family projection card", () => {
     expect(column.querySelectorAll('[data-thread-card="d"]').length).toBe(1);
   });
 
+  it("the projection's done rows carry their own done sub-rows (issue #120)", () => {
+    // The depth cap's sub-row tier reaches the Done space: a done child's
+    // done grandchild renders as an indented sub-row under that child's row
+    // inside the projection, never as a root-level Done sibling.
+    const doneGc = thread({
+      id: "g",
+      parentThreadId: "d",
+      displayTitle: "Done grandchild",
+      updatedAt: NOW - 90 * 60 * 1000,
+    });
+    const doneIds = new Set(["d", "g"]);
+    renderAssembly([parent, doneChild, doneGc], doneIds);
+    const column = doneColumn();
+    const rows = column.querySelector("[data-nested-rows]");
+    expect(rows).not.toBeNull();
+    expect(rows?.querySelector('[data-thread-card="d"]')).not.toBeNull();
+    const subRows = column.querySelector("[data-child-sub-rows]");
+    expect(subRows).not.toBeNull();
+    expect(subRows?.querySelector('[data-thread-card="g"]')).not.toBeNull();
+    expect(column.querySelectorAll('[data-thread-card="g"]').length).toBe(1);
+  });
+
   it("carries the Done treatment (dimmed) like every other card in the column", () => {
     renderAssembly([parent, doneChild], doneIds);
     expect(projectionCard().className).toContain("opacity-50");

@@ -371,37 +371,43 @@ describe("nestUnderParents — axis groupings", () => {
   });
 });
 
-describe("nestUnderParents — depth cap (two levels, everywhere)", () => {
-  it("a three-tier family re-attaches its grandchildren to the family root", () => {
+describe("nestUnderParents — depth cap (rows carry one sub-tier)", () => {
+  it("a three-tier family keeps the grandchild under its parent's row (issue #120)", () => {
+    // The context-menu promise: "New child thread…" on a child card says
+    // "Will nest under <child>", so the spawned grandchild must render as a
+    // sub-row under that child row — not as a sibling re-rooted to the
+    // family root.
     const parent = thread({ id: "p", updatedAt: NOW - HOUR });
     const child = thread({ id: "c", parentThreadId: "p", updatedAt: NOW - 2 * HOUR });
     const gc1 = thread({ id: "g1", parentThreadId: "c", updatedAt: NOW - 3 * HOUR });
     const gc2 = thread({ id: "g2", parentThreadId: "c", updatedAt: NOW - 4 * HOUR });
     const threads = [parent, child, gc1, gc2];
     const index = buildFamilyIndex(threads);
-    // Every member is a direct child of p in the display index — two levels
-    // only: grandchildren render as real members of the family, never as +N.
-    const familyMembers = index.childrenByParent.get("p") ?? [];
-    expect(familyMembers.map((t) => t.id).sort()).toEqual(["c", "g1", "g2"]);
-    expect(index.childrenByParent.has("c")).toBe(false);
+    // The display index follows the real edges for two row levels: the child
+    // row under the family card, the grandchild rows under the child row.
+    expect((index.childrenByParent.get("p") ?? []).map((t) => t.id)).toEqual(["c"]);
+    expect((index.childrenByParent.get("c") ?? []).map((t) => t.id).sort()).toEqual(["g1", "g2"]);
+    expect(index.parentOf.get("g1")).toBe("c");
     const columns = buildColumns(threads, "status", CONTEXT, new Map(), new Set(), NOW);
     const nested = nestUnderParents(columns, threads, "status", CONTEXT, NOW, index);
-    expect(nested.childrenByParent.get("p")?.map((t) => t.id).sort()).toEqual(["c", "g1", "g2"]);
+    expect((nested.childrenByParent.get("p") ?? []).map((t) => t.id)).toEqual(["c"]);
+    expect((nested.childrenByParent.get("c") ?? []).map((t) => t.id).sort()).toEqual(["g1", "g2"]);
     expect(nested.columns.flatMap((col) => col.threads.map((t) => t.id))).toEqual(["p"]);
   });
 
-  it("a fourth-tier descendant re-attaches to the same root", () => {
+  it("a fourth-tier descendant re-attaches to the family root (above the tier cap)", () => {
     const parent = thread({ id: "p", updatedAt: NOW - HOUR });
     const child = thread({ id: "c", parentThreadId: "p", updatedAt: NOW - 2 * HOUR });
     const gc = thread({ id: "g", parentThreadId: "c", updatedAt: NOW - 3 * HOUR });
     const ggc = thread({ id: "gg", parentThreadId: "g", updatedAt: NOW - 4 * HOUR });
     const index = buildFamilyIndex([parent, child, gc, ggc]);
-    expect(index.parentOf.get("g")).toBe("p");
+    expect(index.parentOf.get("g")).toBe("c");
     expect(index.parentOf.get("gg")).toBe("p");
-    expect((index.childrenByParent.get("p") ?? []).map((t) => t.id).sort()).toEqual(["c", "g", "gg"]);
+    expect((index.childrenByParent.get("p") ?? []).map((t) => t.id).sort()).toEqual(["c", "gg"]);
+    expect((index.childrenByParent.get("c") ?? []).map((t) => t.id)).toEqual(["g"]);
   });
 
-  it("the parent view stays two-level: a grandchild's own child rides the same family", () => {
+  it("the parent view keeps the family flat: a grandchild rides the lane as a member card", () => {
     const parent = thread({ id: "p", updatedAt: NOW - HOUR });
     const child = thread({ id: "c", parentThreadId: "p", updatedAt: NOW - 2 * HOUR });
     const gc1 = thread({ id: "g1", parentThreadId: "c", updatedAt: NOW - 3 * HOUR, isDone: false });
@@ -410,6 +416,31 @@ describe("nestUnderParents — depth cap (two levels, everywhere)", () => {
     expect(lanes).toHaveLength(1);
     const cards = lanes[0]!.rows.flatMap((r) => r.threads.map((t) => t.id));
     expect(cards.sort()).toEqual(["c", "g1"]);
+    expect(lanes[0]!.childCount).toBe(2);
+  });
+
+  it("a grandchild nests under its parent row even when the parent row's card sits in Done", () => {
+    // The projection carries the depth too: a live parent's done grandchild
+    // (child of its done child) rides the child's row inside the projection.
+    const parent = thread({ id: "p", updatedAt: NOW - HOUR });
+    const child = thread({ id: "c", parentThreadId: "p", updatedAt: NOW - 2 * HOUR });
+    const doneGc = thread({ id: "g", parentThreadId: "c", updatedAt: NOW - 3 * HOUR });
+    const doneIds = new Set(["g"]);
+    const columns = buildColumns(
+      [parent, child, doneGc],
+      "status",
+      CONTEXT,
+      new Map(),
+      doneIds,
+      NOW,
+    );
+    const nested = nestUnderParents(columns, [parent, child, doneGc], "status", CONTEXT, NOW, undefined, {
+      doneIds,
+    });
+    // The done grandchild projects under its literal parent's row in the
+    // family's Done projection, not as a root-level sibling there.
+    expect((nested.doneChildrenByParent.get("c") ?? []).map((t) => t.id)).toEqual(["g"]);
+    expect(nested.doneChildrenByParent.has("p")).toBe(false);
   });
 });
 

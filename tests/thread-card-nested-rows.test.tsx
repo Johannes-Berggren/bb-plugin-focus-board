@@ -54,3 +54,58 @@ describe("the family card's nested child list", () => {
     expect(container.className).toContain("max-h-");
   });
 });
+
+describe("the child rows' sub-row tier (issue #120)", () => {
+  afterEach(cleanup);
+
+  it("a child row nests its own children as indented sub-rows under it", () => {
+    const child = thread({ id: "c", parentThreadId: "p", displayTitle: "The child" });
+    const gc = thread({ id: "g1", parentThreadId: "c", displayTitle: "The grandchild" });
+    render(
+      <ThreadCard
+        thread={parent}
+        stateDot={null}
+        isActive={false}
+        isDone={false}
+        childThreads={[child]}
+        grandchildThreadsByParent={new Map([["c", [gc]]])}
+        onOpen={() => {}}
+        onOpenThread={() => {}}
+      />,
+    );
+    const rows = rowsContainer();
+    const subRows = document.querySelector("[data-child-sub-rows]");
+    expect(subRows).not.toBeNull();
+    // The sub-row lives under its parent row's container, not as a sibling
+    // of it — the "New child thread…" promise on a child card.
+    const childRow = rows.querySelector('[data-thread-card="c"]');
+    expect(childRow).not.toBeNull();
+    expect(childRow?.nextElementSibling?.contains(subRows as Node) ?? false).toBe(true);
+    expect(rows.textContent).toContain("The grandchild");
+  });
+
+  it("a collapsed family folds the sub-row tier with the rest of the rows", () => {
+    const child = thread({ id: "c", parentThreadId: "p", displayTitle: "The child" });
+    const gc = thread({ id: "g1", parentThreadId: "c", displayTitle: "The grandchild" });
+    render(
+      <ThreadCard
+        thread={parent}
+        stateDot={null}
+        isActive={false}
+        isDone={false}
+        isCollapsed
+        childThreads={[child]}
+        grandchildThreadsByParent={new Map([["c", [gc]]])}
+        onOpen={() => {}}
+        onOpenThread={() => {}}
+      />,
+    );
+    expect(document.querySelector("[data-nested-rows]")).toBeNull();
+    expect(document.querySelector("[data-child-sub-rows]")).toBeNull();
+  });
+
+  it("a childless child row renders no sub-row list", () => {
+    renderCard(1);
+    expect(document.querySelector("[data-child-sub-rows]")).toBeNull();
+  });
+});

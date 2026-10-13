@@ -50,6 +50,7 @@ export function NewThreadModal({
   focusRequest,
   parentThreadId,
   parentThreadTitle,
+  spawnParentTitle,
   groupName,
   onMaximize,
   rememberProjectId,
@@ -81,8 +82,15 @@ export function NewThreadModal({
   focusRequest?: number;
   /** The thread the new thread will spawn under; absent spawns at the root. */
   parentThreadId?: string;
-  /** The parent's display title, for the dialog's "will nest under" hint. */
+  /** Where the spawned card will display (see the app's nest-target walk). */
   parentThreadTitle?: string;
+  /**
+   * The literal spawn parent when the display target differs from it (the
+   * preset parent's own row is a sub-row: the display caps at two levels, so
+   * the card lands under the family root). The hint names both truths in
+   * that case; absent when display and spawn agree.
+   */
+  spawnParentTitle?: string;
   /**
    * The group the composer will tag the spawned thread into ("New thread in
    * group…" preset): the dialog's hint names it. The tagging itself happens
@@ -171,7 +179,10 @@ export function NewThreadModal({
           {parentThreadId !== undefined ? (
             // The nesting the submit will produce, named up front: the
             // operator sees where the child will land before spending the
-            // prompt.
+            // prompt. When the display target and the literal spawn parent
+            // differ (the preset parent's row is a sub-row), the hint names
+            // both: the card lands under the family root, the data under
+            // the acted-on thread.
             <p
               data-new-child-hint=""
               className="text-xs font-medium text-muted-foreground"
@@ -179,6 +190,13 @@ export function NewThreadModal({
               <Icon name="Fork" className="mr-1 inline size-3.5 align-[-2px]" aria-hidden />
               Will nest under{" "}
               <span className="text-foreground">{parentThreadTitle ?? parentThreadId}</span>
+              {spawnParentTitle !== undefined ? (
+                <>
+                  {" "}
+                  · spawns under{" "}
+                  <span className="text-foreground">{spawnParentTitle}</span>
+                </>
+              ) : null}
             </p>
           ) : null}
           {groupName !== undefined ? (
