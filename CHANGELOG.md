@@ -9,6 +9,10 @@ _Nothing unreleased — bullets land here as work merges._
 
 ### Added
 
+#### Search and filters
+
+- **Mobile collapses the filter palette into a header toggle.** On a narrow screen the toolbar keeps New thread, search, the toggle, and the settings gear in one row, while View, the four filters, Clear, and the thread count hide inside an expandable ribbon that badges how many filters are active. The open/closed choice persists per browser and the desktop row is unchanged.
+
 ### Changed
 
 ### Fixed
