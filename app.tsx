@@ -28,6 +28,7 @@ import { BoardToolbar } from "./components/board-toolbar";
 import { ThreadPane } from "./components/thread-pane";
 import type { ThreadPaneThread } from "./components/thread-pane";
 import { useSearchFocusOnSlash } from "./hooks/use-search-focus";
+import { useTicketStatuses } from "./hooks/use-ticket-statuses";
 import { NewThreadModal } from "./components/new-thread-modal";
 import type { SpawnedThread } from "./components/new-thread-modal";
 import type { CardMenuAction } from "./components/thread-card-menu";
@@ -1544,11 +1545,6 @@ function BoardPage({ subPath }: { subPath: string }) {
     [sweepCandidatesFor, sweepRun],
   );
 
-  // Live GitHub status for ticket chips. Batched: one RPC per visible-ref
-  // snapshot (numeric refs grouped per repo), re-fetched when the thread
-  // list changes — no interval, no per-card calls. Failures degrade to
-  // "no status known"; the board never breaks on this path.
-  const [ticketStatuses, setTicketStatuses] = useState<Record<string, Record<number, { kind: string; state: string }>>>({});
   // visibleRefKey is a sorted, comma-joined snapshot ("owner/repo#42,...").
   // Safe to join: repo slugs cannot contain commas or hashes. It doubles as
   // the effect dependency (cheap string equality) and is re-parsed below.
@@ -1623,55 +1619,13 @@ function BoardPage({ subPath }: { subPath: string }) {
       cancelled = true;
     };
   }, [rpc, textRefHrefsKey]);
-  useEffect(() => {
-    if (visibleRefKey === "") {
-      setTicketStatuses({});
-      return;
-    }
-    let cancelled = false;
-    const wanted = new Map<string, Set<number>>();
-    for (const entry of visibleRefKey.split(",")) {
-      const at = entry.lastIndexOf("#");
-      const repo = entry.slice(0, at);
-      const num = Number(entry.slice(at + 1));
-      const set = wanted.get(repo) ?? new Set<number>();
-      set.add(num);
-      wanted.set(repo, set);
-    }
-    // Replace the whole map per snapshot (not merge) so statuses mirror the
-    // visible ref set exactly — no stale dots, no session-long growth.
-    const next: Record<string, Record<number, { kind: string; state: string }>> = {};
-    let pending = wanted.size;
-    const settle = () => {
-      if (!cancelled && pending === 0) setTicketStatuses(next);
-    };
-    for (const [repo, numbers] of wanted) {
-      // The RPC caps input at 500 numbers; slice so an overflowing repo
-      // degrades to partial dots instead of a rejected call (no dots at all).
-      const batch = [...numbers].slice(0, 500);
-      rpc
-        .call("tracker_status", { repo, numbers: batch })
-        .then(
-          (result) => {
-            if (!cancelled) {
-              next[repo] = result.statuses;
-              pending -= 1;
-              settle();
-            }
-          },
-          () => {
-            // Status is optional decoration; chips render without it.
-            if (!cancelled) {
-              pending -= 1;
-              settle();
-            }
-          },
-        );
-    }
-    return () => {
-      cancelled = true;
-    };
-  }, [visibleRefKey, rpc]);
+  // Live tracker status for ticket chips. Batched: one RPC per visible-ref
+  // snapshot (numeric refs grouped per repo), re-fetched when the visible
+  // ref set changes, on a poll interval, and on window focus — no per-card
+  // calls. Failures degrade to "no status known"; the board never breaks
+  // on this path.
+  const ticketStatuses = useTicketStatuses({ rpc, visibleRefKey });
+
   const statusFor = useCallback(
     (repo: string | null, number: number | undefined) => {
       if (repo === null || number === undefined) return undefined;

@@ -141,5 +141,10 @@ export const UNRELEASED_ITEMS: readonly { text: string; children: string[]; grou
     "text": "**The white drop rectangle around a lane no longer sticks after the drag ends.** Escape mid-drag, a drop claimed by a card, and a drop that relocates the card out from under its own element all clear the lane's ring now, where only a drop onto empty lane space did before.",
     "children": [],
     "group": "The New thread composer"
+  },
+  {
+    "text": "**The board holds still through ambient resizes.** With a thread selected, any container resize used to slide the whole board back to that card's lane, even height-only changes like the phone keyboard or a composer animation. The re-fit now fires on width changes only, pane openings and drag resizes, so a pan rests where you leave it.",
+    "children": [],
+    "group": "Board scroll"
   }
 ];
