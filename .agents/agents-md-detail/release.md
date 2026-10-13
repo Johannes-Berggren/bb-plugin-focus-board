@@ -195,17 +195,17 @@ merging into `dev`, releasing, changelog writing, or tagging.
 
 - `npm run release-safety` — it builds, runs every automated UAT suite in
   `tests/manual` against the real app (reports land in `docs/uat/`), and
-  captures seventeen harness screenshots into `docs/release-safety/`: the
+  captures nineteen harness screenshots into `docs/release-safety/`: the
   board and the open thread pane at desktop 1920×1080, narrow desktop
   1280×800, tablet 768×1024, and phone 390×844; the parent-lane board and
   the group/family view at desktop; the parent-lane board on phone; the
   compact filter ribbon open on phone (below the 767px breakpoint the
-  palette collapses into a header toggle); a light-theme board; and the
-  settings modal's Behavior and Appearance tabs, the What's-new modal, and
-  the new-thread modal at desktop. Shots that are not reachable from the
-  demo board's own state are known residuals (the empty-workspace board).
-  Any failing UAT step stops the release: fix it in a normal landing,
-  never by editing a suite green on release day.
+  palette collapses into a header toggle); the empty-workspace board a
+  first-run operator sees (`?empty=1`) at desktop and phone; a light-theme
+  board; and the settings modal's Behavior and Appearance tabs, the
+  What's-new modal, and the new-thread modal at desktop. Any failing UAT
+  step stops the release: fix it in a normal landing, never by editing a
+  suite green on release day.
 - The screenshots get a judgement pass before tagging. A non-vision agent
   asks a vision-capable model per its vision-dispatch spoke (`llm -m kimi
   -f <prompt-file> -a <shots...>`), demanding a SHOT-OK or SHOT-BROKEN

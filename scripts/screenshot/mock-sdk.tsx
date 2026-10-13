@@ -207,7 +207,11 @@ export function experimental_useSidebarThreads(): unknown {
  *  screenshot demo mode (`?demo=1`) it also gains the fresh demo families
  *  (data.ts SIM_DEMO_THREADS) so shots show nested child threads folded and
  *  unfolded in the attention lanes. UAT suites never set the flag, so their
- *  lane and column-order assertions see exactly the base fixture. */
+ *  lane and column-order assertions see exactly the base fixture. The empty
+ *  flag (`?empty=1`) takes precedence over both: simThreads starts as an
+ *  empty array, so the release-safety gate can photograph and judge the
+ *  empty-workspace board a first-run operator sees. */
+const EMPTY_MODE = new URLSearchParams(window.location.search).get("empty") === "1";
 const DEMO_MODE = new URLSearchParams(window.location.search).get("demo") === "1";
 // `?failautotitle=` (comma list): autotitle call kinds that fail ONCE, then
 // succeed — the UAT suite walks a failure into the fallback modal and out
@@ -219,9 +223,11 @@ const FAIL_AUTOTITLE_KINDS = new Set(
     .map((kind) => kind.trim())
     .filter(Boolean),
 );
-let simThreads: readonly SimThread[] = DEMO_MODE
-  ? [...SIM_THREADS, ...SIM_DEMO_THREADS]
-  : SIM_THREADS;
+let simThreads: readonly SimThread[] = EMPTY_MODE
+  ? []
+  : DEMO_MODE
+    ? [...SIM_THREADS, ...SIM_DEMO_THREADS]
+    : SIM_THREADS;
 
 /** Threads archived in the harness; `threads.list({ archived: true })` serves these. */
 let simArchived: readonly SimThread[] = [];
