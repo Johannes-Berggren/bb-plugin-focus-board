@@ -299,6 +299,76 @@ describe("nestUnderParents — axis groupings", () => {
     expect(nested.childrenByParent.get("p")?.map((t) => t.id)).toEqual(["c"]);
     expect(nested.columns).toHaveLength(1);
   });
+
+  it("group view: a cross-group child stands alone in its own group column (Defect 5)", () => {
+    // Thread nesting must not move a label-assigned member into a group it
+    // does not belong to: the child's own group column keeps it, exactly
+    // like a cross-project child. (Today the view falls into the
+    // always-nest default and the child's lane loses it.)
+    const groupContext = {
+      projects: [],
+      providers: [],
+      groupsByThread: new Map([
+        ["p", "grp_a"],
+        ["c", "grp_b"],
+      ]),
+      groupNames: new Map([
+        ["grp_a", "Alpha"],
+        ["grp_b", "Beta"],
+      ]),
+    };
+    const parent = thread({ id: "p" });
+    const child = thread({ id: "c", parentThreadId: "p" });
+    const columns = buildColumns([parent, child], "group", groupContext, new Map(), new Set(), NOW);
+    const nested = nestUnderParents(columns, [parent, child], "group", groupContext, NOW);
+    expect(nested.childrenByParent.has("p")).toBe(false);
+    expect(columnOf(nested.columns, "c")?.id).toBe("grp_b");
+  });
+
+  it("same-group child nests in the group view", () => {
+    const groupContext = {
+      projects: [],
+      providers: [],
+      groupsByThread: new Map([
+        ["p", "grp_a"],
+        ["c", "grp_a"],
+      ]),
+      groupNames: new Map([["grp_a", "Alpha"]]),
+    };
+    const parent = thread({ id: "p" });
+    const child = thread({ id: "c", parentThreadId: "p", updatedAt: NOW - HOUR });
+    const columns = buildColumns([parent, child], "group", groupContext, new Map(), new Set(), NOW);
+    const nested = nestUnderParents(columns, [parent, child], "group", groupContext, NOW);
+    expect(nested.childrenByParent.get("p")?.map((t) => t.id)).toEqual(["c"]);
+  });
+
+  it("all children of a Done root are unassigned-keyed: the unassigned child nests under it", () => {
+    // Both unassigned ("No group" bucket) is the same key: the family nests.
+    const groupContext = { projects: [], providers: [] };
+    const parent = thread({ id: "p" });
+    const child = thread({ id: "c", parentThreadId: "p", updatedAt: NOW - HOUR });
+    const columns = buildColumns([parent, child], "group", groupContext, new Map(), new Set(), NOW);
+    const nested = nestUnderParents(columns, [parent, child], "group", groupContext, NOW);
+    expect(nested.childrenByParent.get("p")?.map((t) => t.id)).toEqual(["c"]);
+  });
+
+  it("a live child of a Done root always stands alone, Attention view too (Defect 6)", () => {
+    // Today the idle child of a Done root hides as a row under the Done
+    // card in the status view; the same space rule reads Done root's space
+    // key as unlike every live child's, so the child always gets its own
+    // card, in any view.
+    const parent = thread({ id: "p", updatedAt: NOW - HOUR });
+    const child = thread({ id: "c", parentThreadId: "p", updatedAt: NOW - 2 * HOUR });
+    const doneIds = new Set(["p"]);
+    for (const view of ["status", "recency", "project"] as const) {
+      const columns = buildColumns([parent, child], view, CONTEXT, new Map(), doneIds, NOW);
+      const nested = nestUnderParents(columns, [parent, child], view, CONTEXT, NOW, buildFamilyIndex([parent, child]), {
+        doneIds,
+      });
+      expect(nested.childrenByParent.has("p")).toBe(false);
+      expect(columnOf(nested.columns, "c")).toBeDefined();
+    }
+  });
 });
 
 describe("nestUnderParents — depth cap (two levels, everywhere)", () => {

@@ -12,6 +12,7 @@ import {
   columnFor,
   derivedCompare,
   doneRecencyCompare,
+  groupBucketFor,
   groupFilterMisses,
   threadPassesFilter,
   threadState,
@@ -356,27 +357,29 @@ export function buildFamilyIndex(threads: readonly PluginSidebarThread[]): Famil
  * family's projection card in the Done column), or `"flat"` (the child keeps
  * its standalone column placement).
  *
- * - Done children live in the Done space, under the family's card there:
- *   under the parent's own card when the parent is done, otherwise under the
- *   family's projection card — regardless of grouping or axis. Done is its
- *   own space, and the family is a projection: its active card and its Done
- *   card can exist at once.
- * - Attention children (a pending interaction or an unread error) never
- *   nest, in any grouping: they stand alone as their own cards, so a
- *   collapsed family card stays folded while the child that needs the
- *   operator surfaces in its own right. When the attention resolves the
- *   child returns to the nest — the rule reads live state, not history.
- * - R4 (status grouping): the live family moves as one unit into the column
- *   of its most attention-requiring nested member (`familyColumnOverrides`
- *   lifts the parent card there), so every live child of a live parent
- *   nests. The promotion rule survives only where the family cannot
- *   relocate: a Done parent keeps its Done-lane card, and a live child
- *   promotes when its raw state demands more attention than the parent's.
- * - Axis match (project/provider/machine): a live child nests only when its
- *   axis key matches its parent's; otherwise it stays flat in its own axis
- *   column.
- * - Recency / None: columns are per-thread presentation, not grouping
- *   boundaries — always nest.
+ * The one same-space rule, four steps in order:
+ *
+ * 1. Done is its own space: a done child paints in the Done space under the
+ *    family's card there — the root's own card when the root is done, the
+ *    family's projection card when it is live. Done is a projection: the
+ *    family's active card and its Done card exist at once.
+ * 2. Operator-intent cards stand alone: a pinned child keeps its pin (the
+ *    pin badge is not drawn on nested rows), and an attention child (a
+ *    pending interaction or an unread error) surfaces as its own actionable
+ *    card instead of hiding behind a possibly-folded card. The row returns
+ *    to the nest when the reason clears; stayNested holds it while the
+ *    attention freeze owns the row.
+ * 3. A Done root paints in the Done lane, so no live child shares its
+ *    space: every live child of a done root gets its own card (live work
+ *    never hides under Done).
+ * 4. Otherwise a child nests under its root when both share the view's
+ *    space key: Attention (R4 — the family moves as one unit into the
+ *    column of its most attention-requiring member, `familyColumnOverrides`),
+ *    recency/none (per-thread presentation, not a grouping boundary) share
+ *    one key board-wide; project, provider, machine, and the feature-group
+ *    assignment are data keys the child must match. A cross-key child stays
+ *    flat in its own lane — nesting never rides a member into a group it
+ *    does not belong to.
  */
 type ChildPlacement = "nest" | "done" | "flat";
 
@@ -384,6 +387,7 @@ function childPlacement(
   child: PluginSidebarThread,
   parent: PluginSidebarThread,
   groupBy: GroupBy,
+  groupContext: GroupingContext,
   doneIds: ReadonlySet<string>,
   /**
    * The attention freeze's stay-nested set (components/attention-freeze): a
@@ -394,39 +398,22 @@ function childPlacement(
    */
   stayNested: ReadonlySet<string> = new Set<string>(),
 ): ChildPlacement {
+  // Step 1: done is its own space.
   if (doneIds.has(child.id)) {
     return doneIds.has(parent.id) ? "nest" : "done";
   }
-  if (doneIds.has(child.id)) {
-    return doneIds.has(parent.id) ? "nest" : "done";
-  }
-  // A pinned child stands alone, the same way an attention child does: the
-  // pin is the operator's own intent and the Pinned column is its place
-  // (buildColumns leads every board with Pinned, exactly as bb's sidebar
-  // does). Nesting the child away would fold the pin into a quiet row under
-  // its unpinned parent — the pin badge is not rendered on nested rows —
-  // so a card pinned anywhere (the Parent view's row cells included) lost
-  // its pin on the next attention pass. The done check stays first: Done
-  // precedes the pin, the same as buildColumns' own split.
+  // Step 2: operator-intent cards stand alone.
   if (child.isPinned) {
     return "flat";
   }
-  // Attention children stand alone, ahead of every nesting rule: the family
-  // card may be collapsed (a persisted fold), and a child that needs the
-  // operator must surface as its own actionable card, not hide behind a
-  // fold. The rest of the rows stay collapsed under the parent.
   if (threadState(child) === "attention" && !stayNested.has(child.id)) {
     return "flat";
   }
-  if (groupBy === "status") {
-    if (doneIds.has(parent.id)) {
-      // Done parent: the family stays in the Done lane; keep the raw-state
-      // comparison so an attention-hungry live child promotes.
-      return stateRank(threadState(child)) >= stateRank(threadState(parent)) ? "nest" : "flat";
-    }
-    // R4: live parent — the family moves as one unit, every live child nests.
-    return "nest";
+  // Step 3: a Done root shares its space with no live child.
+  if (doneIds.has(parent.id)) {
+    return "flat";
   }
+  // Step 4: same space key as the root nests; a different key stays flat.
   if (groupBy === "project" || groupBy === "provider") {
     const key = groupBy === "project" ? child.projectId : child.providerId;
     const parentKey = groupBy === "project" ? parent.projectId : parent.providerId;
@@ -435,7 +422,13 @@ function childPlacement(
   if (groupBy === "machine") {
     return (child.host?.id ?? "none") === (parent.host?.id ?? "none") ? "nest" : "flat";
   }
-  return "nest"; // recency / none
+  if (groupBy === "group") {
+    return groupBucketFor(child, groupContext.groupsByThread) ===
+      groupBucketFor(parent, groupContext.groupsByThread)
+      ? "nest"
+      : "flat";
+  }
+  return "nest"; // status (R4: the family moves as one unit) / recency / none
 }
 
 function stateRank(state: ThreadState): number {
@@ -631,7 +624,7 @@ export function nestUnderParents(
       flatIds.add(childId);
       continue;
     }
-  const placement = childPlacement(child, parent, groupBy, doneIds, options.attentionFreeze?.stayNested);
+  const placement = childPlacement(child, parent, groupBy, context, doneIds, options.attentionFreeze?.stayNested);
     if (placement === "flat") {
       flatIds.add(childId);
       continue;
