@@ -7,6 +7,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+#### Wallpaper
+
+- **A wallpaper can fill the board instead of letterboxing.** The picker gains a fit toggle (Letterbox / Fill), a zoom slider, and a nine-point focal grid for picking the crop region and zoom anchor; every control carries forward untouched, typed url edits keep a layer's dark variant, and stored wallpapers without the new fields render exactly as before.
+  - Fits and zooms that paint past the board edge are clipped, so a zoomed wallpaper never scrolls or resizes the board.
+
 - **Cards teleport with the transporter dissolve.** A card moving between lanes dissolves away in its old spot (the slot holds until the dissolve finishes, then the lane closes) and materializes into the new one as its space opens quickly around it; both sweeps ease in slowly and bloom brighter as they travel, each carrying its own shimmer — silver glints rising from the bottom as the card departs, amber glints descending from the top as it arrives. A view switch or a whole-board batch move keeps the plain reflow.
 - **Family boxes teleport as one unit.** A dashed box relocating between lanes dissolves as the whole container, slot hold and collapse included, instead of a scatter of per-card ghosts, and it holds its true old slot in the lane even when it sat mid-lane. A box whose membership changes while it moves keeps the plain reflow.
 - **The lane move gains a zoom transport.** A board playing the zoom sends a moved card shrinking into its old lane's slot while that slot's space closes with it, then the card grows from small to full in its new lane as the slot's space opens on the same clock, so the space and the card land together. The transporter dissolve stays the default.

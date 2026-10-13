@@ -126,6 +126,48 @@ describe("wallpaper persistence", () => {
       global: { url: "https://a", dim: 0.3, darkUrl: "data:image/svg+xml;base64,x" },
     });
   });
+
+  it("round-trips the crop controls (fit, zoom, focal point) next to url and dim", () => {
+    const settings = {
+      version: 1 as const,
+      global: { url: "https://example.com/w.png", dim: 0.4, fit: "cover", zoom: 2, focusX: 25, focusY: 75 },
+    };
+    expect(parseWallpaperStored(wallpaperStoredValue(settings))).toEqual(settings);
+    expect(wallpaperStoredValue(settings)).toBe(
+      '{"version":1,"global":{"url":"https://example.com/w.png","dim":0.4,"fit":"cover","zoom":2,"focusX":25,"focusY":75}}',
+    );
+  });
+
+  it("a stored layer without crop controls parses to exactly today's shape (no fields materialize)", () => {
+    expect(parseWallpaperStored(JSON.stringify({ version: 1, global: { url: "https://a", dim: 0.3 } })).global).toEqual({
+      url: "https://a",
+      dim: 0.3,
+    });
+  });
+
+  it("garbage crop controls drop the FIELD, never the layer (darkUrl tolerance)", () => {
+    for (const junk of [
+      { fit: "diagonal" },
+      { fit: 7 },
+      { zoom: "big" },
+      { zoom: null },
+      { focusX: "left" },
+      { focusY: true },
+    ]) {
+      expect(
+        parseWallpaperStored(
+          JSON.stringify({ version: 1, global: { url: "https://a", dim: 0.3, ...junk } }),
+        ).global,
+      ).toEqual({ url: "https://a", dim: 0.3 });
+    }
+  });
+
+  it("clamps zoom into [1, 4] and the focal axes into [0, 100]", () => {
+    expect(parseWallpaperStored(JSON.stringify({ version: 1, global: { url: "https://a", dim: 0.3, zoom: 10 } })).global?.zoom).toBe(4);
+    expect(parseWallpaperStored(JSON.stringify({ version: 1, global: { url: "https://a", dim: 0.3, zoom: 0 } })).global?.zoom).toBe(1);
+    expect(parseWallpaperStored(JSON.stringify({ version: 1, global: { url: "https://a", dim: 0.3, focusX: -5 } })).global?.focusX).toBe(0);
+    expect(parseWallpaperStored(JSON.stringify({ version: 1, global: { url: "https://a", dim: 0.3, focusY: 150 } })).global?.focusY).toBe(100);
+  });
 });
 
 describe("wallpaper paint style (pure helper)", () => {
@@ -158,6 +200,32 @@ describe("wallpaper paint style (pure helper)", () => {
   it("escapes quotes and backslashes in the resolved url", () => {
     const style = wallpaperBackgroundStyle({ url: 'https://a/"a\\b.png', dim: 0.3 }, false);
     expect(style?.backgroundImage).toBe('url("https://a/\\"a\\\\b.png")');
+  });
+
+  it("a layer without crop controls paints exactly today's letterboxed style", () => {
+    expect(wallpaperBackgroundStyle({ url: "https://a", dim: 0.3, zoom: undefined }, false)).toEqual({
+      backgroundImage: 'url("https://a")',
+      backgroundSize: "contain",
+      backgroundRepeat: "no-repeat",
+      backgroundPosition: "center",
+    });
+  });
+
+  it("fit cover paints cover; focal point paints the percent position", () => {
+    expect(wallpaperBackgroundStyle({ url: "https://a", dim: 0, fit: "cover" }, false)?.backgroundSize).toBe("cover");
+    expect(wallpaperBackgroundStyle({ url: "https://a", dim: 0, fit: "contain" }, false)?.backgroundSize).toBe("contain");
+    expect(
+      wallpaperBackgroundStyle({ url: "https://a", dim: 0, focusX: 25, focusY: 75 }, false)?.backgroundPosition,
+    ).toBe("25% 75%");
+  });
+
+  it("zoom paints a scale transform anchored on the focal point (no transform at zoom 1)", () => {
+    const zoomed = wallpaperBackgroundStyle({ url: "https://a", dim: 0, zoom: 2.5, focusX: 25, focusY: 75 }, false);
+    expect(zoomed?.transform).toBe("scale(2.5)");
+    expect(zoomed?.transformOrigin).toBe("25% 75%");
+    expect(wallpaperBackgroundStyle({ url: "https://a", dim: 0, zoom: 1 }, false)?.transform).toBeUndefined();
+    // No focal point set: the anchor stays the dead center.
+    expect(wallpaperBackgroundStyle({ url: "https://a", dim: 0, zoom: 2 }, false)?.transformOrigin).toBe("50% 50%");
   });
 });
 

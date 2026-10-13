@@ -2707,8 +2707,18 @@ function BoardPage({ subPath }: { subPath: string }) {
     <div
       className={(activeWallpaper === null ? "" : "relative ") + "flex h-full min-h-0"}
       data-focus-board-panel=""
-      style={wallpaperBackgroundStyle(activeWallpaper, darkScheme) ?? undefined}
     >
+      {activeWallpaper === null ? null : (
+        // The wallpaper paints on a clipped child, not the root, so a zoom
+        // > 1 can scale the image past the panel edge without ever
+        // scrolling or resizing the board.
+        <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
+          <div
+            className="absolute inset-0"
+            style={wallpaperBackgroundStyle(activeWallpaper, darkScheme) ?? undefined}
+          />
+        </div>
+      )}
       {activeWallpaper === null ? null : (
         <div
           aria-hidden

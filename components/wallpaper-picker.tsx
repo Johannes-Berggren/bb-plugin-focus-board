@@ -2,7 +2,13 @@ import { useEffect, useRef, useState } from "react";
 import { Icon } from "@/components/ui/icon";
 import { Input } from "@/components/ui/input";
 import { fetchOpenversePage } from "@/lib/openverse";
-import { isAllowedWallpaperUrl, wallpaperBackgroundStyle, type WallpaperSettings, type WallpaperLayer } from "./preferences";
+import {
+  isAllowedWallpaperUrl,
+  wallpaperBackgroundStyle,
+  type WallpaperFit,
+  type WallpaperLayer,
+  type WallpaperSettings,
+} from "./preferences";
 import { usePrefersDarkScheme } from "./ui/hooks/use-media-query";
 import {
   PICSUM_SEEDS,
@@ -23,6 +29,41 @@ import {
  * active. Every gallery write goes through the same store validation the
  * typed url does, so no source can smuggle in an url the document refuses.
  */
+/**
+ * The focal grid's nine points: focal percents snap to the 3x3 anchors
+ * (the corners, edge midpoints, and center), so the grid is exact clicks,
+ * not free sliders.
+ */
+const FOCAL_POINTS: readonly { x: number; y: number; label: string }[] = [
+  { x: 0, y: 0, label: "top left" },
+  { x: 50, y: 0, label: "top" },
+  { x: 100, y: 0, label: "top right" },
+  { x: 0, y: 50, label: "left" },
+  { x: 50, y: 50, label: "center" },
+  { x: 100, y: 50, label: "right" },
+  { x: 0, y: 100, label: "bottom left" },
+  { x: 50, y: 100, label: "bottom" },
+  { x: 100, y: 100, label: "bottom right" },
+];
+
+/** A layer's crop fields (fit/zoom/focal), omitted while they sit at their
+ *  untouched defaults AND the stored layer never carried them — so a
+ *  freshly-default document stores the exact compact shape it always did. */
+function cropFields(
+  fit: WallpaperFit,
+  zoom: number,
+  focusX: number,
+  focusY: number,
+  active: WallpaperLayer | null,
+): Partial<WallpaperLayer> {
+  const fields: Partial<WallpaperLayer> = {};
+  if (fit !== "contain" || active?.fit !== undefined) fields.fit = fit;
+  if (zoom !== 1 || active?.zoom !== undefined) fields.zoom = zoom;
+  if (focusX !== 50 || active?.focusX !== undefined) fields.focusX = focusX;
+  if (focusY !== 50 || active?.focusY !== undefined) fields.focusY = focusY;
+  return fields;
+}
+
 export function WallpaperPicker({
   wallpaper,
   onWallpaperChange,
@@ -34,12 +75,37 @@ export function WallpaperPicker({
   const dark = usePrefersDarkScheme();
   const [query, setQuery] = useState<string>(active?.url ?? "");
   const [dim, setDim] = useState<number>(active?.dim ?? 0.35);
+  const [fit, setFit] = useState<WallpaperFit>(active?.fit ?? "contain");
+  const [zoom, setZoom] = useState<number>(active?.zoom ?? 1);
+  const [focusX, setFocusX] = useState<number>(active?.focusX ?? 50);
+  const [focusY, setFocusY] = useState<number>(active?.focusY ?? 50);
   // Follows the committed state when a commit lands elsewhere too
   // (Remove writes through); the scratch pad only matters mid-edit.
   useEffect(() => {
     setQuery(active?.url ?? "");
     setDim(active?.dim ?? 0.35);
-  }, [active?.url, active?.dim]);
+    setFit(active?.fit ?? "contain");
+    setZoom(active?.zoom ?? 1);
+    setFocusX(active?.focusX ?? 50);
+    setFocusY(active?.focusY ?? 50);
+  }, [active?.url, active?.dim, active?.fit, active?.zoom, active?.focusX, active?.focusY]);
+  // One writer for every edit of the active layer: the url, dim, and crop
+  // fields carried from the stored layer (or the scratch pad for the
+  // control being edited) ride along so no edit drops another's setting.
+  const commitActive = (override: Partial<WallpaperLayer>) => {
+    if (active === null) return;
+    const nextFit = override.fit ?? fit;
+    const nextZoom = override.zoom ?? zoom;
+    const nextFocusX = override.focusX ?? focusX;
+    const nextFocusY = override.focusY ?? focusY;
+    const layer: WallpaperLayer = {
+      url: override.url ?? active.url,
+      dim: override.dim ?? active.dim,
+    };
+    if (active.darkUrl !== undefined) layer.darkUrl = active.darkUrl;
+    Object.assign(layer, cropFields(nextFit, nextZoom, nextFocusX, nextFocusY, active));
+    onWallpaperChange({ version: 1, global: layer });
+  };
   const commitUrl = (nextUrl: string, nextDim: number) => {
     const url = nextUrl.trim();
     if (url === "") {
@@ -48,11 +114,18 @@ export function WallpaperPicker({
       if (active !== null) onWallpaperChange({ version: 1, global: null });
       return;
     }
+    if (active !== null) {
+      // Editing the url keeps the layer's dark variant and crop settings,
+      // like the dim slider keeps them.
+      commitActive({ url, dim: nextDim });
+      return;
+    }
     onWallpaperChange({ version: 1, global: { url, dim: nextDim } });
   };
   const commitFromGallery = (url: string, darkUrl?: string) => {
     if (!isAllowedWallpaperUrl(url)) return;
     const layer: WallpaperLayer = darkUrl === undefined ? { url, dim } : { url, dim, darkUrl };
+    Object.assign(layer, cropFields(fit, zoom, focusX, focusY, active));
     onWallpaperChange({ version: 1, global: layer });
   };
   return (
@@ -133,18 +206,92 @@ export function WallpaperPicker({
             onChange={(event) => {
               const nextDim = Number(event.target.value);
               setDim(nextDim);
-              const url = (active?.url ?? query.trim()) || "";
-              if (url !== "" && active !== null) {
-                const layer: WallpaperLayer =
-                  active.darkUrl === undefined
-                    ? { url, dim: nextDim }
-                    : { url, dim: nextDim, darkUrl: active.darkUrl };
-                onWallpaperChange({ version: 1, global: layer });
-              }
+              commitActive({ dim: nextDim });
             }}
             className="flex-1 accent-[var(--primary)]"
           />
         </label>
+        <div className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground">
+          <span className="shrink-0">Fit</span>
+          <div className="flex shrink-0 overflow-hidden rounded-sm border border-border">
+            <button
+              type="button"
+              aria-label="Wallpaper fit: letterbox"
+              aria-pressed={fit === "contain"}
+              title="Contain the whole image (letterbox bars fill the gap)"
+              onClick={() => {
+                setFit("contain");
+                commitActive({ fit: "contain" });
+              }}
+              className={`px-1.5 py-0.5 transition-colors hover:bg-accent hover:text-foreground ${
+                fit === "contain" ? "bg-accent text-foreground" : ""
+              }`}
+            >
+              Letterbox
+            </button>
+            <button
+              type="button"
+              aria-label="Wallpaper fit: fill"
+              aria-pressed={fit === "cover"}
+              title="Fill the board and crop the overflow"
+              onClick={() => {
+                setFit("cover");
+                commitActive({ fit: "cover" });
+              }}
+              className={`px-1.5 py-0.5 transition-colors hover:bg-accent hover:text-foreground ${
+                fit === "cover" ? "bg-accent text-foreground" : ""
+              }`}
+            >
+              Fill
+            </button>
+          </div>
+          <span className="ml-1 shrink-0">Zoom</span>
+          <input
+            type="range"
+            role="slider"
+            aria-label="Wallpaper zoom"
+            min={1}
+            max={4}
+            step={0.25}
+            value={zoom}
+            onChange={(event) => {
+              const nextZoom = Number(event.target.value);
+              setZoom(nextZoom);
+              commitActive({ zoom: nextZoom });
+            }}
+            className="min-w-0 flex-1 accent-[var(--primary)]"
+          />
+        </div>
+        <div className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground">
+          <span className="shrink-0">Focal</span>
+          <div className="grid shrink-0 grid-cols-3 gap-0.5">
+            {FOCAL_POINTS.map((point) => {
+              const pressed = point.x === focusX && point.y === focusY;
+              return (
+                <button
+                  key={point.label}
+                  type="button"
+                  aria-label={`Wallpaper focal point: ${point.label}`}
+                  aria-pressed={pressed}
+                  title={`Focal point: ${point.label} (crop region and zoom anchor)`}
+                  onClick={() => {
+                    setFocusX(point.x);
+                    setFocusY(point.y);
+                    commitActive({ focusX: point.x, focusY: point.y });
+                  }}
+                  className={`flex size-4 items-center justify-center rounded-sm border transition-colors hover:bg-accent ${
+                    pressed ? "border-ring bg-accent" : "border-border"
+                  }`}
+                >
+                  <span
+                    className={`block size-1 rounded-full ${pressed ? "bg-foreground" : "bg-muted-foreground"}`}
+                    aria-hidden
+                  />
+                </button>
+              );
+            })}
+          </div>
+        </div>
         {active !== null ? (
           <button
             type="button"
