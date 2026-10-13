@@ -1,18 +1,23 @@
 // @vitest-environment jsdom
-// Hovered-card prominence (issue #123): a card under the pointer must read
-// MORE prominent, not less. The hover style used to swap the card's opaque
-// surface (`bg-card`) for a translucent one (`hover:bg-accent/50`), so the
-// hovered card let the lane background / wallpaper bleed through — it faded.
-// The fix keeps the hovered surface opaque and, in the same spirit as the
-// wallpaper-contrast floor, marks faded cards (done / dimmed / snoozed) so a
-// board-root spotlight can recede the OTHER cards without ever stacking a
-// second dim on top of the existing scrim / opacity system.
+// Hovered-card prominence (issue #123, then the #123 follow-up): a card under
+// the pointer must read MORE prominent, not less. The hover style used to swap
+// the card's opaque surface (`bg-card`) for a translucent one
+// (`hover:bg-accent/50`), so the hovered card let the lane background /
+// wallpaper bleed through — it faded. The fix keeps the hovered surface
+// opaque; the follow-up darkens it below the resting surface (mixing the card
+// token toward black — `accent` only reads as MORE contrast in the light
+// theme, while in the dark theme it LIGHTENED the hovered card), in the same
+// spirit as the wallpaper-contrast floor: faded cards (done / dimmed /
+// snoozed) get marked so a board-root spotlight can recede the OTHER cards
+// without ever stacking a second dim on top of the existing scrim / opacity
+// system.
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, render } from "@testing-library/react";
 import type { ComponentProps } from "react";
 import type { PluginSidebarThread } from "@get-bb/plugin-sdk/app";
 import {
   CARD_SPOTLIGHT_CLASSES,
+  HOVER_SURFACE,
   ThreadCard,
 } from "../components/thread-card";
 import { Board } from "../components/board";
@@ -54,8 +59,19 @@ describe("the hovered card's surface (issue #123)", () => {
   it("gains an OPAQUE hover surface — translucent accent never lands on the card", () => {
     renderCard();
     expect(tokens()).toContain("bg-card");
-    expect(tokens()).toContain("hover:bg-accent");
-    expect(tokens().some((t) => t.startsWith("hover:bg-accent/"))).toBe(false);
+    expect(tokens()).toContain(HOVER_SURFACE);
+    expect(tokens().some((t) => t.startsWith("hover:bg-accent"))).toBe(false);
+  });
+
+  it("the hover surface derives from the card token, DARKER than the rest state", () => {
+    // Mixing `--card` toward black: the hovered surface darkens below the
+    // resting surface in BOTH themes (dark: 19.5% -> ~15.6%, light: 98.5% ->
+    // ~78.8%), the direction `accent` cannot deliver — accent is ink-ward, so
+    // on a dark canvas it LIGHTENED the hovered card (27.5% over 19.5%).
+    renderCard();
+    expect(HOVER_SURFACE).toBe(
+      "hover:bg-[color-mix(in_oklab,var(--card)_80%,black)]",
+    );
   });
 
   it("keeps the ring emphasis on hover", () => {
@@ -73,10 +89,10 @@ describe("the hovered card's surface (issue #123)", () => {
     );
   });
 
-  it("keeps the opaque hover surface on a done card (its own dim stays in charge)", () => {
+  it("keeps the opaque, darker hover surface on a done card (its own dim stays in charge)", () => {
     renderCard({ isDone: true });
-    expect(tokens()).toContain("hover:bg-accent");
-    expect(tokens().some((t) => t.startsWith("hover:bg-accent/"))).toBe(false);
+    expect(tokens()).toContain(HOVER_SURFACE);
+    expect(tokens().some((t) => t.startsWith("hover:bg-accent"))).toBe(false);
   });
 });
 

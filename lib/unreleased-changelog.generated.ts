@@ -11,7 +11,7 @@ export const UNRELEASED_ITEMS: readonly { text: string; children: string[]; grou
     "group": "Toolbar"
   },
   {
-    "text": "**Hovering a card makes it more prominent, not less.** The hovered card keeps its opaque background instead of going translucent (the lane background and wallpaper no longer bleed through it), and the other cards recede slightly while one is hovered. Done, dimmed, snoozed, and sweep-highlighted cards keep their own fade treatment.",
+    "text": "**Hovering a card makes it more prominent, not less.** The hovered card keeps its opaque background instead of going translucent (the lane background and wallpaper no longer bleed through it), the hover surface darkens below the resting card in both themes for stronger contrast, and the other cards recede slightly while one is hovered. Done, dimmed, snoozed, and sweep-highlighted cards keep their own fade treatment.",
     "children": [],
     "group": "Card hover"
   },
