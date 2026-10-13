@@ -957,6 +957,13 @@ function BoardPage({ subPath }: { subPath: string }) {
   // User-initiated placements (drops, rank moves, menu actions, pane
   // toggles) strip the pin first so the gesture's move lands; the recapture
   // effect below re-pins the settled result.
+  // Pending state-claim writes (below, the one-shot lane-reveal claims):
+  // armed at gesture time with the write's expected resulting state, and
+  // consumed the commit the board reflects it. The attention recapture
+  // reads them as its in-flight marker — see the recapture effect.
+  const pendingStateClaimsRef = useRef<
+    Map<string, { field: "isPinned" | "isUnread"; value: boolean }>
+  >(new Map());
   const [paneCapture, setPaneCapture] = useState<AttentionCapture | null>(null);
   const [paneLaneCapture, setPaneLaneCapture] = useState<LaneCapture | null>(null);
   const [hoverCaptures, setHoverCaptures] = useState<
@@ -1396,9 +1403,19 @@ function BoardPage({ subPath }: { subPath: string }) {
   // re-pins the settled placement. A pin nothing stripped rebuilds to its
   // pinned placement — the pass is a no-op (capturesEqual) — and a focus
   // whose card left the board prunes its capture.
+  // The in-flight guard: a capture whose strip is a gesture's own write
+  // (armed as a pendingStateClaim, consumed the commit the board reflects
+  // the written value) must NOT rebuild yet — the board still renders the
+  // pre-gesture placement, and rebuilding would re-pin the stale lane right
+  // over the gesture's move (a read card's Mark Unread from the pane sat in
+  // its idle lane until the pane closed — reported 2026-10-13). Keep the
+  // strip; the landing consumes the claim and the next pass re-pins.
   useEffect(() => {
+    const inFlight = pendingStateClaimsRef.current;
+    const settled = (threadId: string): boolean => !inFlight.has(threadId);
     setPaneCapture((current) => {
       if (current === null) return current;
+      if (!settled(current.focusId)) return current;
       const rebuilt = captureThreadAttention(current.focusId, current.origin);
       return capturesEqual(rebuilt, current) ? current : rebuilt;
     });
@@ -1407,6 +1424,10 @@ function BoardPage({ subPath }: { subPath: string }) {
       let changed = false;
       const next = new Map<string, AttentionCapture>();
       for (const [threadId, capture] of current) {
+        if (!settled(threadId)) {
+          next.set(threadId, capture);
+          continue;
+        }
         const rebuilt = captureThreadAttention(threadId, capture.origin);
         if (rebuilt !== null && capturesEqual(rebuilt, capture)) {
           next.set(threadId, capture);
@@ -1419,6 +1440,7 @@ function BoardPage({ subPath }: { subPath: string }) {
     });
     setPaneLaneCapture((current) => {
       if (current === null) return current;
+      if (!settled(current.focusId)) return current;
       const input = attentionInputRef.current;
       if (input === null || !input.parent || input.parentLanes === null) return current;
       const rebuilt = laneCaptureOf(input.parentLanes, current.focusId, {
@@ -1436,6 +1458,10 @@ function BoardPage({ subPath }: { subPath: string }) {
       let changed = false;
       const next = new Map<string, LaneCapture>();
       for (const [threadId, capture] of current) {
+        if (!settled(threadId)) {
+          next.set(threadId, capture);
+          continue;
+        }
         const rebuilt = laneCaptureOf(input.parentLanes, threadId, {
           origin: capture.origin,
           capturedAt: capture.capturedAt,
@@ -2042,9 +2068,6 @@ function BoardPage({ subPath }: { subPath: string }) {
     revealSeqRef.current += 1;
     setRevealRequest({ threadId, seq: revealSeqRef.current });
   }, []);
-  const pendingStateClaimsRef = useRef<
-    Map<string, { field: "isPinned" | "isUnread"; value: boolean }>
-  >(new Map());
   useEffect(() => {
     const claims = pendingStateClaimsRef.current;
     if (claims.size === 0) return;
@@ -2845,6 +2868,10 @@ function BoardPage({ subPath }: { subPath: string }) {
                 applyUnreadStateEffects(threadId);
               }
               if (!thread.isUnread) {
+                // The read flip rides the host bridge: arm the claim the
+                // same way the menu's toggleRead does — reveal intent, and
+                // the attention recapture's in-flight guard.
+                pendingStateClaimsRef.current.set(threadId, { field: "isUnread", value: true });
                 void actions.setRead(threadId, false);
               }
             }}
@@ -2985,6 +3012,14 @@ function BoardPage({ subPath }: { subPath: string }) {
             releaseAttentionFor(new Set([openThreadId]));
             // Current intent: a state change lifts any snooze first.
             if (snoozedIds.has(openThreadId)) clearSnooze(openThreadId);
+            // Arm the reveal claim first, the card menu's toggleRead way —
+            // and with it the attention recapture's in-flight guard (the
+            // strip above must not be re-pinned from the pre-gesture board
+            // while the flip rides the host bridge).
+            pendingStateClaimsRef.current.set(openThreadId, {
+              field: "isUnread",
+              value: !openThreadActive.isUnread,
+            });
             if (openThreadActive.isUnread) {
               void actions.setRead(openThreadId, true);
             } else {

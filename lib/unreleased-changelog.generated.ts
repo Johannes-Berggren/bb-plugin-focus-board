@@ -11,6 +11,11 @@ export const UNRELEASED_ITEMS: readonly { text: string; children: string[]; grou
     "group": "Board layout"
   },
   {
+    "text": "**Mark Unread on a frozen card lands in Unread.** A read card held by the attention freeze kept that pin re-armed from the pre-gesture board while its read flip rode the host bridge, so the card sat in its idle lane until the pane closed. The recapture pass now holds the strip while the gesture's write is in flight, and the card lands in the Unread lane the moment the write arrives.",
+    "children": [],
+    "group": "Board layout"
+  },
+  {
     "text": "**Mark Done no longer drags the board back to the Done column.** The reveal request stayed set after it scrolled once, and every later board refresh re-armed the same request, yanking the view back to the done card's lane against the operator's scroll. The claim now records that it was consumed, so a fresh reveal (the next Mark Done, Pin, or read state change) still scrolls while refreshes leave the pan alone.",
     "children": [],
     "group": "Reveal scroll"
