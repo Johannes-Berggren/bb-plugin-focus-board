@@ -80,6 +80,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **Thread agents still link tickets when the linking tool is missing from their session.** GitHub Copilot CLI sessions run without bb plugin tools, so the agent read the linking instructions, tried the call, and could only apologize. The tool's instructions now carry the CLI fallback, `bb focus-board link set "$BB_THREAD_ID" <url>`, so those sessions file the Linear or Jira chip instead of reporting the tool unavailable.
 - **The white drop rectangle around a lane no longer sticks after the drag ends.** Escape mid-drag, a drop claimed by a card, and a drop that relocates the card out from under its own element all clear the lane's ring now, where only a drop onto empty lane space did before.
 
+#### Board scroll
+
+- **The board holds still through ambient resizes.** With a thread selected, any container resize used to slide the whole board back to that card's lane, even height-only changes like the phone keyboard or a composer animation. The re-fit now fires on width changes only, pane openings and drag resizes, so a pan rests where you leave it.
+
 ## [1.2.0] - 2026-10-10
 
 ### Added

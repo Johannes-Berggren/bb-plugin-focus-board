@@ -721,8 +721,20 @@ export function Board({
     };
     keepActiveCardInView();
     // Pane opening and drag-resizing both change the container's width; the
-    // observer re-runs the adjustment for each size change.
-    const observer = new ResizeObserver(keepActiveCardInView);
+    // observer re-runs the adjustment for each size change. The re-fit gates
+    // on WIDTH: mobile browser chrome (URL bar hide/show, keyboard), banners,
+    // and composer animations all resize the container's height without
+    // touching its width — refitting on those yanked the board horizontally
+    // back to the active card's lane (often the far-right end) on every
+    // ambient resize, fighting the operator's own scroll. Height-only
+    // changes never move a card horizontally, so they can skip the fit.
+    let lastObservedWidth = container.getBoundingClientRect().width;
+    const observer = new ResizeObserver(() => {
+      const width = container.getBoundingClientRect().width;
+      if (width === lastObservedWidth) return;
+      lastObservedWidth = width;
+      keepActiveCardInView();
+    });
     observer.observe(container);
     return () => observer.disconnect();
     // activeCardLaneId re-fits when the active card relocates (pin, done,
