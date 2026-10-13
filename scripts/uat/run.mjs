@@ -782,19 +782,41 @@ const pageLockedFlush = () => {
 };
 
 /**
- * The "Nest child threads" toolbar checkbox, read as the operator sees it:
- * role=checkbox, checked = aria-checked, disabled = aria-disabled present.
+ * The "Nest child threads" toggle, read as the operator sees it: the View
+ * menu's footer row — role=checkbox, checked = aria-checked, disabled =
+ * aria-disabled present. The row only exists while the View menu is open,
+ * so this opens the menu on the View trigger (closed, the footer is not in
+ * the DOM at all), reads the row, and closes the menu again. Returns
+ * { present: false } rather than throwing when the toggle cannot be found:
+ * the nest_locked rule turns that into the step's failed assertion.
  */
-const pageNestToggle = () => {
-  const button = [...document.querySelectorAll('button[role="checkbox"]')].find(
-    (el) => el.textContent?.includes("Nest child threads"),
-  );
-  if (!button) return { present: false, checked: null, disabled: null };
-  return {
+const pageNestToggle = async () => {
+  const trigger = document.querySelector('button[aria-label="View"]');
+  if (!trigger) return { present: false, reason: "no View menu trigger on the toolbar" };
+  const readRow = () =>
+    [...document.querySelectorAll('button[role="checkbox"]')].find(
+      (el) => el.textContent?.includes("Nest child threads"),
+    );
+  const wasOpen = readRow() !== undefined;
+  if (!wasOpen) {
+    trigger.click();
+    const deadline = window.performance.now() + 2000;
+    while (window.performance.now() < deadline) {
+      if (readRow() !== undefined) break;
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    }
+  }
+  const row = readRow();
+  if (!row) {
+    return { present: false, reason: "the Nest child threads row never appeared in the open View menu" };
+  }
+  const state = {
     present: true,
-    checked: button.getAttribute("aria-checked") === "true",
-    disabled: button.hasAttribute("aria-disabled"),
+    checked: row.getAttribute("aria-checked") === "true",
+    disabled: row.hasAttribute("aria-disabled"),
   };
+  if (!wasOpen) trigger.click();
+  return state;
 };
 
 /**
@@ -1154,7 +1176,11 @@ async function check(step, page, gestureResults = []) {
     if (rule.nest_locked !== undefined) {
       const toggle = await page.evaluate(pageNestToggle);
       if (!toggle.present) {
-        expect(`nest toggle locked: ${rule.nest_locked}`, false, "Nest child threads checkbox not found");
+        expect(
+          `nest toggle locked: ${rule.nest_locked}`,
+          false,
+          toggle.reason ?? "Nest child threads checkbox not found",
+        );
       } else {
         const ok = rule.nest_locked
           ? toggle.checked === true && toggle.disabled === true
