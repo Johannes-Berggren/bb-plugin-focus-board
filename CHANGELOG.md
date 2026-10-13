@@ -84,6 +84,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - **The board holds still through ambient resizes.** With a thread selected, any container resize used to slide the whole board back to that card's lane, even height-only changes like the phone keyboard or a composer animation. The re-fit now fires on width changes only, pane openings and drag resizes, so a pan rests where you leave it.
 
+#### Ticket chips
+
+- **Status dots refresh after a PR merges or an issue closes.** Chip dots fetched once per visible-ref set and never again, and a merge changes only the cache, not the ref set, so a dot could sit open for minutes. The fetch also reruns on a 30s poll and on window focus, without reloading the pane.
+
 ## [1.2.0] - 2026-10-10
 
 ### Added
