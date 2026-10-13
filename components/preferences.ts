@@ -24,6 +24,25 @@ export function nestStoredValue(enabled: boolean): "on" | "off" {
   return enabled ? "on" : "off";
 }
 
+/**
+ * The compact (mobile) header's filter-ribbon persistence. The collapsed
+ * default is the point: on a phone the palette takes most of the screen, so
+ * only New thread, the search field, the ribbon toggle, and the settings
+ * gear stay visible and the View chip / filter dropdowns / Clear / thread
+ * count hide inside the ribbon until expanded. Stored values are
+ * `"open"`/`"closed"`; anything else (or nothing) defaults to closed. The
+ * choice persists across viewports but only the compact header reads it.
+ */
+export const TOOLBAR_FILTER_RIBBON_KEY = "focus-board:toolbarFilterRibbon";
+
+export function parseFilterRibbonStored(raw: string | null): boolean {
+  return raw === "open";
+}
+
+export function filterRibbonStoredValue(open: boolean): "open" | "closed" {
+  return open ? "open" : "closed";
+}
+
 /** The Group-by dropdown's localStorage persistence (D1). */
 export const GROUP_BY_KEY = "focus-board:groupBy";
 
