@@ -4,7 +4,7 @@
 // wipes in at its new lane (the slot is present from wipe-in's first frame,
 // so the lane reflows when the wipe starts). Pinned at the Board seam: the
 // column diff the planner sees and the phases the timers advance.
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, cleanup, render } from "@testing-library/react";
 import type { PluginSidebarThread } from "@get-bb/plugin-sdk/app";
 import { Board } from "../components/board";
@@ -20,6 +20,7 @@ import { thread } from "./thread-fixture";
 afterEach(() => {
   cleanup();
   vi.useRealTimers();
+  vi.unstubAllGlobals();
 });
 
 const NOW = 10_000_000;
@@ -413,5 +414,146 @@ describe("cardTransport: the shipped default is zoom; none teleports instantly",
     // ...but the shimmer field rides nothing: the glint layer only mounts
     // when motion is allowed.
     expect(document.querySelector("[data-transport-sparks]")).toBeNull();
+  });
+});
+
+describe("the transport ghost never claims aria-current (issue #105)", () => {
+  // activeThreadId selects a card, which mounts the keep-in-view effect —
+  // jsdom has no ResizeObserver; the stub pattern the keep-in-view tests use.
+  beforeEach(() => {
+    vi.stubGlobal(
+      "ResizeObserver",
+      class {
+        observe(): void {}
+        unobserve(): void {}
+        disconnect(): void {}
+      },
+    );
+  });
+  // The active card relocating (pane open on it: a drop to Done, a pin) is
+  // also THE card carrying `aria-current="true"`. Its ghost renders the same
+  // markup card in the OLD lane — DOM-first for a forward move — and a
+  // ghost anchor that still claims current makes the board's own active-card
+  // locator (`a[aria-current="true"]`, scripts/uat run.mjs and any reader
+  // trusting the marker) resolve a dissolving decoration that the correct
+  // destination scroll has already left offscreen. The live card owns the
+  // marker; the ghost keeps its old-slot visuals but never reports current.
+  const before = [
+    thread({ id: "thr_a", isUnread: true, updatedAt: NOW - 1000 }),
+    thread({ id: "thr_b", isUnread: true, updatedAt: NOW - 2000 }),
+  ];
+  const after = [
+    thread({ id: "thr_a", isPinned: true, pinnedAt: 1, pinSortKey: 1, updatedAt: NOW - 1000 }),
+    thread({ id: "thr_b", isUnread: true, updatedAt: NOW - 2000 }),
+  ];
+
+  it("the dissolve ghost drops aria-current while keeping its active-slot visuals", () => {
+    vi.useFakeTimers();
+    const { rerender } = render(
+      <Board
+        {...boardProps("status", before, undefined, {
+          transportVariant: "dissolve",
+          activeThreadId: "thr_a",
+        })}
+      />,
+    );
+    rerender(
+      <Board
+        {...boardProps("status", after, undefined, {
+          transportVariant: "dissolve",
+          activeThreadId: "thr_a",
+        })}
+      />,
+    );
+
+    // The setup is the one the bug needs: a ghost slot rendering the card...
+    const ghost = document.querySelector("[data-transport-out]");
+    expect(ghost).not.toBeNull();
+    // ...whose own anchor is still highlighted as the open card's slot, but
+    // reports nothing about position: exactly ONE aria-current marker in the
+    // document, and it is the live card's.
+    const ghostAnchor = ghost?.querySelector("a[aria-current]");
+    expect(ghostAnchor).toBeNull();
+    const markers = document.querySelectorAll('a[aria-current="true"]');
+    expect(markers).toHaveLength(1);
+    expect(markers[0].closest("[data-transport-ghost]")).toBeNull();
+    // Inverse guard: the ghost's visuals are untouched — the dissolve is a
+    // fade of the slot that WAS active, ring and all; only the aria marking
+    // drops.
+    expect(ghost?.querySelector("[data-thread-card] a")?.className).toContain("ring-2");
+  });
+
+  it("the zoom ghost never claims aria-current either", () => {
+    vi.useFakeTimers();
+    const { rerender } = render(
+      <Board
+        {...boardProps("status", before, undefined, {
+          cardTransport: "zoom",
+          activeThreadId: "thr_a",
+        })}
+      />,
+    );
+    rerender(
+      <Board
+        {...boardProps("status", after, undefined, {
+          cardTransport: "zoom",
+          activeThreadId: "thr_a",
+        })}
+      />,
+    );
+    const ghost = document.querySelector("[data-transport-out]");
+    expect(ghost).not.toBeNull();
+    expect(ghost?.querySelector("a[aria-current]")).toBeNull();
+    const markers = document.querySelectorAll('a[aria-current="true"]');
+    expect(markers).toHaveLength(1);
+    expect(markers[0].closest("[data-transport-ghost]")).toBeNull();
+  });
+
+  it("a nested child row marked active inside a relocating parent's ghost stays silent too", () => {
+    vi.useFakeTimers();
+    // The ACTIVE card is the CHILD; the parent relocates lanes, so the ghost
+    // dissolves with the child row inside it — a marker on the ghost's copy
+    // of that row reads DOM-first in the old lane, the same trap as the
+    // top-level case. A second, stationary unread thread keeps the old lane
+    // rendered (a lane that empties out has nowhere to hold the ghost).
+    const thrB = thread({ id: "thr_b", projectId: "proj_a", isUnread: true, updatedAt: NOW - 2000 });
+    const before = [
+      thread({ id: "thr_parent", projectId: "proj_a", isUnread: true, updatedAt: NOW - 1000 }),
+      thrB,
+    ];
+    const after = [
+      thread({
+        id: "thr_parent",
+        projectId: "proj_a",
+        isPinned: true,
+        pinnedAt: 1,
+        pinSortKey: 1,
+        updatedAt: NOW - 1000,
+      }),
+      thrB,
+    ];
+    const child = thread({
+      id: "thr_child",
+      projectId: "proj_a",
+      parentThreadId: "thr_parent",
+      updatedAt: NOW - 500,
+    });
+    const props = {
+      ...boardProps("status", before, undefined, { transportVariant: "dissolve" }),
+      activeThreadId: "thr_child",
+      nestedChildrenByParent: new Map([["thr_parent", [child]]]),
+    };
+    const { rerender } = render(<Board {...(props as BoardProps)} />);
+    rerender(<Board {...({ ...props, columns: buildColumns(after, "status", context, new Map(), new Set(), NOW, {})} as BoardProps)} />);
+
+    // The ghost holds the card AND its nested rows; the child row inside it
+    // is a decorative copy, so it never reports current. The live row under
+    // the real card does.
+    const ghost = document.querySelector("[data-transport-out]");
+    expect(ghost).not.toBeNull();
+    expect(ghost?.querySelector("a[aria-current]")).toBeNull();
+    const markers = document.querySelectorAll('a[aria-current="true"]');
+    expect(markers).toHaveLength(1);
+    expect(markers[0].closest("[data-transport-ghost]")).toBeNull();
   });
 });

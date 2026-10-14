@@ -2757,6 +2757,7 @@ export function Board({
                           thread={thread}
                           stateDot={<StateDot thread={thread} />}
                           isActive={thread.id === activeThreadId}
+                          isTransportGhost={ghostPlay !== undefined}
                           isDone={doneIds.has(thread.id) || isDoneProjection}
                           onAttentionEnter={onAttentionEnter}
                           onAttentionLeave={onAttentionLeave}

@@ -464,18 +464,26 @@ const pageLiveRegion = () =>
  * inside the element carrying data-thread-card.
  */
 const pageActiveCard = () => {
-  const marker = document.querySelector('a[aria-current="true"]');
-  const card = marker?.closest("[data-thread-card]");
-  if (!marker || !card) return { id: null, visible: false };
-  const rect = card.getBoundingClientRect();
-  const visible =
-    rect.width > 0 &&
-    rect.height > 0 &&
-    rect.bottom > 0 &&
-    rect.right > 0 &&
-    rect.top < window.innerHeight &&
-    rect.left < window.innerWidth;
-  return { id: card.getAttribute("data-thread-card"), visible };
+  // Resolve the marker the way the board's own card lookups do
+  // (firstRealCard): a transport ghost renders the same anchor in the OLD
+  // lane — DOM-first on a forward move — and must never satisfy the lookup,
+  // or the "active card visible" check reads the dissolving decoration the
+  // destination scroll just left offscreen (issue #105).
+  for (const marker of document.querySelectorAll('a[aria-current="true"]')) {
+    if (marker.closest("[data-transport-ghost]") !== null) continue;
+    const card = marker.closest("[data-thread-card]");
+    if (!card) continue;
+    const rect = card.getBoundingClientRect();
+    const visible =
+      rect.width > 0 &&
+      rect.height > 0 &&
+      rect.bottom > 0 &&
+      rect.right > 0 &&
+      rect.top < window.innerHeight &&
+      rect.left < window.innerWidth;
+    return { id: card.getAttribute("data-thread-card"), visible };
+  }
+  return { id: null, visible: false };
 };
 
 /** A real history back gesture, as the browser's back arrow performs it. */

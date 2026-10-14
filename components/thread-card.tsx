@@ -140,6 +140,17 @@ interface ThreadCardProps {
   onOpen: () => void;
   /** The currently open thread; a nested child row matching it is highlighted. */
   activeThreadId?: string | null;
+  /**
+   * The dissolve slot's old-lane copy of the card (a transport ghost): the
+   * slot li is already aria-hidden and inert, so the anchor never reports
+   * `aria-current` either — the live card owns the marker. A ghost that
+   * claims current makes the board's active-card locator resolve DOM-first
+   * in the OLD lane, and once the destination scroll moves that lane
+   * offscreen the marker reads a card that is not where the board followed
+   * (issue #105). Decorative marking only: the active ring and slot visuals
+   * are untouched.
+   */
+  isTransportGhost?: boolean;
   /** Open a (nested child) thread's pane. */
   onOpenThread?: (threadId: string) => void;
   /** Right-click menu actions for a nested child thread. */
@@ -405,6 +416,7 @@ function ChildRow({
   child,
   dimmed,
   isActive,
+  isTransportGhost = false,
   onOpenThread,
   menuActions,
   snoozeFor,
@@ -419,6 +431,8 @@ function ChildRow({
   dimmed?: boolean;
   /** The open thread's row gets the same active ring a standalone card gets. */
   isActive?: boolean;
+  /** The dissolve slot's old-lane copy: never reports aria-current (see ThreadCard's contract). */
+  isTransportGhost?: boolean;
   onOpenThread: (threadId: string) => void;
   menuActions?: readonly CardMenuAction[];
   /** Snooze wake lookup, for the row's little clock marker. */
@@ -481,7 +495,7 @@ function ChildRow({
         if (into instanceof Node && event.currentTarget.contains(into)) return;
         rankDrag?.onDragLeave(event);
       }}
-      aria-current={isActive ? "true" : undefined}
+      aria-current={isActive && !isTransportGhost ? "true" : undefined}
       onDragStart={(event) => {
         // A snoozed child refuses drag (`draggable={!childSnoozed}` above);
         // the guard keeps the refusal true even where the attribute is not
@@ -596,6 +610,7 @@ export function ThreadCard({
   snoozeFor,
   onOpen,
   activeThreadId,
+  isTransportGhost = false,
   onOpenThread,
   childMenuActions,
   childRankDrag,
@@ -812,7 +827,7 @@ export function ThreadCard({
       <div className="flex items-stretch">
         <a
           href={thread.href}
-          aria-current={isActive ? "true" : undefined}
+          aria-current={isActive && !isTransportGhost ? "true" : undefined}
           draggable={!snoozed}
           onDragStart={(event) => {
             // A snoozed card refuses drag (`draggable={!snoozed}` above);
@@ -1035,6 +1050,7 @@ export function ThreadCard({
                         child={child}
                         dimmed={isDone || childDone}
                         isActive={child.id === activeThreadId}
+                        isTransportGhost={isTransportGhost}
                         onOpenThread={onOpenThread}
                         menuActions={childMenuActions?.(child)}
                         snoozeFor={snoozeFor}
