@@ -13,44 +13,37 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
-#### Toolbar
+#### Board layout
 
 - **The toolbar reads as its own band.** The header row paints a muted tint shared by the light and dark themes, so its controls stand apart from the board body and the header is easy to find on a busy board.
 
 ### Fixed
 
-#### The title editor
-
-- **The auto-rename titles threads that open with a pasted file.** Such a thread carries an empty opener text row, so every option in the fallback modal (each AI service, and the thread's own model) failed "no prompt text to title from" before any model was even called; the prompt now recovers the paste's content from bb's attachments store, and a missing, escaping, or non-text paste fails with the file named.
-- **The auto-rename's service picks fit bb's bridge prompt cap again.** A thread whose opener text ran long built a title prompt over bb's 4000-character bridge limit, so the only usable service answered "HTTP 400: rpc input validation failed" on every pick; the built prompt now clamps to the cap with the instructions included, and the bridge wait rises above the provider plugin's own 30s budget so slow completions abort there, not in the bridge.
-
-#### Thread pane
-
-- **A squeezed panel puts the thread pane on a panel-wide sheet.** With a plugin panel that narrowed far below its desktop window, the side-by-side pane kept its stored width: the board flexed away to a sliver and the pane's header (title, auto-rename, Mark Unread) painted past the panel's right edge onto the host's own UI. The pane now measures its panel row — below 640px it covers the board as a sheet scoped to the panel, keeping the host's chrome visible, and above it the side-by-side pane returns with its stored width clamped to the panel so it can never jut past the edge again.
-
-#### Lane transport
-
-- **The lane-move dissolve leaves the active-card marker on the card, not its ghost.** Relocating the open card played its old-lane ghost with the marker still claiming `aria-current`, so the marker and the keep-in-view scroll pointed at different cards. The ghost is inert decoration and never reports the marker now; the card the board followed owns it.
-
 #### Search and filters
 
 - **A narrowed desktop header borrows the mobile filter collapse.** Between phone widths and the width the filter row needs, a small window or an open pane left the desktop palette wrapped over several header rows; the header now measures itself and folds behind the same Filters toggle, with the same badge and persisted choice, and the single-row palette returns when the band widens again.
 
-#### Group boxes
+#### Board layout
 
-- **A card moving into a lane joins the group frame already there.** Each lane renders at most one dashed frame per group, gathering that lane's members inside it at the first member's slot; a card the lane held between two members now renders after the frame instead of painting a second instance of the group.
+- **The auto-rename titles threads that open with a pasted file.** Such a thread carries an empty opener text row, so every option in the fallback modal (each AI service, and the thread's own model) failed "no prompt text to title from" before any model was even called; the prompt now recovers the paste's content from bb's attachments store, and a missing, escaping, or non-text paste fails with the file named.
+- **The auto-rename's service picks fit bb's bridge prompt cap again.** A thread whose opener text ran long built a title prompt over bb's 4000-character bridge limit, so the only usable service answered "HTTP 400: rpc input validation failed" on every pick; the built prompt now clamps to the cap with the instructions included, and the bridge wait rises above the provider plugin's own 30s budget so slow completions abort there, not in the bridge.
+- **A squeezed panel puts the thread pane on a panel-wide sheet.** With a plugin panel that narrowed far below its desktop window, the side-by-side pane kept its stored width: the board flexed away to a sliver and the pane's header (title, auto-rename, Mark Unread) painted past the panel's right edge onto the host's own UI. The pane now measures its panel row; below 640px it covers the board as a sheet scoped to the panel, keeping the host's chrome visible, and above it the side-by-side pane returns with its stored width clamped to the panel so it can never jut past the edge again.
+- **A frozen parent-lane keeps its hold under By project.** The project sections re-sorted every section's lanes by recency and threw the lane freeze away, so the attended lane snapped back the moment By project engaged. The sectioning now preserves the order it receives, sections themselves still ordering by their freshest lane.
+- **Parent-lane board stops yanking the scroll back to the selected card.** With a card selected, every lane assembly rebuild re-ran the same-lane scroll correction and dragged the vertical scroll back down to the selection. Only a selection change, a lane move, or a viewport resize re-locks now; a hover capture or an ambient re-sort that merely rebuilds the lanes leaves the scroll alone.
+- **Closing the thread pane releases the card it froze.** The pane-open push consumed its settle marker in a way that also ate the close's, so a closed pane's attention capture survived and the frozen family card stopped following live state (a running child could never lift it into Working until the next open or a drag). Now the close settle clears the capture, the fallback close clears it without a settle, and the decision lives in one pure `paneRouteAction` map.
+- **Mark Unread on a frozen card lands in Unread.** A read card held by the attention freeze kept that pin re-armed from the pre-gesture board while its read flip rode the host bridge, so the card sat in its idle lane until the pane closed. The recapture pass now holds the strip while the gesture's write is in flight, and the card lands in the Unread lane the moment the write arrives.
+- **Mark Done no longer drags the board back to the Done column.** The reveal request stayed set after it scrolled once, and every later board refresh re-armed the same request, yanking the view back to the done card's lane against the operator's scroll. The claim now records that it was consumed, so a fresh reveal (the next Mark Done, Pin, or read state change) still scrolls while refreshes leave the pan alone.
 
-#### Card hover
+#### Card animations
 
+- **The lane-move dissolve leaves the active-card marker on the card, not its ghost.** Relocating the open card played its old-lane ghost with the marker still claiming `aria-current`, so the marker and the keep-in-view scroll pointed at different cards. The ghost is inert decoration and never reports the marker now; the card the board followed owns it.
 - **Hovering a card makes it more prominent, not less.** The hovered card keeps its opaque background instead of going translucent (the lane background and wallpaper no longer bleed through it), the hover surface darkens below the resting card in both themes for stronger contrast, and the other cards recede slightly while one is hovered. Done, dimmed, snoozed, and sweep-highlighted cards keep their own fade treatment.
 - **The recede dim waits for the pointer to rest.** Sibling cards now start dimming only after the pointer holds still for 300ms, and the fade takes another 300ms, so a quick sweep across the board never strobes the dim on and off; un-hovering stays instant.
 
-#### Family frames
+#### Groups and family boxes
 
+- **A card moving into a lane joins the group frame already there.** Each lane renders at most one dashed frame per group, gathering that lane's members inside it at the first member's slot; a card the lane held between two members now renders after the frame instead of painting a second instance of the group.
 - **A search hit keeps the family whole no matter what frames exist.** A second pass re-gated the family filter's output and dropped dimmed family members whenever a group frame existed anywhere on the board, so a missed-search parent card vanished and its child re-rooted as a lone card. The redundant pass is deleted: the family filter is the one keep rule, and frames never touch what it keeps.
-
-#### Family nesting
-
 - **Thread nesting no longer moves a child into a label it does not belong to.** Under the Group view a child nested into the parent's lane even when its feature-group assignment named another group, and that lane just lost it. The same-space rule keys the group assignment like project, provider, and machine, so a cross-group child stands alone in its own group column.
 - **Live work no longer hides under a Done card.** A live child of a Done parent stayed nested as a row inside the Done card whenever the view's own rules said it fit. Every live child of a Done parent now gets its own card, in every view.
 - **A Done projection card folds on its own.** The stored fold held the parent id alone, so folding the live family card also folded the projection sitting in the Done lane; the projection keeps its own fold entry now.
@@ -58,21 +51,6 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **A child thread spawned from a child card nests under that card's row.** Right-clicking a nested child card and picking "New child thread…" used to leave the new thread beside its parent under the family root, breaking the dialog's "Will nest under" promise. Families now follow their real edges one row level deeper (a child row carries its own children as indented sub-rows; deeper members still re-attach to the root), and when the display target differs from the spawn parent, the dialog names both.
   - The fold's count names what folding hides: the rows plus their sub-rows, so a family card with a grandchild no longer reads one short.
 - **An errored child thread reads as Needs-you, not gray idle.** A child whose turn failed hard (`status: "error"` in bb) matched no state in `threadState()`, so its dot rendered the same gray as an idle child everywhere, and a collapsed family's child-dot strip hid the error entirely. Errored turns and failed queued sends now ride the attention arm: amber, pulsing, on the strip, the nested rows, and the board lanes.
-
-#### Parent lanes
-
-- **A frozen parent-lane keeps its hold under By project.** The project sections re-sorted every section's lanes by recency and threw the lane freeze away, so the attended lane snapped back the moment By project engaged. The sectioning now preserves the order it receives, sections themselves still ordering by their freshest lane.
-- **Parent-lane board stops yanking the scroll back to the selected card.** With a card selected, every lane assembly rebuild re-ran the same-lane scroll correction and dragged the vertical scroll back down to the selection. Only a selection change, a lane move, or a viewport resize re-locks now; a hover capture or an ambient re-sort that merely rebuilds the lanes leaves the scroll alone.
-
-#### Board layout
-
-- **Closing the thread pane releases the card it froze.** The pane-open push consumed its settle marker in a way that also ate the close's, so a closed pane's attention capture survived and the frozen family card stopped following live state (a running child could never lift it into Working until the next open or a drag). Now the close settle clears the capture, the fallback close clears it without a settle, and the decision lives in one pure `paneRouteAction` map.
-
-- **Mark Unread on a frozen card lands in Unread.** A read card held by the attention freeze kept that pin re-armed from the pre-gesture board while its read flip rode the host bridge, so the card sat in its idle lane until the pane closed. The recapture pass now holds the strip while the gesture's write is in flight, and the card lands in the Unread lane the moment the write arrives.
-
-#### Reveal scroll
-
-- **Mark Done no longer drags the board back to the Done column.** The reveal request stayed set after it scrolled once, and every later board refresh re-armed the same request, yanking the view back to the done card's lane against the operator's scroll. The claim now records that it was consumed, so a fresh reveal (the next Mark Done, Pin, or read state change) still scrolls while refreshes leave the pan alone.
 
 ## [1.3.0] - 2026-10-13
 
