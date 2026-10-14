@@ -5,6 +5,7 @@
 // a host.
 import { describe, expect, it } from "vitest";
 import {
+  AUTOTITLE_BRIDGE_PROMPT_MAX_CHARS,
   AUTOTITLE_PROMPT_MAX_CHARS,
   autotitleTargets,
   buildAutotitlePrompt,
@@ -102,6 +103,24 @@ describe("buildAutotitlePrompt", () => {
     expect(prompt.indexOf("Reply with only the title")).toBeLessThan(
       prompt.indexOf("Fix the login redirect loop"),
     );
+  });
+
+  it("fits bb's aiServices bridge cap of 4000 chars, instructions included", () => {
+    // Live-proven cap: the bridge rejects prompt > 4000 with "Too big:
+    // expected string to have <=4000 characters". The OLD build clamped the
+    // task text to 4000 and THEN added the instruction block, so a
+    // 3731-char opener (thr_ymkmmmfq9e, live) built a 4029-char prompt and
+    // every ✨ pick of the bridged service died "HTTP 400: rpc input
+    // validation failed" before any model call.
+    expect(AUTOTITLE_BRIDGE_PROMPT_MAX_CHARS).toBe(4000);
+    const liveOpener = "t".repeat(3731);
+    expect(buildAutotitlePrompt(liveOpener).length).toBeLessThanOrEqual(4000);
+    // The same holds at the worst case.
+    expect(
+      buildAutotitlePrompt("x".repeat(100_000)).length,
+    ).toBeLessThanOrEqual(4000);
+    // Short prompts stay byte-identical in shape (instructions, then task).
+    expect(buildAutotitlePrompt("hi")).toContain("The task:\nhi");
   });
 });
 

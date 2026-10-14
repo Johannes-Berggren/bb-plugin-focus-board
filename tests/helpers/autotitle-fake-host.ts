@@ -57,6 +57,12 @@ export type AutotitleSetupOptions = {
    * entry repeats when the walk keeps going.
    */
   sourceTimelinePages?: Array<{ rows?: unknown; timelinePage?: unknown }>;
+  /**
+   * bb.server.experimental_dataDir for the run (the pasted-attachment
+   * recovery resolves the attachments store under it). Default: the SDK
+   * fake's canned path.
+   */
+  dataDir?: string;
 };
 
 const SOURCE_THREAD_ID = "thr_x";
@@ -113,6 +119,7 @@ export async function setup(
   const sourceRow = opts.threadRow ?? DEFAULT_SOURCE_ROW;
   const host: FakePluginHost = createFakePluginHost({
     pluginId: "focus-board",
+    ...(opts.dataDir !== undefined ? { dataDir: opts.dataDir } : {}),
     sdk: {
       system: {
         aiServices: async () => ({

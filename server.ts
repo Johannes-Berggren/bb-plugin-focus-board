@@ -105,10 +105,15 @@ import {
 import {
   assistantTextFromTimeline,
   buildAutotitleProbePrompt,
+  firstUserPromptFileFromTimeline,
   firstUserPromptFromTimeline,
   probeSettled,
   type AutotitleTimelineRow,
 } from "./lib/autotitle-thread-model";
+import {
+  attachmentPromptTarget,
+  readAttachmentPromptText,
+} from "./lib/autotitle-attachment";
 import type { JsonValue } from "@get-bb/plugin-sdk";
 
 /**
@@ -1625,6 +1630,44 @@ export default async function plugin(bb: BbPluginApi) {
       ? firstUserPromptFromTimeline(collected)
       : null;
     if (fromTimeline !== null) return fromTimeline;
+    // The pasted-opener tier: a thread that opens with a composer paste
+    // carries a user row with EMPTY text whose content lives in the stored
+    // attachment the row's attachments.localFilePaths names (found live on
+    // thr_eid3vv6gzt — every ✨ option failed "has no prompt text" before
+    // any service or probe was called). The file is read out of bb's own
+    // attachments store, resolved with bb.server.experimental_dataDir (a
+    // plugin that guesses ~/.bb would read the wrong server's files), and
+    // every refusal names the file or path it is about.
+    const storedPath = firstUserPromptFileFromTimeline(collected);
+    if (storedPath !== null) {
+      const source = (await bb.sdk.threads.get({ threadId })) as unknown as {
+        projectId?: unknown;
+      };
+      const projectId =
+        typeof source?.projectId === "string" ? source.projectId : null;
+      if (projectId === null) {
+        throw new Error(
+          `thread_autotitle: thread ${threadId} opens with the stored paste ${storedPath}, but the thread has no project to read its attachments from`,
+        );
+      }
+      const target = attachmentPromptTarget(
+        bb.server.experimental_dataDir,
+        projectId,
+        storedPath,
+      );
+      if (target === null) {
+        throw new Error(
+          `thread_autotitle: thread ${threadId} opens with the stored paste ${storedPath}, which escapes the project's attachments store`,
+        );
+      }
+      const read = await readAttachmentPromptText(target);
+      if (!read.ok) {
+        throw new Error(
+          `thread_autotitle: thread ${threadId} opens with the stored paste ${storedPath}, which could not be read as prompt text: ${read.reason}`,
+        );
+      }
+      return read.text;
+    }
     const history = (await bb.sdk.threads.promptHistory({
       threadId,
       // bb pages prompt history newest-first and types limit as a string;
@@ -1988,7 +2031,9 @@ export default async function plugin(bb: BbPluginApi) {
         method: "complete",
         input: { prompt: buildAutotitlePrompt(threadPrompt) },
         outputSchema: z.object({ text: z.string() }).passthrough(),
-        signal: AbortSignal.timeout(20_000),
+        // Above the provider plugin's own 30s completion budget: a slow,
+        // healthy completion must abort in the provider, not in this bridge.
+        signal: AbortSignal.timeout(35_000),
       })) as { text?: unknown };
       if (typeof reply?.text !== "string") {
         throw new Error(
