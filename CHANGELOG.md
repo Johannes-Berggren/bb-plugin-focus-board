@@ -19,6 +19,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+#### The title editor
+
+- **The ✨ auto-rename titles threads that open with a pasted file.** Such a thread carries an empty opener text row, so every option in the fallback modal (each AI service, and the thread's own model) failed "no prompt text to title from" before any model was even called; the prompt now recovers the paste's content from bb's attachments store, and a missing, escaping, or non-text paste fails with the file named.
+- **The ✨ auto-rename's service picks fit bb's bridge prompt cap again.** A thread whose opener text ran long built a title prompt over bb's 4000-character bridge limit, so the only usable service answered "HTTP 400: rpc input validation failed" on every pick; the built prompt now clamps to the cap with the instructions included, and the bridge wait rises above the provider plugin's own 30s budget so slow completions abort there, not in the bridge.
+
 #### Thread pane
 
 - **A squeezed panel puts the thread pane on a panel-wide sheet.** With a plugin panel that narrowed far below its desktop window, the side-by-side pane kept its stored width: the board flexed away to a sliver and the pane's header (title, ✨, Mark Unread) painted past the panel's right edge onto the host's own UI. The pane now measures its panel row — below 640px it covers the board as a sheet scoped to the panel, keeping the host's chrome visible, and above it the side-by-side pane returns with its stored width clamped to the panel so it can never jut past the edge again.
@@ -142,11 +147,6 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   - A chip whose ids all fit one line centers that line in the chip's height, and the chip hugs its id count: a lone id no longer holds empty column width past the last id.
 
 ### Fixed
-
-#### The title editor
-
-- **The ✨ auto-rename titles threads that open with a pasted file.** Such a thread carries an empty opener text row, so every option in the fallback modal (each AI service, and the thread's own model) failed "no prompt text to title from" before any model was even called; the prompt now recovers the paste's content from bb's attachments store, and a missing, escaping, or non-text paste fails with the file named.
-- **The ✨ auto-rename's service picks fit bb's bridge prompt cap again.** A thread whose opener text ran long built a title prompt over bb's 4000-character bridge limit, so the only usable service answered "HTTP 400: rpc input validation failed" on every pick; the built prompt now clamps to the cap with the instructions included, and the bridge wait rises above the provider plugin's own 30s budget so slow completions abort there, not in the bridge.
 
 #### The New thread composer
 
