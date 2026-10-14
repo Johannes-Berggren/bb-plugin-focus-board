@@ -1,10 +1,10 @@
 # UAT report
 
-_Generated 2026-10-12T23:13:04.915Z by `npm run uat`._
+_Generated 2026-10-14T03:13:22.503Z by `npm run uat`._
 
 ## autotitle
 
-Source: `/Users/cristos/.bb/plugins/environment-git-worktree/host-data/worktrees/thr_hjazswxeg2-1/bb-plugin-focus-board/tests/manual/uat-autotitle.yaml` · theme dark
+Source: `tests/manual/uat-autotitle.yaml` · theme dark
 
 | Step | Result | Detail |
 | --- | --- | --- |
