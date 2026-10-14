@@ -1,0 +1,84 @@
+{
+  "pageErrors": [],
+  "states": [
+    {
+      "label": "A-pane-closed-250px",
+      "panel": {
+        "x": 0,
+        "y": 0,
+        "w": 250,
+        "h": 700
+      },
+      "toolbar": {
+        "x": 0,
+        "y": 0,
+        "w": 250,
+        "h": 81
+      },
+      "search": {
+        "x": 127,
+        "y": 8,
+        "w": 42,
+        "h": 32
+      },
+      "pane": null,
+      "paneTitle": null
+    },
+    {
+      "label": "B-pane-open-250px",
+      "panel": {
+        "x": 0,
+        "y": 0,
+        "w": 250,
+        "h": 700
+      },
+      "toolbar": {
+        "x": 0,
+        "y": 0,
+        "w": 250,
+        "h": 81
+      },
+      "search": {
+        "x": 127,
+        "y": 8,
+        "w": 42,
+        "h": 32
+      },
+      "pane": {
+        "x": 0,
+        "y": 0,
+        "w": 250,
+        "h": 700
+      },
+      "paneTitle": "Ship 0.1.1: column ordering fix + release notes"
+    },
+    {
+      "label": "C-pane-open-420px",
+      "panel": {
+        "x": 0,
+        "y": 0,
+        "w": 420,
+        "h": 700
+      },
+      "toolbar": {
+        "x": 0,
+        "y": 0,
+        "w": 420,
+        "h": 49
+      },
+      "search": {
+        "x": 127,
+        "y": 8,
+        "w": 161,
+        "h": 32
+      },
+      "pane": {
+        "x": 0,
+        "y": 0,
+        "w": 420,
+        "h": 700
+      },
+      "paneTitle": "Ship 0.1.1: column ordering fix + release notes"
+    }
+  ]
+}

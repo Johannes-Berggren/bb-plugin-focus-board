@@ -19,6 +19,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+#### Thread pane
+
+- **A squeezed panel puts the thread pane on a panel-wide sheet.** With a plugin panel that narrowed far below its desktop window, the side-by-side pane kept its stored width: the board flexed away to a sliver and the pane's header (title, ✨, Mark Unread) painted past the panel's right edge onto the host's own UI. The pane now measures its panel row — below 640px it covers the board as a sheet scoped to the panel, keeping the host's chrome visible, and above it the side-by-side pane returns with its stored width clamped to the panel so it can never jut past the edge again.
+
 #### Lane transport
 
 - **The lane-move dissolve leaves the active-card marker on the card, not its ghost.** Relocating the open card played its old-lane ghost with the marker still claiming `aria-current`, so the marker and the keep-in-view scroll pointed at different cards. The ghost is inert decoration and never reports the marker now; the card the board followed owns it.
