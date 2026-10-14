@@ -1,0 +1,134 @@
+[
+  {
+    "name": "1-desktop-pane-open",
+    "viewport": {
+      "w": 1280,
+      "h": 800
+    },
+    "pane": {
+      "x": 800,
+      "y": 0,
+      "w": 480,
+      "h": 800
+    },
+    "panePosition": "relative",
+    "paneZ": "auto",
+    "toolbarRect": {
+      "x": 0,
+      "y": 0,
+      "w": 800,
+      "h": 121
+    },
+    "overlapArea": 0
+  },
+  {
+    "name": "2-desktop-pane-then-shrink",
+    "viewport": {
+      "w": 350,
+      "h": 800
+    },
+    "pane": {
+      "x": 0,
+      "y": 0,
+      "w": 350,
+      "h": 800
+    },
+    "panePosition": "fixed",
+    "paneZ": "30",
+    "toolbarRect": {
+      "x": 0,
+      "y": 0,
+      "w": 350,
+      "h": 49
+    },
+    "overlapArea": 17150
+  },
+  {
+    "name": "3-narrow-pane-then-widen",
+    "viewport": {
+      "w": 1280,
+      "h": 800
+    },
+    "pane": {
+      "x": 800,
+      "y": 0,
+      "w": 480,
+      "h": 800
+    },
+    "panePosition": "relative",
+    "paneZ": "auto",
+    "toolbarRect": {
+      "x": 0,
+      "y": 0,
+      "w": 800,
+      "h": 121
+    },
+    "overlapArea": 0
+  },
+  {
+    "name": "4-reload-after-pane",
+    "viewport": {
+      "w": 1280,
+      "h": 800
+    },
+    "pane": {
+      "x": 800,
+      "y": 0,
+      "w": 480,
+      "h": 800
+    },
+    "panePosition": "relative",
+    "paneZ": "auto",
+    "toolbarRect": {
+      "x": 0,
+      "y": 0,
+      "w": 800,
+      "h": 121
+    },
+    "overlapArea": 0
+  },
+  {
+    "name": "5-wallpaper-zoom-desktop-pane",
+    "viewport": {
+      "w": 1280,
+      "h": 800
+    },
+    "pane": {
+      "x": 800,
+      "y": 0,
+      "w": 480,
+      "h": 800
+    },
+    "panePosition": "relative",
+    "paneZ": "auto",
+    "toolbarRect": {
+      "x": 0,
+      "y": 0,
+      "w": 800,
+      "h": 121
+    },
+    "overlapArea": 0
+  },
+  {
+    "name": "6-wallpaper-zoom-compact-pane",
+    "viewport": {
+      "w": 350,
+      "h": 800
+    },
+    "pane": {
+      "x": 0,
+      "y": 0,
+      "w": 350,
+      "h": 800
+    },
+    "panePosition": "fixed",
+    "paneZ": "30",
+    "toolbarRect": {
+      "x": 0,
+      "y": 0,
+      "w": 350,
+      "h": 49
+    },
+    "overlapArea": 17150
+  }
+]
