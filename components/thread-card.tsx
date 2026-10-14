@@ -685,12 +685,12 @@ export function ThreadCard({
   // the content without ever making the surface transparent, so it is not
   // a transparency rule and focus never has to beat it.
   const wallpaperActive = useWallpaperActive();
-  // The four card statuses in one object (components/card-status.ts). The
-  // fade systems consume `status.faded` and `status.spotlightImmune`
-  // (the marker below); `status.role` is the parenting status kept for the
-  // model's four-status contract.
+  // The card statuses in one object (components/card-status.ts); the fade
+  // systems consume `status.faded` and `status.spotlightImmune` (the marker
+  // below). Parenting status is not modeled here: it expresses itself
+  // structurally (which component renders this thread), and no fade
+  // decision branches on it.
   const status = deriveCardStatus({
-    hasChildRows: hasRows,
     isActive,
     isSweepHighlighted,
     needsAttention: familyNeedsAttention,

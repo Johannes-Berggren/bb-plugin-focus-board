@@ -1,5 +1,5 @@
-// The one derived card-status object (components/card-status.ts): the four
-// card statuses — parenting role, selection, attention, and the fade set —
+// One derived card-status object for a card render: the three card statuses
+// that matter to the dim systems — selection, attention, and the fade set —
 // in a single shape, with ONE "never recede" predicate. Every dim consumer
 // reads these fields, so no dim system carries its own private exemption
 // list.
@@ -7,7 +7,6 @@ import { describe, expect, it } from "vitest";
 import { deriveCardStatus } from "../components/card-status";
 
 const base = {
-  hasChildRows: false,
   isActive: false,
   isSweepHighlighted: false,
   needsAttention: false,
@@ -17,18 +16,13 @@ const base = {
 };
 
 describe("deriveCardStatus", () => {
-  it("an ordinary standalone card: nothing selected, focused, or faded", () => {
+  it("an ordinary card: nothing selected, focused, or faded", () => {
     expect(deriveCardStatus(base)).toEqual({
-      role: "standalone",
       selected: false,
       userFocus: false,
       faded: false,
       spotlightImmune: false,
     });
-  });
-
-  it("a parent card reports its role", () => {
-    expect(deriveCardStatus({ ...base, hasChildRows: true }).role).toBe("parent");
   });
 
   it("selection comes from the pane-open state or the sweep highlight", () => {

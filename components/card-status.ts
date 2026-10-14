@@ -1,22 +1,17 @@
-// One derived card-status object for a card render: the four card statuses —
-// parenting role, selection, attention, and the fade set — computed in one
-// place, with ONE "never recede" predicate. Every dim consumer (the
-// whole-card opacity classes, the wallpaper under-scrim, the injected
-// spotlight rule in components/card-spotlight.ts) reads these fields, so no
-// dim system carries its own private exemption list again. Group membership
-// is deliberately absent: it is lane and column placement (lib/group-metadata,
-// components/grouping), not a card-render status — the group filter reaches
-// card fading only through `dimmed`, as a filter miss.
-
-export type CardRole = "parent" | "standalone";
+// One derived card-status object for a card render: the three card statuses
+// that matter to the dim systems — selection, attention, and the fade set —
+// computed in one place, with ONE "never recede" predicate. Every dim
+// consumer (the whole-card opacity classes, the wallpaper under-scrim, the
+// injected spotlight rule in components/card-spotlight.ts) reads these
+// fields, so no dim system carries its own private exemption list again.
+// Parenting status is deliberately NOT modeled: it expresses itself
+// structurally — a parent card renders its ChildRow rows inside itself, a
+// nested row renders through ChildRow with its own dim classes, and no fade
+// decision branches on it — so a role field here would be a runtime fact
+// with no consumer. The group-filter misses reach card fading through
+// `dimmed`, its only legitimate route.
 
 export interface CardStatus {
-  /**
-   * Parenting status: the card renders nested rows beneath it (parent) or
-   * stands alone. Nested rows render through ChildRow and never pass here —
-   * a row's dim logic lives in its own anchor's classes.
-   */
-  role: CardRole;
   /**
    * Selection status: the pane is open on this card (isActive) or the sweep
    * has highlighted it (isSweepHighlighted). A selection the pointer reads
@@ -46,8 +41,6 @@ export interface CardStatus {
  * straight through.
  */
 export interface CardStatusInput {
-  /** The card renders nested rows beneath it, so it anchors a family on the lane. */
-  hasChildRows: boolean;
   /** The pane is open on this card. */
   isActive: boolean;
   /** The sweep has highlighted this card (the pointer reads the selection). */
@@ -71,7 +64,6 @@ export function deriveCardStatus(input: CardStatusInput): CardStatus {
   const faded = input.isDone || input.dimmed || input.snoozed;
   const userFocus = input.needsAttention;
   return {
-    role: input.hasChildRows ? "parent" : "standalone",
     selected,
     userFocus,
     faded,
