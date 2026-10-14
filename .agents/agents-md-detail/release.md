@@ -207,13 +207,15 @@ merging into `dev`, releasing, changelog writing, or tagging.
   step stops the release: fix it in a normal landing, never by editing a
   suite green on release day.
 - The screenshots get a judgement pass before tagging. A non-vision agent
-  asks a vision-capable model per its vision-dispatch spoke (`llm -m kimi
-  -f <prompt-file> -a <shots...>`), demanding a SHOT-OK or SHOT-BROKEN
-  verdict with a reason per image. Lanes that continue past the right
-  edge under horizontal scrolling are normal for the board; SHOT-BROKEN
-  is for unreadable or clipped-mid-word text at a real width, overlapping
-  elements, missing board sections, collapsed or unrenderable layout, or
-  a pane that fails to open. Any SHOT-BROKEN verdict stops the release.
+  asks a vision-capable model per its vision-dispatch spoke
+  (`llm -m kimi-k2.7-code:cloud -f <prompt-file> -a <shots...>`;
+  kimi, synthetic/kimi-k3, is the verified fallback), demanding a
+  SHOT-OK or SHOT-BROKEN verdict with a reason per image. Lanes that
+  continue past the right edge under horizontal scrolling are normal for
+  the board; SHOT-BROKEN is for unreadable or clipped-mid-word text at a
+  real width, overlapping elements, missing board sections, collapsed or
+  unrenderable layout, or a pane that fails to open. Any SHOT-BROKEN
+  verdict stops the release.
 - Each gate run verifies the harness answering its fixed port belongs to
   this run before anything is captured: the shared starter
   (`scripts/uat/harness.mjs`) hands its vite a per-run identity token and
