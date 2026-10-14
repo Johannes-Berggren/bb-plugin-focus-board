@@ -73,8 +73,18 @@ export function threadState(thread: PluginSidebarThread): ThreadState {
   // Attention outranks working: a turn that is paused waiting on the operator
   // (a pending interaction such as a secret request, or an unread error) still
   // reports a running status, but the card belongs in "Needs you" until the
-  // operator acts.
-  if (thread.hasPendingInteraction || thread.indicator === "unread-error") {
+  // operator acts. The same holds for the error signals: a hard-failed turn
+  // (status "error") or a failed queued send (queuedWork / its host-resolved
+  // unread-error-style indicator) needs the operator's eye, not a gray idle
+  // dot — on the errored thread's own row everywhere, and on a collapsed
+  // family's child-dot strip.
+  if (
+    thread.hasPendingInteraction ||
+    thread.indicator === "unread-error" ||
+    thread.indicator === "queued-failed" ||
+    thread.queuedWork === "failed" ||
+    thread.status === "error"
+  ) {
     return "attention";
   }
   if (
