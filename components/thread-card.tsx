@@ -654,6 +654,17 @@ export function ThreadCard({
   });
   const chipRows = ticketRefs.length === 0 || compact ? [] : ticketChipRows(ticketRefs);
   const children = childThreads ?? [];
+  // The fold's count names what folding hides: the rows plus their sub-rows
+  // (the toggle's summary and the "N child threads" label both fold the tier
+  // the card's rows region carries — a child row's own children hide with
+  // it). A child whose members ride the Done space renders none here, so
+  // none count.
+  const grandchildRowCount = grandchildThreadsByParent === undefined
+    ? 0
+    : children.reduce(
+        (count, child) => count + (grandchildThreadsByParent.get(child.id)?.length ?? 0),
+        0,
+      );
   // The chip counts every visible child (prop from the raw family index);
   // fall back to the nested rows when the caller does not supply it.
   const chipCount = childCount ?? children.length;
@@ -1000,7 +1011,8 @@ export function ThreadCard({
               className="size-3 shrink-0"
               aria-hidden
             />
-            {children.length} {children.length === 1 ? "child thread" : "child threads"}
+            {children.length + grandchildRowCount}{" "}
+            {children.length + grandchildRowCount === 1 ? "child thread" : "child threads"}
           </button>
           {collapsed ? (
             // The collapsed rows, immediately below their label: one

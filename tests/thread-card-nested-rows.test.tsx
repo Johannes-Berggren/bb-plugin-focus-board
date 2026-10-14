@@ -82,6 +82,9 @@ describe("the child rows' sub-row tier (issue #120)", () => {
     expect(childRow).not.toBeNull();
     expect(childRow?.nextElementSibling?.contains(subRows as Node) ?? false).toBe(true);
     expect(rows.textContent).toContain("The grandchild");
+    // The fold's count names what folding hides: rows plus their sub-rows.
+    const toggle = document.querySelector('[aria-label="Collapse subthreads"]');
+    expect(toggle?.textContent?.trim()).toBe("2 child threads");
   });
 
   it("a collapsed family folds the sub-row tier with the rest of the rows", () => {
