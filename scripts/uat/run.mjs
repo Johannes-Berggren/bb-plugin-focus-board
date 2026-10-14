@@ -820,8 +820,27 @@ const pageLockedFlush = () => {
  * the nest_locked rule turns that into the step's failed assertion.
  */
 const pageNestToggle = async () => {
-  const trigger = document.querySelector('button[aria-label="View"]');
-  if (!trigger) return { present: false, reason: "no View menu trigger on the toolbar" };
+  let trigger = document.querySelector('button[aria-label="View"]');
+  if (!trigger) {
+    // The compact header tucks the View menu inside the collapsed filter
+    // ribbon (board-toolbar.tsx): expand the ribbon the way an operator
+    // would, then look again. The wait loop rides React's re-render; if the
+    // ribbon is already open (a "Hide filter palette" toggle) the trigger
+    // simply needs another beat to exist.
+    const deadline = window.performance.now() + 2000;
+    const ribbonToggle = document.querySelector(
+      'button[title="Show filter palette"], button[title="Hide filter palette"]',
+    );
+    if (ribbonToggle && ribbonToggle.getAttribute("title") === "Show filter palette") {
+      ribbonToggle.click();
+    }
+    while (window.performance.now() < deadline) {
+      trigger = document.querySelector('button[aria-label="View"]');
+      if (trigger) break;
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    }
+  }
+  if (!trigger) return { present: false, reason: "no View menu trigger on the toolbar or the expanded ribbon" };
   const readRow = () =>
     [...document.querySelectorAll('button[role="checkbox"]')].find(
       (el) => el.textContent?.includes("Nest child threads"),
