@@ -219,9 +219,9 @@ export const NESTED_ROWS_SCROLL_THRESHOLD = 5;
  * board root (`[data-columns-board]` / `[data-parent-board]`) arms once it
  * `:has` a hovered card div, and only card divs that are NOT the hovered one
  * take the dim; child rows are anchors, so a family's rows never dim with
- * their parent. The dim is debounced (a 150ms transition-delay arm in the
- * rule itself, so a sweeping pointer never strobes it) and eases in and out
- * through the card's own persistent
+ * their parent. The dim is debounced (a 300ms rest before a 300ms ease-in,
+ * armed in the rule itself, so a sweeping pointer never strobes it) and
+ * eases out through the card's own persistent
  * color+opacity transition. The exemptions keep the existing dim systems in
  * charge: sweep-highlighted cards (a selection the pointer reads) and cards
  * wearing `data-card-faded` (done / dimmed / snoozed, whose own opacity or
@@ -239,13 +239,14 @@ export const HOVER_SURFACE =
 export const CARD_SPOTLIGHT_CLASSES = [
   "has-[div[data-thread-card]:hover]:[&_div[data-thread-card]:not(:hover):not([data-sweep-highlighted]):not([data-card-faded])]:opacity-70",
   // The recede dim's debounce: the same arm and target chain, but arming the
-  // dim's transition-delay INSTEAD of a property. A pointer that rests 150ms
-  // starts the dim (delay + the card's own 150ms ease); a pointer sweeping
-  // across never holds the rule long enough for the dim to show. The delay
-  // exists only while the rule holds — targets shed it the moment they stop
-  // matching (hovered, or the root disarmed) — so every un-dim keeps the
-  // card's own snappy zero-delay ease.
-  "has-[div[data-thread-card]:hover]:[&_div[data-thread-card]:not(:hover):not([data-sweep-highlighted]):not([data-card-faded])]:delay-150",
+  // dim's transition-delay and its own longer ease INSTEAD of a property. A
+  // pointer that rests 300ms starts the dim, which then eases in over 300ms;
+  // a pointer sweeping across never holds the rule long enough for the dim
+  // to show. Both exist only while the rule holds — targets shed them the
+  // moment they stop matching (hovered, or the root disarmed) — so every
+  // un-dim keeps the card's own snappy zero-delay 150ms ease.
+  "has-[div[data-thread-card]:hover]:[&_div[data-thread-card]:not(:hover):not([data-sweep-highlighted]):not([data-card-faded])]:delay-300",
+  "has-[div[data-thread-card]:hover]:[&_div[data-thread-card]:not(:hover):not([data-sweep-highlighted]):not([data-card-faded])]:duration-300",
 ].join(" ");
 
 /**
@@ -799,7 +800,9 @@ export function ThreadCard({
         // dims and un-dims sibling cards from a board-root rule, so the
         // opacity transition must live on the card itself — `transition-colors`
         // alone has no opacity to animate, and an armed-rule transition would
-        // vanish in the same recalc as the dim it eases.
+        // vanish in the same recalc as the dim it eases. The dim's onset
+        // overrides this ease with its own armed rest (300ms) and sweep (300ms);
+        // the un-dim always rides this base 150ms.
         "transition-[color,background-color,border-color,outline-color,text-decoration-color,opacity,fill,stroke]",
         // Hover = MORE prominence, never less (issue #123): an OPAQUE surface
         // DARKER than the rest state (`--card` mixed toward black), never a

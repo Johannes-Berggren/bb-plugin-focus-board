@@ -46,7 +46,7 @@ export const UNRELEASED_ITEMS: readonly { text: string; children: string[]; grou
     "group": "Card hover"
   },
   {
-    "text": "**The recede dim waits for the pointer to rest.** Sibling cards now start dimming only after the pointer holds still for 150ms, so a quick sweep across the board never strobes the dim on and off; un-hovering stays instant.",
+    "text": "**The recede dim waits for the pointer to rest.** Sibling cards now start dimming only after the pointer holds still for 300ms, and the fade takes another 300ms, so a quick sweep across the board never strobes the dim on and off; un-hovering stays instant.",
     "children": [],
     "group": "Card hover"
   },
