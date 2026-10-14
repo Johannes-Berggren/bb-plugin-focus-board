@@ -299,6 +299,76 @@ describe("nestUnderParents — axis groupings", () => {
     expect(nested.childrenByParent.get("p")?.map((t) => t.id)).toEqual(["c"]);
     expect(nested.columns).toHaveLength(1);
   });
+
+  it("group view: a cross-group child stands alone in its own group column (Defect 5)", () => {
+    // Thread nesting must not move a label-assigned member into a group it
+    // does not belong to: the child's own group column keeps it, exactly
+    // like a cross-project child. (Today the view falls into the
+    // always-nest default and the child's lane loses it.)
+    const groupContext = {
+      projects: [],
+      providers: [],
+      groupsByThread: new Map([
+        ["p", "grp_a"],
+        ["c", "grp_b"],
+      ]),
+      groupNames: new Map([
+        ["grp_a", "Alpha"],
+        ["grp_b", "Beta"],
+      ]),
+    };
+    const parent = thread({ id: "p" });
+    const child = thread({ id: "c", parentThreadId: "p" });
+    const columns = buildColumns([parent, child], "group", groupContext, new Map(), new Set(), NOW);
+    const nested = nestUnderParents(columns, [parent, child], "group", groupContext, NOW);
+    expect(nested.childrenByParent.has("p")).toBe(false);
+    expect(columnOf(nested.columns, "c")?.id).toBe("grp_b");
+  });
+
+  it("same-group child nests in the group view", () => {
+    const groupContext = {
+      projects: [],
+      providers: [],
+      groupsByThread: new Map([
+        ["p", "grp_a"],
+        ["c", "grp_a"],
+      ]),
+      groupNames: new Map([["grp_a", "Alpha"]]),
+    };
+    const parent = thread({ id: "p" });
+    const child = thread({ id: "c", parentThreadId: "p", updatedAt: NOW - HOUR });
+    const columns = buildColumns([parent, child], "group", groupContext, new Map(), new Set(), NOW);
+    const nested = nestUnderParents(columns, [parent, child], "group", groupContext, NOW);
+    expect(nested.childrenByParent.get("p")?.map((t) => t.id)).toEqual(["c"]);
+  });
+
+  it("all children of a Done root are unassigned-keyed: the unassigned child nests under it", () => {
+    // Both unassigned ("No group" bucket) is the same key: the family nests.
+    const groupContext = { projects: [], providers: [] };
+    const parent = thread({ id: "p" });
+    const child = thread({ id: "c", parentThreadId: "p", updatedAt: NOW - HOUR });
+    const columns = buildColumns([parent, child], "group", groupContext, new Map(), new Set(), NOW);
+    const nested = nestUnderParents(columns, [parent, child], "group", groupContext, NOW);
+    expect(nested.childrenByParent.get("p")?.map((t) => t.id)).toEqual(["c"]);
+  });
+
+  it("a live child of a Done root always stands alone, Attention view too (Defect 6)", () => {
+    // Today the idle child of a Done root hides as a row under the Done
+    // card in the status view; the same space rule reads Done root's space
+    // key as unlike every live child's, so the child always gets its own
+    // card, in any view.
+    const parent = thread({ id: "p", updatedAt: NOW - HOUR });
+    const child = thread({ id: "c", parentThreadId: "p", updatedAt: NOW - 2 * HOUR });
+    const doneIds = new Set(["p"]);
+    for (const view of ["status", "recency", "project"] as const) {
+      const columns = buildColumns([parent, child], view, CONTEXT, new Map(), doneIds, NOW);
+      const nested = nestUnderParents(columns, [parent, child], view, CONTEXT, NOW, buildFamilyIndex([parent, child]), {
+        doneIds,
+      });
+      expect(nested.childrenByParent.has("p")).toBe(false);
+      expect(columnOf(nested.columns, "c")).toBeDefined();
+    }
+  });
 });
 
 describe("nestUnderParents — depth cap (two levels, everywhere)", () => {
@@ -893,17 +963,22 @@ describe("assembleBoard — family columns (R4: the family moves as one unit)", 
     expect(idsIn(result.columns, "idle-earlier")).toEqual([]);
   });
 
-  it("a hand override beats the pane's frozen column for both its members", () => {
-    // Generic mechanism test (the option assembleBoard hands buildColumns;
-    // familyColumnOverrides is its only live producer since the group plan
-    // stopped claiming lanes — issue #86): an override on a thread whose
-    // pane capture froze another lane still lands it where the override
-    // says, freeze notwithstanding. The family wins, always.
+  it("a family override beats the pane's frozen column for its members", () => {
+    // The claim ladder's family rung (familyColumnOverrides is the only
+    // lane-override producer since the group plan stopped claiming lanes —
+    // issue #86): an override on a thread whose pane capture froze another
+    // lane still lands it where the override says, freeze notwithstanding.
+    // The family wins, always.
     const parent = thread({ id: "p", updatedAt: NOW - HOUR });
-    const relay = thread({ id: "r", status: "active", updatedAt: NOW - HOUR / 4 });
-    const boxLane = { id: "working", label: "Working" };
-    const extraColumnOverrides = new Map([["p", boxLane], ["r", boxLane]]);
+    const relay = thread({
+      id: "r",
+      status: "active",
+      parentThreadId: "p",
+      updatedAt: NOW - HOUR / 4,
+    });
     const frozenColumns = new Map([["p", { id: "idle-today", label: "Idle · Today" }]]);
+    const override = familyColumnOverrides([parent, relay], buildFamilyIndex([parent, relay]), "status", CONTEXT, new Set(), NOW);
+    expect(override.get("p")?.id).toBe("working");
     const result = assembleBoard(
       [parent, relay],
       "status",
@@ -911,10 +986,11 @@ describe("assembleBoard — family columns (R4: the family moves as one unit)", 
       frozenColumns,
       new Set(),
       NOW,
-      { extraColumnOverrides },
     );
-    expect(idsIn(result.columns, "working")).toContain("p");
-    expect(idsIn(result.columns, "working")).toContain("r");
+    // The frozen idle bucket loses to the family's lane: p lifts to Working
+    // and the running relay child rides it as its row.
+    expect(idsIn(result.columns, "working")).toEqual(["p"]);
+    expect(ids(result.nestedChildrenByParent.get("p") ?? [])).toEqual(["r"]);
     expect(idsIn(result.columns, "idle-today")).toEqual([]);
   });
 

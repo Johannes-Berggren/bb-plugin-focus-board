@@ -16,7 +16,6 @@ import {
   groupFilterMisses,
 } from "../components/grouping";
 import { buildFamilyIndex, filterFamilies, filterIndividually } from "../components/nesting";
-import { filterWithGroupBoxes } from "../components/group-boxes";
 import { thread } from "./thread-fixture";
 
 // A registry-missing assignment ("Unknown group" bucket) keeps its real id.
@@ -153,36 +152,32 @@ describe("filterFamilies with the group filter", () => {
   });
 });
 
-describe("filterWithGroupBoxes with the group filter", () => {
-  const groupBoxOf = new Map<string, { groupId: string; name: string; members: PluginSidebarThread[] }>([
-    ["thr_alpha", { groupId: "grp_a", name: "Alpha", members: [alpha] }],
-    ["thr_beta", { groupId: "grp_b", name: "Beta", members: [beta] }],
-  ]);
-  it("a box whose bucket is outside the restrict drops whole", () => {
-    const result = filterWithGroupBoxes(
-      [alpha, beta, unassigned],
-      groupBoxOf,
-      filter({ groups: new Set([NO_GROUP_BUCKET]) }),
-      "",
-      undefined,
-      undefined,
-      undefined,
-      assignments,
-    );
-    expect(ids(result.kept)).toEqual(["thr_free"]);
+describe("family keep flows whole: the one-pass spec (Defect 1 regression)", () => {
+  // The decided rule: filtering is ONE keep pass (the family keep rule).
+  // The retired group-box pass re-gated its already-kept input and dropped
+  // dimmed family members whenever a frame existed anywhere — a parent's
+  // card and its projection twin vanished, stranded children re-rooted as
+  // lone cards, and the "dimmed inside its passing box" comment described
+  // an unreachable state.
+  const parent = thread({ id: "thr_p", displayTitle: "Patient provider" });
+  const child = thread({ id: "thr_c", displayTitle: "child of patient", parentThreadId: "thr_p" });
+  const frameMate = thread({ id: "thr_q", displayTitle: "Other frame member" });
+  const index = buildFamilyIndex([parent, child, frameMate]);
+  // The one-pass chain: the family filter's output IS the kept set. There
+  // is no second pass to assert through; a frame cannot re-gate this
+  // output anywhere in the app (structural: the re-gating pass is gone).
+  const chain = (query: string) => filterFamilies([parent, child, frameMate], index, filter({}), query);
+
+  it("a non-matching member of a passing family dims in place (search on the parent)", () => {
+    const result = chain("provider");
+    expect(ids(result.kept)).toEqual(["thr_c", "thr_p"]);
+    expect([...result.dimmedIds]).toEqual(["thr_c"]);
   });
-  it("the restrict keeps every selected box", () => {
-    const result = filterWithGroupBoxes(
-      [alpha, beta],
-      groupBoxOf,
-      filter({ groups: new Set(["grp_a", "grp_b"]) }),
-      "",
-      undefined,
-      undefined,
-      undefined,
-      assignments,
-    );
-    expect(ids(result.kept)).toEqual(["thr_alpha", "thr_beta"]);
+
+  it("the parent dims when only the child matches, and never drops", () => {
+    const result = chain("child");
+    expect(ids(result.kept)).toEqual(["thr_c", "thr_p"]);
+    expect([...result.dimmedIds]).toEqual(["thr_p"]);
   });
 });
 

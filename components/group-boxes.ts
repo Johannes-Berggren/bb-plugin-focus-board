@@ -33,15 +33,12 @@
 import type { PluginSidebarThread } from "@get-bb/plugin-sdk/app";
 import type {
   BoardColumn,
-  FilterState,
   GroupBy,
   GroupingContext,
   ThreadState,
 } from "./grouping";
-import { groupFilterMisses, matchesFilter, stateFilterPasses } from "./grouping";
 import { STATUS_COLUMN_ORDER } from "./grouping";
 import type { MoveTarget } from "../lib/rank";
-import type { TicketRef } from "../lib/tickets";
 
 /**
  * The grouping under which boxes are OFF (see the module comment): the
@@ -72,14 +69,6 @@ export interface GroupBoxPlan {
    * member these days).
    */
   groupBoxOf: ReadonlyMap<string, GroupBox>;
-  /**
-   * Always empty: the split default emits no lane claims (members render in
-   * their own lanes, the frame wraps each lane's slice). The field stays so
-   * callers can keep passing plan.columnOverrides to buildColumns without a
-   * branch; it exists so a gather rule can return if the design ever
-   * re-introduces one.
-   */
-  columnOverrides: ReadonlyMap<string, { id: string; label: string }>;
   /** True when `planGroupBoxes` found at least one box. */
   active: boolean;
 }
@@ -102,9 +91,8 @@ export function planGroupBoxes(
   now: number = Date.now(),
 ): GroupBoxPlan {
   const groupBoxOf = new Map<string, GroupBox>();
-  const columnOverrides = new Map<string, { id: string; label: string }>();
   if (NO_BOX_GROUPINGS.has(groupBy)) {
-    return { groupBoxOf, columnOverrides, active: false };
+    return { groupBoxOf, active: false };
   }
   // Candidates: live members only — done members keep the Done lane's
   // placement, pinned members keep the Pinned lane's, archived never pass
@@ -136,7 +124,7 @@ export function planGroupBoxes(
       box.members.push(member);
     }
   }
-  return { groupBoxOf, columnOverrides, active: groupBoxOf.size >= 1 };
+  return { groupBoxOf, active: groupBoxOf.size >= 1 };
 }
 
 /** The state's index in the status lane order (unknown states sort last). */
@@ -446,64 +434,6 @@ export function flattenRuns(
   items: readonly GroupRunItem[],
 ): PluginSidebarThread[] {
   return items.flatMap((item) => (item.kind === "box" ? item.box.members : [item.thread]));
-}
-
-/**
- * Group-aware filtering, the family keep rule restricted to boxes: a box
- * passes when ANY member passes a filter or the search, whole — and
- * non-matching members of a passing box are recorded in `dimmedIds`. A
- * thread NOT in a box (pinned/done members, the parent grouping) keeps its own
- * pass/fail. Apply AFTER the family/individual filter: input here is the
- * already-kept list, so a member a failed family dropped cannot keep its
- * box on the board.
- */
-export function filterWithGroupBoxes(
-  threads: readonly PluginSidebarThread[],
-  groupBoxOf: ReadonlyMap<string, GroupBox>,
-  filter: FilterState,
-  searchQuery: string,
-  projectNameFor?: (projectId: string) => string,
-  ticketRefsFor?: (thread: PluginSidebarThread) => readonly TicketRef[],
-  groupNameFor?: (thread: PluginSidebarThread) => string,
-  groupsByThread?: ReadonlyMap<string, string>,
-  now: number = Date.now(),
-): { kept: PluginSidebarThread[]; dimmedIds: ReadonlySet<string> } {
-  const passes = (thread: PluginSidebarThread): boolean => {
-    if (thread.isArchived) return false;
-    if (filter.projects.size > 0 && !filter.projects.has(thread.projectId)) return false;
-    if (filter.providers.size > 0 && !filter.providers.has(thread.providerId)) return false;
-    if (!stateFilterPasses(thread, filter.states, now)) return false;
-    if (groupFilterMisses(thread, filter, groupsByThread)) return false;
-    if (
-      searchQuery.trim() !== "" &&
-      !matchesFilter(thread, searchQuery.trim(), projectNameFor, ticketRefsFor, groupNameFor)
-    ) {
-      return false;
-    }
-    return true;
-  };
-  const kept: PluginSidebarThread[] = [];
-  const dimmedIds = new Set<string>();
-  const boxes = new Map<string, PluginSidebarThread[]>();
-  for (const thread of threads) {
-    const box = groupBoxOf.get(thread.id);
-    if (box === undefined) {
-      if (passes(thread)) kept.push(thread);
-      continue;
-    }
-    const members = boxes.get(box.groupId);
-    if (members === undefined) boxes.set(box.groupId, [thread]);
-    else members.push(thread);
-  }
-  for (const members of boxes.values()) {
-    const matching = members.filter(passes);
-    if (matching.length === 0) continue;
-    for (const thread of members) {
-      kept.push(thread);
-      if (!matching.includes(thread)) dimmedIds.add(thread.id);
-    }
-  }
-  return { kept, dimmedIds };
 }
 
 export { stateIndexOf };

@@ -6,7 +6,7 @@
 import { describe, expect, it } from "vitest";
 import { assembleBoard } from "../components/nesting";
 import { columnFor, type GroupingContext } from "../components/grouping";
-import type { AttentionFreezePlan } from "../components/attention-freeze";
+import { slotPinKey, type AttentionFreezePlan } from "../components/attention-freeze";
 import { thread } from "./thread-fixture";
 
 const NOW = 10 * 24 * 60 * 60 * 1000;
@@ -56,7 +56,7 @@ describe("attention freeze through board assembly", () => {
 
     const plan: AttentionFreezePlan = {
       columns: new Map([["s1", { id: captured!.columnId, label: "proj_a" }]]),
-      slots: new Map([["s1", captured!.index]]),
+      slots: new Map([[slotPinKey(captured!.columnId, "s1"), captured!.index]]),
       stayNested: new Set(),
       rowSlots: new Map(),
     };
@@ -95,32 +95,6 @@ describe("attention freeze through board assembly", () => {
     expect(placementOf(pinned, "p")!.columnId).toBe(quietColumnId);
   });
 
-  it("attention wins over a group-box lane override while the member is attended", () => {
-    const threads = [fixture("m1", { updatedAt: 5000 }), fixture("m2", { updatedAt: 4000 })];
-    const boxOverrides = new Map([
-      ["m1", { id: "proj_b", label: "proj_b" }],
-      ["m2", { id: "proj_b", label: "proj_b" }],
-    ]);
-    const live = assembleBoard(threads, "project", context, new Map(), new Set<string>(), NOW, {
-      nestingEnabled: false,
-      extraColumnOverrides: boxOverrides,
-    });
-    expect(placementOf(live, "m1")!.columnId).toBe("proj_b");
-
-    const plan: AttentionFreezePlan = {
-      columns: new Map([["m1", { id: "proj_a", label: "proj_a" }]]),
-      slots: new Map(),
-      stayNested: new Set(),
-      rowSlots: new Map(),
-    };
-    const pinned = assembleBoard(threads, "project", context, new Map(), new Set<string>(), NOW, {
-      nestingEnabled: false,
-      extraColumnOverrides: boxOverrides,
-      attentionFreeze: plan,
-    });
-    expect(placementOf(pinned, "m1")!.columnId).toBe("proj_a");
-  });
-
   it("an attended nested child stays nested and keeps its row slot", () => {
     const quiet = [
       fixture("p", { updatedAt: 5000 }),
@@ -149,13 +123,53 @@ describe("attention freeze through board assembly", () => {
     expect(placementOf(pinned, "c1")).toMatchObject({ nestedIndex: 0 });
   });
 
+  it("an attended card's slot pin pins its own column, never its Done projection twin (Defect 2)", () => {
+    // A live root with done children renders twice: its live lane slot and
+    // its projection card in Done. The pin is keyed by lane AND thread
+    // today? No: by thread alone, so attending to the live card moved the
+    // twin to the live slot's index inside Done. The twin keeps its own
+    // slot now.
+    const family = [
+      fixture("older-done", { updatedAt: 1000 }),
+      fixture("p", { updatedAt: 5000 }),
+      fixture("d1", { parentThreadId: "p", updatedAt: 4000 }),
+      fixture("p2", { updatedAt: 6000 }),
+    ];
+    const doneIds = new Set<string>(["older-done", "d1"]);
+    const base = assembleBoard(family, "status", context, new Map(), doneIds, NOW);
+    const liveSlot = base.columns
+      .find((column) => placementOf(base, "p")!.columnId === column.id)!
+      .threads.findIndex((entry) => entry.id === "p");
+    const doneColumnBase = base.columns.find((column) => column.id === "done")!;
+    const doneSlotBase = doneColumnBase.threads.findIndex((entry) => entry.id === "p");
+    expect(liveSlot).not.toBe(doneSlotBase);
+    expect(doneSlotBase).toBeGreaterThanOrEqual(0);
+
+    const plan: AttentionFreezePlan = {
+      columns: new Map(),
+      slots: new Map([[slotPinKey(placementOf(base, "p")!.columnId, "p"), liveSlot]]),
+      stayNested: new Set(),
+      rowSlots: new Map(),
+    };
+    const pinned = assembleBoard(family, "status", context, new Map(), doneIds, NOW, {
+      attentionFreeze: plan,
+    });
+    const doneColumnPinned = pinned.columns.find((column) => column.id === "done")!;
+    expect(doneColumnPinned.threads.findIndex((entry) => entry.id === "p")).toBe(doneSlotBase);
+    expect(
+      pinned.columns
+        .find((column) => placementOf(base, "p")!.columnId === column.id)!
+        .threads.findIndex((entry) => entry.id === "p"),
+    ).toBe(liveSlot);
+  });
+
   it("recapture of a pin already applied reproduces the pinned placement (idempotent)", () => {
     const first = [fixture("s1", { updatedAt: 100 }), fixture("s2", { updatedAt: 200 })];
     const base = assembleBoard(first, "project", context, new Map(), new Set<string>(), NOW);
     const captured = placementOf(base, "s1")!;
     const plan: AttentionFreezePlan = {
       columns: new Map([["s1", { id: captured.columnId, label: captured.columnId }]]),
-      slots: new Map([["s1", captured.index]]),
+      slots: new Map([[slotPinKey(captured.columnId, "s1"), captured.index]]),
       stayNested: new Set(),
       rowSlots: new Map(),
     };
@@ -186,7 +200,7 @@ describe("attention freeze through board assembly", () => {
 
     const plan: AttentionFreezePlan = {
       columns: new Map([["s1", { id: captured.columnId, label: captured.columnId }]]),
-      slots: new Map([["s1", captured.index]]),
+      slots: new Map([[slotPinKey(captured.columnId, "s1"), captured.index]]),
       stayNested: new Set(),
       rowSlots: new Map(),
     };

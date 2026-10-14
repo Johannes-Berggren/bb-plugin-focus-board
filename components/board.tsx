@@ -168,6 +168,16 @@ function TransportSparkLayer({
 /** The group plan absents itself when the caller has no group data. */
 const EMPTY_GROUP_BOXES: GroupBoxMap = new Map();
 
+/**
+ * The fold key a Done projection card reads and reports: a root's two cards
+ * fold separately (the derived ruleset's Defect 8 — one shared fold folded
+ * both), so a projection's stored fold is prefixed to keep both entries in
+ * the one collapsed list.
+ */
+function foldKeyForSpace(threadId: string): string {
+  return `done:${threadId}`;
+}
+
 /** The parent map absents itself when the caller has no nesting data. */
 const EMPTY_PARENT_OF: ReadonlyMap<string, string> = new Map();
 
@@ -2833,9 +2843,14 @@ export function Board({
                               ? (projectionChildren?.length ?? 0)
                               : (childCountByParent.get(thread.id) ?? 0)
                           }
-                          isCollapsed={collapsedFamilyIds?.has(thread.id)}
+                          isCollapsed={collapsedFamilyIds?.has(
+                            isDoneProjection ? foldKeyForSpace(thread.id) : thread.id,
+                          )}
                           onCollapsedChange={(collapsed) =>
-                            onFamilyCollapsedChange?.(thread.id, collapsed)
+                            onFamilyCollapsedChange?.(
+                              isDoneProjection ? foldKeyForSpace(thread.id) : thread.id,
+                              collapsed,
+                            )
                           }
                           snoozeFor={snoozeFor}
                           doneIds={doneIds}

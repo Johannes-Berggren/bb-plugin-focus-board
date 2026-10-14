@@ -188,7 +188,11 @@ export function buildParentLanes(
 
 /**
  * Section family lanes by the parent's `projectId` (D5a). Sections order by
- * their most recent lane; lanes within a section keep the same recency order.
+ * their most recent lane; lanes within a section keep the ORDER THEY
+ * ARRIVED IN — the sectioning is a stable grouping, never a re-sort, so a
+ * lane freeze's on-screen pins (applied over the recency order upstream)
+ * survive "By project" (Defect 3 of the derived ruleset: the re-sort here
+ * snapped attended lanes back to recency).
  */
 export function sectionParentLanes(
   lanes: readonly ParentLane[],
@@ -207,7 +211,8 @@ export function sectionParentLanes(
 
   const sections: ParentLaneSection[] = [];
   for (const [projectId, sectionLanes] of byProject) {
-    sectionLanes.sort(recencyCompare);
+    // No re-sort: the input order already carries recency and the freeze's
+    // on-screen pins; sectioning is grouping only.
     sections.push({
       id: projectId === "" ? "none" : projectId,
       label: projectNameFor(projectId),

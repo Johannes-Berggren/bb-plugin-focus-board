@@ -138,6 +138,9 @@ export function capturesEqual(
  */
 export interface AttentionFreezePlan {
   columns: ReadonlyMap<string, { id: string; label: string }>;
+  /** Slot index per pinned card, keyed `slotPinKey(columnId, threadId)` —
+   *  a thread can render in two lanes (a family's live card plus its Done
+   *  projection twin), so a thread-only key moved both. */
   slots: ReadonlyMap<string, number>;
   stayNested: ReadonlySet<string>;
   rowSlots: ReadonlyMap<string, ReadonlyMap<string, number>>;
@@ -159,6 +162,14 @@ export function isAttentionFreezeEmpty(plan: AttentionFreezePlan): boolean {
   );
 }
 
+/** The slot pin's map key: the pin holds COLUMN and thread, because a
+ *  thread renders twice when its family projects a Done card and a
+ *  thread-only key moved the twin into the live slot's index (Defect 2 of
+ *  the derived ruleset). */
+export function slotPinKey(columnId: string, threadId: string): string {
+  return `${columnId}\u0000${threadId}`;
+}
+
 /**
  * Merge captures into one per-build plan. Captures may overlap (a hovered
  * open card is pinned by both origins): the freshest capture wins each
@@ -176,7 +187,7 @@ export function compileAttentionFreezes(
   for (const capture of ordered) {
     for (const slot of capture.slots) {
       columns.set(slot.threadId, { id: slot.columnId, label: slot.label });
-      slots.set(slot.threadId, slot.index);
+      slots.set(slotPinKey(slot.columnId, slot.threadId), slot.index);
     }
     if (capture.rowPin !== null) {
       const parentSlots = rowSlots.get(capture.rowPin.parentId);
