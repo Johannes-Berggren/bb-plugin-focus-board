@@ -72,7 +72,9 @@ export const UNRELEASED_ITEMS: readonly { text: string; children: string[]; grou
   },
   {
     "text": "**A child thread spawned from a child card nests under that card's row.** Right-clicking a nested child card and picking \"New child thread…\" used to leave the new thread beside its parent under the family root, breaking the dialog's \"Will nest under\" promise. Families now follow their real edges one row level deeper (a child row carries its own children as indented sub-rows; deeper members still re-attach to the root), and when the display target differs from the spawn parent, the dialog names both.",
-    "children": [],
+    "children": [
+      "The fold's count names what folding hides: the rows plus their sub-rows, so a family card with a grandchild no longer reads one short."
+    ],
     "group": "Family nesting"
   },
   {
