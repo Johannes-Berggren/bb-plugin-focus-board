@@ -17,6 +17,7 @@ import type { GitHubItemStatus } from "@/lib/tracker-status";
 import { DRAG_ID_KEY, childRankKey, rankDragType } from "../lib/rank";
 import { cardTicketRefs, type ThreadLink } from "../lib/link-metadata";
 import { describeWakeAt } from "../lib/snooze";
+import { deriveCardStatus } from "./card-status";
 import { ThreadCardMenu, type CardMenuAction } from "./thread-card-menu";
 import { useWallpaperActive } from "./wallpaper-contrast";
 
@@ -215,17 +216,11 @@ export const NESTED_ROWS_SCROLL_THRESHOLD = 5;
 
 /**
  * The card spotlight (issue #123): while ONE card is under the pointer, the
- * other cards recede a step and the hovered one never does. Pure CSS — a
- * board root (`[data-columns-board]` / `[data-parent-board]`) arms once it
- * `:has` a hovered card div, and only card divs that are NOT the hovered one
- * take the dim; child rows are anchors, so a family's rows never dim with
- * their parent. The dim is debounced (a 300ms rest before a 300ms ease-in,
- * armed in the rule itself, so a sweeping pointer never strobes it) and
- * eases out through the card's own persistent
- * color+opacity transition. The exemptions keep the existing dim systems in
- * charge: sweep-highlighted cards (a selection the pointer reads) and cards
- * wearing `data-card-faded` (done / dimmed / snoozed, whose own opacity or
- * under-scrim already fades them — a second dim on top would fight it).
+ * other cards recede a step and the hovered one never does. The rule is
+ * hand-written and injected once by components/card-spotlight.ts — one block,
+ * one exemption list (the hovered card, plus the `data-spotlight-immune`
+ * marker components/card-status.ts computes). Pure CSS; the card just wears
+ * the marker.
  */
 /** The hovered card's surface, one source of truth: the card token mixed
  *  toward BLACK — an OPAQUE surface DARKER than the rest state in both themes
@@ -235,19 +230,6 @@ export const NESTED_ROWS_SCROLL_THRESHOLD = 5;
  *  share is the "a bit darker" step; the ring hover emphasis rides along. */
 export const HOVER_SURFACE =
   "hover:bg-[color-mix(in_oklab,var(--card)_80%,black)]";
-
-export const CARD_SPOTLIGHT_CLASSES = [
-  "has-[div[data-thread-card]:hover]:[&_div[data-thread-card]:not(:hover):not([data-sweep-highlighted]):not([data-card-faded])]:opacity-70",
-  // The recede dim's debounce: the same arm and target chain, but arming the
-  // dim's transition-delay and its own longer ease INSTEAD of a property. A
-  // pointer that rests 300ms starts the dim, which then eases in over 300ms;
-  // a pointer sweeping across never holds the rule long enough for the dim
-  // to show. Both exist only while the rule holds — targets shed them the
-  // moment they stop matching (hovered, or the root disarmed) — so every
-  // un-dim keeps the card's own snappy zero-delay 150ms ease.
-  "has-[div[data-thread-card]:hover]:[&_div[data-thread-card]:not(:hover):not([data-sweep-highlighted]):not([data-card-faded])]:delay-300",
-  "has-[div[data-thread-card]:hover]:[&_div[data-thread-card]:not(:hover):not([data-sweep-highlighted]):not([data-card-faded])]:duration-300",
-].join(" ");
 
 /**
  * One provider-grouped chip (lib/ticket-chips.ts): all the provider's IDs of
@@ -696,11 +678,24 @@ export function ThreadCard({
   // Surface contrast floor (wallpaper on): muting the WHOLE card with
   // opacity makes its bg-card surface translucent, so a busy wallpaper
   // bleeds through the muted text. With a wallpaper active the card keeps
-  // its opaque surface and fades through an under-scrim instead; a
-  // sweep-highlighted card is read by the operator, so it never dims.
+  // its opaque surface and fades through an under-scrim instead. The
+  // status object owns the beat-the-dim rule: a selected card (pane open,
+  // sweep-highlighted) is read by the operator, so it never dims.
   const wallpaperActive = useWallpaperActive();
-  const fades = isDone || dimmed || snoozed;
-  const dimsByScrim = wallpaperActive && fades && !isSweepHighlighted;
+  // The four card statuses in one object (components/card-status.ts). The
+  // role field is computed for completeness of the model; the fade systems
+  // consume `selected`, `userFocus`, `faded`, and `spotlightImmune`.
+  const status = deriveCardStatus({
+    hasChildRows: hasRows,
+    isActive,
+    isSweepHighlighted,
+    needsAttention: familyNeedsAttention,
+    isDone,
+    dimmed: dimmed ?? false,
+    snoozed,
+  });
+  const fades = status.faded;
+  const dimsByScrim = wallpaperActive && fades && !status.selected;
 
   // The two-click Mark Done checkbox, swapped INTO THE STATE DOT'S SLOT: on
   // hover the dot fades and the checkbox centers over its exact pixels —
@@ -770,11 +765,13 @@ export function ThreadCard({
       data-sweep-highlighted={isSweepHighlighted ? "" : undefined}
       data-sweep-active={isSweeping ? "" : undefined}
       data-snoozed={snoozed ? "" : undefined}
-      // The spotlight's exemption marker (see CARD_SPOTLIGHT_CLASSES): a card
-      // whose life already fades it (done / dimmed / snoozed, by whole-card
-      // opacity or the under-scrim) is marked, so the spotlight recede never
-      // stacks a second dim on top of its own.
-      data-card-faded={fades ? "" : undefined}
+      // The spotlight's exemption marker (see components/card-status.ts): a
+      // card with user focus (pane open, sweep-highlighted, needs-attention)
+      // or a life of its own that already fades it (done / dimmed / snoozed,
+      // by whole-card opacity or the under-scrim) is marked, so the spotlight
+      // recede never stacks a second dim on top and never fades what the
+      // operator is focused on.
+      data-spotlight-immune={status.spotlightImmune ? "" : undefined}
       // `group` drives the hover-revealed done checkbox below.
       onPointerLeave={armedDone ? () => setArmedDone(false) : undefined}
       onMouseEnter={
@@ -796,8 +793,9 @@ export function ThreadCard({
       }
       className={cn(
         "group relative overflow-hidden rounded-md bg-card",
-        // Colors AND opacity both ease: the spotlight (CARD_SPOTLIGHT_CLASSES)
-        // dims and un-dims sibling cards from a board-root rule, so the
+        // Colors AND opacity both ease: the spotlight rule
+        // (components/card-spotlight.ts) dims and un-dims sibling cards from a
+        // board-root rule, so the
         // opacity transition must live on the card itself — `transition-colors`
         // alone has no opacity to animate, and an armed-rule transition would
         // vanish in the same recalc as the dim it eases. The dim's onset
