@@ -31,6 +31,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - **A narrowed desktop header borrows the mobile filter collapse.** Between phone widths and the width the filter row needs, a small window or an open pane left the desktop palette wrapped over several header rows; the header now measures itself and folds behind the same Filters toggle, with the same badge and persisted choice, and the single-row palette returns when the band widens again.
 
+#### Group boxes
+
+- **A card moving into a lane joins the group frame already there.** Each lane renders at most one dashed frame per group, gathering that lane's members inside it at the first member's slot; a card the lane held between two members now renders after the frame instead of painting a second instance of the group.
+
 #### Card hover
 
 - **Hovering a card makes it more prominent, not less.** The hovered card keeps its opaque background instead of going translucent (the lane background and wallpaper no longer bleed through it), the hover surface darkens below the resting card in both themes for stronger contrast, and the other cards recede slightly while one is hovered. Done, dimmed, snoozed, and sweep-highlighted cards keep their own fade treatment.
@@ -60,10 +64,6 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 #### Reveal scroll
 
 - **Mark Done no longer drags the board back to the Done column.** The reveal request stayed set after it scrolled once, and every later board refresh re-armed the same request, yanking the view back to the done card's lane against the operator's scroll. The claim now records that it was consumed, so a fresh reveal (the next Mark Done, Pin, or read state change) still scrolls while refreshes leave the pan alone.
-
-#### Group boxes
-
-- **A card landing between a group box's members no longer hides one of them.** Unpinning a card back between two co-located group members gathered the box whole at the first member's slot, dropping the trailing member from the lane's readable order. The run walk now splits the box into slice-of-one frames wherever the lane's order interleaves a card, so every member keeps its true slot.
 
 ## [1.3.0] - 2026-10-13
 

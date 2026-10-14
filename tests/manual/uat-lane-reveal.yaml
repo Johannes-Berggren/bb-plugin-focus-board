@@ -80,7 +80,11 @@ steps:
     title: Unpinning from the right-click menu brings the card's new lane into view
     # At scroll 0 the Pinned lane is visible but the third column (Working,
     # where this card lands once unpin applies) clips at the right edge —
-    # the unpin must slide the card into full view too.
+    # the unpin must slide the card into full view too. The working lane's
+    # order follows the one-frame-per-group ruling: thr_column_sort and
+    # thr_drag_done are both chat-imagen members, so the lane renders ONE
+    # frame wrapping them at the first member's slot, and the unpinned card
+    # (raw slot between them) renders after the frame.
     goto: "?groupBy=status"
     assert_before_drag:
       - column: pinned
@@ -90,5 +94,5 @@ steps:
       - column: pinned
         ordered: [thr_roadmap]
       - column: working
-        ordered: [thr_column_sort, thr_ship_release, thr_drag_done, thr_sweep_parent]
+        ordered: [thr_column_sort, thr_drag_done, thr_ship_release, thr_sweep_parent]
       - column_card_visible: thr_ship_release

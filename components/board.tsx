@@ -47,6 +47,7 @@ import { reparentRefusalFromParents } from "../lib/reparent";
 import {
   canJoinGroup,
   columnRunInfo,
+  flattenRuns,
   inBoxMoveTarget,
   runsFromColumns,
   unitMoveTarget,
@@ -857,6 +858,10 @@ export function Board({
     readonly { id: string; threads: readonly PluginSidebarThread[] }[] | null
   >(null);
   const prevThreadsRef = useRef<ReadonlyMap<string, PluginSidebarThread>>(new Map());
+  // The PREVIOUS plan's groupBoxOf: the previous commit's displayed order
+  // (what ghost slots weave against) comes from re-running the gather walk
+  // over the previous columns with the group map that rendered them.
+  const prevGroupBoxOfRef = useRef<GroupBoxMap | null>(null);
   const transportGenRef = useRef(0);
   const transportTimersRef = useRef(new Map<string, number[]>());
   // The WAAPI handles per phase key: the phase timers cancel the arrival
@@ -898,6 +903,24 @@ export function Board({
     const prevRunUnits = prevRunUnitsRef.current;
     const prevColumns = prevColumnsRef.current;
     const prevThreads = prevThreadsRef.current;
+    const prevGroupBoxOf = prevGroupBoxOfRef.current;
+    prevGroupBoxOfRef.current = groupBoxOf ?? null;
+    // The PREVIOUS commit's displayed order per lane (the gather walk's
+    // output): the ghost slots weave against the order the lane actually
+    // rendered, so a transported card's slot reads off it, not the raw
+    // column order the gather can diverge from.
+    const prevDisplayIds = new Map<string, readonly string[]>();
+    if (prevColumns !== null) {
+      for (const prevColumn of prevColumns) {
+        const prevRuns = runsFromColumns([prevColumn], prevGroupBoxOf ?? EMPTY_GROUP_BOXES);
+        prevDisplayIds.set(
+          prevColumn.id,
+          (prevRuns.get(prevColumn.id) ?? []).map((item) =>
+            item.kind === "box" ? item.box.members.map((member) => member.id) : [item.thread.id],
+          ).flat(),
+        );
+      }
+    }
     prevLaneByThreadRef.current = laneByThread;
     prevRunUnitsRef.current = runUnitsNext;
     prevColumnsRef.current = columns;
@@ -911,9 +934,10 @@ export function Board({
       prevRunUnitsRef.current = null;
       prevColumnsRef.current = null;
       prevThreadsRef.current = new Map();
+      prevGroupBoxOfRef.current = null;
       return;
     }
-    const rawMoves = planLaneTransports(prev, prevThreads, columns, prevColumns ?? columns);
+    const rawMoves = planLaneTransports(prev, prevThreads, columns, prevColumns ?? columns, prevDisplayIds.size === 0 ? undefined : prevDisplayIds);
     const moves = collapseRunTransports(
       rawMoves,
       prevRunUnits ?? new Map<string, RunUnit>(),
@@ -1254,14 +1278,19 @@ export function Board({
   const ranking = rankStore !== undefined && onRankMove !== undefined;
   // Which boxed threads drag as a multi-member run: the thread's LANE SLICE
   // (its group's run in the column rendering it) holds ≥ 2 members. The
-  // join decision reads this — under the split default a lone slice member
-  // drags plain and may join another group, while a co-located run moves as
-  // a unit and never dissolves into a group.
+  // join decision reads this — a lone slice member (its group's only member
+  // in the lane) drags plain and may join another group, while a gathered
+  // run (members gathered into the lane's one frame) moves as a unit and
+  // never dissolves into a group. Same walk as the render: roles read the
+  // DISPLAYED order (flattenRuns), not the raw column order, so a box
+  // gathered through an interposed card reports its roles honestly.
   const boxedUnitIds = useMemo(() => {
     const ids = new Set<string>();
     if (groupBoxOf === undefined) return ids;
     for (const column of columns) {
-      for (const [threadId, info] of columnRunInfo(column.threads, groupBoxOf)) {
+      const runs =
+        runsFromColumns([column], groupBoxOf).get(column.id) ?? [];
+      for (const [threadId, info] of columnRunInfo(flattenRuns(runs), groupBoxOf)) {
         if (info.role !== "solo") ids.add(threadId);
       }
     }
@@ -1863,7 +1892,19 @@ export function Board({
           // where they are and the operator scrolls to see the blast
           // radius. Reordering on every toggle made deselecting feel like
           // the board was shuffling a deck (observed 2026-10-01).
-          const shownThreads = column.threads;
+          const columnRuns =
+            runsFromColumns([column], groupBoxOf ?? EMPTY_GROUP_BOXES).get(column.id) ?? [];
+          // The lane's DISPLAYED order, not the raw column order: the run
+          // walk gathers each group's members into the lane's ONE frame at
+          // the first member's slot, so a member's raw slot and its rendered
+          // slot differ whenever the raw order interleaves a non-member — a
+          // teleported card joining the frame, an unpin landing between two
+          // members. Every interaction order input below (run roles, rank
+          // reps, step math, rank writes, sweep ranges) reads this displayed
+          // order, so what the operator sees and what a move computes agree.
+          // Boxes off (or the Parent view, which never boxes) → the runs are
+          // all singles and the flatten is identity.
+          const shownThreads = flattenRuns(columnRuns);
           const armedSet = isArmed ? new Set(eligible) : null;
           // May this card join the armed selection? Blocked ids never join
           // in a removing arm, and a Done column's family projection card
@@ -2964,8 +3005,8 @@ export function Board({
                   // the scrollport at any position, never clipped by the
                   // list's top edge (the old per-card fragments truncated
                   // there; observed 2026-10-09, "fraction of a label").
-                  const columnRuns =
-                    runsFromColumns([column], groupBoxOf ?? EMPTY_GROUP_BOXES).get(column.id) ?? [];
+                  // `columnRuns` is the walk computed once for this lane
+                  // above (it also feeds `shownThreads` here).
                   // The transport ghosts ride their OLD slot positions in
                   // this lane: the planner snapshots the lane's order, and
                   // insertGhostSlots weaves the ghosts in between the runs
@@ -3019,12 +3060,10 @@ export function Board({
                       threadLi(runItem.thread)
                     ) : (
                       <li
-                        // The slice-unique key: under the split default a box's
-                        // members can render as separate slice runs in one lane
-                        // (a card interposed between them — issue #106), so the
-                        // group id alone would collide. The lead member's id makes
-                        // every slice run of the group distinct.
-                        key={`group:${runItem.box.groupId}:${runItem.box.members[0]?.id ?? ""}`}
+                        // One box run per group per lane: the gather walk
+                        // never emits a second slice of the same group here,
+                        // so the group id alone is the slot key.
+                        key={`group:${runItem.box.groupId}`}
                         data-group-box={runItem.box.groupId}
                         data-transport-arrival={
                           boxArrivalFor(runItem.box.groupId) ? "wiping-in" : undefined

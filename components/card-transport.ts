@@ -232,6 +232,7 @@ export function planLaneTransports(
   prevThreads: ReadonlyMap<string, PluginSidebarThread>,
   columns: readonly TransportColumnLike[],
   prevColumns?: readonly TransportColumnLike[],
+  prevDisplayIds?: ReadonlyMap<string, readonly string[]>,
 ): readonly LaneTransport[] {
   const nextLaneByThread = laneSignature(columns);
   const moves: LaneTransport[] = [];
@@ -242,13 +243,27 @@ export function planLaneTransports(
     if (prevLane.includes("|") || nextLane.includes("|")) continue; // multiplicity change
     const snapshot = prevThreads.get(threadId);
     if (snapshot === undefined) continue; // no ghost visuals available
+    // The card's TRUE old slot: the moved card has already left its old
+    // lane in the NEXT columns, so the lookup reads the PREVIOUS commit.
+    // It reads the previous DISPLAYED order when the caller carries one:
+    // the gather walk pulls a group's members together at the frame, so
+    // the raw column order and the rendered order can differ, and the
+    // ghost must weave against what the lane actually showed. A missing
+    // id falls back to the raw slot, and an unfound card clamps to 0 the
+    // way the old planner did (a ghost at the lane top beats every ghost
+    // slot degrading).
     const prevColumn = (prevColumns ?? columns).find((candidate) => candidate.id === prevLane);
-    const fromIndex = prevColumn?.threads.findIndex((card) => card.id === threadId) ?? -1;
+    const prevOrder = prevDisplayIds?.get(prevLane);
+    const displayIndex = prevOrder?.indexOf(threadId) ?? -1;
+    const fromIndex =
+      displayIndex >= 0
+        ? displayIndex
+        : Math.max(prevColumn?.threads.findIndex((card) => card.id === threadId) ?? -1, 0);
     moves.push({
       threadId,
       thread: snapshot,
       fromColumnId: prevLane,
-      fromIndex: Math.max(fromIndex, 0),
+      fromIndex,
       toColumnId: nextLane,
     });
   }
