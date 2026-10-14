@@ -16,8 +16,21 @@
 
 import { useEffect } from "react";
 
+/**
+ * DOM id of the injected spotlight `<style>` element. Doubles as the
+ * idempotency key for `ensureCardSpotlightStyles` and the lookup handle for
+ * tests; only one element with this id ever exists per document.
+ */
 export const CARD_SPOTLIGHT_STYLE_ID = "focus-board-card-spotlight";
 
+/**
+ * The full CSS text injected as one `<style>` block under
+ * `CARD_SPOTLIGHT_STYLE_ID` by `ensureCardSpotlightStyles`. Its selector pair
+ * must keep naming both board roots, and its exclusion list must stay aligned
+ * with the immunity fields computed in components/card-status.ts;
+ * tests/thread-card-hover-surface.test.tsx pins the selectors, the opacity,
+ * and the debounce timings.
+ */
 export const CARD_SPOTLIGHT_RULE = `/* The card spotlight (issue #123): while ONE card is under the pointer, every
    other card recedes a step. Arms on a hovered card div; recedes only card
    divs that are NOT hovered and NOT immune (data-spotlight-immune, computed
@@ -31,6 +44,13 @@ export const CARD_SPOTLIGHT_RULE = `/* The card spotlight (issue #123): while ON
   transition-duration: 300ms;
 }`;
 
+/**
+ * Inject the spotlight rule into `document.head` as a `<style>` element under
+ * `CARD_SPOTLIGHT_STYLE_ID`. Side effect: mutates `document.head`. Idempotent:
+ * a call is a no-op when that element already exists, so every board renderer
+ * can call it. React surfaces should use `useCardSpotlightStyles` instead;
+ * this is the direct entry point for non-React callers and tests.
+ */
 export function ensureCardSpotlightStyles(): void {
   if (document.getElementById(CARD_SPOTLIGHT_STYLE_ID) !== null) return;
   const style = document.createElement("style");

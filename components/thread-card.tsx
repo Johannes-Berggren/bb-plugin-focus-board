@@ -678,13 +678,17 @@ export function ThreadCard({
   // Surface contrast floor (wallpaper on): muting the WHOLE card with
   // opacity makes its bg-card surface translucent, so a busy wallpaper
   // bleeds through the muted text. With a wallpaper active the card keeps
-  // its opaque surface and fades through an under-scrim instead. The
-  // status object owns the beat-the-dim rule: a selected card (pane open,
-  // sweep-highlighted) is read by the operator, so it never dims.
+  // its opaque surface and fades through an under-scrim instead. The one
+  // card that beats the scrim is the sweep-picked one: its amber tint
+  // overlay paints the wash on a full-opacity card, so the scrim would
+  // stack under it. A pane-open faded card keeps the scrim — the scrim dims
+  // the content without ever making the surface transparent, so it is not
+  // a transparency rule and focus never has to beat it.
   const wallpaperActive = useWallpaperActive();
   // The four card statuses in one object (components/card-status.ts). The
-  // role field is computed for completeness of the model; the fade systems
-  // consume `selected`, `userFocus`, `faded`, and `spotlightImmune`.
+  // fade systems consume `status.faded` and `status.spotlightImmune`
+  // (the marker below); `status.role` is the parenting status kept for the
+  // model's four-status contract.
   const status = deriveCardStatus({
     hasChildRows: hasRows,
     isActive,
@@ -694,8 +698,7 @@ export function ThreadCard({
     dimmed: dimmed ?? false,
     snoozed,
   });
-  const fades = status.faded;
-  const dimsByScrim = wallpaperActive && fades && !status.selected;
+  const dimsByScrim = wallpaperActive && status.faded && !isSweepHighlighted;
 
   // The two-click Mark Done checkbox, swapped INTO THE STATE DOT'S SLOT: on
   // hover the dot fades and the checkbox centers over its exact pixels —

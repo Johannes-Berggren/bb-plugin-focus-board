@@ -41,13 +41,24 @@ export interface CardStatus {
   spotlightImmune: boolean;
 }
 
+/**
+ * Raw inputs deriveCardStatus reads; ThreadCard passes its render props
+ * straight through.
+ */
 export interface CardStatusInput {
+  /** The card renders nested rows beneath it, so it anchors a family on the lane. */
   hasChildRows: boolean;
+  /** The pane is open on this card. */
   isActive: boolean;
+  /** The sweep has highlighted this card (the pointer reads the selection). */
   isSweepHighlighted: boolean;
+  /** grouping.ts `threadState` reports a pending interaction or unread error. */
   needsAttention: boolean;
+  /** The thread is done. */
   isDone: boolean;
+  /** The filter-miss dim: a family member that did not match the filters. */
   dimmed: boolean;
+  /** The thread is snoozed (lib/snooze reports a wake time). */
   snoozed: boolean;
 }
 

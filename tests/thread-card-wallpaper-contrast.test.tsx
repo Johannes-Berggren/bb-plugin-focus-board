@@ -102,4 +102,17 @@ describe("card fading while a wallpaper is active", () => {
     renderCard({ isDone: true, isSweepHighlighted: true }, true);
     expect(scrim()).toBeNull();
   });
+
+  it("a pane-open done card keeps the scrim: the pane opens on it, nothing fades it to transparent", () => {
+    // The review fix: the scrim exemption beats the dim only for the
+    // sweep-picked card (whose tint overlay needs a clean slate), NOT for the
+    // pane-open one. A faded active card keeps its opaque surface and the
+    // under-scrim; only whole-card opacity would fade the card to
+    // transparent, and the scrim never runs on top of a spotlight recede
+    // (the card is spotlight-immune regardless of the scrim).
+    renderCard({ isDone: true, isActive: true }, true);
+    expect(scrim()).not.toBeNull();
+    expect(tokens()).not.toContain("opacity-50");
+    expect(cardRoot().hasAttribute("data-spotlight-immune")).toBe(true);
+  });
 });

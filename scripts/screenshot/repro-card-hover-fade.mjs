@@ -8,9 +8,10 @@
 //   1. hovered card's background-color is fully OPAQUE while hovered
 //   2. hovered card's opacity stays 1 — the hovered card never fades
 //   3. the SIBLING card recedes during the hover (spotlight dim < 1)
-// A non-faded card may dim by the spotlight; a `data-card-faded` or
-// `data-sweep-highlighted` sibling keeps its own dim semantics and is only
-// recorded. Exits 1 when a check fails (CI-able). Artifacts land in
+// A card must be either non-immune or non-sweep to dim by the spotlight; a
+// `data-spotlight-immune` or `data-sweep-highlighted` sibling keeps its own
+// dim semantics and is only recorded. Exits 1 when a check fails (CI-able).
+// Artifacts land in
 // docs/screenshots/repro-card-hover-fade/ (before/after PNGs + evidence.json).
 // Run the vite harness first (same as shoot.mjs), then
 // `node scripts/screenshot/repro-card-hover-fade.mjs`; honors the same
@@ -79,7 +80,7 @@ async function visibleCard(excludeId) {
       const cs = getComputedStyle(visible);
       return {
         id: visible.getAttribute("data-thread-card"),
-        faded: visible.hasAttribute("data-card-faded"),
+        spotlightImmune: visible.hasAttribute("data-spotlight-immune"),
         sweepHighlighted: visible.hasAttribute("data-sweep-highlighted"),
         rect: { x: r.x, y: r.y, width: r.width, height: r.height },
         style: {
@@ -142,7 +143,7 @@ const hoverInfo = await page.evaluate(
       return {
         backgroundColor: cs.backgroundColor,
         opacity: cs.opacity,
-        faded: el.hasAttribute("data-card-faded"),
+        spotlightImmune: el.hasAttribute("data-spotlight-immune"),
         sweepHighlighted: el.hasAttribute("data-sweep-highlighted"),
       };
     };
@@ -171,9 +172,12 @@ if (hoverInfo.hovered === null) {
 }
 if (hoverInfo.sibling === null) {
   // No sibling visible: the spotlight dim is unverifiable in this board.
-} else if (hoverInfo.sibling.faded || hoverInfo.sibling.sweepHighlighted) {
-  // Exempt card: its own dim system is in charge; the spotlight must not
-  // stack on it, and its opacity stays whatever its own semantics keep.
+} else if (hoverInfo.sibling.spotlightImmune || hoverInfo.sibling.sweepHighlighted) {
+  // Exempt card: its own dim system or the focus marker is in charge; the
+  // spotlight must not stack on it, and its opacity stays whatever its own
+  // semantics keep. The marker covers done / dimmed / snoozed cards and,
+  // since the status-object refactor, the pane-open and needs-attention
+  // cards too.
 } else if (parseFloat(hoverInfo.sibling.opacity) >= 1) {
   failures.push(
     `sibling card ${siblingInfo?.id ?? "?"} did not recede during the ` +
