@@ -346,7 +346,7 @@ export const DERIVED_WHATS_NEW: readonly { version: string; items: readonly { le
         "children": []
       },
       {
-        "lead": "✨ \"The thread's active model\" no longer lands on a metered catalog default.",
+        "lead": "\"The thread's active model\" no longer lands on a metered catalog default.",
         "children": []
       },
       {
@@ -375,7 +375,7 @@ export const DERIVED_WHATS_NEW: readonly { version: string; items: readonly { le
     "version": "0.9.0",
     "items": [
       {
-        "lead": "✨ auto-rename gains the thread's own model as a fallback.",
+        "lead": "Auto-rename gains the thread's own model as a fallback.",
         "children": [
           "Titles come from the thread's true originating prompt."
         ]
@@ -403,7 +403,7 @@ export const DERIVED_WHATS_NEW: readonly { version: string; items: readonly { le
         "children": []
       },
       {
-        "lead": "✨ \"New child thread…\" opens a composer preset to the parent.",
+        "lead": "\"New child thread…\" opens a composer preset to the parent.",
         "children": [
           "The child starts where the parent runs."
         ]
@@ -432,7 +432,7 @@ export const DERIVED_WHATS_NEW: readonly { version: string; items: readonly { le
         "children": []
       },
       {
-        "lead": "✨ auto-rename in the pane's title editor.",
+        "lead": "Auto-rename in the pane's title editor.",
         "children": []
       },
       {
