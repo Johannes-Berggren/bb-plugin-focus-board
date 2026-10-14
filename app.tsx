@@ -2687,7 +2687,10 @@ function BoardPage({ subPath }: { subPath: string }) {
   return (
     <WallpaperActiveProvider active={activeWallpaper !== null}>
     <div
-      className={(activeWallpaper === null ? "" : "relative ") + "flex h-full min-h-0"}
+      // Always relative: the panel-scoped pane sheet (a narrow panel on a
+      // desktop window) anchors to this root, and so do the wallpaper
+      // layers when a wallpaper is active.
+      className="relative flex h-full min-h-0"
       data-focus-board-panel=""
     >
       {activeWallpaper === null ? null : (

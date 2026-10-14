@@ -51,6 +51,14 @@ const PANE_MIN_WIDTH = 320;
 const PANE_MAX_WIDTH = 900;
 const PANE_DEFAULT_WIDTH = 480;
 
+/** The narrowest panel row that still hosts the board and the side-by-side
+ *  pane together. At or below this measured row width the pane covers the
+ *  board as a sheet. Measured on the pane's row itself — the plugin
+ *  panel inside the host — not the window: a desktop bb window can squeeze
+ *  the panel far below any window media query, and the stored pane width
+ *  (480px on a 250px panel) would otherwise overrun the panel edge. */
+export const PANE_SHEET_MAX_PANEL_WIDTH = 640;
+
 /**
  * Debounce window for the pane's Escape handling (see the keydown effect in
  * ThreadPane). Matches the OS double-click convention (~500 ms): wide enough
@@ -440,7 +448,38 @@ export function ThreadPane({
   escapeSuppressed = false,
 }: ThreadPaneProps) {
   const [width, setWidth] = useState(readStoredPaneWidth);
-  const isCompact = useIsCompactViewport();
+  const windowCompact = useIsCompactViewport();
+  // A squeezed panel on a desktop window: the compact media query never
+  // fires there (the window is wide), so the side-by-side pane stayed
+  // alive and the stored pane width overran the panel — the board flexed
+  // away and the pane's header painted past the panel edge (reproduced in
+  // docs/screenshots/repro-narrow-panel/). The pane measures its row (the
+  // plugin panel inside the host) the way the toolbar band measures
+  // itself; ResizeObserver is guarded because jsdom has none.
+  const paneRef = useRef<HTMLElement | null>(null);
+  const [panelWidth, setPanelWidth] = useState<number | null>(null);
+  useEffect(() => {
+    const pane = paneRef.current;
+    const row = pane?.parentElement;
+    if (pane === null || row === undefined || row === null || typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver((entries) => {
+      const width = entries[entries.length - 1]?.contentRect.width ?? row.clientWidth;
+      setPanelWidth(width);
+    });
+    observer.observe(row);
+    return () => observer.disconnect();
+  }, []);
+  const panelNarrow = panelWidth !== null && panelWidth < PANE_SHEET_MAX_PANEL_WIDTH;
+  const isCompact = windowCompact || panelNarrow;
+  // The sheet anchors to the PLUGIN PANEL (absolute within it), never the
+  // window: the narrowness here is the panel's, not the host's — the
+  // host's own chrome (sidebar, chat) must stay visible, unlike the true
+  // mobile path, whose fixed sheet covers the phone's whole window.
+  const panelScopedSheet = panelNarrow && !windowCompact;
+  // A stored pane width can exceed the panel (a wide pane stored on a
+  // wider panel that later narrowed): clamp to the measured row so the
+  // pane can never jut past the panel edge.
+  const effectiveWidth = panelWidth === null ? width : Math.min(width, panelWidth);
   const sdk = useSdk();
   const navigate = useBbNavigate();
   const rpc = useRpc<typeof rpcContract>();
@@ -757,18 +796,25 @@ export function ThreadPane({
 
   return (
     <aside
+      ref={paneRef}
       role="complementary"
       aria-label={`Thread: ${thread.displayTitle}`}
       className={
-        isCompact
+        windowCompact
           ? // Compact viewport: the pane covers the board as a full-screen
             // sheet with the X close button in the header. As a fixed element
             // it escapes the host panel's own safe-area padding, so it pads
             // for the home indicator / notch itself.
             "fixed inset-0 z-30 flex min-h-0 flex-col bg-background pb-[var(--bb-safe-area-bottom,env(safe-area-inset-bottom))]"
-          : "relative flex h-full min-h-0 flex-col border-l border-border bg-background shadow-lg"
+          : panelScopedSheet
+            ? // A narrow panel on a desktop window: the sheet anchors to the
+              // plugin panel only, so the host's chrome stays visible.
+              "absolute inset-0 z-30 flex min-h-0 flex-col bg-background"
+            : "relative flex h-full min-h-0 flex-col border-l border-border bg-background shadow-lg"
       }
-      style={isCompact ? undefined : { width }}
+      style={
+        windowCompact || panelScopedSheet ? undefined : { width: effectiveWidth }
+      }
     >
       {!isCompact ? (
         <div
