@@ -3003,7 +3003,12 @@ export function Board({
                       threadLi(runItem.thread)
                     ) : (
                       <li
-                        key={`group:${runItem.box.groupId}`}
+                        // The slice-unique key: under the split default a box's
+                        // members can render as separate slice runs in one lane
+                        // (a card interposed between them — issue #106), so the
+                        // group id alone would collide. The lead member's id makes
+                        // every slice run of the group distinct.
+                        key={`group:${runItem.box.groupId}:${runItem.box.members[0]?.id ?? ""}`}
                         data-group-box={runItem.box.groupId}
                         data-transport-arrival={
                           boxArrivalFor(runItem.box.groupId) ? "wiping-in" : undefined

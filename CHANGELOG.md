@@ -37,6 +37,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - **Parent-lane board stops yanking the scroll back to the selected card.** With a card selected, every lane assembly rebuild re-ran the same-lane scroll correction and dragged the vertical scroll back down to the selection. Only a selection change, a lane move, or a viewport resize re-locks now; a hover capture or an ambient re-sort that merely rebuilds the lanes leaves the scroll alone.
 
+#### Group boxes
+
+- **A card landing between a group box's members no longer hides one of them.** Unpinning a card back between two co-located group members gathered the box whole at the first member's slot, dropping the trailing member from the lane's readable order. The run walk now splits the box into slice-of-one frames wherever the lane's order interleaves a card, so every member keeps its true slot.
+
 ## [1.3.0] - 2026-10-13
 
 ### Added

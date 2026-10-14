@@ -528,6 +528,73 @@ describe("runsFromColumns under the split default — the frame follows every la
   });
 });
 
+describe("runsFromColumns — a card landing between a box's members splits the run", () => {
+  // Issue #106: a menu unpin returns the card to its own lane, and recency
+  // can slot it BETWEEN two co-located box members of another group. The
+  // run walk used to gather the lane's whole slice into one box at the
+  // first member's slot, displacing the standalone card after the box and
+  // hiding the second member from the lane's readable top-level order — a
+  // Working card went missing from the lane order entirely.
+  type BoxItemLike = {
+    kind: string;
+    box: { groupId: string; members: { id: string }[] };
+  };
+  type SingleItemLike = { kind: string; thread: { id: string } };
+  const threads = [
+    thread({ id: "thr_a", status: "active", updatedAt: NOW - 1000 }),
+    thread({ id: "thr_x", status: "active", updatedAt: NOW - 2000 }),
+    thread({ id: "thr_b", status: "active", updatedAt: NOW - 3000 }),
+  ];
+  const plan = planGroupBoxes(
+    threads,
+    groupOf({ thr_a: "grp_auth", thr_b: "grp_auth" }),
+    NAMES,
+    "status",
+    context,
+    new Set(),
+    NOW,
+  );
+  const runsOf = () => {
+    const columns = buildColumns(threads, "status", context, new Map(), new Set(), NOW);
+    const working = columns.find((candidate) => candidate.id === "working");
+    const runs = runsFromColumns([working as never], plan.groupBoxOf);
+    return (runs as Map<string, readonly (BoxItemLike | SingleItemLike)[]>).get("working");
+  };
+
+  it("each member keeps its own slice-of-one frame in the lane's true order", () => {
+    const items = runsOf();
+    expect(items).toHaveLength(3);
+    expect(items![0]).toMatchObject({ kind: "box" });
+    expect((items![0] as BoxItemLike).box.members.map((entry) => entry.id)).toEqual(["thr_a"]);
+    expect((items![0] as BoxItemLike).box.groupId).toBe("grp_auth");
+    expect((items![1] as SingleItemLike).thread.id).toBe("thr_x");
+    expect(items![2]).toMatchObject({ kind: "box" });
+    expect((items![2] as BoxItemLike).box.members.map((entry) => entry.id)).toEqual(["thr_b"]);
+    expect((items![2] as BoxItemLike).box.groupId).toBe("grp_auth");
+  });
+
+  it("flattenRuns restores the lane's true order (no card displaced, none missing)", () => {
+    const flat = flattenRuns(runsOf() as never);
+    expect(flat.map((entry) => entry.id)).toEqual(["thr_a", "thr_x", "thr_b"]);
+  });
+
+  it("a split slice's lone members drag as plain cards (role solo)", () => {
+    const columns = buildColumns(threads, "status", context, new Map(), new Set(), NOW);
+    const working = columns.find((candidate) => candidate.id === "working");
+    const info = columnRunInfo(working?.threads ?? [], plan.groupBoxOf);
+    expect(info.get("thr_a")).toMatchObject({
+      boxId: "grp_auth",
+      role: "solo",
+      memberIds: ["thr_a"],
+    });
+    expect(info.get("thr_b")).toMatchObject({
+      boxId: "grp_auth",
+      role: "solo",
+      memberIds: ["thr_b"],
+    });
+  });
+});
+
 describe("filterWithGroupBoxes", () => {
   const threads = [
     thread({ id: "thr_a", status: "active", displayTitle: "Refresh token rotation", updatedAt: NOW - 1000 }),
