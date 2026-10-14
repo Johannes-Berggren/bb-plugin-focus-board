@@ -56,6 +56,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **Attending to a family's live card no longer moves its Done projection.** The attention freeze's slot pin was keyed by thread alone and applied in every lane, so the attended card's twin in Done jumped to the live slot's index. The pin holds column and thread now.
 - **A child thread spawned from a child card nests under that card's row.** Right-clicking a nested child card and picking "New child thread…" used to leave the new thread beside its parent under the family root, breaking the dialog's "Will nest under" promise. Families now follow their real edges one row level deeper (a child row carries its own children as indented sub-rows; deeper members still re-attach to the root), and when the display target differs from the spawn parent, the dialog names both.
   - The fold's count names what folding hides: the rows plus their sub-rows, so a family card with a grandchild no longer reads one short.
+- **An errored child thread reads as Needs-you, not gray idle.** A child whose turn failed hard (`status: "error"` in bb) matched no state in `threadState()`, so its dot rendered the same gray as an idle child everywhere, and a collapsed family's child-dot strip hid the error entirely. Errored turns and failed queued sends now ride the attention arm: amber, pulsing, on the strip, the nested rows, and the board lanes.
 
 #### Parent lanes
 

@@ -41,6 +41,21 @@ describe("threadState", () => {
     }
   });
 
+  it("treats an errored turn as attention, not idle", () => {
+    // A hard-failed turn carries no live process: without the error arm it
+    // fell through to plain idle and its dot read gray everywhere.
+    expect(threadState(thread({ status: "error" }))).toBe("attention");
+    // Attention outranks unread (as with every other needs-you signal).
+    expect(threadState(thread({ status: "error", isUnread: true }))).toBe("attention");
+    expect(threadState(thread({ status: "error", hasPendingInteraction: true }))).toBe("attention");
+  });
+
+  it("treats a failed queued send as attention, not idle", () => {
+    expect(threadState(thread({ queuedWork: "failed" }))).toBe("attention");
+    // The host-resolved indicator of the same failed-send condition.
+    expect(threadState(thread({ indicator: "queued-failed" }))).toBe("attention");
+  });
+
   it("maps unread and idle", () => {
     expect(threadState(thread({ isUnread: true }))).toBe("unread");
     expect(threadState(thread({}))).toBe("idle");

@@ -159,6 +159,32 @@ describe("uncontrolled collapse (callers without persistence)", () => {
   });
 });
 
+describe("an errored child's dots", () => {
+  const erroredFamily = [
+    thread({ id: "thr_idle", parentThreadId: "thr_parent", displayTitle: "Idle child", updatedAt: 4000 }),
+    thread({ id: "thr_err", parentThreadId: "thr_parent", displayTitle: "Errored child", status: "error", updatedAt: 3900 }),
+  ];
+
+  it("the collapsed strip colors the errored child amber, not the idle gray", () => {
+    renderCard({ childThreads: erroredFamily });
+    fireEvent.click(toggle(false));
+    expect(dotAt(1).className).toContain("bg-amber-500");
+    expect(dotAt(1).className).toContain("motion-safe:animate-pulse");
+    expect(dotAt(1).className).not.toContain("bg-muted-foreground/30");
+    expect(dotAt(1).className).not.toBe(dotAt(0).className);
+  });
+
+  it("the expanded row's dot carries the same error treatment", () => {
+    renderCard({ childThreads: erroredFamily });
+    const rowDot = document.querySelector<HTMLElement>(
+      '[data-thread-card="thr_err"] span[class*="size-1.5"]',
+    );
+    if (rowDot === null) throw new Error("missing errored child's row dot");
+    expect(rowDot.className).toContain("bg-amber-500");
+    expect(rowDot.className).not.toContain("bg-muted-foreground/30");
+  });
+});
+
 describe("controlled collapse (persisted by the caller)", () => {
   it("isCollapsed=true hides the rows and shows the dot strip", () => {
     renderCard({ isCollapsed: true, onCollapsedChange: vi.fn() });

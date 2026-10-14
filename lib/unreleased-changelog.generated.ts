@@ -78,6 +78,11 @@ export const UNRELEASED_ITEMS: readonly { text: string; children: string[]; grou
     "group": "Family nesting"
   },
   {
+    "text": "**An errored child thread reads as Needs-you, not gray idle.** A child whose turn failed hard (`status: \"error\"` in bb) matched no state in `threadState()`, so its dot rendered the same gray as an idle child everywhere, and a collapsed family's child-dot strip hid the error entirely. Errored turns and failed queued sends now ride the attention arm: amber, pulsing, on the strip, the nested rows, and the board lanes.",
+    "children": [],
+    "group": "Family nesting"
+  },
+  {
     "text": "**A frozen parent-lane keeps its hold under By project.** The project sections re-sorted every section's lanes by recency and threw the lane freeze away, so the attended lane snapped back the moment By project engaged. The sectioning now preserves the order it receives, sections themselves still ordering by their freshest lane.",
     "children": [],
     "group": "Parent lanes"
