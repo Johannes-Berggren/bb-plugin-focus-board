@@ -7,6 +7,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+### Changed
+
+### Fixed
+
+## [1.3.1] - 2026-10-14
+
+### Added
+
 #### Search and filters
 
 - **Mobile collapses the filter palette into a header toggle.** On a narrow screen the toolbar keeps New thread, search, the toggle, and the settings gear in one row, while View, the four filters, Clear, and the thread count hide inside an expandable ribbon that badges how many filters are active. The open/closed choice persists per browser.
