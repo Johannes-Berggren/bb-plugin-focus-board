@@ -27,6 +27,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - **Opening a thread on a big board repaints one card, not the whole board.** The open thread was a board-wide value, so tapping a card set it on every card at once and re-rendered all of them: on a phone that measured 1005 card renders and made the tap feel like it had missed (issue #265). A card now reacts only when the open thread is its own or one of its family's.
 
+- **Opening a thread holds its card in the spotlight while the rest of the board recedes.** The pane-held card and the family holding it keep their surface, the same focus the pointer arms on hover, now with no pointer in play.
+
 ### Fixed
 
 #### Wallpaper

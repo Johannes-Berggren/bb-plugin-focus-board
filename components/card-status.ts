@@ -30,8 +30,9 @@ export interface CardStatus {
   /**
    * Exempt from the spotlight recede (`data-spotlight-immune`, consumed by
    * components/card-spotlight.ts): focus outranks transparency. Selected,
-   * attention, and already-faded cards keep their own opacity while other
-   * cards recede; the hovered card needs no marker — the rule reads `:hover`.
+   * attention, already-faded, and focus-marker cards keep their own opacity
+   * while other cards recede; the hovered card needs no marker — the rule
+   * reads `:hover`.
    */
   spotlightImmune: boolean;
 }
@@ -53,6 +54,14 @@ export interface CardStatusInput {
   dimmed: boolean;
   /** The thread is snoozed (lib/snooze reports a wake time). */
   snoozed: boolean;
+  /**
+   * The card wears the focus spotlight's marker (ThreadCard's `focusSolid`):
+   * the pane-held card, the family card whose nested rows hold it, or a
+   * parent-lane cell the board forces the marker on. Counts as a never-recede
+   * source: the spotlight ARMS on this marker, so a card wearing it must not
+   * recede with the rest of the board.
+   */
+  focusMarker?: boolean;
 }
 
 /**
@@ -67,6 +76,6 @@ export function deriveCardStatus(input: CardStatusInput): CardStatus {
     selected,
     userFocus,
     faded,
-    spotlightImmune: selected || userFocus || faded,
+    spotlightImmune: selected || userFocus || faded || input.focusMarker === true,
   };
 }
