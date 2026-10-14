@@ -128,6 +128,19 @@ describe("the CSS-only spotlight candidates (board-root wiring pin)", () => {
     );
   });
 
+  it("debounces the recede dim's onset, so a sweeping pointer never strobes it", () => {
+    // Pure-CSS debounce: the dim's transition-delay sits under the SAME arm
+    // and recede-target chain as the dim itself, so it only applies while the
+    // rule holds. A pointer that rests 150ms arms the dim (delay + the card's
+    // own 150ms ease); a pointer that sweeps across never holds the rule long
+    // enough for the dim to start. The UN-dim keeps no delay of its own — the
+    // base card transition applies whenever the rule lets go — so releasing
+    // the spotlight stays snappy.
+    expect(CARD_SPOTLIGHT_CLASSES).toContain(
+      "has-[div[data-thread-card]:hover]:[&_div[data-thread-card]:not(:hover):not([data-sweep-highlighted]):not([data-card-faded])]:delay-150",
+    );
+  });
+
   it("the columns board root carries the spotlight candidates", () => {
     // Rendered through the real Board the way board-sweep-select.test.tsx
     // does, so the wiring on `[data-columns-board]` can't silently drop out.
@@ -167,6 +180,9 @@ describe("the CSS-only spotlight candidates (board-root wiring pin)", () => {
     const classes = root.className.split(" ");
     expect(classes).toContain(
       "has-[div[data-thread-card]:hover]:[&_div[data-thread-card]:not(:hover):not([data-sweep-highlighted]):not([data-card-faded])]:opacity-70",
+    );
+    expect(classes).toContain(
+      "has-[div[data-thread-card]:hover]:[&_div[data-thread-card]:not(:hover):not([data-sweep-highlighted]):not([data-card-faded])]:delay-150",
     );
   });
 });

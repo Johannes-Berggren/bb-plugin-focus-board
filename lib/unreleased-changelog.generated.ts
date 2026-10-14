@@ -46,6 +46,11 @@ export const UNRELEASED_ITEMS: readonly { text: string; children: string[]; grou
     "group": "Card hover"
   },
   {
+    "text": "**The recede dim waits for the pointer to rest.** Sibling cards now start dimming only after the pointer holds still for 150ms, so a quick sweep across the board never strobes the dim on and off; un-hovering stays instant.",
+    "children": [],
+    "group": "Card hover"
+  },
+  {
     "text": "**A search hit keeps the family whole no matter what frames exist.** A second pass re-gated the family filter's output and dropped dimmed family members whenever a group frame existed anywhere on the board, so a missed-search parent card vanished and its child re-rooted as a lone card. The redundant pass is deleted: the family filter is the one keep rule, and frames never touch what it keeps.",
     "children": [],
     "group": "Family frames"
