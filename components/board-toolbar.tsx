@@ -1,4 +1,4 @@
-import { useId, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import type { RefObject } from "react";
 import type { PluginSidebarProject } from "@get-bb/plugin-sdk/app";
 import { Icon } from "@/components/ui/icon";
@@ -23,6 +23,14 @@ import { GROUP_BY_OPTIONS, STATE_FILTER_OPTIONS } from "./grouping";
 /** The DOM id of the compact header's expandable filter ribbon, so the
  *  toggle's aria-controls points at the region it reveals. */
 const FILTER_RIBBON_ID = "focus-board-filter-ribbon";
+
+/** The narrowest header band the desktop single-row palette still fits in.
+ *  At or above this measured width the palette stays on one row; below it
+ *  the header borrows the mobile collapse (the ribbon toggle), because the
+ *  band wraps the full palette into several rows it can't afford. Measured
+ *  on the band itself, not the window: a small window and an open pane
+ *  squeezing the board both count. */
+export const NARROW_HEADER_COLLAPSE_WIDTH = 1024;
 
 /**
  * Linear-model dropdown: clicking a row's label applies it as the single
@@ -570,6 +578,30 @@ export function BoardToolbar({
   // chip, filter dropdowns, Clear, and the count hide behind the toggle.
   // The open/closed choice is the user's and persists (default closed).
   const compact = useIsCompactViewport();
+  // A narrowed desktop header borrows the mobile collapse: between the
+  // compact media query's 767px and the ~1024px the palette needs, the
+  // window still read "desktop" while the band could not afford the row —
+  // the palette wrapped into several rows. The band measures itself, so a
+  // small window and an open pane squeezing the board both count.
+  // ResizeObserver is guarded (jsdom has none, like the wallpaper viewport
+  // and the lane board): tests and old hosts degrade to the media query.
+  const headerRef = useRef<HTMLDivElement>(null);
+  const [headerNarrow, setHeaderNarrow] = useState(false);
+  useEffect(() => {
+    const header = headerRef.current;
+    if (header === null || typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver((entries) => {
+      const width =
+        entries[entries.length - 1]?.contentRect.width ?? header.clientWidth;
+      setHeaderNarrow(width < NARROW_HEADER_COLLAPSE_WIDTH);
+    });
+    observer.observe(header);
+    return () => observer.disconnect();
+  }, []);
+  // The collapsed header layout (and its search-field fill behavior)
+  // applies whether the band is compact by media query or narrow by
+  // measurement — the borrowed collapse shares everything with mobile.
+  const collapsedHeader = compact || headerNarrow;
   const [filterRibbonOpen, setFilterRibbonOpen] = useState<boolean>(() =>
     parseFilterRibbonStored(readStoredText(TOOLBAR_FILTER_RIBBON_KEY, "")),
   );
@@ -604,10 +636,11 @@ export function BoardToolbar({
   const searchBox = (
     /* Search pairs with the View menu (the surfaces that change what the
         board shows structurally); fixed width on desktop so the search
-        never starves the row to wrapping — flexible on compact, where it
-        fills the space the collapsed palette frees up. The x clears when
-        the field holds text. */
-    <div className={cn("relative", compact ? "min-w-0 flex-1" : "w-44 sm:w-56")}>
+        never starves the row to wrapping — flexible on a collapsed header
+        (compact media query or a narrow measured band), where it fills the
+        space the collapsed palette frees up. The x clears when the field
+        holds text. */
+    <div className={cn("relative", collapsedHeader ? "min-w-0 flex-1" : "w-44 sm:w-56")}>
       <Icon
         name="Search"
         className="pointer-events-none absolute left-2 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground"
@@ -845,9 +878,9 @@ export function BoardToolbar({
       />
     </button>
   );
-  if (compact) {
+  if (collapsedHeader) {
     return (
-      <div className="flex flex-wrap items-center gap-2 border-b border-border bg-muted/50 px-3 py-2">
+      <div ref={headerRef} className="flex flex-wrap items-center gap-2 border-b border-border bg-muted/50 px-3 py-2">
         {newThreadButton}
         {searchBox}
         <button
@@ -893,9 +926,10 @@ export function BoardToolbar({
   }
   // The band's muted tint separates the header from the board body (cards
   // sit on the plain background), so the control row reads at a glance in
-  // both light and dark schemes.
+  // both light and dark schemes. The ref stays attached across both
+  // layouts, so the narrow-band observer survives the borrow either way.
   return (
-    <div className="flex flex-wrap items-center gap-2 border-b border-border bg-muted/50 px-3 py-2">
+    <div ref={headerRef} className="flex flex-wrap items-center gap-2 border-b border-border bg-muted/50 px-3 py-2">
       {newThreadButton}
       <div className="flex items-center gap-2">
         {searchBox}

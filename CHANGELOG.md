@@ -9,7 +9,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 #### Search and filters
 
-- **Mobile collapses the filter palette into a header toggle.** On a narrow screen the toolbar keeps New thread, search, the toggle, and the settings gear in one row, while View, the four filters, Clear, and the thread count hide inside an expandable ribbon that badges how many filters are active. The open/closed choice persists per browser and the desktop row is unchanged.
+- **Mobile collapses the filter palette into a header toggle.** On a narrow screen the toolbar keeps New thread, search, the toggle, and the settings gear in one row, while View, the four filters, Clear, and the thread count hide inside an expandable ribbon that badges how many filters are active. The open/closed choice persists per browser.
 
 ### Changed
 
@@ -22,6 +22,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 #### Lane transport
 
 - **The lane-move dissolve leaves the active-card marker on the card, not its ghost.** Relocating the open card played its old-lane ghost with the marker still claiming `aria-current`, so the marker and the keep-in-view scroll pointed at different cards. The ghost is inert decoration and never reports the marker now; the card the board followed owns it.
+
+#### Search and filters
+
+- **A narrowed desktop header borrows the mobile filter collapse.** Between phone widths and the width the filter row needs, a small window or an open pane left the desktop palette wrapped over several header rows; the header now measures itself and folds behind the same Filters toggle, with the same badge and persisted choice, and the single-row palette returns when the band widens again.
 
 #### Card hover
 
