@@ -21,12 +21,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 #### The title editor
 
-- **The ✨ auto-rename titles threads that open with a pasted file.** Such a thread carries an empty opener text row, so every option in the fallback modal (each AI service, and the thread's own model) failed "no prompt text to title from" before any model was even called; the prompt now recovers the paste's content from bb's attachments store, and a missing, escaping, or non-text paste fails with the file named.
-- **The ✨ auto-rename's service picks fit bb's bridge prompt cap again.** A thread whose opener text ran long built a title prompt over bb's 4000-character bridge limit, so the only usable service answered "HTTP 400: rpc input validation failed" on every pick; the built prompt now clamps to the cap with the instructions included, and the bridge wait rises above the provider plugin's own 30s budget so slow completions abort there, not in the bridge.
+- **The auto-rename titles threads that open with a pasted file.** Such a thread carries an empty opener text row, so every option in the fallback modal (each AI service, and the thread's own model) failed "no prompt text to title from" before any model was even called; the prompt now recovers the paste's content from bb's attachments store, and a missing, escaping, or non-text paste fails with the file named.
+- **The auto-rename's service picks fit bb's bridge prompt cap again.** A thread whose opener text ran long built a title prompt over bb's 4000-character bridge limit, so the only usable service answered "HTTP 400: rpc input validation failed" on every pick; the built prompt now clamps to the cap with the instructions included, and the bridge wait rises above the provider plugin's own 30s budget so slow completions abort there, not in the bridge.
 
 #### Thread pane
 
-- **A squeezed panel puts the thread pane on a panel-wide sheet.** With a plugin panel that narrowed far below its desktop window, the side-by-side pane kept its stored width: the board flexed away to a sliver and the pane's header (title, ✨, Mark Unread) painted past the panel's right edge onto the host's own UI. The pane now measures its panel row — below 640px it covers the board as a sheet scoped to the panel, keeping the host's chrome visible, and above it the side-by-side pane returns with its stored width clamped to the panel so it can never jut past the edge again.
+- **A squeezed panel puts the thread pane on a panel-wide sheet.** With a plugin panel that narrowed far below its desktop window, the side-by-side pane kept its stored width: the board flexed away to a sliver and the pane's header (title, auto-rename, Mark Unread) painted past the panel's right edge onto the host's own UI. The pane now measures its panel row — below 640px it covers the board as a sheet scoped to the panel, keeping the host's chrome visible, and above it the side-by-side pane returns with its stored width clamped to the panel so it can never jut past the edge again.
 
 #### Lane transport
 
@@ -294,7 +294,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
-- **✨ "The thread's active model" no longer lands on a metered catalog
+- **"The thread's active model" no longer lands on a metered catalog
   default.** When the thread's model can't be cloned, the title probe now
   inherits the same spawn default chain a new thread gets instead of
   cloning just the provider. The old path resolved the provider's catalog
@@ -326,7 +326,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
-- **✨ auto-rename gains the thread's own model as a fallback.** When the
+- **Auto-rename gains the thread's own model as a fallback.** When the
   pinned AI service fails, the fallback modal now titles the thread with a
   hidden one-turn probe on the model bb resolved for the source thread: no
   workspace tools run, the probe is deleted in every path, and resolution
@@ -372,7 +372,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   persist across sessions. A child that needs you un-nests into its own
   Needs-you card while the rest stay folded.
 
-- **✨ "New child thread…" opens a composer preset to the parent.** The card
+- **"New child thread…" opens a composer preset to the parent.** The card
   menu (board cards, nested rows) and the pane's actions menu open the
   composer keyed to the parent, and the spawned child opens in the pane
   nested under it.
@@ -409,8 +409,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   gesture lifts the snooze first, and CLI parity lands as
   `bb focus-board snooze list|set|clear`.
 
-- **✨ auto-rename in the pane's title editor.** One click on the title
-  editor's ✨ button titles the thread from its first user prompt, using
+- **Auto-rename in the pane's title editor.** One click on the title
+  editor's auto-rename button titles the thread from its first user prompt, using
   the AI service bb's thread-title task is set to (Settings → AI services)
   via the openrouter-inference plugin's `complete` bridge. A generated
   title renames and closes the editor; a failure keeps it open with a
