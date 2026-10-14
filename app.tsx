@@ -1705,17 +1705,42 @@ function BoardPage({ subPath }: { subPath: string }) {
     setNewThreadGroupSeed(undefined);
     setNewThreadOpen(true);
   }, []);
-  // The composer dialog's "will nest under" hint names the parent. A parent
-  // that left the board (deleted) while the modal is open falls back to its
-  // id — the spelling degrades, the spawn still carries the parent.
+  // The composer dialog's "will nest under" hint names where the card will
+  // RENDER (issue #120): the display index carries the real edge through the
+  // grandchild tier (a child-row preset nests there now), but a thread whose
+  // own row is already a sub-row (display depth ≥ 2) shows its spawned thread
+  // beside its siblings under the family root — promise where it lands. A
+  // parent that left the board (deleted) while the modal is open falls back
+  // to its id — the spelling degrades, the spawn still carries the parent.
   const newThreadParent = useMemo(() => {
     if (newThreadParentId === null) return undefined;
     return threads.find((candidate) => candidate.id === newThreadParentId);
   }, [newThreadParentId, threads]);
-  const newThreadParentTitle = useMemo(() => {
+  const newThreadNest = useMemo(() => {
     if (newThreadParentId === null) return undefined;
-    return newThreadParent?.displayTitle ?? newThreadParentId;
-  }, [newThreadParentId, newThreadParent]);
+    const parent = newThreadParent;
+    const parentTitle = parent === undefined ? newThreadParentId : parent.displayTitle;
+    const fallback = { nestTitle: parentTitle, spawnParentTitle: undefined as string | undefined };
+    if (parent === undefined) return fallback;
+    // Display chain walk: two or more displayed edges above the preset
+    // parent mean its row is a sub-row tier; the spawned thread's row lands
+    // under the family root, and the hint carries the spawn truth beside it.
+    const first = familyIndex.parentOf.get(parent.id);
+    if (first === undefined) return fallback;
+    if (familyIndex.parentOf.get(first) === undefined) return fallback;
+    let cursor = familyIndex.parentOf.get(first) as string;
+    while (true) {
+      const next = familyIndex.parentOf.get(cursor);
+      if (next === undefined) break;
+      cursor = next;
+    }
+    const root = threads.find((candidate) => candidate.id === cursor);
+    return {
+      nestTitle: root === undefined ? cursor : root.displayTitle,
+      spawnParentTitle: parent.displayTitle,
+    };
+  }, [newThreadParentId, newThreadParent, familyIndex, threads]);
+  const newThreadParentTitle = newThreadNest?.nestTitle;
   // The composer's project seed (lib/new-thread-seed): a child preset copies
   // its PARENT'S project, so the family keeps landing in one place; a group
   // preset copies the MEMBERS' MAJORITY project (the group's spawn seed) the
@@ -3042,6 +3067,7 @@ function BoardPage({ subPath }: { subPath: string }) {
         focusRequest={composerFocusRequest}
         parentThreadId={newThreadParentId ?? undefined}
         parentThreadTitle={newThreadParentTitle}
+        spawnParentTitle={newThreadNest?.spawnParentTitle}
         groupName={
           newThreadGroupId === null
             ? undefined

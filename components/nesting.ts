@@ -32,15 +32,18 @@ import {
 import type { TicketRef } from "../lib/tickets";
 
 export interface FamilyIndex {
-  /** Parent id → its non-archived children, in input order. */
+  /** Parent id → its non-archived children, in input order. Keys carry every
+   * displayed parent: family roots and (post-cap, issue #120) the child rows
+   * that render their own sub-rows. */
   childrenByParent: ReadonlyMap<string, readonly PluginSidebarThread[]>;
   /** Child id → its parent's id; absent for roots (including cycle members and orphans). */
   parentOf: ReadonlyMap<string, string>;
   /**
-   * Child id → its RAW parent id — before the two-level display flattening
-   * re-homes grandchildren onto roots. The re-parent guard must walk real
-   * chains (a grandchild onto its grandparent is a change, not a no-op), so
-   * the flattened map cannot serve there.
+   * Child id → its RAW parent id — before the display depth cap
+   * (rows carry one sub-tier; deeper members re-home onto the family root).
+   * The re-parent guard must walk real chains (a grandchild onto its
+   * grandparent is a change, not a no-op), so the displayed map cannot serve
+   * there.
    */
   rawParentOf: ReadonlyMap<string, string>;
   /** Visible threads that are not nested under any parent, in input order. */
@@ -238,18 +241,41 @@ export function assembleBoard(
     // can keep the Done-lane promotion rule.
     { ...options, doneIds },
   );
-  // The chip counts the children in the card's own space: a live parent
-  // counts its live children; a done parent counts the rows its Done card
-  // carries (done children plus any live child quiet enough to nest there).
+  // The chip counts the children in the card's own space, the sub-row tier
+  // included (issue #120: a child row nests its own children, and the chip
+  // names what the card's rows region — folded when it collapses — carries):
+  // rows plus their sub-rows, walking the nesting placement's own map.
+  // Members placed elsewhere — a live parent's done children ride the Done
+  // space's projection chip — count where they land, not here.
+  const countNestedRows = (parentId: string): number => {
+    let count = 0;
+    for (const member of nested.childrenByParent.get(parentId) ?? []) {
+      count += 1 + countNestedRows(member.id);
+    }
+    return count;
+  };
+  // A live card's chip keeps the old semantics: ALL visible non-done children
+  // count, standalone-rendering members included (a pinned or Needs-you child
+  // hides behind the fold too... no — it stands alone; but the chip still
+  // names the family's size, as it always has). Done members walk nowhere:
+  // they and their done subtrees count on the Done side.
+  const countRawFamily = (parentId: string): number => {
+    let count = 0;
+    for (const member of familyIndex.childrenByParent.get(parentId) ?? []) {
+      if (doneIds.has(member.id)) continue;
+      count += 1 + countRawFamily(member.id);
+    }
+    return count;
+  };
   const threadById = new Map(visible.map((thread) => [thread.id, thread]));
   const childCountByParent = new Map<string, number>();
-  for (const [parentId, children] of familyIndex.childrenByParent) {
+  for (const parentId of familyIndex.childrenByParent.keys()) {
     const parent = threadById.get(parentId);
     childCountByParent.set(
       parentId,
       parent !== undefined && doneIds.has(parent.id)
-        ? (nested.childrenByParent.get(parentId)?.length ?? 0)
-        : children.filter((child) => !doneIds.has(child.id)).length,
+        ? countNestedRows(parentId)
+        : countRawFamily(parentId),
     );
   }
   return {
@@ -277,10 +303,11 @@ export interface FamilyFilterResult {
  * are treated as roots: cycle members keep their cards instead of hanging
  * the board.
  *
- * Depth cap (two levels, everywhere): every family renders parent → children
- * only. A thread whose parent itself has a parent re-attaches to its family
- * root, so no member is ever multiple display tiers deep; the raw data is
- * untouched.
+ * Depth cap (rows carry one sub-tier): a family card renders child rows, and
+ * a child row nests its own children as sub-rows (issue #120 — the context
+ * menu's "Will nest under <child>" promise). A member deeper than that
+ * re-attaches to its family root, so no display chain exceeds two rows; the
+ * raw data is untouched (`rawParentOf` carries the real edges).
  */
 export function buildFamilyIndex(threads: readonly PluginSidebarThread[]): FamilyIndex {
   // Archived members are dropped at the door: archived children are hidden
@@ -318,10 +345,12 @@ export function buildFamilyIndex(threads: readonly PluginSidebarThread[]): Famil
   for (const id of cyclic) parentOf.delete(id);
 
   const childrenByParent = new Map<string, PluginSidebarThread[]>();
-  // Depth cap (two levels, everywhere): a thread whose parent itself has a
-  // parent re-attaches to its family root, so every descendant renders as a
-  // real child of the root — never hidden behind a `+N more` chip. Chains
-  // were flattened before this walk; every edge now points at a root.
+  // Depth cap (rows carry one sub-tier): a child row nests its own children
+  // as sub-rows (issue #120 — the "Will nest under <child>" promise), and a
+  // member deeper than that re-attaches to its family root, which keeps any
+  // display tier at two rows: never hidden behind a `+N more` chip. The
+  // flattening above the cap is display-only; the raw edges stay in
+  // `rawParentOf`.
   const displayParentOf = new Map(parentOf);
   for (const thread of visible) {
     const chain: string[] = [];
@@ -330,7 +359,13 @@ export function buildFamilyIndex(threads: readonly PluginSidebarThread[]): Famil
       chain.push(cursor);
       cursor = displayParentOf.get(cursor) as string;
     }
-    for (const id of chain) displayParentOf.set(id, cursor);
+    // chain[i] sits at real display depth (chain.length - i); the family
+    // root is the final `cursor`. Re-root the members of this chain deeper
+    // than the sub-row tier: depth ≥ 3 to the root.
+    const reattachTo = cursor;
+    for (let i = 0; i <= chain.length - 3; i++) {
+      displayParentOf.set(chain[i] as string, reattachTo);
+    }
   }
 
   for (const thread of visible) {
@@ -585,9 +620,10 @@ function bestFamilyDriver(
  * a done parent's rows sort by done recency (the Done column itself orders
  * by activity recency).
  * `doneChildrenByParent` holds each projection's done children sorted newest
- * done first. Grandchildren are never placed separately: the family index
- * flattens every descendant onto the root, so a child that itself has
- * children surfaces as real sibling rows.
+ * done first. Rows carry the display depth cap's one sub-tier: a child row
+ * nests its own children (the map keys every displayed parent, not just
+ * roots — issue #120), and members deeper than two row levels already
+ * re-attached to the family root in the index.
  */
 export function nestUnderParents(
   columns: readonly BoardColumn[],
