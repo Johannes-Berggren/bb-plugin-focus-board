@@ -11,6 +11,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+#### Card animations
+
+- **Sweep-selected cards keep their opaque card surface.** The selection's amber wash used a translucent card background that replaced the card's surface, so selected cards faded toward transparent while chosen for a sweep; the wash now rides an overlay and the card stays solid.
+- **A focused card no longer recedes under the spotlight.** The pane-open card and a needs-attention card used to drop to 70% opacity while another card sat under the pointer; they now carry the same never-fade marker the done, dimmed, snoozed, and sweep-picked cards get.
+
 ## [1.3.1] - 2026-10-14
 
 ### Added

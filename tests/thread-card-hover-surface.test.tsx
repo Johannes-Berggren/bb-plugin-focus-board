@@ -7,24 +7,37 @@
 // opaque; the follow-up darkens it below the resting surface (mixing the card
 // token toward black — `accent` only reads as MORE contrast in the light
 // theme, while in the dark theme it LIGHTENED the hovered card), in the same
-// spirit as the wallpaper-contrast floor: faded cards (done / dimmed /
-// snoozed) get marked so a board-root spotlight can recede the OTHER cards
-// without ever stacking a second dim on top of the existing scrim / opacity
-// system.
+// spirit as the wallpaper-contrast floor: cards whose life already fades
+// them (done / dimmed / snoozed) get marked so a board-root spotlight can
+// recede the OTHER cards without ever stacking a second dim on top of the
+// existing scrim / opacity system. The marker is `data-spotlight-immune`,
+// computed by components/card-status.ts, and it covers every user-focus
+// source: the pane-open card and a needs-attention card are immune too —
+// focus outranks transparency.
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, render } from "@testing-library/react";
 import type { ComponentProps } from "react";
 import type { PluginSidebarThread } from "@get-bb/plugin-sdk/app";
 import {
-  CARD_SPOTLIGHT_CLASSES,
-  HOVER_SURFACE,
-  ThreadCard,
-} from "../components/thread-card";
+  CARD_SPOTLIGHT_RULE,
+  CARD_SPOTLIGHT_STYLE_ID,
+  ensureCardSpotlightStyles,
+} from "../components/card-spotlight";
+import { HOVER_SURFACE, ThreadCard } from "../components/thread-card";
 import { Board } from "../components/board";
 import { buildColumns } from "../components/grouping";
 import { thread } from "./thread-fixture";
 
 const base = thread({ id: "thr_hover", displayTitle: "Hover card", updatedAt: 1 });
+
+// A needs-attention thread (grouping.ts threadState → "attention"): the same
+// fixture id, so `cardRoot()` still finds the card.
+const attentionThread = thread({
+  id: "thr_hover",
+  displayTitle: "Hover card",
+  updatedAt: 1,
+  hasPendingInteraction: true,
+});
 
 type Props = Partial<ComponentProps<typeof ThreadCard>>;
 
@@ -96,55 +109,77 @@ describe("the hovered card's surface (issue #123)", () => {
   });
 });
 
-describe("the spotlight exemption marker (receding cards, not themselves dim)", () => {
-  it("an ordinary card wears no faded marker", () => {
+describe("the spotlight immunity marker (focus outranks transparency)", () => {
+  it("an ordinary card wears no immunity marker", () => {
     renderCard();
-    expect(cardRoot().hasAttribute("data-card-faded")).toBe(false);
+    expect(cardRoot().hasAttribute("data-spotlight-immune")).toBe(false);
   });
 
   it("a done card is marked, so the spotlight never stacks a second dim", () => {
     renderCard({ isDone: true });
-    expect(cardRoot().hasAttribute("data-card-faded")).toBe(true);
+    expect(cardRoot().hasAttribute("data-spotlight-immune")).toBe(true);
   });
 
   it("a dimmed (filter-miss) card is marked", () => {
     renderCard({ dimmed: true });
-    expect(cardRoot().hasAttribute("data-card-faded")).toBe(true);
+    expect(cardRoot().hasAttribute("data-spotlight-immune")).toBe(true);
   });
 
   it("a snoozed card is marked", () => {
     renderCard({ snoozeFor: () => 60_000 });
-    expect(cardRoot().hasAttribute("data-card-faded")).toBe(true);
+    expect(cardRoot().hasAttribute("data-spotlight-immune")).toBe(true);
+  });
+
+  it("a pane-open (active) card is marked — the open pane never fades", () => {
+    renderCard({ isActive: true });
+    expect(cardRoot().hasAttribute("data-spotlight-immune")).toBe(true);
+  });
+
+  it("a needs-attention card is marked — the amber state never fades", () => {
+    renderCard({ thread: attentionThread });
+    expect(cardRoot().hasAttribute("data-spotlight-immune")).toBe(true);
+  });
+
+  it("a sweep-highlighted card is marked (the pointer reads the selection)", () => {
+    renderCard({ isSweepHighlighted: true });
+    expect(cardRoot().hasAttribute("data-spotlight-immune")).toBe(true);
   });
 });
 
-describe("the CSS-only spotlight candidates (board-root wiring pin)", () => {
-  it("the spotlight only arms while a card is hovered, and recedes only non-hovered, non-exempt cards", () => {
-    // One source of truth for both board renderers: the arm (:has a hovered
-    // card div) and the recede target (card divs that are NOT hovered, NOT
-    // sweep-highlighted, and NOT carrying the faded marker).
-    expect(CARD_SPOTLIGHT_CLASSES).toContain(
-      "has-[div[data-thread-card]:hover]:[&_div[data-thread-card]:not(:hover):not([data-sweep-highlighted]):not([data-card-faded])]:opacity-70",
+describe("the injected spotlight rule (one hand-written rule, one exemption list)", () => {
+  it("injects the rule once per document, however many boards mount", () => {
+    ensureCardSpotlightStyles();
+    ensureCardSpotlightStyles();
+    const styles = document.querySelectorAll(`#${CARD_SPOTLIGHT_STYLE_ID}`);
+    expect(styles.length).toBe(1);
+    const style = styles[0];
+    if (!(style instanceof HTMLStyleElement)) throw new Error("not a style element");
+    expect(style.textContent).toBe(CARD_SPOTLIGHT_RULE);
+  });
+
+  it("arms on a hovered card div and recedes every other card div that is not immune", () => {
+    // One selector pair covers both board roots, so the exemption list —
+    // hovered (CSS-native) plus the immunity marker — is stated exactly once.
+    const selector =
+      "div[data-thread-card]:not(:hover):not([data-spotlight-immune])";
+    expect(CARD_SPOTLIGHT_RULE).toContain(
+      `[data-columns-board]:has(div[data-thread-card]:hover) ${selector},`,
+    );
+    expect(CARD_SPOTLIGHT_RULE).toContain(
+      `[data-parent-board]:has(div[data-thread-card]:hover) ${selector}`,
     );
   });
 
   it("debounces the recede dim's onset, so a sweeping pointer never strobes it", () => {
-    // Pure-CSS debounce: the dim's transition-delay AND its own longer ease
-    // sit under the SAME arm and recede-target chain as the dim, so they only
-    // apply while the rule holds. A pointer that rests 300ms starts the dim,
-    // which then eases in over 300ms; a pointer that sweeps across never
-    // holds the rule long enough for the dim to show. Neither exists for the
-    // UN-dim — the base card transition (150ms, zero delay) applies whenever
-    // the rule lets go — so releasing the spotlight stays snappy.
-    expect(CARD_SPOTLIGHT_CLASSES).toContain(
-      "has-[div[data-thread-card]:hover]:[&_div[data-thread-card]:not(:hover):not([data-sweep-highlighted]):not([data-card-faded])]:delay-300",
-    );
-    expect(CARD_SPOTLIGHT_CLASSES).toContain(
-      "has-[div[data-thread-card]:hover]:[&_div[data-thread-card]:not(:hover):not([data-sweep-highlighted]):not([data-card-faded])]:duration-300",
-    );
+    // Pure-CSS debounce: a pointer that rests 300ms starts the dim, which
+    // then eases in over 300ms. The UN-dim rides the card's own base
+    // transition (150ms, zero delay), so releasing the spotlight stays snappy.
+    expect(CARD_SPOTLIGHT_RULE).toContain("opacity: 0.7");
+    expect(CARD_SPOTLIGHT_RULE).toContain("transition-delay: 300ms");
+    expect(CARD_SPOTLIGHT_RULE).toContain("transition-duration: 300ms");
   });
 
-  it("the columns board root carries the spotlight candidates", () => {
+  it("the columns board root dropped the compiled spotlight classes; the style element arrives with the board", () => {
     // Rendered through the real Board the way board-sweep-select.test.tsx
     // does, so the wiring on `[data-columns-board]` can't silently drop out.
     const doneIds = new Set<string>();
@@ -180,15 +215,7 @@ describe("the CSS-only spotlight candidates (board-root wiring pin)", () => {
     render(<Board {...props} />);
     const root = document.querySelector("[data-columns-board]");
     if (!(root instanceof HTMLElement)) throw new Error("missing columns board root");
-    const classes = root.className.split(" ");
-    expect(classes).toContain(
-      "has-[div[data-thread-card]:hover]:[&_div[data-thread-card]:not(:hover):not([data-sweep-highlighted]):not([data-card-faded])]:opacity-70",
-    );
-    expect(classes).toContain(
-      "has-[div[data-thread-card]:hover]:[&_div[data-thread-card]:not(:hover):not([data-sweep-highlighted]):not([data-card-faded])]:delay-300",
-    );
-    expect(classes).toContain(
-      "has-[div[data-thread-card]:hover]:[&_div[data-thread-card]:not(:hover):not([data-sweep-highlighted]):not([data-card-faded])]:duration-300",
-    );
+    expect(root.className.split(" ").some((cls) => cls.startsWith("has-["))).toBe(false);
+    expect(document.getElementById(CARD_SPOTLIGHT_STYLE_ID)).not.toBeNull();
   });
 });

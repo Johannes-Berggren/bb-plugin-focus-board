@@ -21,7 +21,8 @@ import {
   type SweepNotice,
   type SweepRunView,
 } from "../lib/sweep";
-import { CARD_SPOTLIGHT_CLASSES, ThreadCard } from "./thread-card";
+import { ThreadCard } from "./thread-card";
+import { useCardSpotlightStyles } from "./card-spotlight";
 import { MenuPopover } from "./menu-popover";
 import type { ThreadLink } from "../lib/link-metadata";
 import { groupBoxMenuActions } from "../lib/group-metadata";
@@ -675,6 +676,9 @@ export function Board({
   motionPref = "system",
   onSweepCancel,
 }: BoardProps) {
+  // The spotlight rule (components/card-spotlight.ts) is document-global CSS;
+  // each board mounts it idempotently, so whichever board renders first wins.
+  useCardSpotlightStyles();
   const [dragOverColumn, setDragOverColumn] = useState<string | null>(null);
   // The column floor an UNNEST hover lights up (amber). Kept separate from
   // dragOverColumn so the two affordances cannot argue over ring color: the
@@ -1877,7 +1881,6 @@ export function Board({
         data-columns-board
         className={cn(
           "min-h-0 flex-1 overflow-x-auto overflow-y-hidden px-3 pb-3 pt-2",
-          CARD_SPOTLIGHT_CLASSES,
         )}
       >
         {/* The insertion line is the only visual feedback a reorder gives, so

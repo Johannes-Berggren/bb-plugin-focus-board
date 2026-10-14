@@ -9,7 +9,8 @@ import {
 import type { PluginSidebarThread } from "@get-bb/plugin-sdk/app";
 import { Icon } from "@/components/ui/icon";
 import { cn } from "@/lib/utils";
-import { CARD_SPOTLIGHT_CLASSES, ThreadCard } from "./thread-card";
+import { ThreadCard } from "./thread-card";
+import { useCardSpotlightStyles } from "./card-spotlight";
 import type { ThreadLink } from "../lib/link-metadata";
 import type { CardMenuAction } from "./thread-card-menu";
 import { EmptyState } from "./empty-state";
@@ -243,6 +244,9 @@ export function ParentLaneBoard({
   onAttentionEnter,
   onAttentionLeave,
 }: ParentLaneBoardProps) {
+  // The spotlight rule (components/card-spotlight.ts) is document-global CSS;
+  // each board mounts it idempotently, so whichever board renders first wins.
+  useCardSpotlightStyles();
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const spacerRef = useRef<HTMLDivElement | null>(null);
   const [geoIdx, setGeoIdx] = useState(0);
@@ -730,7 +734,6 @@ export function ParentLaneBoard({
       data-parent-board
       className={cn(
         "min-h-0 flex-1 overflow-auto px-3 pb-3 pt-2",
-        CARD_SPOTLIGHT_CLASSES,
       )}
     >
       <div className="flex min-h-full w-max items-stretch">
