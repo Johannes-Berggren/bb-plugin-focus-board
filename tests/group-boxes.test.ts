@@ -513,13 +513,14 @@ describe("runsFromColumns under the split default — the frame follows every la
   });
 });
 
-describe("runsFromColumns — a card landing between a box's members splits the run", () => {
-  // Issue #106: a menu unpin returns the card to its own lane, and recency
-  // can slot it BETWEEN two co-located box members of another group. The
-  // run walk used to gather the lane's whole slice into one box at the
-  // first member's slot, displacing the standalone card after the box and
-  // hiding the second member from the lane's readable top-level order — a
-  // Working card went missing from the lane order entirely.
+describe("runsFromColumns — one frame per group per lane (the lane gathers through a gap)", () => {
+  // The operator ruling (2026-10-13, reverses the edd35e8 slice-split):
+  // each lane MUST render at most one dashed frame per group. A card
+  // teleporting into a lane joins the frame already there; the lane's
+  // whole member slice gathers into one box run at the FIRST member's
+  // slot, members in the lane's own order, and a non-member card between
+  // them renders after the frame. (Issue #106's interleave order is superseded
+  // by this ruling; tests/manual/uat-lane-reveal.yaml pins the new order.)
   type BoxItemLike = {
     kind: string;
     box: { groupId: string; members: { id: string }[] };
@@ -546,36 +547,41 @@ describe("runsFromColumns — a card landing between a box's members splits the 
     return (runs as Map<string, readonly (BoxItemLike | SingleItemLike)[]>).get("working");
   };
 
-  it("each member keeps its own slice-of-one frame in the lane's true order", () => {
+  it("one frame wraps the lane's whole slice at the first member's slot", () => {
     const items = runsOf();
-    expect(items).toHaveLength(3);
+    expect(items).toHaveLength(2);
     expect(items![0]).toMatchObject({ kind: "box" });
-    expect((items![0] as BoxItemLike).box.members.map((entry) => entry.id)).toEqual(["thr_a"]);
+    expect((items![0] as BoxItemLike).box.members.map((entry) => entry.id)).toEqual([
+      "thr_a",
+      "thr_b",
+    ]);
     expect((items![0] as BoxItemLike).box.groupId).toBe("grp_auth");
+    // The interposed card keeps its own slot among the singles, after the
+    // frame it did not belong to.
     expect((items![1] as SingleItemLike).thread.id).toBe("thr_x");
-    expect(items![2]).toMatchObject({ kind: "box" });
-    expect((items![2] as BoxItemLike).box.members.map((entry) => entry.id)).toEqual(["thr_b"]);
-    expect((items![2] as BoxItemLike).box.groupId).toBe("grp_auth");
+    expect(items!.filter((entry) => entry.kind === "box" && (entry as BoxItemLike).box.groupId === "grp_auth")).toHaveLength(1);
   });
 
-  it("flattenRuns restores the lane's true order (no card displaced, none missing)", () => {
+  it("the displayed order gathers the members; the interposed card renders after the frame", () => {
+    // The split default holds ACROSS lanes: the frame follows every lane
+    // holding a slice; only the intra-lane split is gone.
     const flat = flattenRuns(runsOf() as never);
-    expect(flat.map((entry) => entry.id)).toEqual(["thr_a", "thr_x", "thr_b"]);
+    expect(flat.map((entry) => entry.id)).toEqual(["thr_a", "thr_b", "thr_x"]);
   });
 
-  it("a split slice's lone members drag as plain cards (role solo)", () => {
+  it("co-located members boxed through a gap move as a unit (roles first/last)", () => {
     const columns = buildColumns(threads, "status", context, new Map(), new Set(), NOW);
     const working = columns.find((candidate) => candidate.id === "working");
     const info = columnRunInfo(working?.threads ?? [], plan.groupBoxOf);
     expect(info.get("thr_a")).toMatchObject({
       boxId: "grp_auth",
-      role: "solo",
-      memberIds: ["thr_a"],
+      role: "first",
+      memberIds: ["thr_a", "thr_b"],
     });
     expect(info.get("thr_b")).toMatchObject({
       boxId: "grp_auth",
-      role: "solo",
-      memberIds: ["thr_b"],
+      role: "last",
+      memberIds: ["thr_a", "thr_b"],
     });
   });
 });

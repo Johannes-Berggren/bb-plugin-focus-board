@@ -131,6 +131,40 @@ describe("the family box renders as one container around its members", () => {
     ],
   ]);
 
+  it("one frame per group per lane even when a card is interposed (the operator ruling)", () => {
+    // Raw working order [a, x, b]: the rank contract makes the recency
+    // walk interleave a non-member. The lane must render ONE grp_1 frame
+    // holding BOTH members at the first member's slot; the interposer
+    // renders after the frame. Two dashed frames of one group in one lane
+    // is the bug this board shipped once (the screenshot on 2026-10-13).
+    const interposedMembers = [
+      thread({ id: "thr_a", status: "active", updatedAt: NOW - 1000 }),
+      thread({ id: "thr_x", status: "active", updatedAt: NOW - 2000 }),
+      thread({ id: "thr_b", status: "active", updatedAt: NOW - 3000 }),
+    ];
+    const interposedBoxes = new Map([
+      ["thr_a", { groupId: "grp_1", name: "Auth rework", members }],
+      ["thr_b", { groupId: "grp_1", name: "Auth rework", members }],
+    ]);
+    renderBoard(interposedMembers, interposedBoxes);
+    const frames = document.querySelectorAll('[data-group-box="grp_1"]');
+    expect(frames).toHaveLength(1);
+    expect(frames[0]!.querySelectorAll('[data-group-box-member="grp_1"]')).toHaveLength(2);
+    // The frame holds the member ids in the lane's own order, and the
+    // interposed card renders after the frame among the plain slots.
+    const membersInside = [...frames[0]!.querySelectorAll("[data-thread-card]")].map(
+      (anchor) => anchor.getAttribute("data-thread-card"),
+    );
+    expect(membersInside).toEqual(["thr_a", "thr_b"]);
+    const list = document.querySelector("ul")!;
+    const childIds = [...list.children].map((li) =>
+      li.getAttribute("data-group-box") !== null
+        ? `box:${li.getAttribute("data-group-box")}`
+        : li.querySelector("[data-thread-card]")?.getAttribute("data-thread-card"),
+    );
+    expect(childIds).toEqual(["box:grp_1", "thr_x"]);
+  });
+
   it("ONE box li carries the member card slots inside", () => {
     renderBoard(members, boxes);
     const box = document.querySelector('[data-group-box="grp_1"]');

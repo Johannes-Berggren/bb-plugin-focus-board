@@ -148,9 +148,17 @@ const pageOrder = (columnId) => {
   const idOf = (el) => el.getAttribute("href")?.split("/").pop() ?? "?";
   return {
     // Top-level cards only: nested family rows are <li> too, and would
-    // otherwise be read as column members.
-    ids: [...section.querySelectorAll(":scope > div > ul > li")].map((li) =>
-      idOf(li.querySelector("a[href]")),
+    // otherwise be read as column members. A group frame counts as its
+    // members in their rendered order — the operator sees the member CARD
+    // list that way (the frame is a container, not a column member), and
+    // hiding the frame's members behind the lead made the one-frame-per-
+    // group lane read one card short.
+    ids: [...section.querySelectorAll(":scope > div > ul > li")].flatMap((li) =>
+      li.getAttribute("data-group-box") !== null
+        ? [...li.querySelectorAll(":scope > div > ul > li")].map((slot) =>
+            idOf(slot.querySelector("a[href]")),
+          )
+        : idOf(li.querySelector("a[href]")),
     ),
     // Whether the lane has a STORED order (seed-on-first-intent: created by
     // the first drop, so this is false on a fresh install).

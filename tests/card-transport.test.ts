@@ -164,6 +164,34 @@ describe("planLaneTransports", () => {
     expect(moves[0].fromIndex).toBe(2);
   });
 
+  it("prefers the previous DISPLAYED order for the old slot: a gathered box member's ghost weaves at its rendered position", () => {
+    // Raw old lane [a, b, x, c] with b and c grouped: the gather walk
+    // pulls c's card into the frame at b's slot, so the lane rendered
+    // [a, b, c, x]. Only a caller carrying that displayed order lets the
+    // planner read c's true slot (2, not the raw 3).
+    const a = thread({ id: "thr_a" });
+    const b = thread({ id: "thr_b" });
+    const c = thread({ id: "thr_c" });
+    const moves = planLaneTransports(
+      laneSignature([columnOf("unread", [a, b, c])]),
+      new Map([["thr_c", c]]),
+      [columnOf("unread", [a, b]), columnOf("pinned", [c])],
+      [columnOf("unread", [a, b, c])],
+      new Map([["unread", ["thr_a", "thr_b", "thr_c", "thr_x"]]]),
+    );
+    expect(moves[0].fromIndex).toBe(2);
+    // A card the displayed order never held falls back to the raw slot
+    // with the old clamp, so no ghost ever degrades to a skipped move.
+    const fallback = planLaneTransports(
+      laneSignature([columnOf("unread", [a, b, c])]),
+      new Map([["thr_c", c]]),
+      [columnOf("unread", [a, b]), columnOf("pinned", [c])],
+      [columnOf("unread", [a, b, c])],
+      new Map([["unread", ["thr_a", "thr_b"]]]),
+    );
+    expect(fallback[0].fromIndex).toBe(2);
+  });
+
   it("reports the previous thread snapshot so the ghost renders pre-move visuals", () => {
     const before = thread({ id: "thr_a", displayTitle: "Before" });
     const after = thread({ id: "thr_a", displayTitle: "After" });
