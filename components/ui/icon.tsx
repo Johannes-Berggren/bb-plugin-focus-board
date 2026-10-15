@@ -51,6 +51,7 @@ import Settings01Icon from "@hugeicons/core-free-icons/Settings01Icon";
 import SquareIcon from "@hugeicons/core-free-icons/SquareIcon";
 import Tag01Icon from "@hugeicons/core-free-icons/Tag01Icon";
 import SidebarLeftIcon from "@hugeicons/core-free-icons/SidebarLeftIcon";
+import KanbanIcon from "@hugeicons/core-free-icons/KanbanIcon";
 import SlidersHorizontalIcon from "@hugeicons/core-free-icons/SlidersHorizontalIcon";
 import SourceCodeIcon from "@hugeicons/core-free-icons/SourceCodeIcon";
 import Target02Icon from "@hugeicons/core-free-icons/Target02Icon";
@@ -238,6 +239,7 @@ const CORE_ICON_MAP = {
   FolderUnknown: FolderUnknownIcon,
   Folder02: Folder02Icon,
   Info: InformationCircleIcon,
+  Kanban: KanbanIcon,
   ListTodo: CheckListIcon,
   Loading: Loading03Icon,
   MessageQuestion: MessageQuestionIcon,

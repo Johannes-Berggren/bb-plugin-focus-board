@@ -722,7 +722,7 @@ export function BoardToolbar({
       exclusive
       modeChip
       label="View"
-      icon="SlidersHorizontal"
+      icon="Kanban"
       selected={new Set([groupBy])}
       options={groupByOptions}
       summaryFor={() => GROUP_BY_OPTIONS.find((o) => o.value === groupBy)?.label ?? groupBy}
