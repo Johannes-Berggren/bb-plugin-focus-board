@@ -13,7 +13,6 @@ import {
   type TicketChip,
   type TicketChipRow,
 } from "@/lib/ticket-chips";
-import type { GitHubItemStatus } from "@/lib/tracker-status";
 
 import { DRAG_ID_KEY, childRankKey, rankDragType } from "../lib/rank";
 import { cardTicketRefs, type ThreadLink } from "../lib/link-metadata";
@@ -192,8 +191,13 @@ interface ThreadCardProps {
   onHideIdleChildrenChange?: (hide: boolean) => void;
   /** GitHub repo base for the thread's project, when it has one. */
   repoHrefBase?: string;
-  /** GitHub cache status lookup (repo slug + number), when wired. */
-  statusFor?: (repo: string | null, number: number | undefined) => GitHubItemStatus | undefined;
+  /** GitHub cache status lookup (repo slug + number), when it is wired. The
+   *  lookup's shape is the RPC WIRE's minimal `{kind, state}`, not the
+   *  server-side `GitHubItemStatus` — the RPC strips `updatedAtMs` before the
+   *  board ever sees a row, and the chip's glyph reads kind and state only. */
+  statusFor?: (repo: string | null, number: number | undefined) =>
+    | { kind: string; state: string }
+    | undefined;
   /**
    * The board's own links for this thread (metadata key "linkedIssues"):
    * GitHub items a thread's text never names, from the link CLI / tool.
@@ -311,7 +315,9 @@ function ProviderTicketChip({
 }: {
   row: TicketChipRow;
   chip: TicketChip;
-  statusFor?: (repo: string | null, number: number | undefined) => GitHubItemStatus | undefined;
+  statusFor?: (repo: string | null, number: number | undefined) =>
+    | { kind: string; state: string }
+    | undefined;
   projectRepo: string | null;
   /**
    * Issue #191: the nested child row's smaller cut — tighter min-height,
@@ -545,8 +551,11 @@ function ChildRow({
    * and inert after the title. Absent/empty → no chip block.
    */
   chipRows?: readonly TicketChipRow[];
-  /** GitHub cache status lookup for the row's chips, when wired. */
-  statusFor?: (repo: string | null, number: number | undefined) => GitHubItemStatus | undefined;
+  /** GitHub cache status lookup for the row's chips, when wired — the RPC
+   *  wire's minimal `{kind, state}` (see the card's own prop note). */
+  statusFor?: (repo: string | null, number: number | undefined) =>
+    | { kind: string; state: string }
+    | undefined;
   /** The thread's project repo slug ("owner/repo") for status lookups. */
   projectRepo?: string | null;
 }) {

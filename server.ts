@@ -2144,8 +2144,9 @@ export default async function plugin(bb: BbPluginApi) {
       // The freshness layer (issue #187): paint only trustworthy verdicts,
       // and let the probe re-check stale open ones on its own clock — the
       // fire-and-forget verdicts land on the next poll, never in this reply.
-      const decision = trackerVerifier.decide(repo, numbers, cached, Date.now());
-      void trackerVerifier.verify(repo, decision.candidates, Date.now());
+      // The verifier reads the clock itself, so no now argument crosses here.
+      const decision = trackerVerifier.decide(repo, numbers, cached);
+      void trackerVerifier.verify(repo, decision.candidates);
       return {
         statuses: Object.fromEntries(
           Object.entries(decision.statuses).map(([number, status]) => [
