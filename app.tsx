@@ -160,13 +160,13 @@ import {
   MOTION_PACING_KEY,
   parseCardTransportStored,
   cardTransportStoredValue,
-  parseMotionStored,
-  motionStoredValue,
-  parseMotionPacing,
+  parseMotionSettings,
   motionPacingStoredValue,
+  motionSettingsStoredValues,
   type CardTransportPref,
   type MotionPref,
   type MotionPacing,
+  type MotionSettings,
   type SweepSettingKey,
 } from "./components/preferences";
 import { type ArchiveUnit } from "./lib/duration";
@@ -837,21 +837,21 @@ function BoardPage({ subPath }: { subPath: string }) {
     setCardTransport(value);
     writeStored(CARD_TRANSPORT_KEY, cardTransportStoredValue(value));
   }, []);
-  const [motionPref, setMotionPref] = useState<MotionPref>(() =>
-    parseMotionStored(readStoredText(MOTION_PREF_KEY, "")),
+  // The Motion settings pair (components/preferences.ts): the follow-system
+  // checkbox and the notched slider. Yesterday's stored tri-state carries
+  // over through parseMotionSettings; the persist paths write both keys.
+  const [motionFollow, setMotionFollow] = useState<boolean>(() =>
+    parseMotionSettings(readStoredText(MOTION_PREF_KEY, ""), readStoredText(MOTION_PACING_KEY, "")).follow,
   );
-  const persistMotionPref = useCallback((value: MotionPref) => {
-    setMotionPref(value);
-    writeStored(MOTION_PREF_KEY, motionStoredValue(value));
-  }, []);
-  // The transports' pacing beside the override: stock (1) until the user
-  // stretches it; the board's transport clock scales by this factor.
   const [motionPacing, setMotionPacing] = useState<MotionPacing>(() =>
-    parseMotionPacing(readStoredText(MOTION_PACING_KEY, "")),
+    parseMotionSettings(readStoredText(MOTION_PREF_KEY, ""), readStoredText(MOTION_PACING_KEY, "")).pacing,
   );
-  const persistMotionPacing = useCallback((value: MotionPacing) => {
-    setMotionPacing(value);
-    writeStored(MOTION_PACING_KEY, motionPacingStoredValue(value));
+  const persistMotion = useCallback((follow: boolean, pacing: MotionPacing) => {
+    const stored = motionSettingsStoredValues(follow, pacing);
+    writeStored(MOTION_PREF_KEY, stored.pref);
+    writeStored(MOTION_PACING_KEY, motionPacingStoredValue(stored.pacing));
+    setMotionFollow(follow);
+    setMotionPacing(pacing);
   }, []);
   // Scheme read for the wallpaper's dark variant: the hook lives with the
   // media-query hooks and flips live (a change listener, no reload).
@@ -2975,7 +2975,7 @@ function BoardPage({ subPath }: { subPath: string }) {
             groupBy={groupBy}
             activeThreadId={openThreadId}
             cardTransport={cardTransport}
-            motionPref={motionPref}
+            motionPref={motionFollow ? "system" : "manual"}
             motionPacing={motionPacing}
             doneIds={doneIds}
             errorAckIds={errorAckIds}
@@ -3268,12 +3268,12 @@ function BoardPage({ subPath }: { subPath: string }) {
         onSetSweep={setSweepThreshold}
         onSetEscStopsRunningThread={setEscStopsRunningThread}
         cardTransport={cardTransport}
-        motionPref={motionPref}
+        follow={motionFollow}
         motionPacing={motionPacing}
         wallpaper={wallpaper}
         onSetCardTransport={persistCardTransport}
-        onSetMotionPref={persistMotionPref}
-        onSetMotionPacing={persistMotionPacing}
+        onSetMotionFollow={(value) => persistMotion(value, motionPacing)}
+        onSetMotionPacing={(value) => persistMotion(motionFollow, value)}
         onWallpaperChange={persistWallpaper}
       />
       {snoozeDialogFor === null ? null : (() => {

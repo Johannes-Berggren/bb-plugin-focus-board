@@ -9,7 +9,7 @@ import type { MotionPacing, WallpaperSettings } from "@/components/preferences";
 import { WhatsNewFeed } from "@/components/whats-new-feed";
 import {
   CardTransportChoice,
-  MotionGroup,
+  MotionControl,
   WallpaperGroup,
 } from "@/components/appearance-controls";
 import { APP_VERSION, type WhatsNewEntry } from "@/lib/whats-new";
@@ -78,13 +78,13 @@ export function SettingsModal({
   escStopsRunningThread,
   sweep = DEFAULT_SWEEP,
   cardTransport,
-  motionPref,
+  follow,
   motionPacing,
   wallpaper,
   onSetEscStopsRunningThread,
   onSetSweep,
   onSetCardTransport,
-  onSetMotionPref,
+  onSetMotionFollow,
   onSetMotionPacing,
   onWallpaperChange,
 }: {
@@ -119,14 +119,14 @@ export function SettingsModal({
   onSetEscStopsRunningThread: (value: boolean) => void | Promise<void>;
   /** The Appearance tab's card-transport choice (components/preferences.ts). */
   cardTransport: "none" | "teleport" | "zoom";
-  /** The Appearance tab's motion preference. */
-  motionPref: "system" | "reduce" | "full";
-  /** The Appearance tab's transports pacing (components/preferences.ts). */
+  /** The Appearance tab's follow-system checkbox (components/preferences.ts). */
+  follow: boolean;
+  /** The Appearance tab's notched motion slider (components/preferences.ts). */
   motionPacing: MotionPacing;
   /** The board wallpaper document, rendered by the same picker the toolbar hosts. */
   wallpaper: WallpaperSettings;
   onSetCardTransport: (value: "none" | "teleport" | "zoom") => void;
-  onSetMotionPref: (value: "system" | "reduce" | "full") => void;
+  onSetMotionFollow: (value: boolean) => void;
   onSetMotionPacing: (value: MotionPacing) => void;
   onWallpaperChange: (next: WallpaperSettings) => void;
 }) {
@@ -197,11 +197,11 @@ export function SettingsModal({
             {tab === "appearance" && (
               <AppearanceContent
                 cardTransport={cardTransport}
-                motionPref={motionPref}
+                follow={follow}
                 motionPacing={motionPacing}
                 wallpaper={wallpaper}
                 onSetCardTransport={onSetCardTransport}
-                onSetMotionPref={onSetMotionPref}
+                onSetMotionFollow={onSetMotionFollow}
                 onSetMotionPacing={onSetMotionPacing}
                 onWallpaperChange={onWallpaperChange}
               />
@@ -224,22 +224,33 @@ export function SettingsModal({
  * animations, and the wallpaper hosts the inline picker (the toolbar
  * carries none — the Appearance tab is the wallpaper's only surface).
  */
+/**
+ * The Appearance tab: what the board's movements and backdrop look like.
+ * The rows come from components/appearance-controls.tsx, the same anatomy
+ * the plugin detail page's configuration section renders, so both surfaces
+ * present identical controls: card animations pick the transporter's read,
+ * the Motion control (a follow-system checkbox over the notched slider)
+ * decides whether the board's animations play, how long they run, or
+ * whether the OS reduce-motion media query rules instead, and the wallpaper
+ * hosts the inline picker (the toolbar carries none — the Appearance tab is
+ * the wallpaper's only surface).
+ */
 function AppearanceContent({
   cardTransport,
-  motionPref,
+  follow,
   motionPacing,
   wallpaper,
   onSetCardTransport,
-  onSetMotionPref,
+  onSetMotionFollow,
   onSetMotionPacing,
   onWallpaperChange,
 }: {
   cardTransport: "none" | "teleport" | "zoom";
-  motionPref: "system" | "reduce" | "full";
+  follow: boolean;
   motionPacing: MotionPacing;
   wallpaper: WallpaperSettings;
   onSetCardTransport: (value: "none" | "teleport" | "zoom") => void;
-  onSetMotionPref: (value: "system" | "reduce" | "full") => void;
+  onSetMotionFollow: (value: boolean) => void;
   onSetMotionPacing: (value: MotionPacing) => void;
   onWallpaperChange: (next: WallpaperSettings) => void;
 }) {
@@ -249,9 +260,9 @@ function AppearanceContent({
         selected={cardTransport}
         onSelect={onSetCardTransport}
       />
-      <MotionGroup
-        motionPref={motionPref}
-        onMotionPrefChange={onSetMotionPref}
+      <MotionControl
+        follow={follow}
+        onFollowChange={onSetMotionFollow}
         pacing={motionPacing}
         onPacingChange={onSetMotionPacing}
       />

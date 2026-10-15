@@ -1,6 +1,6 @@
 import { WallpaperPicker } from "@/components/wallpaper-picker";
 import type { MotionPacing, WallpaperSettings } from "@/components/preferences";
-import { parseMotionPacing } from "@/components/preferences";
+import { motionPacingFromIndex, motionPacingIndex, MOTION_PACING_STEPS } from "@/components/preferences";
 import { cn } from "@/lib/utils";
 
 /**
@@ -108,98 +108,67 @@ export function CardTransportChoice({
   );
 }
 
-/** The motion override: how the board's animations respect the OS reduce-motion preference. */
-export function MotionChoice({
-  selected,
-  onSelect,
-}: {
-  selected: "system" | "reduce" | "full";
-  onSelect: (value: "system" | "reduce" | "full") => void;
-}) {
-  return (
-    <ChoiceRow
-      ariaLabel="Motion"
-      label="Motion"
-      description="How the board's animations respect your system's reduce-motion preference."
-      options={[
-        { value: "system", name: "Use my system setting", title: "The OS decides." },
-        { value: "reduce", name: "Always reduce", title: "Boards move quietly even if your system plays everything." },
-        { value: "full", name: "Always play in full", title: "Full motion even if your system asks for reduced." },
-      ]}
-      selected={selected}
-      onSelect={(value) => onSelect(value as "system" | "reduce" | "full")}
-    />
-  );
-}
-
 /**
- * The transports' pacing slider: how long a card's transport animation runs.
- * Greyed out while the Motion override defers to the system (the OS decides,
- * and its stock clock comes with it) and while reduce is forced (nothing is
- * left to stretch); active only under a forced full. Prolonged pacing never
- * revives a suppressed transport: reduce wins, always.
+ * The Motion control, the one anatomy the appearance surfaces share: a
+ * follow-system checkbox over a notched slider, with the checkbox holding
+ * the arbitration. Checked, the board follows the OS reduce-motion media
+ * query alone at stock speed and the slider greys out (the OS decides; its
+ * reduce always wins here, which is where the sketch's reduce-precedence
+ * step lives). Unchecked, the slider decides: its leftmost notch is reduce
+ * (the moves go quiet), the second is stock 1x, and each notch right
+ * doubles the dwell on the log scale (2x, 4x, 8x) — the prolong direction,
+ * a clearly different read per notch.
  */
-export function PacingControl({
-  disabled,
+export function MotionControl({
+  follow,
+  onFollowChange,
   pacing,
   onPacingChange,
 }: {
-  disabled: boolean;
+  follow: boolean;
+  onFollowChange: (value: boolean) => void;
   pacing: MotionPacing;
   onPacingChange: (value: MotionPacing) => void;
 }) {
+  const readout = pacing === "reduce" ? "Reduce motion" : pacing === 1 ? "Stock (1x)" : `${pacing}x longer`;
   return (
-    <div className={cn(disabled && "opacity-60")}>
+    <div>
       <div className="flex items-baseline justify-between gap-2">
-        <p className="text-xs font-medium text-foreground">Animation pacing</p>
-        <span className="text-xs text-muted-foreground">
-          {pacing === 1 ? "Normal" : `${pacing}x longer`}
+        <p className="text-xs font-medium text-foreground">Motion</p>
+        <span className={cn("text-xs", follow ? "text-muted-foreground/60" : "text-muted-foreground")}>
+          {readout}
         </span>
       </div>
-      <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-        How long a card's relocation animation runs: 1x is the stock speed, 2x
-        runs the same movement twice as long.
+      <label className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
+        <input
+          type="checkbox"
+          aria-label="Follow my system setting"
+          checked={follow}
+          onChange={() => onFollowChange(!follow)}
+          className="size-3.5 accent-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        />
+        <span>Follow my system setting</span>
+      </label>
+      <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
+        How long a card's relocation animation runs: 1x is the stock speed,
+        the leftmost notch quiets the board, and each notch right doubles the
+        dwell.
       </p>
       <input
         type="range"
-        aria-label="Animation pacing"
-        min={1}
-        max={2}
-        step={0.25}
-        value={pacing}
-        disabled={disabled}
-        title="Animation pacing"
-        onChange={(event) => onPacingChange(parseMotionPacing(event.target.value))}
-        className="mt-2 w-full accent-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-      />
-    </div>
-  );
-}
-
-/**
- * The Motion group as the appearance surfaces render it: the override choice
- * with the pacing slider under it, and the grey-out rule decided ONCE here
- * (the slider turns off whenever the board is not playing motion the user
- * picked).
- */
-export function MotionGroup({
-  motionPref,
-  onMotionPrefChange,
-  pacing,
-  onPacingChange,
-}: {
-  motionPref: "system" | "reduce" | "full";
-  onMotionPrefChange: (value: "system" | "reduce" | "full") => void;
-  pacing: MotionPacing;
-  onPacingChange: (value: MotionPacing) => void;
-}) {
-  return (
-    <div className="space-y-3">
-      <MotionChoice selected={motionPref} onSelect={onMotionPrefChange} />
-      <PacingControl
-        disabled={motionPref !== "full"}
-        pacing={pacing}
-        onPacingChange={onPacingChange}
+        aria-label="Motion"
+        min={0}
+        max={MOTION_PACING_STEPS.length - 1}
+        step={1}
+        value={motionPacingIndex(pacing)}
+        disabled={follow}
+        title="Motion"
+        aria-valuetext={pacing === "reduce" ? "Reduce motion" : `${pacing}x longer`}
+        onChange={(event) => onPacingChange(motionPacingFromIndex(Number.parseInt(event.target.value, 10)))}
+        className={cn(
+          "mt-2 w-full accent-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+          follow && "opacity-60",
+        )}
       />
     </div>
   );

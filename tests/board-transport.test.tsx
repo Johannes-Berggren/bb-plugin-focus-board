@@ -406,9 +406,15 @@ describe("cardTransport: the shipped default is zoom; none teleports instantly",
   it("the motion override suppresses the wipes without killing the choreography", () => {
     vi.useFakeTimers();
     const { rerender } = render(
-      <Board {...boardProps("status", before, undefined, { motionPref: "reduce" })} />,
+      <Board
+        {...boardProps("status", before, undefined, { motionPref: "manual", motionPacing: "reduce" })}
+      />,
     );
-    rerender(<Board {...boardProps("status", after, undefined, { motionPref: "reduce" })} />);
+    rerender(
+      <Board
+        {...boardProps("status", after, undefined, { motionPref: "manual", motionPacing: "reduce" })}
+      />,
+    );
     // The ghost slots still exist (layout stays honest)...
     expect(document.querySelector("[data-transport-out]")).not.toBeNull();
     // ...but the shimmer field rides nothing: the glint layer only mounts
@@ -472,7 +478,24 @@ describe("the pacing preference stretches the transport's clock (issue #152)", (
     ).toBe("collapsing");
   });
 
-  it("reduce still wins: a prolonged pacing cannot revive the wipes", () => {
+  it("a 4x pacing holds the ghost past every smaller notch's collapse tick", () => {
+    vi.useFakeTimers();
+    expect(pacingBoard(4)).toBe("wiping-out");
+    act(() => {
+      vi.advanceTimersByTime(450);
+    });
+    expect(
+      document.querySelector("[data-transport-out]")!.getAttribute("data-transport-out"),
+    ).toBe("wiping-out");
+    act(() => {
+      vi.advanceTimersByTime(1150); // 1600ms total: 4x the stock collapse tick.
+    });
+    expect(
+      document.querySelector("[data-transport-out]")!.getAttribute("data-transport-out"),
+    ).toBe("collapsing");
+  });
+
+  it("the manual reduce notch suppresses the wipes with prolonged pacing nowhere in play", () => {
     vi.useFakeTimers();
     const before = [
       thread({ id: "thr_a", isUnread: true, updatedAt: NOW - 1000 }),
@@ -486,8 +509,8 @@ describe("the pacing preference stretches the transport's clock (issue #152)", (
       <Board
         {...boardProps("status", before, undefined, {
           transportVariant: "dissolve",
-          motionPref: "reduce",
-          motionPacing: 2,
+          motionPref: "manual",
+          motionPacing: "reduce",
         })}
       />,
     );
@@ -495,8 +518,8 @@ describe("the pacing preference stretches the transport's clock (issue #152)", (
       <Board
         {...boardProps("status", after, undefined, {
           transportVariant: "dissolve",
-          motionPref: "reduce",
-          motionPacing: 2,
+          motionPref: "manual",
+          motionPacing: "reduce",
         })}
       />,
     );
