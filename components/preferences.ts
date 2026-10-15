@@ -252,6 +252,30 @@ export function motionStoredValue(value: MotionPref): MotionPref {
 }
 
 /**
+ * The transports' pacing: how LONG the board's transport animations run,
+ * alongside the Motion override which gates whether they run. 1 is the stock
+ * clock; 2 runs the same movement twice as long (the prolong direction:
+ * fewer, slower, follow-able movements, the counterpart of reduce). The
+ * slider writes this 0.25 grid and the parser accepts only its values.
+ */
+export type MotionPacing = 1 | 1.25 | 1.5 | 1.75 | 2;
+
+export const MOTION_PACING_KEY = "focus-board:motion-pacing";
+
+const ALLOWED_MOTION_PACING: readonly MotionPacing[] = [1, 1.25, 1.5, 1.75, 2];
+
+export function parseMotionPacing(raw: string | null): MotionPacing {
+  const parsed = Number.parseFloat(raw ?? "");
+  return (ALLOWED_MOTION_PACING as readonly number[]).includes(parsed)
+    ? (parsed as MotionPacing)
+    : 1;
+}
+
+export function motionPacingStoredValue(value: MotionPacing): string {
+  return String(value);
+}
+
+/**
  * The board wallpaper's localStorage persistence. Versioned document with a
  * single GLOBAL layer for now; per-project / per-group overrides extend this
  * same document (version 2) instead of growing sibling keys, so every scope

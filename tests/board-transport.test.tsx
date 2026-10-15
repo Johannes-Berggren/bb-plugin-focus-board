@@ -417,6 +417,94 @@ describe("cardTransport: the shipped default is zoom; none teleports instantly",
   });
 });
 
+describe("the pacing preference stretches the transport's clock (issue #152)", () => {
+  // The phase machine runs on plain timers even in jsdom (no WAAPI), so the
+  // clock the pacing scales is pinned here at the state transitions, not the
+  // visuals.
+  const pacingBoard = (motionPacing: number) => {
+    const before = [
+      thread({ id: "thr_a", isUnread: true, updatedAt: NOW - 1000 }),
+      thread({ id: "thr_b", isUnread: true, updatedAt: NOW - 2000 }),
+    ];
+    const after = [
+      thread({ id: "thr_a", isPinned: true, pinnedAt: 1, pinSortKey: 1, updatedAt: NOW - 1000 }),
+      thread({ id: "thr_b", isUnread: true, updatedAt: NOW - 2000 }),
+    ];
+    const { rerender } = render(
+      <Board
+        {...boardProps("status", before, undefined, { transportVariant: "dissolve", motionPacing })}
+      />,
+    );
+    rerender(
+      <Board
+        {...boardProps("status", after, undefined, { transportVariant: "dissolve", motionPacing })}
+      />,
+    );
+    return document.querySelector("[data-transport-out]")!.getAttribute("data-transport-out");
+  };
+
+  it("stock pacing keeps the stock clock: the collapse starts at 400ms", () => {
+    vi.useFakeTimers();
+    expect(pacingBoard(1)).toBe("wiping-out");
+    act(() => {
+      vi.advanceTimersByTime(450);
+    });
+    expect(
+      document.querySelector("[data-transport-out]")!.getAttribute("data-transport-out"),
+    ).toBe("collapsing");
+  });
+
+  it("a 2x pacing holds the ghost in its wipe past the stock collapse tick", () => {
+    vi.useFakeTimers();
+    expect(pacingBoard(2)).toBe("wiping-out");
+    act(() => {
+      vi.advanceTimersByTime(450);
+    });
+    // Stock would have flipped to collapsing at 400ms; the stretch holds it.
+    expect(
+      document.querySelector("[data-transport-out]")!.getAttribute("data-transport-out"),
+    ).toBe("wiping-out");
+    act(() => {
+      vi.advanceTimersByTime(350); // 800ms total: 2x the stock collapse tick.
+    });
+    expect(
+      document.querySelector("[data-transport-out]")!.getAttribute("data-transport-out"),
+    ).toBe("collapsing");
+  });
+
+  it("reduce still wins: a prolonged pacing cannot revive the wipes", () => {
+    vi.useFakeTimers();
+    const before = [
+      thread({ id: "thr_a", isUnread: true, updatedAt: NOW - 1000 }),
+      thread({ id: "thr_b", isUnread: true, updatedAt: NOW - 2000 }),
+    ];
+    const after = [
+      thread({ id: "thr_a", isPinned: true, pinnedAt: 1, pinSortKey: 1, updatedAt: NOW - 1000 }),
+      thread({ id: "thr_b", isUnread: true, updatedAt: NOW - 2000 }),
+    ];
+    const { rerender } = render(
+      <Board
+        {...boardProps("status", before, undefined, {
+          transportVariant: "dissolve",
+          motionPref: "reduce",
+          motionPacing: 2,
+        })}
+      />,
+    );
+    rerender(
+      <Board
+        {...boardProps("status", after, undefined, {
+          transportVariant: "dissolve",
+          motionPref: "reduce",
+          motionPacing: 2,
+        })}
+      />,
+    );
+    expect(document.querySelector("[data-transport-out]")).not.toBeNull();
+    expect(document.querySelector("[data-transport-sparks]")).toBeNull();
+  });
+});
+
 describe("the transport ghost never claims aria-current (issue #105)", () => {
   // activeThreadId selects a card, which mounts the keep-in-view effect —
   // jsdom has no ResizeObserver; the stub pattern the keep-in-view tests use.

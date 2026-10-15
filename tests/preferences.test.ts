@@ -8,10 +8,13 @@ import {
   cardTransportStoredValue,
   collapsedFamiliesStoredValue,
   escStopsRunningFromSetting,
+  motionPacingStoredValue,
+  MOTION_PACING_KEY,
   nestStoredValue,
   parseCardTransportStored,
   parseCollapsedFamiliesStored,
   parseGroupStored,
+  parseMotionPacing,
   parseMotionStored,
   parseNestStored,
   parseParentLaneOrderStored,
@@ -344,6 +347,35 @@ describe("simultaneous corruption (every key garbage at once)", () => {
     expect(parseMotionStored("full")).toBe("full");
     for (const raw of [null, "", "not json", "on", "off", "always"]) {
       expect(parseMotionStored(raw)).toBe("system");
+    }
+  });
+
+  it("parses the motion pacing; only the slider's 0.25 grid parses, stock (1) is the default", () => {
+    expect(MOTION_PACING_KEY).toBe("focus-board:motion-pacing");
+    for (const raw of [null, ""]) {
+      expect(parseMotionPacing(raw)).toBe(1);
+    }
+    for (const raw of ["1", "1.25", "1.5", "1.75", "2"]) {
+      expect(parseMotionPacing(raw)).toBe(Number.parseFloat(raw!));
+    }
+    for (const raw of [
+      null,
+      "",
+      "not json",
+      "0",
+      "0.5",
+      "1.3",
+      "1.1",
+      "2.5",
+      "-1",
+      "1,25",
+      "NaN",
+    ]) {
+      expect(parseMotionPacing(raw)).toBe(1);
+    }
+    // The serializer's stored text round-trips through the parser.
+    for (const value of [1, 1.25, 1.5, 1.75, 2] as const) {
+      expect(parseMotionPacing(motionPacingStoredValue(value))).toBe(value);
     }
   });
 

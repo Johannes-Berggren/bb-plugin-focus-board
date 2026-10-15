@@ -27,6 +27,7 @@ interface RenderHandlers {
   onSetSweep: ReturnType<typeof vi.fn>;
   onSetCardTransport: ReturnType<typeof vi.fn>;
   onSetMotionPref: ReturnType<typeof vi.fn>;
+  onSetMotionPacing: ReturnType<typeof vi.fn>;
   onWallpaperChange: ReturnType<typeof vi.fn>;
   onOpenChange: ReturnType<typeof vi.fn>;
 }
@@ -52,6 +53,7 @@ function renderModal(
     onSetSweep: (write: { key: string; value: number | string }) => void | Promise<void>;
     onSetCardTransport: (value: "none" | "teleport" | "zoom") => void;
     onSetMotionPref: (value: "system" | "reduce" | "full") => void;
+    onSetMotionPacing: (value: 1 | 1.25 | 1.5 | 1.75 | 2) => void;
     onWallpaperChange: (next: WallpaperSettings) => void;
     onOpenChange: (open: boolean) => void;
   }> = {},
@@ -61,6 +63,7 @@ function renderModal(
     onSetSweep: vi.fn(),
     onSetCardTransport: vi.fn(),
     onSetMotionPref: vi.fn(),
+    onSetMotionPacing: vi.fn(),
     onWallpaperChange: vi.fn(),
     onOpenChange: vi.fn(),
   };
@@ -78,6 +81,8 @@ function renderModal(
       wallpaper={NULL_WALLPAPER}
       onSetCardTransport={handlers.onSetCardTransport}
       onSetMotionPref={handlers.onSetMotionPref}
+      motionPacing={1}
+      onSetMotionPacing={handlers.onSetMotionPacing}
       onWallpaperChange={handlers.onWallpaperChange}
       onOpenChange={handlers.onOpenChange}
       {...overrides}
@@ -417,6 +422,40 @@ describe("settings modal: Appearance tab", () => {
     const { onSetMotionPref } = renderModal({ tab: "appearance", motionPref: "system" });
     fireEvent.click(screen.getByRole("radio", { name: "Always reduce" }));
     expect(onSetMotionPref).toHaveBeenCalledWith("reduce");
+  });
+
+  it("the pacing slider reads the pacing value and sits beside the Motion choice", () => {
+    renderModal({ tab: "appearance", motionPref: "full", motionPacing: 1.5 });
+    const slider = screen.getByRole("slider", { name: "Animation pacing" }) as HTMLInputElement;
+    expect(slider.value).toBe("1.5");
+    // The readout names the stretch: a first-time reader can tell 1.5 is longer, not faster.
+    expect(document.body.textContent).toContain("1.5x longer");
+  });
+
+  it("pacing the transports reports the value through the handler", () => {
+    const { onSetMotionPacing } = renderModal({ tab: "appearance", motionPref: "full" });
+    fireEvent.change(screen.getByRole("slider", { name: "Animation pacing" }), {
+      target: { value: "2" },
+    });
+    expect(onSetMotionPacing).toHaveBeenCalledWith(2);
+  });
+
+  it("following the system (Use my system setting) disables the pacing slider", () => {
+    renderModal({ tab: "appearance", motionPref: "system" });
+    const slider = screen.getByRole("slider", { name: "Animation pacing" }) as HTMLInputElement;
+    expect(slider.disabled).toBe(true);
+  });
+
+  it("always reduce disables the pacing slider (nothing left to stretch)", () => {
+    renderModal({ tab: "appearance", motionPref: "reduce" });
+    const slider = screen.getByRole("slider", { name: "Animation pacing" }) as HTMLInputElement;
+    expect(slider.disabled).toBe(true);
+  });
+
+  it("always play in full enables the pacing slider", () => {
+    renderModal({ tab: "appearance", motionPref: "full" });
+    const slider = screen.getByRole("slider", { name: "Animation pacing" }) as HTMLInputElement;
+    expect(slider.disabled).toBe(false);
   });
 
   it("mounts the wallpaper picker contents inline in the tab content", () => {

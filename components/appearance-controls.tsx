@@ -1,5 +1,6 @@
 import { WallpaperPicker } from "@/components/wallpaper-picker";
-import type { WallpaperSettings } from "@/components/preferences";
+import type { MotionPacing, WallpaperSettings } from "@/components/preferences";
+import { parseMotionPacing } from "@/components/preferences";
 import { cn } from "@/lib/utils";
 
 /**
@@ -128,6 +129,79 @@ export function MotionChoice({
       selected={selected}
       onSelect={(value) => onSelect(value as "system" | "reduce" | "full")}
     />
+  );
+}
+
+/**
+ * The transports' pacing slider: how long a card's transport animation runs.
+ * Greyed out while the Motion override defers to the system (the OS decides,
+ * and its stock clock comes with it) and while reduce is forced (nothing is
+ * left to stretch); active only under a forced full. Prolonged pacing never
+ * revives a suppressed transport: reduce wins, always.
+ */
+export function PacingControl({
+  disabled,
+  pacing,
+  onPacingChange,
+}: {
+  disabled: boolean;
+  pacing: MotionPacing;
+  onPacingChange: (value: MotionPacing) => void;
+}) {
+  return (
+    <div className={cn(disabled && "opacity-60")}>
+      <div className="flex items-baseline justify-between gap-2">
+        <p className="text-xs font-medium text-foreground">Animation pacing</p>
+        <span className="text-xs text-muted-foreground">
+          {pacing === 1 ? "Normal" : `${pacing}x longer`}
+        </span>
+      </div>
+      <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+        How long a card's relocation animation runs: 1x is the stock speed, 2x
+        runs the same movement twice as long.
+      </p>
+      <input
+        type="range"
+        aria-label="Animation pacing"
+        min={1}
+        max={2}
+        step={0.25}
+        value={pacing}
+        disabled={disabled}
+        title="Animation pacing"
+        onChange={(event) => onPacingChange(parseMotionPacing(event.target.value))}
+        className="mt-2 w-full accent-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      />
+    </div>
+  );
+}
+
+/**
+ * The Motion group as the appearance surfaces render it: the override choice
+ * with the pacing slider under it, and the grey-out rule decided ONCE here
+ * (the slider turns off whenever the board is not playing motion the user
+ * picked).
+ */
+export function MotionGroup({
+  motionPref,
+  onMotionPrefChange,
+  pacing,
+  onPacingChange,
+}: {
+  motionPref: "system" | "reduce" | "full";
+  onMotionPrefChange: (value: "system" | "reduce" | "full") => void;
+  pacing: MotionPacing;
+  onPacingChange: (value: MotionPacing) => void;
+}) {
+  return (
+    <div className="space-y-3">
+      <MotionChoice selected={motionPref} onSelect={onMotionPrefChange} />
+      <PacingControl
+        disabled={motionPref !== "full"}
+        pacing={pacing}
+        onPacingChange={onPacingChange}
+      />
+    </div>
   );
 }
 

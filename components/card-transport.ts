@@ -146,6 +146,18 @@ export function transportPhasePlan(variant: TransportVariantId): TransportPhaseP
   return variant === "zoom" ? ZOOM_PHASE_PLAN : DISSOLVE_PHASE_PLAN;
 }
 
+/**
+ * A transport's stock milliseconds under the pacing preference: the one
+ * scaling seam for every transport clock, so the phase timers, the WAAPI
+ * durations, and the glint field's phase all stretch by the same factor.
+ * Stock pacing (1) is the identity; 2 doubles the clock. The plan's START
+ * offsets scale too (0 stays 0; the dissolve's collapse tick moves with its
+ * wipe), so the machine's relative choreography is unaffected.
+ */
+export function pacedTransportMs(ms: number, pacing: number): number {
+  return ms > 0 ? Math.round(ms * pacing) : ms;
+}
+
 /** One relocated transport unit, planned from the previous commit's snapshot. */
 export interface LaneTransport {
   /**

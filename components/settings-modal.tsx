@@ -5,11 +5,11 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import type { WallpaperSettings } from "@/components/preferences";
+import type { MotionPacing, WallpaperSettings } from "@/components/preferences";
 import { WhatsNewFeed } from "@/components/whats-new-feed";
 import {
   CardTransportChoice,
-  MotionChoice,
+  MotionGroup,
   WallpaperGroup,
 } from "@/components/appearance-controls";
 import { APP_VERSION, type WhatsNewEntry } from "@/lib/whats-new";
@@ -79,11 +79,13 @@ export function SettingsModal({
   sweep = DEFAULT_SWEEP,
   cardTransport,
   motionPref,
+  motionPacing,
   wallpaper,
   onSetEscStopsRunningThread,
   onSetSweep,
   onSetCardTransport,
   onSetMotionPref,
+  onSetMotionPacing,
   onWallpaperChange,
 }: {
   open: boolean;
@@ -119,10 +121,13 @@ export function SettingsModal({
   cardTransport: "none" | "teleport" | "zoom";
   /** The Appearance tab's motion preference. */
   motionPref: "system" | "reduce" | "full";
+  /** The Appearance tab's transports pacing (components/preferences.ts). */
+  motionPacing: MotionPacing;
   /** The board wallpaper document, rendered by the same picker the toolbar hosts. */
   wallpaper: WallpaperSettings;
   onSetCardTransport: (value: "none" | "teleport" | "zoom") => void;
   onSetMotionPref: (value: "system" | "reduce" | "full") => void;
+  onSetMotionPacing: (value: MotionPacing) => void;
   onWallpaperChange: (next: WallpaperSettings) => void;
 }) {
   if (!open) return null;
@@ -193,9 +198,11 @@ export function SettingsModal({
               <AppearanceContent
                 cardTransport={cardTransport}
                 motionPref={motionPref}
+                motionPacing={motionPacing}
                 wallpaper={wallpaper}
                 onSetCardTransport={onSetCardTransport}
                 onSetMotionPref={onSetMotionPref}
+                onSetMotionPacing={onSetMotionPacing}
                 onWallpaperChange={onWallpaperChange}
               />
             )}
@@ -220,16 +227,20 @@ export function SettingsModal({
 function AppearanceContent({
   cardTransport,
   motionPref,
+  motionPacing,
   wallpaper,
   onSetCardTransport,
   onSetMotionPref,
+  onSetMotionPacing,
   onWallpaperChange,
 }: {
   cardTransport: "none" | "teleport" | "zoom";
   motionPref: "system" | "reduce" | "full";
+  motionPacing: MotionPacing;
   wallpaper: WallpaperSettings;
   onSetCardTransport: (value: "none" | "teleport" | "zoom") => void;
   onSetMotionPref: (value: "system" | "reduce" | "full") => void;
+  onSetMotionPacing: (value: MotionPacing) => void;
   onWallpaperChange: (next: WallpaperSettings) => void;
 }) {
   return (
@@ -238,7 +249,12 @@ function AppearanceContent({
         selected={cardTransport}
         onSelect={onSetCardTransport}
       />
-      <MotionChoice selected={motionPref} onSelect={onSetMotionPref} />
+      <MotionGroup
+        motionPref={motionPref}
+        onMotionPrefChange={onSetMotionPref}
+        pacing={motionPacing}
+        onPacingChange={onSetMotionPacing}
+      />
       <WallpaperGroup wallpaper={wallpaper} onWallpaperChange={onWallpaperChange} />
     </div>
   );
