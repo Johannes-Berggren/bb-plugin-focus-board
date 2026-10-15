@@ -50,7 +50,10 @@ through `puppeteer-core` (nothing is downloaded), writes a report per suite to
   on); `click` left-clicks a card's anchor (`{ card: thr_x }`); `click_aria`
   clicks a control by accessible name (aria-label, else button text — e.g.
   the What's-new gift or the modal's Got it); `push_url` pushes a URL the
-  mock router does not own — the shape of a link-out to main bb.
+  mock router does not own — the shape of a link-out to main bb; `blur` takes
+  an aria-label and lets that control's focus go
+  (`{ blur: "Search threads" }`), the setup behind "click somewhere else"
+  behavior — the search field's search button hides on it.
 - Gestures run in the order the step declares them, so a pane-history step
   can sequence pushes and backs deliberately.
 - `pane` (`{ threadId: thr_x }`, `{ open: false }`) reads the pane aside's
@@ -78,6 +81,7 @@ through `puppeteer-core` (nothing is downloaded), writes a report per suite to
   BOTH theme switches: the `dark` class for the token set and Tailwind's
   media-based `dark:` utilities (`prefers-color-scheme` emulation) — the
   class alone cannot flip a `dark:` variant.
+- `aria_present` / `aria_absent` (`Search`) assert a control by its exact aria-label — the visibility check for labelled icon buttons the page text cannot see (the search field's button).
 - The harness seeds the what's-new state via `?lastSeenVersion=<version>`
   (absent → first visit stamps the running version as seen).
 - `column` assertions read a lane by `data-column-id`, from the top-level
@@ -179,6 +183,13 @@ through `puppeteer-core` (nothing is downloaded), writes a report per suite to
   the runner serves (open 410-472ms, close 364-377ms, plus headroom). Marked
   `manual: true` (see below): the sweep skips it and it runs by path, because
   taking it off opt-in is a separate decision.
+- `uat-search.yaml` — the board toolbar's search box logic: a typed title
+  query narrows the board and the search button appears in the field (issue
+  #207), the button's click is the Enter-equivalent and — in real Chrome, the
+  half jsdom cannot prove — leaves the field focused with the button still up,
+  blur hides only the button, the clear x resets the board and the refocused
+  empty field carries no button, a no-match query empties the board while the
+  button still rides the field, and the id path reaches the same card.
 
 - `uat-board-views.yaml` — every board view variant on the desktop surface
   (Attention, Last activity, Project, Provider, Machine, Group, Threads, and
