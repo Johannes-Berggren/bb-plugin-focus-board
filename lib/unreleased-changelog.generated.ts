@@ -9,5 +9,10 @@ export const UNRELEASED_ITEMS: readonly { text: string; children: string[]; grou
     "text": "**Bare reference ids in pane messages become chips too.** Agents often drop the kind prefix and write `@proj_…` or `@thr_…` straight, and those tokens stayed dead text. The pane paints them like the full forms now, and a trailing `#msg=N` fragment is swallowed the same way.",
     "children": [],
     "group": "Thread pane"
+  },
+  {
+    "text": "**Choosing Zoom to group lands the board on the Group view.** The group box's context-menu entry used to set only the group filter, so the board stayed on the Attention view and the zoom read as a silent chip write. It now switches the view to the Group board with the group restrict set to exactly that group; clearing the chip restores the full board.",
+    "children": [],
+    "group": "Groups and family boxes"
   }
 ];

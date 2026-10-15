@@ -1190,14 +1190,17 @@ function BoardPage({ subPath }: { subPath: string }) {
     setSearch(value);
     writeStored(SEARCH_KEY, value);
   }, []);
-  // Zoom-to-group (a group box's context-menu entry): one write through the
-  // existing group-restrict set — the same persisted filter state the
-  // toolbar's group dropdown drives, not a second, parallel filter.
+  // Zoom-to-group (a group box's context-menu entry) is a landing gesture,
+  // not a chip write: it switches the view to the Group board AND restricts
+  // the existing group-restrict set to exactly that group — the two
+  // persisted surfaces the toolbar's View menu and group dropdown already
+  // drive, never a second, parallel filter state.
   const zoomToGroup = useCallback(
     (groupId: string) => {
+      persistGroupBy("group");
       persistFilter({ ...filter, groups: new Set([groupId]) });
     },
-    [filter, persistFilter],
+    [filter, persistFilter, persistGroupBy],
   );
 
   const persistNestChildren = useCallback((enabled: boolean) => {
