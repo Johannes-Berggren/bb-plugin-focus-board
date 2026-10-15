@@ -36,12 +36,12 @@ export const DERIVED_WHATS_NEW: readonly { version: string; items: readonly { le
       {
         "lead": "Ticket chips wrap their ids onto extra lines instead of overflowing the card.",
         "children": [],
-        "group": "Cards and chips"
+        "group": "Ticket chips"
       },
       {
         "lead": "Ticket chip links no longer render inside the card's own link.",
         "children": [],
-        "group": "Cards and chips"
+        "group": "Ticket chips"
       },
       {
         "lead": "Sweep-selected cards keep their opaque card surface.",
