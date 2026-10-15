@@ -15,6 +15,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - **A card menu action zooms the board to one family.** Right-clicking a card that nests child threads, or a nested row of one, gains "Zoom to family": the Parent view opens showing that family alone. The scoping rides the filter row as a Family chip that clears it, and it persists across reloads like the other filters.
 
+#### Child threads
+
+- **A family's child section can hide its idle children.** A small eye button beside the "N child threads" toggle filters idle children out of both the expanded rows and the collapsed dot strip, and the choice persists per family.
+
 ### Changed
 
 ### Fixed

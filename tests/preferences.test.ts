@@ -2,12 +2,14 @@ import { describe, expect, it } from "vitest";
 import {
   CARD_TRANSPORT_KEY,
   COLLAPSED_FAMILIES_KEY,
+  HIDE_IDLE_CHILDREN_KEY,
   MOTION_PREF_KEY,
   NEST_CHILDREN_KEY,
   WALLPAPER_KEY,
   cardTransportStoredValue,
   collapsedFamiliesStoredValue,
   escStopsRunningFromSetting,
+  hideIdleChildrenStoredValue,
   motionPacingFromIndex,
   motionPacingIndex,
   motionPacingStoredValue,
@@ -18,6 +20,7 @@ import {
   parseCardTransportStored,
   parseCollapsedFamiliesStored,
   parseGroupStored,
+  parseHideIdleChildrenStored,
   parseMotionPacing,
   parseMotionSettings,
   parseNestStored,
@@ -290,6 +293,32 @@ describe("collapsed family persistence", () => {
 
   it("drops non-string entries instead of admitting them", () => {
     const parsed = parseCollapsedFamiliesStored(JSON.stringify(["thr_a", 7, null, {}]));
+    expect([...parsed]).toEqual(["thr_a"]);
+  });
+});
+
+describe("hide-idle-children persistence", () => {
+  it("exposes the localStorage key", () => {
+    expect(HIDE_IDLE_CHILDREN_KEY).toBe("focus-board:hideIdleChildren");
+  });
+
+  it("round-trips a set of parent ids", () => {
+    const ids = new Set(["thr_a", "thr_b"]);
+    expect([...parseHideIdleChildrenStored(hideIdleChildrenStoredValue(ids))].sort()).toEqual([
+      "thr_a",
+      "thr_b",
+    ]);
+  });
+
+  it("defaults to an empty set for null — first visit, nobody hidden", () => {
+    expect(parseHideIdleChildrenStored(null).size).toBe(0);
+  });
+
+  it("falls back to an empty set on corrupt JSON, non-array values, and non-string entries", () => {
+    expect(parseHideIdleChildrenStored("{not json").size).toBe(0);
+    expect(parseHideIdleChildrenStored("").size).toBe(0);
+    expect(parseHideIdleChildrenStored(JSON.stringify({ thr_a: true })).size).toBe(0);
+    const parsed = parseHideIdleChildrenStored(JSON.stringify(["thr_a", 7, null, {}]));
     expect([...parsed]).toEqual(["thr_a"]);
   });
 });

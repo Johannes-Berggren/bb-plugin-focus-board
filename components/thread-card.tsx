@@ -179,6 +179,15 @@ interface ThreadCardProps {
   isCollapsed?: boolean;
   /** Reports a collapse/expand gesture. Paired with `isCollapsed`. */
   onCollapsedChange?: (collapsed: boolean) => void;
+  /**
+   * Controlled idle-children filter: true hides the family's idle children in
+   * BOTH views — the nested rows and the collapsed dot strip. Absent →
+   * uncontrolled local state, so callers that do not persist still get a
+   * working toggle (the same fallback as the fold above).
+   */
+  hideIdleChildren?: boolean;
+  /** Reports an idle-filter gesture. Paired with `hideIdleChildren`. */
+  onHideIdleChildrenChange?: (hide: boolean) => void;
   /** GitHub repo base for the thread's project, when it has one. */
   repoHrefBase?: string;
   /** GitHub cache status lookup (repo slug + number), when wired. */
@@ -624,6 +633,8 @@ export function ThreadCard({
   childRankDrag,
   isCollapsed,
   onCollapsedChange,
+  hideIdleChildren,
+  onHideIdleChildrenChange,
   // Ruler+wrap mini cards: tighter padding and type, no ticket chips.
   compact = false,
   onAttentionEnter,
@@ -637,6 +648,14 @@ export function ThreadCard({
   const toggleCollapsed = () => {
     if (isCollapsed === undefined) setLocalCollapsed(!collapsed);
     else onCollapsedChange?.(!collapsed);
+  };
+  // The idle-children filter mirrors the fold's controlled/uncontrolled
+  // split exactly: persisted by the app when supplied, local otherwise.
+  const [localHideIdle, setLocalHideIdle] = useState(false);
+  const hideIdle = hideIdleChildren ?? localHideIdle;
+  const toggleHideIdle = () => {
+    if (hideIdleChildren === undefined) setLocalHideIdle(!hideIdle);
+    else onHideIdleChildrenChange?.(!hideIdle);
   };
   const branch = thread.environment?.branchName ?? thread.host?.name ?? "";
   const repo = repoHrefBase === undefined ? null : resolveRepoSlug(repoHrefBase);
@@ -681,6 +700,32 @@ export function ThreadCard({
     collapsed && activeThreadId !== null && activeThreadId !== undefined
       ? children.find((child) => child.id === activeThreadId) ?? null
       : null;
+
+  // The idle-children filter (issue #172): one control on the child section
+  // hides every idle child in BOTH views — the expanded rows and the
+  // collapsed dot strip. Non-idle states (attention, working, unread) never
+  // filter, so the control can never hide a child that wants the operator.
+  const isIdleChild = (child: PluginSidebarThread) =>
+    threadState(child, errorAckIds) === "idle";
+  const visibleChildren = hideIdle
+    ? children.filter((child) => !isIdleChild(child))
+    : children;
+  // A hidden child's sub-rows go with it; a visible child's own idle
+  // sub-rows filter out too, so the fold's count names what the section
+  // shows, not what the family stores.
+  const visibleSubRowCount = hideIdle
+    ? visibleChildren.reduce(
+        (count, child) =>
+          count +
+          (grandchildThreadsByParent === undefined
+            ? 0
+            : (grandchildThreadsByParent.get(child.id) ?? []).filter(
+                (sub) => !isIdleChild(sub),
+              ).length),
+        0,
+      )
+    : grandchildRowCount;
+  const visibleRowCount = visibleChildren.length + visibleSubRowCount;
 
   // The card's own attention: a pending interaction or an unread error. A
   // nested child can no longer be the cause — attention children un-nest
@@ -1038,45 +1083,72 @@ export function ThreadCard({
         ) : null}
       </div>
       {hasRows && (collapsed || onOpenThread !== undefined) ? (
-        <div className="ml-3 mt-1">
-          {/* The section toggle: one control, in one place, on the boundary
-              of the content it controls — directly above the rows when
-              expanded, and the header of the collapsed dot strip when
-              folded. Clicking it never reaches the card's anchor, the pane,
-              or the background closer. */}
-          <button
-            type="button"
-            data-child-threads-toggle=""
-            aria-expanded={!collapsed}
-            aria-label={collapsed ? "Expand subthreads" : "Collapse subthreads"}
-            onClick={(event) => {
-              event.preventDefault();
-              event.stopPropagation();
-              toggleCollapsed();
-            }}
-            className={cn(
-              "flex items-center gap-1.5 rounded-sm py-0.5 pr-1.5 text-[11px] text-muted-foreground/70",
-              "transition-colors hover:bg-accent/60 hover:text-foreground",
-              "focus:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-            )}
-          >
-            <Icon
-              name={collapsed ? "ChevronRight" : "ChevronDown"}
-              className="size-3 shrink-0"
-              aria-hidden
-            />
-            {children.length + grandchildRowCount}{" "}
-            {children.length + grandchildRowCount === 1 ? "child thread" : "child threads"}
-          </button>
-          {collapsed ? (
+        <div className="ml-3 mt-1" data-child-thread-section="">
+          {/* The section's header row: the fold toggle, plus the
+              idle-children filter (issue #172) beside it. One control in one
+              place, on the boundary of the content it controls — directly
+              above the rows when expanded, and the header of the collapsed
+              dot strip when folded. Clicking them never reaches the card's
+              anchor, the pane, or the background closer. */}
+          <div className="flex items-center gap-0.5">
+            <button
+              type="button"
+              data-child-threads-toggle=""
+              aria-expanded={!collapsed}
+              aria-label={collapsed ? "Expand subthreads" : "Collapse subthreads"}
+              onClick={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                toggleCollapsed();
+              }}
+              className={cn(
+                "flex items-center gap-1.5 rounded-sm py-0.5 pr-1.5 text-[11px] text-muted-foreground/70",
+                "transition-colors hover:bg-accent/60 hover:text-foreground",
+                "focus:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+              )}
+            >
+              <Icon
+                name={collapsed ? "ChevronRight" : "ChevronDown"}
+                className="size-3 shrink-0"
+                aria-hidden
+              />
+              {visibleRowCount} {visibleRowCount === 1 ? "child thread" : "child threads"}
+            </button>
+            <button
+              type="button"
+              data-idle-children-toggle=""
+              aria-pressed={hideIdle}
+              aria-label={hideIdle ? "Show idle child threads" : "Hide idle child threads"}
+              title={hideIdle ? "Show the idle child threads" : "Hide the idle child threads"}
+              onClick={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                toggleHideIdle();
+              }}
+              className={cn(
+                "rounded-sm p-0.5 text-muted-foreground/70",
+                "transition-colors hover:bg-accent/60 hover:text-foreground",
+                "focus:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+              )}
+            >
+              <Icon
+                name={hideIdle ? "View" : "ViewOff"}
+                className="size-3 shrink-0"
+                aria-hidden
+              />
+            </button>
+          </div>
+          {collapsed && visibleChildren.length > 0 ? (
             // The collapsed rows, immediately below their label: one dot
-            // PER CHILD now, each its own control (issue #174). Hovering a
-            // dot previews that child — its title plus what the SDK exposes
-            // of it (state label, last-activity age, indicator label; the
-            // SDK does not expose a thread's messages). Clicking a dot
-            // opens that child's pane and leaves the rows folded. The
-            // strip's background keeps the strip's expand role, and the
-            // section toggle above stays the keyboard path.
+            // PER CHILD now, each its own control (issue #174), and the
+            // idle-children filter (issue #172) hides an idle child's dot
+            // with its row. Hovering a dot previews that child — its title
+            // plus what the SDK exposes of it (state label, last-activity
+            // age, indicator label; the SDK does not expose a thread's
+            // messages). Clicking a dot opens that child's pane and leaves
+            // the rows folded. The strip's background keeps the strip's
+            // expand role, and the section toggle above stays the keyboard
+            // path.
             <div
               data-child-thread-dots=""
               title="Show the nested child threads"
@@ -1090,7 +1162,7 @@ export function ThreadCard({
                 "transition-colors hover:bg-accent/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring",
               )}
             >
-              {children.map((child) => {
+              {visibleChildren.map((child) => {
                 const state = threadState(child, errorAckIds);
                 return (
                   <button
@@ -1171,25 +1243,30 @@ export function ThreadCard({
               </ul>
             </div>
           ) : null}
-          {!collapsed && onOpenThread !== undefined ? (
+          {!collapsed && onOpenThread !== undefined && visibleChildren.length > 0 ? (
             <div
               data-nested-rows=""
               className={cn(
                 "mt-1 border-l border-border/70 pl-2",
                 // A big family scrolls its rows inside the card; a small one
                 // renders at natural height.
-                children.length > NESTED_ROWS_SCROLL_THRESHOLD && "max-h-64 overflow-y-auto",
+                visibleChildren.length > NESTED_ROWS_SCROLL_THRESHOLD && "max-h-64 overflow-y-auto",
               )}
             >
               <ul className="flex flex-col gap-1">
-                {children.map((child) => {
+                {visibleChildren.map((child) => {
                   const childDone = doneIds?.has(child.id) ?? false;
                   // The sub-row tier (issue #120): a child row nests its own
                   // children, indenting one tier under its indented list.
                   // Rows' rows render childless themselves — the display
                   // index caps every display chain at two row levels, so no
                   // deeper tier ever arrives here.
-                  const subRows = grandchildThreadsByParent?.get(child.id) ?? [];
+                  const subRowsRaw = grandchildThreadsByParent?.get(child.id) ?? [];
+                  // The idle filter treats the sub-row tier like the row
+                  // tier: a visible child's own idle sub-rows hide too.
+                  const subRows = hideIdle
+                    ? subRowsRaw.filter((sub) => !isIdleChild(sub))
+                    : subRowsRaw;
                   const subRankKey = childRankKey(child.id);
                   return (
                     <li key={child.id}>

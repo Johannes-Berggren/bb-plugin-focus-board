@@ -89,8 +89,10 @@ describe("the child section toggle placement", () => {
     expect(row("thr_c4")).not.toBeNull();
     const toggleButton = toggle(false);
     // The toggle is the section's own header, not a corner control: the rows
-    // container is its sibling inside the same section.
-    expect(toggleButton.parentElement?.querySelector("[data-nested-rows]")).not.toBeNull();
+    // container is inside the section, not inside the header row.
+    expect(
+      toggleButton.closest("[data-child-thread-section]")?.querySelector("[data-nested-rows]"),
+    ).not.toBeNull();
   });
 
   it("expanded, the top-right rail holds only the count chip — no dots, no far-away chevron", () => {
@@ -112,7 +114,9 @@ describe("uncontrolled collapse (callers without persistence)", () => {
     // The strip renders immediately below the "4 child threads" label —
     // its previous sibling in the child section is the toggle itself.
     const toggleButton = toggle(true);
-    expect(dots().previousElementSibling).toBe(toggleButton);
+    // The strip renders immediately below the header row holding the
+    // "4 child threads" label.
+    expect(dots().previousElementSibling?.contains(toggleButton)).toBe(true);
     expect(dots().children.length).toBe(4);
     // The top-right rail keeps only the count chip; exactly one strip renders.
     expect(chipRail().contains(dots())).toBe(false);

@@ -358,6 +358,15 @@ interface BoardProps {
   /** Reports a family card's collapse/expand gesture (parent id, new state). */
   onFamilyCollapsedChange?: (parentId: string, collapsed: boolean) => void;
   /**
+   * Parent ids (Done projections use the fold key `done:<parent id>`, same as
+   * the collapse fold) whose child sections hide their idle children,
+   * persisted by the caller. Absent → each card holds its own unpersisted
+   * filter state.
+   */
+  hideIdleFamilyIds?: ReadonlySet<string>;
+  /** Reports a family card's idle-filter gesture (fold key, hidden state). */
+  onFamilyHideIdleChange?: (parentId: string, hide: boolean) => void;
+  /**
    * Attention reporting (components/attention-freeze): the card a pointer
    * enters, and the card it leaves. The caller captures each entered card's
    * rendered placement and pins it for the attention's duration — every card
@@ -667,6 +676,8 @@ export function Board({
   dimmedIds,
   collapsedFamilyIds,
   onFamilyCollapsedChange,
+  hideIdleFamilyIds,
+  onFamilyHideIdleChange,
   projectNameFor,
   repoBaseFor,
   statusFor,
@@ -2979,6 +2990,15 @@ export function Board({
                             onFamilyCollapsedChange?.(
                               isDoneProjection ? foldKeyForSpace(thread.id) : thread.id,
                               collapsed,
+                            )
+                          }
+                          hideIdleChildren={hideIdleFamilyIds?.has(
+                            isDoneProjection ? foldKeyForSpace(thread.id) : thread.id,
+                          )}
+                          onHideIdleChildrenChange={(hide) =>
+                            onFamilyHideIdleChange?.(
+                              isDoneProjection ? foldKeyForSpace(thread.id) : thread.id,
+                              hide,
                             )
                           }
                           snoozeFor={snoozeFor}

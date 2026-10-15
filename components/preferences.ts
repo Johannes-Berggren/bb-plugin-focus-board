@@ -100,8 +100,35 @@ export function parseCollapsedFamiliesStored(raw: string | null): ReadonlySet<st
   }
 }
 
-/** Sorted for a stable stored form, so equal sets round-trip byte-identical. */
+/**
+ * Sorted for a stable stored form, so equal sets round-trip byte-identical. */
 export function collapsedFamiliesStoredValue(ids: ReadonlySet<string>): string {
+  return JSON.stringify([...ids].sort());
+}
+
+/**
+ * The localStorage key for the hide-idle-children filter: the parent ids (or
+ * Done-projection fold keys `done:<parent id>`) whose families hide their
+ * idle children. The exact same shape and tolerance as the collapsed-families
+ * set: every id absent from it renders its children normally (the default),
+ * so the list only ever records deliberate hides, and corrupt stored values
+ * degrade to a filter nobody opted into, never to a board that fails to load.
+ */
+export const HIDE_IDLE_CHILDREN_KEY = "focus-board:hideIdleChildren";
+
+export function parseHideIdleChildrenStored(raw: string | null): ReadonlySet<string> {
+  if (raw === null || raw === "") return new Set();
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return new Set();
+    return new Set(parsed.filter((entry): entry is string => typeof entry === "string"));
+  } catch {
+    return new Set();
+  }
+}
+
+/** Sorted for a stable stored form, so equal sets round-trip byte-identical. */
+export function hideIdleChildrenStoredValue(ids: ReadonlySet<string>): string {
   return JSON.stringify([...ids].sort());
 }
 
