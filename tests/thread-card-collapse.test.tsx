@@ -152,7 +152,9 @@ describe("uncontrolled collapse (callers without persistence)", () => {
   it("each dot previews its child on hover", () => {
     renderCard();
     fireEvent.click(toggle(false));
-    const preview = dotAt(1).parentElement?.querySelector("[data-child-dot-preview]");
+    // The preview is a fixed portal opened by the dot's mouse-enter.
+    fireEvent.mouseEnter(document.querySelectorAll("[data-child-dot]")[1]!);
+    const preview = document.querySelector("[data-child-dot-preview]");
     if (!(preview instanceof HTMLElement)) throw new Error("missing dot preview");
     expect(preview.textContent).toContain("Child two");
   });

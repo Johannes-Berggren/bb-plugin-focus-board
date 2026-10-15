@@ -1,4 +1,5 @@
 import { type DragEvent, type ReactNode, useState } from "react";
+import { createPortal } from "react-dom";
 import type { PluginSidebarThread } from "@get-bb/plugin-sdk/app";
 import { Icon } from "@/components/ui/icon";
 import { cn } from "@/lib/utils";
@@ -17,6 +18,7 @@ import type { GitHubItemStatus } from "@/lib/tracker-status";
 import { DRAG_ID_KEY, childRankKey, rankDragType } from "../lib/rank";
 import { cardTicketRefs, type ThreadLink } from "../lib/link-metadata";
 import { describeWakeAt } from "../lib/snooze";
+import { usePortalScopeProps } from "../lib/portal-scope";
 import { deriveCardStatus } from "./card-status";
 import { ThreadCardMenu, type CardMenuAction } from "./thread-card-menu";
 import { useWallpaperActive } from "./wallpaper-contrast";
@@ -236,6 +238,38 @@ const STATUS_ICON_CLASS: Record<string, string> = {
  * instead of stretching the family card (and its whole lane) toward the sky.
  */
 export const NESTED_ROWS_SCROLL_THRESHOLD = 5;
+
+/**
+ * The collapsed dot's hover preview bubble, fixed width (the `w-64` class;
+ * both are `--spacing * 64` at the default scale). The viewport clamp needs
+ * the bubble's half-width to decide the shift; the class and this number
+ * must name the same width, so they share the one comment.
+ */
+export const CHILD_PREVIEW_WIDTH_PX = 256;
+
+/** The margin the bubble keeps from the screen's edges. */
+const PREVIEW_VIEWPORT_MARGIN_PX = 8;
+
+/**
+ * The hover preview bubble's left edge for one dot against the viewport
+ * (issue #174's overflow follow-up): the bubble centers on its dot, and a
+ * dot near a screen edge pushes half the bubble off screen. The clamped
+ * left holds it on screen instead. The bubble renders as a fixed-position
+ * portal to body, so no ancestor — the overflow-hidden card, the lanes, the
+ * board's own scroller — can clip it.
+ */
+export function previewLeftFor(
+  dotCenterX: number,
+  viewportWidth: number,
+  bubbleWidth: number = CHILD_PREVIEW_WIDTH_PX,
+): number {
+  const min = PREVIEW_VIEWPORT_MARGIN_PX;
+  const max = Math.max(
+    min,
+    viewportWidth - PREVIEW_VIEWPORT_MARGIN_PX - bubbleWidth,
+  );
+  return Math.round(Math.min(Math.max(dotCenterX - bubbleWidth / 2, min), max));
+}
 
 /**
  * The card spotlight (issue #123): while ONE card is under the pointer, the
@@ -865,6 +899,21 @@ export function ThreadCard({
   // are modal: while this card's column curates a sweep the dot stays a
   // dot and every click stays with the selection gesture.
   const [armedDone, setArmedDone] = useState(false);
+
+  // The hovered dot's preview bubble (issue #174's overflow follow-up):
+  // enter/focus records the dot's viewport position, leave/blur clears it,
+  // and the bubble renders as a fixed-position portal to body — placed by
+  // previewLeftFor so a screen-edge dot cannot push the bubble off screen.
+  // One open bubble per card; the board never has two hovers at once.
+  const [previewDot, setPreviewDot] = useState<{
+    id: string;
+    centerX: number;
+    topY: number;
+  } | null>(null);
+  /** The open preview's content lookup: the state names the child, the
+   * portal below resolves it from the current children list. */
+  const previewChild =
+    previewDot === null ? undefined : children.find((child) => child.id === previewDot.id);
   const showDoneCheckbox = onMarkDone !== undefined && !isSweepSelecting;
   const doneLabel = isDone ? "Mark Not Done" : "Mark Done";
   const doneDotSlot = showDoneCheckbox ? (
@@ -1282,6 +1331,24 @@ export function ThreadCard({
                     data-child-dot-active={isChildActive ? "" : undefined}
                     aria-label={`Open child thread: ${child.displayTitle}`}
                     aria-current={isChildActive ? "true" : undefined}
+                    onMouseEnter={(event) => {
+                      const rect = event.currentTarget.getBoundingClientRect();
+                      setPreviewDot({
+                        id: child.id,
+                        centerX: rect.left + rect.width / 2,
+                        topY: rect.top,
+                      });
+                    }}
+                    onFocus={(event) => {
+                      const rect = event.currentTarget.getBoundingClientRect();
+                      setPreviewDot({
+                        id: child.id,
+                        centerX: rect.left + rect.width / 2,
+                        topY: rect.top,
+                      });
+                    }}
+                    onMouseLeave={() => setPreviewDot(null)}
+                    onBlur={() => setPreviewDot(null)}
                     onClick={(event) => {
                       // The dot's click belongs to the dot alone: it opens
                       // its child and never reaches the strip's expand
@@ -1317,31 +1384,6 @@ export function ThreadCard({
                         state === "attention" && "motion-safe:animate-pulse",
                       )}
                     />
-                    {/* The hover preview (issue #174): bb's sidebar thread
-                        preview shape — the title above, a supporting line
-                        under it. Decorative only (aria-hidden); the dot's
-                        aria-label names the child for screen readers. It
-                        shows while the dot is hovered or keyboard-focused.
-                        The width is explicit: an unsized absolute box
-                        shrink-to-fits against its 16px dot button and long
-                        titles wrapped into a skinny column. */}
-                    <span
-                      aria-hidden
-                      data-child-dot-preview=""
-                      className={cn(
-                        "pointer-events-none absolute bottom-full left-1/2 z-20 mb-1 hidden w-64 -translate-x-1/2",
-                        "rounded border border-border bg-popover px-2 py-1 text-left shadow-md",
-                        "group-hover/dot:block group-focus-within/dot:block",
-                      )}
-                    >
-                      <span className="block line-clamp-2 text-[11px] font-medium leading-tight text-popover-foreground">
-                        {child.displayTitle}
-                      </span>
-                      <span className="mt-0.5 block text-[10px] leading-tight text-popover-foreground/70">
-                        {THREAD_STATE_LABELS[state] ?? state} · {relativeTime(child.updatedAt, now)}
-                        {child.indicatorLabel === null ? null : ` · ${child.indicatorLabel}`}
-                      </span>
-                    </span>
                   </button>
                 );
               })}
@@ -1459,6 +1501,51 @@ export function ThreadCard({
           ) : null}
         </div>
       ) : null}
+      {previewChild === undefined || previewDot === null
+        ? null
+        : createPortal(
+            // The hover preview (issue #174): bb's sidebar thread preview
+            // shape — the title above, a supporting line under it, open
+            // while the dot is hovered or keyboard-focused. FIXED over the
+            // dot from its viewport rect, portaled to body: the card
+            // wrapper is overflow-hidden and the board's scroller clips
+            // too, so an in-card bubble was constrained to the card box
+            // (operator report). Decorative only (aria-hidden); the dot's
+            // aria-label names the child for screen readers. The left is
+            // previewLeftFor's screen-edge clamp; the bottom sits a hair
+            // above the dot's top edge.
+            <span
+              aria-hidden
+              data-child-dot-preview=""
+              // The portal leaves the plugin's scoping root, so it carries
+              // the dialog-overlay scope attributes (lib/portal-scope) —
+              // without them the compiled utilities never match the body
+              // child and the bubble renders unstyled.
+              {...usePortalScopeProps()}
+              className="pointer-events-none fixed z-50 mb-0 w-64 rounded border border-border bg-popover px-2 py-1 text-left shadow-md"
+              style={{
+                // Border-box explicit: the compiled CSS ships without a
+                // preflight (the host provides it), and a body-level portal
+                // lives where that guarantee need not hold — without this,
+                // the width carried the padding and borders and the clamp's
+                // arithmetic drifted.
+                boxSizing: "border-box",
+                left: previewLeftFor(previewDot.centerX, window.innerWidth, CHILD_PREVIEW_WIDTH_PX),
+                top: previewDot.topY - 4,
+                transform: "translateY(-100%)",
+              }}
+            >
+              <span className="block line-clamp-2 text-[11px] font-medium leading-tight text-popover-foreground">
+                {previewChild.displayTitle}
+              </span>
+              <span className="mt-0.5 block text-[10px] leading-tight text-popover-foreground/70">
+                {THREAD_STATE_LABELS[threadState(previewChild, errorAckIds)] ?? threadState(previewChild, errorAckIds)}{" "}
+                · {relativeTime(previewChild.updatedAt, now)}
+                {previewChild.indicatorLabel === null ? null : ` · ${previewChild.indicatorLabel}`}
+              </span>
+            </span>,
+            document.body,
+          )}
     </div>
   );
   if (menuActions === undefined) return card;
