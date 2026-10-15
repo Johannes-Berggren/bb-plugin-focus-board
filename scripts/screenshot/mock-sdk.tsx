@@ -168,6 +168,7 @@ export function mountRegisteredConfigSection(): void {
 export function useBbNavigate(): unknown {
   return {
     toThread: () => {},
+    toProject: () => {},
     toPluginPanel: (
       _path: string,
       options?: { subPath?: string; replace?: boolean },
@@ -691,6 +692,18 @@ interface MockMessage {
 }
 
 const CONVERSATIONS: Record<string, MockMessage[]> = {
+  // Reference-token fixture (issue #161): the exact agent-written shapes the
+  // live pane renders as dead text. The chip labels resolve from the board's
+  // own rows — "API Gateway" from SIM_PROJECTS, the Wrap check card's title
+  // from the thread list — and the thread chip's click opens that thread in
+  // the pane (tests/manual/uat-pane-reference-chips.yaml).
+  thr_review_pr: [
+    {
+      role: "agent",
+      text:
+        "Remote: registered as @project:proj_api; packaging thread: @thread:thr_glyph_glue#msg=12 is now active, so its tokens are chips here.",
+    },
+  ],
   thr_glyph_glue: [
     {
       role: "agent",

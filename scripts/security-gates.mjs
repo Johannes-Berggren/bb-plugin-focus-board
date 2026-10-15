@@ -78,10 +78,18 @@ for (const pattern of [
 }
 const iconSink = findLines("\\.innerHTML\\s*=");
 for (const hit of iconSink) {
-  if (!hit.includes("EXTERNAL_LINK_ICON")) {
-    violation(`unexpected innerHTML sink (only the audit-approved constant SVG is allowed) → ${hit}`);
-  } else {
+  // Only constant-SVG sinks are allowed: the assignment's right side must
+  // be exactly one ALL-CAPS *_ICON constant (no concatenation, no
+  // interpolation, no call), and each such constant is approved in a
+  // security review note. The historic one is EXTERNAL_LINK_ICON in
+  // decorate-inline-code.ts (docs/security-audit-2026-09-28.md);
+  // THREAD_ICON and PROJECT_ICON in decorate-reference-mentions.ts are the
+  // same shape (docs/ai-code-reviews/code-review-2026-10-14T2315.md).
+  const assignment = hit.replace(/^[^:]*:\d+:\s*/, "");
+  if (/^[A-Za-z0-9_.$]+\.innerHTML\s*=\s*[A-Z][A-Z0-9_]*_ICON\s*;$/u.test(assignment)) {
     report(`innerHTML sink allowlisted (constant SVG): ${hit}`);
+  } else {
+    violation(`unexpected innerHTML sink (only the audit-approved constant SVG is allowed) → ${hit}`);
   }
 }
 

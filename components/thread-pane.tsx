@@ -3,6 +3,7 @@ import {
   useEffect,
   useRef,
   useState,
+  type KeyboardEvent as ReactKeyboardEvent,
   type MouseEvent,
 } from "react";
 import {
@@ -29,6 +30,11 @@ import {
   decoratedCodePath,
   type PathExistenceChecker,
 } from "@/components/decorate-inline-code";
+import {
+  decorateReferenceMentions,
+  decoratedReferencePaneTarget,
+  type ReferenceMentions,
+} from "@/components/decorate-reference-mentions";
 import type { rpcContract } from "@/server";
 import { useIsCompactViewport } from "@/components/ui/hooks/use-compact-viewport";
 import {
@@ -144,6 +150,15 @@ interface ThreadPaneProps {
    * thread is not running; when false, Escape always closes the pane.
    */
   escStopsRunningThread: boolean;
+  /**
+   * Wiring for the pane's reference chips (issue #161): the paint pass
+   * converts agent-written `@thread:`/`@project:` tokens — and the host's
+   * own empty mention elements — into labeled chips inside the embedded
+   * chat, and `onOpen` decides their routing (the board's thread pane for a
+   * thread it lists, bb's main thread/project view otherwise). Optional:
+   * absent, the pane keeps the host's rendering untouched.
+   */
+  referenceMentions?: ReferenceMentions;
   /**
    * True while an overlay above the pane (the new-thread composer modal)
    * owns Escape. This pane's Escape listener is a capture-phase document
@@ -446,6 +461,7 @@ export function ThreadPane({
   onRevealBrowserTab,
   escStopsRunningThread,
   escapeSuppressed = false,
+  referenceMentions,
 }: ThreadPaneProps) {
   const [width, setWidth] = useState(readStoredPaneWidth);
   const windowCompact = useIsCompactViewport();
@@ -537,6 +553,19 @@ export function ThreadPane({
       if (event.button !== 0) return;
       const target = event.target;
       if (!(target instanceof Element)) return;
+      // A reference chip (issue #161) claims its click outright: the chip's
+      // own routing (referenceMentions.onOpen) decides where the target
+      // opens — the pane for a listed thread, bb's main view otherwise —
+      // and nothing underneath the chip runs (no anchor navigation, no
+      // workspace preview on a stray wrapped code span). The chip is either
+      // the painted button or the repainted host mention element.
+      const reference = decoratedReferencePaneTarget(target);
+      if (reference !== null && referenceMentions !== undefined) {
+        event.preventDefault();
+        event.stopPropagation();
+        referenceMentions.onOpen(reference);
+        return;
+      }
       // Explicit markdown links win; code spans are only claimed when no
       // anchor is involved.
       const anchor = target.closest("a[href]");
@@ -561,7 +590,7 @@ export function ThreadPane({
       event.stopPropagation();
       openWorkspacePreview(path);
     },
-    [openWorkspacePreview],
+    [openWorkspacePreview, referenceMentions],
   );
 
   const endDrag = useCallback((event: PointerEvent) => {
@@ -696,6 +725,23 @@ export function ThreadPane({
     },
     [onChatClickCapture],
   );
+
+  // The repainted host mention elements (role=button) and the painted chips
+  // are keyboard-operable: Enter or Space on a focused chip routes the same
+  // target the click-capture handler does.
+  const onChatKeyDownCapture = useCallback(
+    (event: ReactKeyboardEvent<HTMLDivElement>) => {
+      if (event.key !== "Enter" && event.key !== " ") return;
+      const target = event.target;
+      if (!(target instanceof Element)) return;
+      const reference = decoratedReferencePaneTarget(target);
+      if (reference === null || referenceMentions === undefined) return;
+      event.preventDefault();
+      event.stopPropagation();
+      referenceMentions.onOpen(reference);
+    },
+    [referenceMentions],
+  );
   useEffect(() => {
     const guard = createChatClickJumpGuard(() => chatBodyRef.current);
     chatJumpGuardRef.current = guard;
@@ -744,6 +790,12 @@ export function ThreadPane({
     let environmentId: string | null | undefined;
     let resolutionPending = false;
     const decorate = () => {
+      // Reference chips (issue #161) convert without an environment — the
+      // labels come from the board's own thread and project rows, so they
+      // paint even while the workspace resolution is pending or failed.
+      if (referenceMentions !== undefined) {
+        decorateReferenceMentions(root, referenceMentions.labels);
+      }
       if (environmentId === null) return;
       const scope = environmentId;
       if (scope !== undefined) {
@@ -792,7 +844,7 @@ export function ThreadPane({
       observer.disconnect();
       if (frame !== null) view.cancelAnimationFrame(frame);
     };
-  }, [thread.id, sdk, checkWorkspacePaths]);
+  }, [thread.id, sdk, checkWorkspacePaths, referenceMentions]);
 
   return (
     <aside
@@ -1067,6 +1119,7 @@ export function ThreadPane({
         ref={chatBodyRef}
         className="min-h-0 flex-1"
         onClickCapture={onChatBodyClickCapture}
+        onKeyDownCapture={onChatKeyDownCapture}
       >
         <ThreadChat threadId={thread.id} variant="compact" layout="contained" />
       </div>

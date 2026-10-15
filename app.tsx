@@ -70,6 +70,7 @@ import { planGroupBoxes } from "./components/group-boxes";
 import { applyUnitMoveVisible } from "./lib/rank-unit-move";
 import { doneAtToEpochMs } from "./lib/done-metadata";
 import { projectDisplayName } from "./lib/project-name";
+import type { ReferenceMentions } from "./components/decorate-reference-mentions";
 import {
   newThreadDerivedProjectId,
   newThreadSeedEnvironmentForProject,
@@ -2048,6 +2049,52 @@ function BoardPage({ subPath }: { subPath: string }) {
     [navigate, openThreadId, capturePaneAttention],
   );
 
+  // Reference chips in the pane (issue #161): labels resolve from the board's
+  // current rows — live sidebar threads first, then the archived list — and
+  // routing splits on what the board knows: a listed thread opens in the
+  // pane (the surface the operator is already on), an unlisted one goes to
+  // bb's main thread view (any thread id works there), and a project chip
+  // opens that project. The memo keeps the pane's decoration effect from
+  // re-firing on unrelated rerenders; unknown labels paint the raw id and
+  // fill in on the next scan when the rows catch up.
+  const referenceMentions = useMemo<ReferenceMentions>(
+    () => ({
+      labels: {
+        threadLabel: (threadId) => {
+          const archived = archivedThreads.find(
+            (archived) => archived.id === threadId,
+          );
+          return (
+            threads.find((thread) => thread.id === threadId)?.displayTitle ??
+            archived?.title ??
+            archived?.titleFallback ??
+            null
+          );
+        },
+        projectLabel: (projectId) => {
+          const row = projects.find((project) => project.id === projectId);
+          if (row === undefined) return null;
+          return projectDisplayName(projectId, {
+            personalProjectId: projects.find((project) => project.isPersonal)?.id,
+            projects,
+          });
+        },
+      },
+      onOpen: (reference) => {
+        if (reference.kind === "project") {
+          navigate.toProject(reference.id);
+          return;
+        }
+        const listed =
+          threads.some((thread) => thread.id === reference.id) ||
+          archivedThreads.some((archived) => archived.id === reference.id);
+        if (listed) openThreadCard(reference.id);
+        else navigate.toThread(reference.id);
+      },
+    }),
+    [threads, archivedThreads, projects, navigate, openThreadCard],
+  );
+
   // The composer modal resolved a spawn: remember the project it landed in
   // (the remembered rung of the seed ladder, fed from the submit success
   // path — a failed spawn never writes), file the provisional row, then
@@ -3177,6 +3224,7 @@ function BoardPage({ subPath }: { subPath: string }) {
           onClose={closeThreadPane}
           escapeSuppressed={newThreadOpen}
           escStopsRunningThread={escStopsRunningThread}
+          referenceMentions={referenceMentions}
         />
       )}
       <NewThreadModal
