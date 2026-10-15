@@ -11,6 +11,11 @@ export const UNRELEASED_ITEMS: readonly { text: string; children: string[]; grou
     "group": "Thread pane"
   },
   {
+    "text": "**The composer remembers your environment pick.** New thread now opens with the environment of the project's last successful spawn still selected, so a \"(new) worktree\" pick stays picked instead of falling back to Project checkout. The memory is kept per project, a failed spawn writes nothing, and \"New child thread…\" on a worktree parent still wins when the two differ.",
+    "children": [],
+    "group": "New thread composer"
+  },
+  {
     "text": "**Sweep-selected cards keep their opaque card surface.** The selection's amber wash used a translucent card background that replaced the card's surface, so selected cards faded toward transparent while chosen for a sweep; the wash now rides an overlay and the card stays solid.",
     "children": [],
     "group": "Card animations"
