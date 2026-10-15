@@ -2,9 +2,10 @@ import { useEffect, useState } from "react";
 
 export type TicketStatus = { kind: string; state: string };
 
-/** Poll cadence for tracker_status: a local SQLite read behind the RPC, so
- *  the interval is cheap and 30s stays well inside the 30–60s staleness
- *  window a merged PR's dot is expected to clear in. */
+/** Poll cadence for tracker_status: a local SQLite read plus the freshness
+ *  layer behind the RPC (lib/tracker-refresh.ts), so the interval is cheap
+ *  and the next poll after a probe typically repaints a changed dot well
+ *  inside a minute. */
 export const TICKET_STATUS_POLL_MS = 30_000;
 
 /** Minimal shape of the SDK rpc handle this hook needs. */
