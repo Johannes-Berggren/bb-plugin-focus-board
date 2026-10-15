@@ -1176,7 +1176,14 @@ export function ThreadCard({
         ) : null}
       </div>
       {hasRows && (collapsed || onOpenThread !== undefined) ? (
-        <div className="ml-3 mt-1" data-child-thread-section="">
+        <div
+          className="ml-3 mr-3 mt-1"
+          data-child-thread-section=""
+        >
+          {/* The right margin mirrors the left: without it every row tier
+              ran flush against the card's right edge (0px inset) while the
+              left kept its 12px indent — the lane's right gutter read as
+              consumed (issue #192). */}
           {/* The section's header row: the fold toggle, plus the
               idle-children filter (issue #172) beside it. One control in one
               place, on the boundary of the content it controls — directly

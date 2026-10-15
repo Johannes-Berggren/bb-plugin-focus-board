@@ -26,6 +26,11 @@ export const UNRELEASED_ITEMS: readonly { text: string; children: string[]; grou
     "group": "Child threads"
   },
   {
+    "text": "**A family card's nested rows keep the card's right gutter.** Child and grandchild rows used to run flush against the card's right edge while the left kept its 12px indent. The child-thread section mirrors its left margin on the right now.",
+    "children": [],
+    "group": "Child threads"
+  },
+  {
     "text": "**Bare reference ids in pane messages become chips too.** Agents often drop the kind prefix and write `@proj_…` or `@thr_…` straight, and those tokens stayed dead text. The pane paints them like the full forms now, and a trailing `#msg=N` fragment is swallowed the same way.",
     "children": [],
     "group": "Thread pane"

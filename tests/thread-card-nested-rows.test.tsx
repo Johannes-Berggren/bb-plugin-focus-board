@@ -112,3 +112,22 @@ describe("the child rows' sub-row tier (issue #120)", () => {
     expect(document.querySelector("[data-child-sub-rows]")).toBeNull();
   });
 });
+
+// Issue #192: the family card's nested rows must respect the card's right
+// gutter. The child-thread section indents its content 12px on the left
+// (`ml-3`) but kept no right inset, so the rows' boxes (border included) ran
+// flush against the card's right edge — 0px right inset against a 21px left
+// inset — and the card's right gutter read as consumed. jsdom does no
+// layout, so the contract is pinned through the section's mirrored margin
+// classes.
+describe("the family card's right gutter (issue #192)", () => {
+  afterEach(cleanup);
+
+  it("the child-thread section insets its rows on the right as it does on the left", () => {
+    renderCard(2);
+    const section = document.querySelector("[data-child-thread-section]");
+    if (!(section instanceof HTMLElement)) throw new Error("missing child-thread section");
+    expect(section.className).toContain("ml-3");
+    expect(section.className).toContain("mr-3");
+  });
+});

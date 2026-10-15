@@ -452,6 +452,44 @@ export const SIM_DEMO_THREADS: readonly SimThread[] = [
     updatedAt: SIM_NOW - 23 * MINUTE,
     lastReadAt: SIM_NOW - 22 * MINUTE,
   }),
+  // Family D — chip + nested children (issue #192): the parent card carries a
+  // ticket chip (title ref) alongside an expanded child row and a grandchild
+  // sub-row, so the right-gutter measurement has the reported combination —
+  // chip, family expander, and nested rows — on one card. Demo-only
+  // (`?demo=1`) so the UAT fixtures stay pinned.
+  thread({
+    id: "thr_demo_gutter",
+    displayTitle: "Card overruns the lane's right gutter #192",
+    updatedAt: SIM_NOW - 12 * MINUTE,
+    lastReadAt: SIM_NOW - 12 * MINUTE,
+    environment: boardEnv("fix/gutter-repro"),
+  }),
+  thread({
+    id: "thr_demo_gutter_c0",
+    displayTitle: "Reproduce the leak headlessly in the harness",
+    parentThreadId: "thr_demo_gutter",
+    status: "active",
+    runtimeStatus: "active",
+    updatedAt: SIM_NOW - 60 * 1000,
+    environment: boardEnv("fix/gutter-repro"),
+  }),
+  thread({
+    id: "thr_demo_gutter_c1",
+    displayTitle: "Pin the leaking surface with a failing test",
+    parentThreadId: "thr_demo_gutter",
+    updatedAt: SIM_NOW - 8 * MINUTE,
+    lastReadAt: SIM_NOW - 8 * MINUTE,
+    environment: boardEnv("fix/gutter-repro"),
+  }),
+  thread({
+    id: "thr_demo_gutter_c1_gc0",
+    displayTitle: "Cover the grandchild sub-row tier too",
+    parentThreadId: "thr_demo_gutter_c1",
+    updatedAt: SIM_NOW - 6 * MINUTE,
+    lastReadAt: SIM_NOW - 6 * MINUTE,
+    environment: boardEnv("fix/gutter-repro"),
+  }),
+
   // Family A — Working (lifted by its two active children), expanded in the
   // shots: a parent card with three nested child rows visible.
   thread({

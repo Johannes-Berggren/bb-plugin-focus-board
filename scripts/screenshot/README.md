@@ -68,6 +68,19 @@ host app involved.
   `HARNESS_URL=... node scripts/screenshot/capture-toolbar-tint.mjs`;
   honors the same `CHROME_PATH` and `HARNESS_URL` overrides.
 
+- `repro-right-gutter.mjs` — one-shot headless repro for the family card's
+  right gutter (#192): measures a demo family card with a ticket chip and
+  expanded nested children (`thr_demo_gutter`, `?demo=1`) on the columns
+  board — card box vs the lane's right edge, and the anchor, title, chip
+  rows, nested rows, and sub-rows vs the card's right edge — then measures
+  the parent-lanes board's lane cells (`?groupBy=parent`, the parent renders
+  as a lane there). Exits non-zero when any content surface sits closer than
+  CELL_PAD (4px) to the card's right edge or a lane boundary is crossed.
+  Artifacts land in `docs/screenshots/repro-right-gutter/` (`evidence.json`,
+  `evidence-before-fix.json`, two card clips). Run the vite harness first
+  (same as above); honors the same `CHROME_PATH`, `HARNESS_URL`, and
+  `OUT_DIR` overrides.
+
 Regenerate the screenshots:
 
 ```sh
