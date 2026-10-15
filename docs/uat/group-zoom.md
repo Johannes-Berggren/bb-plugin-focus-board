@@ -1,10 +1,10 @@
 # UAT report
 
-_Generated 2026-10-15T11:58:12.257Z by `npm run uat`._
+_Generated 2026-10-15T12:12:55.643Z by `npm run uat`._
 
 ## group-zoom
 
-Source: `tests/manual/uat-group-zoom.yaml` · theme dark
+Source: `/Users/cristos/.bb/plugins/environment-git-worktree/host-data/worktrees/thr_7x68rxa86i-1/bb-plugin-focus-board/tests/manual/uat-group-zoom.yaml` · theme dark
 
 | Step | Result | Detail |
 | --- | --- | --- |
