@@ -39,5 +39,10 @@ export const UNRELEASED_ITEMS: readonly { text: string; children: string[]; grou
     "text": "**Choosing Zoom to group lands the board on the Group view.** The group box's context-menu entry used to set only the group filter, so the board stayed on the Attention view and the zoom read as a silent chip write. It now switches the view to the Group board with the group restrict set to exactly that group; clearing the chip restores the full board.",
     "children": [],
     "group": "Groups and family boxes"
+  },
+  {
+    "text": "**Ticket-chip dots stay truthful about the tracker cache's age.** A chip's open dot used to mirror the GitHub plugin's cache row forever, even hours after the item merged or closed in the forge and nothing ever re-fetched the row. An open dot now only paints while the state was confirmed inside the last hour, and where the gh CLI exists the board quietly re-checks flagged items (batched and throttled), so a merge reaches the card within a poll or two.",
+    "children": [],
+    "group": "Cards and chips"
   }
 ];

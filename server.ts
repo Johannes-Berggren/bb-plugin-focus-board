@@ -87,6 +87,7 @@ import {
   type SweepFact,
 } from "./lib/sweep-cli";
 import { readGitHubStatuses } from "./lib/tracker-status";
+import { createTrackerVerifier } from "./lib/tracker-refresh";
 import { resolveRepoSlug } from "./lib/tickets";
 import { validateTrackerUrls } from "./lib/tracker-validate";
 import { resolveWithinRoot } from "./lib/workspace-paths";
@@ -633,6 +634,11 @@ const DONE_INDEX_KV_KEY = "done-index";
 // time ("mirror, don't integrate": read-only, degrade-to-empty access —
 // see lib/tracker-status.ts).
 const GITHUB_CACHE_DB = ".bb/plugins/github/data.db";
+
+// The freshness layer over that cache (issue #187): the server process keeps
+// its own verified verdicts and probes stale open ones through gh. Created
+// once per server lifetime, so the verdict store outlives individual polls.
+const trackerVerifier = createTrackerVerifier();
 
 type KeepStore = Record<string, true>;
 
@@ -2134,8 +2140,20 @@ export default async function plugin(bb: BbPluginApi) {
     tracker_status: async ({ repo, numbers }) => {
       const home = process.env.HOME ?? "";
       if (home === "") return { statuses: {} };
-      const statuses = readGitHubStatuses(`${home}/${GITHUB_CACHE_DB}`, repo, numbers, bb.log);
-      return { statuses };
+      const cached = readGitHubStatuses(`${home}/${GITHUB_CACHE_DB}`, repo, numbers, bb.log);
+      // The freshness layer (issue #187): paint only trustworthy verdicts,
+      // and let the probe re-check stale open ones on its own clock — the
+      // fire-and-forget verdicts land on the next poll, never in this reply.
+      const decision = trackerVerifier.decide(repo, numbers, cached, Date.now());
+      void trackerVerifier.verify(repo, decision.candidates, Date.now());
+      return {
+        statuses: Object.fromEntries(
+          Object.entries(decision.statuses).map(([number, status]) => [
+            number,
+            { kind: status.kind, state: status.state },
+          ]),
+        ),
+      };
     },
     tracker_validate: async ({ urls }) => {
       const home = process.env.HOME ?? "";
