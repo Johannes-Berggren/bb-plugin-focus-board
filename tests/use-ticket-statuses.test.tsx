@@ -9,7 +9,11 @@
 // open/close, lane transitions, and re-sorts) refetches immediately.
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, cleanup, renderHook } from "@testing-library/react";
-import { useTicketStatuses, type TrackerStatusRpc } from "../hooks/use-ticket-statuses";
+import {
+  TICKET_STATUS_TIMEOUT_MS,
+  useTicketStatuses,
+  type TrackerStatusRpc,
+} from "../hooks/use-ticket-statuses";
 
 const REF_KEY = "o/r#91";
 const REF = 91;
@@ -94,13 +98,27 @@ describe("useTicketStatuses refreshing behavior (issue #92)", () => {
       ({ k }: { k: string }) => useTicketStatuses({ rpc: mock.rpc, visibleRefKey: k }),
       { initialProps: { k: REF_KEY } },
     );
+    await mock.settleAll();
     expect(mock.calls.length).toBe(1);
-    // Leave the first call unsettled; tick the interval.
+    // A focus refetch starts five seconds before a poll tick and hangs well
+    // past it — still inside issue #214's timeout window, so the tick must
+    // skip rather than overlap the in-flight call...
+    await act(async () => {
+      vi.advanceTimersByTime(POLL_MS - 5_000);
+    });
+    await act(async () => {
+      window.dispatchEvent(new Event("focus"));
+    });
+    expect(mock.calls.length).toBe(2);
+    // ...and the next tick, after that call has been given up on, refetches.
+    await act(async () => {
+      vi.advanceTimersByTime(TICKET_STATUS_TIMEOUT_MS);
+    });
     await act(async () => {
       vi.advanceTimersByTime(POLL_MS + 5);
     });
-    expect(mock.calls.length).toBe(1);
-  });
+    expect(mock.calls.length).toBe(3);
+  }, 10_000);
 
   it("an empty ref set clears statuses and never calls the RPC", async () => {
     const mock = makeRpcMock();
@@ -211,5 +229,123 @@ describe("useTicketStatuses refresh triggers (issue #205)", () => {
     rerender({ k: REF_KEY, s: "b" });
     await mock.settleAll();
     expect(mock.calls.length).toBe(callsAfterFirstFetch + 1);
+  });
+});
+
+describe("useTicketStatuses hung-call degradation (issue #214)", () => {
+  /** Two-repo fake cache behind a controllable rpc mock whose calls may
+   *  hang forever or reject late, settled per repo or all at once. */
+  function makeTwoRepoRpcMock() {
+    const state: Record<
+      string,
+      Record<number, { kind: string; state: string }>
+    > = {
+      "o/a": { 91: { kind: "pull", state: "MERGED" } },
+      "o/b": { 7: { kind: "pull", state: "OPEN" } },
+    };
+    const calls: Array<{ repo: string; numbers: number[] }> = [];
+    const calls_ = calls as Array<{ repo: string; numbers: number[] }>;
+    const settle: Array<{
+      resolve: () => void;
+      reject: (e: unknown) => void;
+      repo: () => string;
+    }> = [];
+    const rpc: TrackerStatusRpc = {
+      call: (_method, input) => {
+        calls_.push(input);
+        return new Promise((resolve, reject) => {
+          settle.push({
+            repo: () => input.repo,
+            resolve: () => resolve({ statuses: { ...state[input.repo] } }),
+            reject,
+          });
+        });
+      },
+    };
+    const resolveRepo = async (repo: string): Promise<void> => {
+      await act(async () => {
+        for (const s of settle.splice(0)) {
+          if (s.repo() === repo) s.resolve();
+          else settle.push(s);
+        }
+      });
+    };
+    const resolveAll = async (): Promise<void> => {
+      await act(async () => {
+        for (const s of settle.splice(0)) s.resolve();
+      });
+    };
+    const rejectAll = async (): Promise<void> => {
+      await act(async () => {
+        for (const s of settle.splice(0)) s.reject(new Error("late transport"));
+      });
+    };
+    return { rpc, calls, state, resolveRepo, resolveAll, rejectAll };
+  }
+
+  it("a call that never settles frees the guard, and the next poll tick refetches", async () => {
+    const mock = makeTwoRepoRpcMock();
+    const { result } = renderHook(
+      ({ k }: { k: string }) => useTicketStatuses({ rpc: mock.rpc, visibleRefKey: k }),
+      { initialProps: { k: "o/a#91" } },
+    );
+    expect(mock.calls.length).toBe(1);
+    // The transport never answers: at the timeout wall the guard has freed
+    // and the hung repo degrades to "no status known".
+    await act(async () => {
+      vi.advanceTimersByTime(TICKET_STATUS_TIMEOUT_MS + 5);
+    });
+    expect(result.current["o/a"]?.[91]).toBeUndefined();
+    // The next poll tick refetches instead of skipping forever. The advance
+    // stops exactly at the tick (the tick's own call still has its full 8s
+    // wall ahead) so the refetch can answer like a real transport.
+    await act(async () => {
+      vi.advanceTimersByTime(POLL_MS - TICKET_STATUS_TIMEOUT_MS - 5);
+    });
+    expect(mock.calls.length).toBe(2);
+    // Settling the refetch paints the hung-again statuses.
+    await mock.resolveAll();
+    expect(result.current).toEqual({
+      "o/a": { 91: { kind: "pull", state: "MERGED" } },
+    });
+  });
+
+  it("repo A resolving while repo B hangs still paints repo A's statuses", async () => {
+    const mock = makeTwoRepoRpcMock();
+    const { result } = renderHook(
+      ({ k }: { k: string }) => useTicketStatuses({ rpc: mock.rpc, visibleRefKey: k }),
+      { initialProps: { k: "o/a#91,o/b#7" } },
+    );
+    expect(mock.calls.length).toBe(2);
+    await mock.resolveRepo("o/a");
+    // Repo B hangs; at the timeout wall the batch settles on its leg and
+    // what answered paints.
+    await act(async () => {
+      vi.advanceTimersByTime(TICKET_STATUS_TIMEOUT_MS + 5);
+    });
+    expect(result.current["o/a"]?.[91]).toEqual({ kind: "pull", state: "MERGED" });
+    expect(result.current["o/b"]?.[7]).toBeUndefined();
+  });
+
+  it("the timed-out call must not reject unhandled across a rerender", async () => {
+    const mock = makeTwoRepoRpcMock();
+    const { rerender, result } = renderHook(
+      ({ k, s }: { k: string; s: string }) =>
+        useTicketStatuses({ rpc: mock.rpc, visibleRefKey: k, refreshSignal: s }),
+      { initialProps: { k: "o/a#91", s: "a" } },
+    );
+    // The timeout wins; the transport then answers late with a rejection.
+    await act(async () => {
+      vi.advanceTimersByTime(TICKET_STATUS_TIMEOUT_MS + 5);
+    });
+    await mock.rejectAll();
+    // The operator-moment bump refetches across the late rejection. No
+    // unhandled rejection may surface on either path (vitest fails this
+    // test on any unhandledRejection).
+    rerender({ k: "o/a#91", s: "b" });
+    await mock.resolveAll();
+    expect(result.current).toEqual({
+      "o/a": { 91: { kind: "pull", state: "MERGED" } },
+    });
   });
 });

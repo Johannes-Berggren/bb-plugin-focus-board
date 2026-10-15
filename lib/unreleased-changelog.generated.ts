@@ -56,6 +56,11 @@ export const UNRELEASED_ITEMS: readonly { text: string; children: string[]; grou
     "group": "Groups and family boxes"
   },
   {
+    "text": "**A hung chip-status call can no longer freeze the snapshot forever.** A `tracker_status` request that the transport never answered used to park the fetch guard, so every later poll, focus, and operator-moment bump skipped and the chips froze at a pre-event snapshot. Each call now races an 8-second timeout whose wall degrades it to \"no status known\", and the batch settles as soon as every call is resolved, rejected, or timed out, so one hung repo cannot mask its siblings' fresh statuses.",
+    "children": [],
+    "group": "Cards and chips"
+  },
+  {
     "text": "**Ticket-chip dots stay truthful about the tracker cache's age.** A chip's open dot used to mirror the GitHub plugin's cache row forever, even hours after the item merged or closed in the forge and nothing ever re-fetched the row. An open dot now only paints while the state was confirmed inside the last hour, and where the gh CLI exists the board quietly re-checks flagged items (batched and throttled), so a merge reaches the card within a poll or two.",
     "children": [],
     "group": "Cards and chips"
