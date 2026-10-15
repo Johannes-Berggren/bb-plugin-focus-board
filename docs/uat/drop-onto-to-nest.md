@@ -1,10 +1,10 @@
 # UAT report
 
-_Generated 2026-10-15T00:54:03.343Z by `npm run uat`._
+_Generated 2026-10-15T04:36:54.911Z by `npm run uat`._
 
 ## drop-onto-to-nest
 
-Source: `tests/manual/uat-reparent.yaml` · theme dark
+Source: `/Users/cristos/.bb/plugins/environment-git-worktree/host-data/worktrees/thr_7x68rxa86i-1/bb-plugin-focus-board/tests/manual/uat-reparent.yaml` · theme dark
 
 | Step | Result | Detail |
 | --- | --- | --- |
