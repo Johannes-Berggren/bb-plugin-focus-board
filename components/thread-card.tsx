@@ -244,10 +244,12 @@ const STATUS_ICON_CLASS: Record<string, string> = {
 export const NESTED_ROWS_SCROLL_THRESHOLD = 5;
 
 /**
- * The collapsed dot's hover preview bubble, fixed width (the `w-64` class;
- * both are `--spacing * 64` at the default scale). The viewport clamp needs
- * the bubble's half-width to decide the shift; the class and this number
- * must name the same width, so they share the one comment.
+ * The collapsed dot's hover preview bubble width CAP (the `max-w-64`
+ * class; both are `--spacing * 64` at the default scale). The bubble
+ * itself sizes to its content (`w-max`): the fixed portal's shrink-to-fit
+ * base is the viewport, so short previews hug their text. The viewport
+ * clamp assumes the CAP as the worst case — a narrower bubble can only
+ * land further inside the clamped left, never off screen.
  */
 export const CHILD_PREVIEW_WIDTH_PX = 256;
 
@@ -1546,7 +1548,7 @@ export function ThreadCard({
               // without them the compiled utilities never match the body
               // child and the bubble renders unstyled.
               {...usePortalScopeProps()}
-              className="pointer-events-none fixed z-50 mb-0 w-64 rounded border border-border bg-popover px-2 py-1 text-left shadow-md"
+              className="pointer-events-none fixed z-50 mb-0 w-max max-w-64 rounded border border-border bg-popover px-2 py-1 text-left shadow-md"
               style={{
                 // Border-box explicit: the compiled CSS ships without a
                 // preflight (the host provides it), and a body-level portal

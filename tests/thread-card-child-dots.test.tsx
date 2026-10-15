@@ -107,13 +107,17 @@ describe("a child dot's hover preview", () => {
     expect(openPreview("thr_c3").textContent).toContain("Background agent running");
   });
 
-  it("is sized independently of its 16px dot button", () => {
-    // The fixed bubble leaves the button's coordinate space (a portal), so
-    // shrink-to-fit against the 16px containing block can no longer apply;
-    // the width stays explicit, and the title clamps to two lines.
+  it("sizes to its content, capped at the preview width", () => {
+    // The fixed bubble's shrink-to-fit base is the viewport (the portal
+    // left the 16px dot's coordinate space), so it hugs short content
+    // instead of reserving the full cap's width (operator report: too much
+    // empty space at the right), and long titles stop at the cap.
     renderCard({ isCollapsed: true });
     const bubble = openPreview("thr_c2");
-    expect(bubble.className).toContain("w-64");
+    const classes = bubble.className.split(" ");
+    expect(classes).toContain("w-max");
+    expect(classes).toContain("max-w-64");
+    expect(classes).not.toContain("w-64");
     expect(bubble.firstElementChild?.className).toContain("line-clamp-2");
   });
 
