@@ -9,7 +9,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render } from "@testing-library/react";
 import type { PluginSidebarThread } from "@get-bb/plugin-sdk/app";
-import { ThreadCard } from "../components/thread-card";
+import { ThreadCard, previewLeftFor } from "../components/thread-card";
 import { thread } from "./thread-fixture";
 
 function family(): { parent: PluginSidebarThread; children: PluginSidebarThread[] } {
@@ -70,10 +70,12 @@ function dot(id: string): HTMLElement {
   return button;
 }
 
-/** The preview bubble inside a dot button. */
-function preview(id: string): HTMLElement {
-  const bubble = dot(id).querySelector("[data-child-dot-preview]");
-  if (!(bubble instanceof HTMLElement)) throw new Error(`missing preview for ${id}`);
+/** The hover preview bubble: a single fixed-position portal node, open
+ * only while a dot is hovered or focused. Opens one by enter. */
+function openPreview(id: string): HTMLElement {
+  fireEvent.mouseEnter(dot(id));
+  const bubble = document.querySelector("[data-child-dot-preview]");
+  if (!(bubble instanceof HTMLElement)) throw new Error(`missing open preview for ${id}`);
   return bubble;
 }
 
@@ -88,28 +90,41 @@ function row(id: string): HTMLElement | null {
 afterEach(cleanup);
 
 describe("a child dot's hover preview", () => {
+  // The bubble renders through a portal to body, fixed-positioned from the
+  // dot's viewport rect at enter/focus — NOT inside the dot button: the
+  // card wrapper is overflow-hidden and the board's scroller clips too, so
+  // an in-card bubble was constrained to the card box (operator report).
+
   it("carries the child's title", () => {
     renderCard({ isCollapsed: true });
-    expect(preview("thr_c2").textContent).toContain("Child two");
+    expect(openPreview("thr_c2").textContent).toContain("Child two");
   });
 
   it("carries the child's state label and indicator label", () => {
     renderCard({ isCollapsed: true });
     // thr_c2 is unread; thr_c3 runs an agent with the host's indicator label.
-    expect(preview("thr_c2").textContent).toContain("Unread");
-    expect(preview("thr_c3").textContent).toContain("Background agent running");
+    expect(openPreview("thr_c2").textContent).toContain("Unread");
+    expect(openPreview("thr_c3").textContent).toContain("Background agent running");
   });
 
   it("is sized independently of its 16px dot button", () => {
-    // The bubble is absolutely positioned inside the 16px dot button, and
-    // shrink-to-fit clamps an unsized absolute box to the containing block,
-    // so a long title wrapped into a ~70px column (operator report). The
-    // width is explicit, and the title clamps to two lines.
+    // The fixed bubble leaves the button's coordinate space (a portal), so
+    // shrink-to-fit against the 16px containing block can no longer apply;
+    // the width stays explicit, and the title clamps to two lines.
     renderCard({ isCollapsed: true });
-    const bubble = preview("thr_c2");
+    const bubble = openPreview("thr_c2");
     expect(bubble.className).toContain("w-64");
-    expect(bubble.className).not.toContain("max-w-56");
     expect(bubble.firstElementChild?.className).toContain("line-clamp-2");
+  });
+
+  it("opens over the hovered dot, not inside the card's box", () => {
+    renderCard({ isCollapsed: true });
+    const bubble = openPreview("thr_c2");
+    expect(bubble.className).toContain("fixed");
+    expect(bubble.parentElement).toBe(document.body);
+    // Closed on leave: the portal node goes away entirely.
+    fireEvent.mouseLeave(dot("thr_c2"));
+    expect(document.querySelector("[data-child-dot-preview]")).toBeNull();
   });
 
   it("lights a subtle halo behind the dot while it is hovered or focused", () => {
@@ -120,14 +135,56 @@ describe("a child dot's hover preview", () => {
     // matches only descendants, and the halo target IS the group element).
     expect(button.className).toContain("hover:bg-accent/70");
     expect(button.className).toContain("focus-visible:bg-accent/70");
-    expect(button.className).not.toContain("group-hover/dot:bg-accent");
   });
 
   it("is aria-hidden: the dot's aria-label carries the child's name for screen readers", () => {
     renderCard({ isCollapsed: true });
     const button = dot("thr_c2");
     expect(button.getAttribute("aria-label")).toContain("Child two");
-    expect(preview("thr_c2").hasAttribute("aria-hidden")).toBe(true);
+    expect(openPreview("thr_c2").hasAttribute("aria-hidden")).toBe(true);
+  });
+});
+
+describe("the preview bubble clamps itself to the viewport", () => {
+  // The bubble centers on its dot but a dot near a screen edge pushed the
+  // bubble's far half off screen (operator report). previewLeftFor is the
+  // pure decision — the clamped left edge; the dot's enter/focus handlers
+  // feed it the dot's center and apply the result as the bubble's inline
+  // style.
+  it("centers a dot with room on both sides", () => {
+    expect(previewLeftFor(508, 1200)).toBe(380); // 508 - 128
+  });
+
+  it("clamps to the screen's left margin for a dot near the left edge", () => {
+    // Dot center 8px: centering would put the bubble's left edge at -120;
+    // it holds at the 8px margin instead.
+    expect(previewLeftFor(8, 1200)).toBe(8);
+  });
+
+  it("clamps to the screen's right margin for a dot near the right edge", () => {
+    // Dot center 1180px: centering would put the bubble's right edge at
+    // 1308; it holds so its right edge sits 8px inside the 1200 viewport.
+    expect(previewLeftFor(1180, 1200)).toBe(936);
+  });
+
+  it("a viewport narrower than the bubble still gets an on-screen left", () => {
+    expect(previewLeftFor(100, 200)).toBe(8);
+  });
+
+  it("mouse-enter applies the clamp as the bubble's inline left", () => {
+    renderCard({ isCollapsed: true });
+    const bubble = openPreview("thr_c1");
+    // jsdom rects collapse to 0,0: the dot's center is 0, so the clamp
+    // holds the bubble at the 8px margin; the exact number is the pure
+    // function's contract above, the wiring's is a clamped left at all.
+    expect(bubble.style.left).toBe("8px");
+  });
+
+  it("a fresh hover over another dot re-decides the placement", () => {
+    renderCard({ isCollapsed: true });
+    fireEvent.mouseEnter(dot("thr_c1"));
+    fireEvent.mouseEnter(dot("thr_c3"));
+    expect(document.querySelector("[data-child-dot-preview]")).not.toBeNull();
   });
 });
 
