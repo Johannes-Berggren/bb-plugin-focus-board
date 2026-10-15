@@ -8,6 +8,13 @@ export type TicketStatus = { kind: string; state: string };
  *  inside a minute. */
 export const TICKET_STATUS_POLL_MS = 30_000;
 
+/** Per-call wall for `tracker_status`: the handler is a local SQLite read,
+ *  so an 8s silence means the transport dropped the call (seen over the
+ *  tunneled remote view). Status is optional decoration; a hung call
+ *  degrades exactly like the documented "no status known" path instead of
+ *  parking the batch guard forever (issue #214). */
+export const TICKET_STATUS_TIMEOUT_MS = 8_000;
+
 /** Minimal shape of the SDK rpc handle this hook needs. */
 export type TrackerStatusRpc = {
   call: (
@@ -76,23 +83,45 @@ export function useTicketStatuses({
           fetching = false;
         }
       };
+      // A call reaches terminal state on resolution, rejection, OR timeout;
+      // any of the three frees its slice of the batch, so one hung repo
+      // cannot suppress the others' fresh statuses (issue #214).
+      const terminal = () => {
+        pending -= 1;
+        settle();
+      };
       for (const [repo, numbers] of wanted) {
         // The RPC caps input at 500 numbers; slice so an overflowing repo
         // degrades to partial dots instead of a rejected call (no dots at
         // all).
         const batch = [...numbers].slice(0, 500);
-        rpc.call("tracker_status", { repo, numbers: batch }).then(
+        const call = rpc.call("tracker_status", { repo, numbers: batch });
+        // Race wiring leaves the raw promise consumed, but a late
+        // rejection (the transport answering after the timeout settled the
+        // race) must never surface unhandled across a rerender.
+        call.catch(() => {});
+        let timedOut = false;
+        let timer: ReturnType<typeof setTimeout> | undefined;
+        const timeout = new Promise<{ statuses: Record<number, TicketStatus> }>(
+          (resolve) => {
+            timer = setTimeout(() => {
+              timedOut = true;
+              resolve({ statuses: {} });
+            }, TICKET_STATUS_TIMEOUT_MS);
+          },
+        );
+        Promise.race([call, timeout]).then(
           (result) => {
-            if (!cancelled) {
+            clearTimeout(timer);
+            if (!cancelled && !timedOut) {
               next[repo] = result.statuses;
             }
-            pending -= 1;
-            settle();
+            terminal();
           },
           () => {
             // Status is optional decoration; chips render without it.
-            pending -= 1;
-            settle();
+            clearTimeout(timer);
+            terminal();
           },
         );
       }
