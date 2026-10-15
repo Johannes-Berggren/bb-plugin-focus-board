@@ -1203,17 +1203,20 @@ export function ThreadCard({
                         preview shape — the title above, a supporting line
                         under it. Decorative only (aria-hidden); the dot's
                         aria-label names the child for screen readers. It
-                        shows while the dot is hovered or keyboard-focused. */}
+                        shows while the dot is hovered or keyboard-focused.
+                        The width is explicit: an unsized absolute box
+                        shrink-to-fits against its 16px dot button and long
+                        titles wrapped into a skinny column. */}
                     <span
                       aria-hidden
                       data-child-dot-preview=""
                       className={cn(
-                        "pointer-events-none absolute bottom-full left-1/2 z-20 mb-1 hidden max-w-56 -translate-x-1/2",
+                        "pointer-events-none absolute bottom-full left-1/2 z-20 mb-1 hidden w-64 -translate-x-1/2",
                         "rounded border border-border bg-popover px-2 py-1 text-left shadow-md",
                         "group-hover/dot:block group-focus-within/dot:block",
                       )}
                     >
-                      <span className="block text-[11px] font-medium leading-tight text-popover-foreground">
+                      <span className="block line-clamp-2 text-[11px] font-medium leading-tight text-popover-foreground">
                         {child.displayTitle}
                       </span>
                       <span className="mt-0.5 block text-[10px] leading-tight text-popover-foreground/70">
