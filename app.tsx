@@ -72,11 +72,15 @@ import { doneAtToEpochMs } from "./lib/done-metadata";
 import { projectDisplayName } from "./lib/project-name";
 import {
   newThreadDerivedProjectId,
-  newThreadSeedEnvironment,
+  newThreadSeedEnvironmentForProject,
   newThreadSeedProjectId,
+  parseRememberedEnvironmentStored,
   parseRememberedProjectStored,
+  rememberedEnvironmentStorageKey,
+  rememberedEnvironmentStoredValue,
   rememberedProjectStorageKey,
   rememberedProjectStoredValue,
+  type NewThreadEnvironmentArgs,
 } from "./lib/new-thread-seed";
 import { majorityGroupSpawnSeed, type GroupSpawnSeed } from "./lib/group-spawn-seed";
 import { maximizeComposerToMainView } from "./lib/compose-maximize";
@@ -1816,12 +1820,51 @@ function BoardPage({ subPath }: { subPath: string }) {
       }),
     [newThreadParent, newThreadGroupId, newThreadGroupSeed, filter.projects, searched, rememberedProjectId, projects, sidebarStatus],
   );
-  // The composer's environment seed: a parent whose checkout is a worktree
-  // seeds the `reuse` variant so the child starts in the parent's checkout
-  // (lib/new-thread-seed: plain/unknown checkouts seed nothing).
+  // The composer's environment seed (lib/new-thread-seed's full ladder): a
+  // parent whose checkout is a worktree seeds the `reuse` variant so the
+  // child starts in the parent's checkout (plain/unknown checkouts express
+  // nothing from a row); otherwise the remembered-ENVIRONMENT rung — the
+  // environment the composer resolved on the picked project's last
+  // successful spawn (e.g. the "(new) worktree" pick), keyed per project in
+  // plugin-scoped localStorage so a `reuse` memory of project A never seeds
+  // project B. No project resolved: no memory read either — the environment
+  // memory is a companion to the project memory, never a stand-alone pick.
+  const rememberedEnvironmentsKey = rememberedEnvironmentStorageKey(pluginId);
+  const [rememberedEnvironments, setRememberedEnvironments] = useState<
+    Record<string, NewThreadEnvironmentArgs> | undefined
+  >(() =>
+    parseRememberedEnvironmentStored(
+      window.localStorage.getItem(rememberedEnvironmentsKey),
+    ),
+  );
+  // The write path merges from this mirror, so the callback can stay free of
+  // stale-map closures regardless of how often it re-creates.
+  const rememberedEnvironmentsRef = useRef(rememberedEnvironments);
+  rememberedEnvironmentsRef.current = rememberedEnvironments;
+  const rememberSpawnEnvironment = useCallback(
+    (projectId: string, environment: NewThreadEnvironmentArgs) => {
+      const next = {
+        ...(rememberedEnvironmentsRef.current ?? {}),
+        [projectId]: environment,
+      };
+      window.localStorage.setItem(
+        rememberedEnvironmentsKey,
+        rememberedEnvironmentStoredValue(next),
+      );
+      setRememberedEnvironments(next);
+    },
+    [rememberedEnvironmentsKey],
+  );
   const newThreadEnvironmentSeed = useMemo(
-    () => newThreadSeedEnvironment({ parentEnvironment: newThreadParent?.environment }),
-    [newThreadParent],
+    () =>
+      newThreadSeedEnvironmentForProject({
+        parentEnvironment: newThreadParent?.environment,
+        rememberedEnvironment:
+          newThreadProjectId !== undefined
+            ? rememberedEnvironments?.[newThreadProjectId]
+            : undefined,
+      }),
+    [newThreadParent, newThreadProjectId, rememberedEnvironments],
   );
   // The group preset's seed fetch: the members' votes (project + provider
   // from each row; model from the SDK's resolved defaultExecutionOptions —
@@ -1873,7 +1916,13 @@ function BoardPage({ subPath }: { subPath: string }) {
       navigate,
       storage: window.localStorage,
       projectId: newThreadProjectId,
-      environmentId: newThreadEnvironmentSeed?.environmentId,
+      // The main view's hand-off only carries the `reuse` variant (an
+      // environment id); a remembered `(new) worktree` pick has no id to
+      // transfer, so the main view keeps its own environment default.
+      environmentId:
+        newThreadEnvironmentSeed?.type === "reuse"
+          ? newThreadEnvironmentSeed.environmentId
+          : undefined,
     });
     setNewThreadOpen(false);
   }, [navigate, newThreadProjectId, newThreadEnvironmentSeed]);
@@ -3138,6 +3187,7 @@ function BoardPage({ subPath }: { subPath: string }) {
         onMaximize={
           newThreadParentId === null && newThreadGroupId === null ? maximizeNewThread : undefined
         }
+        rememberEnvironment={rememberSpawnEnvironment}
         onSpawned={newThreadGroupId === null ? handleSpawnedThread : handleGroupSpawnedThread}
       />
       <SettingsModal
