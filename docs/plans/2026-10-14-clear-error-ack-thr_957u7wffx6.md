@@ -24,8 +24,9 @@ native path off `status: "error"`).
   `error_ack_set` (`{ threadId, acked }`, idempotent re-ack refreshes
   `ackedAt`). Plugin metadata writes emit no thread realtime event, which is
   the reason the board already has its per-state publish pattern.
-- **Grouping:** `threadState(thread, errorAcks?)` — the ack skips only the
-  `status === "error"` arm. Pending interaction is never ackable: a wait for
+- **Grouping:** `threadState(thread, errorAcks?)` — the ack skips the error
+  arms (`status: "error"`, `indicator: "unread-error"` / `"queued-failed"`,
+  `queuedWork: "failed"`) only. Pending interaction is never ackable: a wait for
   the operator needs a real answer, and `lib/interaction-sync.ts` would fight
   a fake clear. The menu offers "Clear error" when attention is present, not
   interaction-driven, and not already acked.

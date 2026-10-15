@@ -316,11 +316,12 @@ export function threadPassesFilter(
   groupNameFor?: (thread: PluginSidebarThread) => string,
   groupsByThread?: ReadonlyMap<string, string>,
   now: number = Date.now(),
+  errorAcks?: ReadonlySet<string>,
 ): boolean {
   if (thread.isArchived) return false;
   if (filter.projects.size > 0 && !filter.projects.has(thread.projectId)) return false;
   if (filter.providers.size > 0 && !filter.providers.has(thread.providerId)) return false;
-  if (!stateFilterPasses(thread, filter.states, now)) return false;
+  if (!stateFilterPasses(thread, filter.states, now, errorAcks)) return false;
   if (groupFilterMisses(thread, filter, groupsByThread)) return false;
   if (
     searchQuery.trim() !== "" &&

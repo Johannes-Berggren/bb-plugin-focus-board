@@ -931,9 +931,10 @@ export function filterFamilies(
   groupNameFor?: (thread: PluginSidebarThread) => string,
   groupsByThread?: ReadonlyMap<string, string>,
   now: number = Date.now(),
+  errorAcks?: ReadonlySet<string>,
 ): FamilyFilterResult {
   const passes = (thread: PluginSidebarThread): boolean =>
-    threadPassesFilter(thread, filter, searchQuery, projectNameFor, ticketRefsFor, groupNameFor, groupsByThread, now);
+    threadPassesFilter(thread, filter, searchQuery, projectNameFor, ticketRefsFor, groupNameFor, groupsByThread, now, errorAcks);
 
   // Group visible threads into families by their root, so a parent and its
   // descendants pass or fail together.
@@ -997,6 +998,7 @@ export function filterIndividually(
   groupNameFor?: (thread: PluginSidebarThread) => string,
   groupsByThread?: ReadonlyMap<string, string>,
   now: number = Date.now(),
+  errorAcks?: ReadonlySet<string>,
 ): FamilyFilterResult {
   const kept: PluginSidebarThread[] = [];
   for (const thread of threads) {
@@ -1010,6 +1012,7 @@ export function filterIndividually(
         groupNameFor,
         groupsByThread,
         now,
+        errorAcks,
       )
     ) {
       kept.push(thread);

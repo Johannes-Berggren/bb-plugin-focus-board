@@ -64,6 +64,13 @@ interface ThreadCardProps {
   isDone: boolean;
   /** Done ids; a done nested child (or a done parent's family) renders dimmed. */
   doneIds?: ReadonlySet<string>;
+  /**
+   * Clear-error acknowledgment ids (issue #157): an acked error arm reads
+   * quiet — the card's accent, its dot and its nested child dots alike, so
+   * an acknowledged card settles out of Needs you and the family strip
+   * stops pulsing for it.
+   */
+  errorAckIds?: ReadonlySet<string>;
   /** Highlighted because a sweep armed in this column captured the card. */
   isSweepHighlighted?: boolean;
   /**
@@ -415,6 +422,7 @@ function ProviderTicketChip({
 function ChildRow({
   child,
   dimmed,
+  errorAcks = new Set<string>(),
   isActive,
   isTransportGhost = false,
   onOpenThread,
@@ -429,6 +437,8 @@ function ChildRow({
   child: PluginSidebarThread;
   /** A done child row dims, as does any child of a done parent. */
   dimmed?: boolean;
+  /** Clear-error acknowledgment ids (issue #157): an acked error row dot sits quiet. */
+  errorAcks?: ReadonlySet<string>;
   /** The open thread's row gets the same active ring a standalone card gets. */
   isActive?: boolean;
   /** The dissolve slot's old-lane copy: never reports aria-current (see ThreadCard's contract). */
@@ -542,7 +552,7 @@ function ChildRow({
         <span
           className={cn(
             "inline-block size-1.5 shrink-0 rounded-full",
-            DOT_CLASS[threadState(child)] ?? "bg-muted-foreground/30",
+            DOT_CLASS[threadState(child, errorAcks)] ?? "bg-muted-foreground/30",
           )}
           aria-hidden
         />
@@ -590,6 +600,7 @@ export function ThreadCard({
   isActive,
   isDone,
   doneIds,
+  errorAckIds,
   isSweepHighlighted = false,
   isSweeping = false,
   isSweepSelecting = false,
@@ -668,7 +679,7 @@ export function ThreadCard({
   // The card's own attention: a pending interaction or an unread error. A
   // nested child can no longer be the cause — attention children un-nest
   // (nesting.ts `childPlacement`) and demand attention from their own card.
-  const familyNeedsAttention = threadState(thread) === "attention";
+  const familyNeedsAttention = threadState(thread, errorAckIds) === "attention";
 
   // Snoozed state: the wake epoch-ms (null when not snoozed) drives the dim,
   // the chip, and the drag refusal all at once — one rule, no drift.
@@ -835,7 +846,7 @@ export function ThreadCard({
       <span
         className={cn(
           "absolute inset-y-0 left-0 w-0.5",
-          ACCENT_CLASS[threadState(thread)] ?? "bg-transparent",
+          ACCENT_CLASS[threadState(thread, errorAckIds)] ?? "bg-transparent",
         )}
         aria-hidden
       />
@@ -1066,7 +1077,7 @@ export function ThreadCard({
               )}
             >
               {children.map((child) => {
-                const state = threadState(child);
+                const state = threadState(child, errorAckIds);
                 return (
                   <span
                     key={child.id}
@@ -1106,6 +1117,7 @@ export function ThreadCard({
                       <ChildRow
                         child={child}
                         dimmed={isDone || childDone}
+                        errorAcks={errorAckIds}
                         isActive={child.id === activeThreadId}
                         isTransportGhost={isTransportGhost}
                         onOpenThread={onOpenThread}
@@ -1133,6 +1145,7 @@ export function ThreadCard({
                               <ChildRow
                                 child={sub}
                                 dimmed={isDone || childDone || doneIds?.has(sub.id) === true}
+                                errorAcks={errorAckIds}
                                 isActive={sub.id === activeThreadId}
                                 onOpenThread={onOpenThread}
                                 menuActions={childMenuActions?.(sub)}

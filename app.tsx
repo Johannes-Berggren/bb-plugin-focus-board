@@ -41,7 +41,9 @@ import {
   matchesFilter,
   NO_GROUP_BUCKET,
   parseStoredStateFilter,
+  threadState,
 } from "./components/grouping";
+import { staleErrorAckIds } from "./lib/error-ack-metadata";
 import {
   buildFamilyIndex,
   filterFamilies,
@@ -381,6 +383,30 @@ function BoardPage({ subPath }: { subPath: string }) {
   // Done, Mark Unread — can restore it. Local optimistic state drives the
   // restore decisions; the server record is the cross-reload truth.
   const [parkIds, setParkIds] = useState<ReadonlySet<string>>(new Set());
+  // Clear-error acknowledgments (issue #157): threads whose error signals the
+  // operator acknowledged. Local set drives the optimistic display (dot,
+  // accent, lane); the server record (plugin metadata "errorAck") is the
+  // cross-reload truth. The stale sweep below drops an ack on any turn that
+  // leaves the error status, so a later error claims attention fresh.
+  const [errorAckIds, setErrorAckIds] = useState<ReadonlySet<string>>(new Set());
+  // The ack's ride ends when the thread's status leaves "error" — a new turn
+  // started, so the next error must claim attention fresh and cannot inherit
+  // an acknowledgment given to an earlier one (issue #157). The board owns
+  // the sweep (bb never watches turns): drop the ids that went stale from
+  // the local set and clear their records; the clear publishes the ack
+  // signal, which refetches in every other open board.
+  useEffect(() => {
+    const stale = staleErrorAckIds(threads, errorAckIds);
+    if (stale.length === 0) return;
+    setErrorAckIds((current) => {
+      const next = new Set(current);
+      for (const id of stale) next.delete(id);
+      return next;
+    });
+    for (const id of stale) {
+      rpc.call("error_ack_set", { threadId: id, acked: false }).catch(() => {});
+    }
+  }, [threads, errorAckIds, rpc]);
   // Done ages + sweep overrides come from the per-thread plugin-metadata
   // records: doneAt is the ISO stamp, keep the sweep override. The epoch
   // adapter (lib/done-metadata) feeds the sweep's injected `now` contract.
@@ -413,6 +439,10 @@ function BoardPage({ subPath }: { subPath: string }) {
       (result) => setLinksByThread(linksFromRpc(result)),
       () => {}, // Links are optional state; the board works without them.
     );
+    rpc.call("error_acks_list").then(
+      (result) => setErrorAckIds(new Set(result.ackIds)),
+      () => {}, // Acks are optional state; the board works without them.
+    );
   }, [rpc]);
   useRealtime("done-changed", () => {
     rpc.call("done_list").then(
@@ -444,6 +474,14 @@ function BoardPage({ subPath }: { subPath: string }) {
     rpc.call("link_list").then(
       (result) => setLinksByThread(linksFromRpc(result)),
       () => {}, // Links are optional state; the board works without them.
+    );
+  });
+  // The ack signal mirrors done-changed: every open board refetches the set
+  // so a Clear error (menu, or any later surface) converges everywhere.
+  useRealtime("error-ack-changed", () => {
+    rpc.call("error_acks_list").then(
+      (result) => setErrorAckIds(new Set(result.ackIds)),
+      () => {},
     );
   });
   // The board's snapshot is the DoneAgeSource implementation: stamps for
@@ -1274,9 +1312,9 @@ function BoardPage({ subPath }: { subPath: string }) {
   const familyFiltered = useMemo(
     () =>
       nestChildren || groupBy === "parent"
-        ? filterFamilies(nonHiddenThreads, familyIndex, filter, search.trim(), projectNameFor, ticketRefsFor, groupNameFor, groupsByThread, Date.now())
-        : filterIndividually(nonHiddenThreads, filter, search.trim(), projectNameFor, ticketRefsFor, groupNameFor, groupsByThread, Date.now()),
-    [nestChildren, groupBy, nonHiddenThreads, familyIndex, filter, search, projectNameFor, ticketRefsFor, groupNameFor, groupsByThread],
+        ? filterFamilies(nonHiddenThreads, familyIndex, filter, search.trim(), projectNameFor, ticketRefsFor, groupNameFor, groupsByThread, Date.now(), errorAckIds)
+        : filterIndividually(nonHiddenThreads, filter, search.trim(), projectNameFor, ticketRefsFor, groupNameFor, groupsByThread, Date.now(), errorAckIds),
+    [nestChildren, groupBy, nonHiddenThreads, familyIndex, filter, search, projectNameFor, ticketRefsFor, groupNameFor, groupsByThread, errorAckIds],
   );
   // The feature-group plan (issue #86's split default): which groups render
   // a box, and each member's box identity. The plan claims NO lane —
@@ -1357,9 +1395,9 @@ function BoardPage({ subPath }: { subPath: string }) {
   const parentLanes = useMemo(
     () =>
       isParentGroupBy
-        ? applyLaneFreezes(buildParentLanes(searched, doneIds, Date.now(), doneTimes), laneFreezes)
+        ? applyLaneFreezes(buildParentLanes(searched, doneIds, Date.now(), doneTimes, errorAckIds), laneFreezes)
         : null,
-    [isParentGroupBy, searched, doneIds, doneTimes, laneFreezes],
+    [isParentGroupBy, searched, doneIds, doneTimes, errorAckIds, laneFreezes],
   );
   const parentLaneChildrenByParent = useMemo(
     () => (isParentGroupBy ? familyIndex.childrenByParent : new Map<string, readonly PluginSidebarThread[]>()),
@@ -1374,8 +1412,9 @@ function BoardPage({ subPath }: { subPath: string }) {
             ranks,
             doneTimes,
             attentionFreeze: attentionFreezePlan,
+            errorAcks: errorAckIds,
           }),
-    [isParentGroupBy, searched, groupBy, groupContext, doneIds, nestChildren, ranks, doneTimes, attentionFreezePlan],
+    [isParentGroupBy, searched, groupBy, groupContext, doneIds, nestChildren, ranks, doneTimes, attentionFreezePlan, errorAckIds],
   );
   const columns = assembly?.columns ?? [];
   // The map that actually renders as nested rows (nesting rules applied, so a
@@ -1529,6 +1568,7 @@ function BoardPage({ subPath }: { subPath: string }) {
                 { idleArchiveMs: sweepConfig.idleArchiveMs, kept: idleKept },
                 now,
                 liveChildParentIds,
+                errorAckIds,
               )
             : [];
         // Manual arms: arming enters sweep mode with nothing selected; the
@@ -1540,7 +1580,7 @@ function BoardPage({ subPath }: { subPath: string }) {
           return [];
       }
     },
-    [columns, doneIds, doneAgeSource, idleKept, liveChildParentIds, snoozedIds, sweepConfig],
+    [columns, doneIds, doneAgeSource, idleKept, liveChildParentIds, snoozedIds, sweepConfig, errorAckIds],
   );
 
   // A Done-column projection card (a live family's Done card) cannot join a
@@ -2554,6 +2594,13 @@ function BoardPage({ subPath }: { subPath: string }) {
           isSnoozed: isThreadSnoozed,
           isKept: isThreadKept,
           grouped: groupAssignments[thread.id] !== undefined,
+          // Clear error (issue #157): offer only on attention the error arms
+          // carry — threadState attention minus a pending interaction, and
+          // not already acknowledged.
+          canClearError:
+            threadState(thread, errorAckIds) === "attention" &&
+            !thread.hasPendingInteraction &&
+            !errorAckIds.has(thread.id),
         },
         {
           revealBrowserTabs: () => {
@@ -2611,6 +2658,16 @@ function BoardPage({ subPath }: { subPath: string }) {
               applyUnreadStateEffects(thread.id);
               void actions.setRead(thread.id, false);
             }
+          },
+          clearError: () => {
+            // Optimistic local ack: the card settles out of Needs you in the
+            // same commit (dot, accent, lane). The RPC records it (metadata
+            // "errorAck") so the ack survives reloads, and its publish
+            // refetches every other open board. bb's own thread view keeps
+            // the error; only the board's attention claim lifts (issue #157).
+            setErrorAckIds((current) => new Set(current).add(thread.id));
+            rpc.call("error_ack_set", { threadId: thread.id, acked: true }).catch(() => {});
+            requestReveal(thread.id);
           },
           toggleDone: () => {
             liftSnooze();
@@ -2777,6 +2834,7 @@ function BoardPage({ subPath }: { subPath: string }) {
             lanes={parentLanes ?? []}
             activeThreadId={openThreadId}
             doneIds={doneIds}
+            errorAckIds={errorAckIds}
             dimmedIds={dimmedIds}
             childrenByParent={parentLaneChildrenByParent}
             projectNameFor={projectNameFor}
@@ -2810,6 +2868,7 @@ function BoardPage({ subPath }: { subPath: string }) {
             cardTransport={cardTransport}
             motionPref={motionPref}
             doneIds={doneIds}
+            errorAckIds={errorAckIds}
             nestedChildrenByParent={nestedChildrenByParent}
             childCountByParent={assembly?.childCountByParent ?? new Map()}
             doneChildrenByParent={assembly?.doneChildrenByParent ?? new Map()}

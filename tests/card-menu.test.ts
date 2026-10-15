@@ -22,6 +22,7 @@ function makeHandlers(): CardMenuHandlers {
 		togglePinned: vi.fn(noop),
 		toggleRead: vi.fn(noop),
 		toggleDone: vi.fn(noop),
+		clearError: vi.fn(noop),
 		toggleSweepKeep: vi.fn(noop),
 		makeTopLevel: vi.fn(noop),
 		archive: vi.fn(noop),
@@ -41,6 +42,7 @@ function makeInputs(overrides?: {
 	isSnoozed?: boolean;
 	isKept?: boolean;
 	grouped?: boolean;
+	canClearError?: boolean;
 }): CardMenuInputs {
 	return {
 		thread: {
@@ -56,6 +58,7 @@ function makeInputs(overrides?: {
 		isSnoozed: overrides?.isSnoozed ?? false,
 		isKept: overrides?.isKept ?? false,
 		grouped: overrides?.grouped ?? false,
+		canClearError: overrides?.canClearError ?? false,
 	};
 }
 
@@ -217,6 +220,36 @@ describe("card menu state-driven labels and icons", () => {
 		const live = action(makeInputs(), "archive");
 		expect(live.label).toBe("Archive");
 		expect(live.icon).toBe("Archive");
+	});
+});
+
+describe("card menu Clear error (issue #157)", () => {
+	it("a card whose attention comes from error signals alone offers Clear error beside the state toggles", () => {
+		const actions = cardMenuActions(makeInputs({ canClearError: true }), makeHandlers());
+		const read = actions.findIndex((a) => a.id === "read");
+		const clear = actions.findIndex((a) => a.id === "clear-error");
+		const done = actions.findIndex((a) => a.id === "done");
+		expect(clear).toBeGreaterThan(read);
+		expect(clear).toBeLessThan(done);
+		const entry = actions[clear]!;
+		expect(entry.label).toBe("Clear error");
+		expect(entry.icon).toBe("BellOff");
+		expect(entry.dividerAbove).toBeUndefined();
+	});
+
+	it("a card without error-signal attention offers no Clear error", () => {
+		const actions = cardMenuActions(makeInputs({ canClearError: false }), makeHandlers());
+		expect(actions.find((a) => a.id === "clear-error")).toBeUndefined();
+	});
+
+	it("running Clear error invokes the caller's handler (one acknowledgment)", () => {
+		const handlers = makeHandlers();
+		const entry = cardMenuActions(makeInputs({ canClearError: true }), handlers).find(
+			(a) => a.id === "clear-error",
+		);
+		expect(entry).toBeDefined();
+		entry!.run();
+		expect(handlers.clearError).toHaveBeenCalledTimes(1);
 	});
 });
 

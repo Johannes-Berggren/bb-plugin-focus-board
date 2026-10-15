@@ -18,6 +18,8 @@ const validInputs: Record<Method, unknown> = {
   done_set: { threadId: "thr_x", done: true },
   pin_parks_list: null,
   pin_park_set: { threadId: "thr_x", parked: true },
+  error_acks_list: null,
+  error_ack_set: { threadId: "thr_x", acked: true },
   snooze_list: null,
   snooze_set: {
     threadId: "thr_x",
@@ -66,6 +68,7 @@ const nullInputMethods: Method[] = [
   "rank_list",
   "sweep_config_get",
   "link_list",
+  "error_acks_list",
 ];
 
 const inputSchemaOf = (method: Method) =>

@@ -265,6 +265,8 @@ interface BoardProps {
   /** The active grouping — a column's rank key is namespaced by it. */
   groupBy: GroupBy;
   activeThreadId: string | null;  doneIds: ReadonlySet<string>;
+  /** Clear-error acknowledgment ids (issue #157): acked error dots sit quiet. */
+  errorAckIds?: ReadonlySet<string>;
   /** Parent id → children that render as nested rows under the parent card. */
   nestedChildrenByParent: ReadonlyMap<string, readonly PluginSidebarThread[]>;
   /**
@@ -529,12 +531,19 @@ const DOT_CLASS: Record<string, string> = {
 const settledSoFar = (destination: SweepDestination): string =>
   `${SWEEP_SETTLED_WORDS[destination]} so far`;
 
-function StateDot({ thread }: { thread: PluginSidebarThread }) {
+function StateDot({
+  thread,
+  errorAcks = new Set<string>(),
+}: {
+  thread: PluginSidebarThread;
+  /** Clear-error acknowledgment ids (issue #157): an acked error dot sits quiet. */
+  errorAcks?: ReadonlySet<string>;
+}) {
   return (
     <span
       className={cn(
         "inline-block size-1.5 shrink-0 rounded-full",
-        DOT_CLASS[threadState(thread)] ?? "bg-muted-foreground/30",
+        DOT_CLASS[threadState(thread, errorAcks)] ?? "bg-muted-foreground/30",
       )}
       aria-hidden
     />
@@ -623,6 +632,7 @@ export function Board({
   groupBy,
   activeThreadId,
   doneIds,
+  errorAckIds,
   nestedChildrenByParent,
   childCountByParent,
   doneChildrenByParent,
@@ -2842,7 +2852,7 @@ export function Board({
                         >
                         <ThreadCard
                           thread={thread}
-                          stateDot={<StateDot thread={thread} />}
+                          stateDot={<StateDot thread={thread} errorAcks={errorAckIds} />}
                           isActive={thread.id === activeThreadId}
                           isTransportGhost={ghostPlay !== undefined}
                           isDone={doneIds.has(thread.id) || isDoneProjection}
