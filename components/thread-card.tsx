@@ -738,10 +738,9 @@ export function ThreadCard({
         aria-label={armedDone ? doneLabel : `Arm ${doneLabel}`}
         title={armedDone ? "Click again to confirm" : "Click to arm"}
         onClick={(event) => {
-          // The checkbox lives inside the card's anchor — the ticket-chip
-          // precedent (interactive content in the anchor's flow). The stop
-          // keeps the anchor's own activation (open the pane, the sweep
-          // toggle, the native href) from firing under the checkbox's click.
+          // The stop keeps the anchor's own activation (open the pane, the
+          // sweep toggle, the native href) from firing under the checkbox's
+          // click.
           event.preventDefault();
           event.stopPropagation();
           if (armedDone) {
@@ -767,8 +766,9 @@ export function ThreadCard({
     </span>
   ) : stateDot;
 
-  // The card is a container; the anchor (title/body) and the collapse toggle
-  // are siblings inside it — a button inside an anchor would be invalid HTML.
+  // The card is a container; the anchor (title/body), the chip rows, and the
+  // collapse toggle stay out of each other's interactive scope — a button or
+  // an <a> inside an anchor would be invalid HTML (issue #171 for the chips).
   const card = (
     <div
       data-thread-card={thread.id}
@@ -881,112 +881,119 @@ export function ThreadCard({
         />
       ) : null}
       <div className="flex items-stretch">
-        <a
-          href={thread.href}
-          aria-current={isActive && !isTransportGhost ? "true" : undefined}
-          draggable={!snoozed}
-          onDragStart={(event) => {
-            // A snoozed card refuses drag (`draggable={!snoozed}` above);
-            // this guard keeps the refusal true even where the attribute
-            // is not enforced, so nothing can drag a sleeping card into a
-            // lane move its sleep is meant to skip.
-            if (snoozed) {
+        {/* The chip rows live OUTSIDE the card's anchor: the chips carry
+            anchors of their own (the mark's list page, each id's item), and
+            HTML forbids an <a> inside an <a> (issue #171). The column keeps
+            the anchor and the rows stacked while the family-size strip stays
+            a sibling of the column. */}
+        <div className="flex min-w-0 flex-1 flex-col">
+          <a
+            href={thread.href}
+            aria-current={isActive && !isTransportGhost ? "true" : undefined}
+            draggable={!snoozed}
+            onDragStart={(event) => {
+              // A snoozed card refuses drag (`draggable={!snoozed}` above);
+              // this guard keeps the refusal true even where the attribute
+              // is not enforced, so nothing can drag a sleeping card into a
+              // lane move its sleep is meant to skip.
+              if (snoozed) {
+                event.preventDefault();
+                return;
+              }
+              event.dataTransfer.setData("text/focus-board-id", thread.id);
+              if (rankKey !== undefined) {
+                // The lane rides in the drag TYPE, not a payload value: the
+                // payload is unreadable until the drop, and dragover is
+                // exactly when the drop has to be authorised.
+                event.dataTransfer.setData(rankDragType(rankKey), "");
+                onRankDragStart?.(thread.id);
+              }
+              event.dataTransfer.effectAllowed = "move";
+            }}
+            onDragEnd={() => onRankDragStart?.(null)}
+            onClick={(event) => {
+              // Sweep mode is modal: the click curates the selection, it never
+              // navigates — not even modifier-clicks, which would otherwise
+              // open a browser tab from the href. The board reads the gesture:
+              // shift extends the range from the anchor, cmd/ctrl and plain
+              // clicks toggle this one card.
+              if (isSweepSelecting) {
+                event.preventDefault();
+                onSweepToggle?.(thread.id, { shiftKey: event.shiftKey });
+                return;
+              }
+              // Let modified clicks (middle-click handled natively, cmd/ctrl new
+              // window) pass through; the host also routes plain clicks on href.
+              if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
               event.preventDefault();
-              return;
-            }
-            event.dataTransfer.setData("text/focus-board-id", thread.id);
-            if (rankKey !== undefined) {
-              // The lane rides in the drag TYPE, not a payload value: the
-              // payload is unreadable until the drop, and dragover is
-              // exactly when the drop has to be authorised.
-              event.dataTransfer.setData(rankDragType(rankKey), "");
-              onRankDragStart?.(thread.id);
-            }
-            event.dataTransfer.effectAllowed = "move";
-          }}
-          onDragEnd={() => onRankDragStart?.(null)}
-          onClick={(event) => {
-            // Sweep mode is modal: the click curates the selection, it never
-            // navigates — not even modifier-clicks, which would otherwise
-            // open a browser tab from the href. The board reads the gesture:
-            // shift extends the range from the anchor, cmd/ctrl and plain
-            // clicks toggle this one card.
-            if (isSweepSelecting) {
-              event.preventDefault();
-              onSweepToggle?.(thread.id, { shiftKey: event.shiftKey });
-              return;
-            }
-            // Let modified clicks (middle-click handled natively, cmd/ctrl new
-            // window) pass through; the host also routes plain clicks on href.
-            if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
-            event.preventDefault();
-            onOpen();
-          }}
-          className={cn(
-            "relative min-w-0 flex-1 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-            compact ? "px-2 py-1" : "px-3 py-2",
-          )}
-        >
-          <div className="flex items-center gap-1.5 pl-1.5">
-            {doneDotSlot}
-            {showDoneCheckbox && armedDone ? (
-              <span
-                data-done-armed-tag=""
-                aria-hidden
-                className="whitespace-nowrap text-[10px] font-medium leading-none text-amber-600"
-              >
-                {doneLabel}
-              </span>
-            ) : null}
-            {thread.isPinned ? (
-              <Icon name="Pin" className="size-3 text-muted-foreground/70" aria-hidden />
-            ) : null}
-            {thread.hasPendingInteraction || familyNeedsAttention ? (
-              <Icon
-                name="MessageQuestion"
-                className="size-3 text-amber-500"
-                aria-label={
-                  thread.hasPendingInteraction
-                    ? (thread.indicatorLabel ?? "Needs your input")
-                    : "A subthread needs your input"
-                }
-              />
-            ) : null}
-            {isSweeping ? (
-              <span
-                data-sweep-spinner
-                title="Archiving…"
-                aria-label="Archiving"
-                className="inline-flex shrink-0"
-              >
-                <Icon
-                  name="Spinner"
-                  className="size-3 animate-spin text-amber-600"
+              onOpen();
+            }}
+            className={cn(
+              "relative focus:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+              compact ? "px-2 py-1" : chipRows.length === 0 ? "px-3 py-2" : "px-3 pt-2",
+            )}
+          >
+            <div className="flex items-center gap-1.5 pl-1.5">
+              {doneDotSlot}
+              {showDoneCheckbox && armedDone ? (
+                <span
+                  data-done-armed-tag=""
                   aria-hidden
+                  className="whitespace-nowrap text-[10px] font-medium leading-none text-amber-600"
+                >
+                  {doneLabel}
+                </span>
+              ) : null}
+              {thread.isPinned ? (
+                <Icon name="Pin" className="size-3 text-muted-foreground/70" aria-hidden />
+              ) : null}
+              {thread.hasPendingInteraction || familyNeedsAttention ? (
+                <Icon
+                  name="MessageQuestion"
+                  className="size-3 text-amber-500"
+                  aria-label={
+                    thread.hasPendingInteraction
+                      ? (thread.indicatorLabel ?? "Needs your input")
+                      : "A subthread needs your input"
+                  }
                 />
+              ) : null}
+              {isSweeping ? (
+                <span
+                  data-sweep-spinner
+                  title="Archiving…"
+                  aria-label="Archiving"
+                  className="inline-flex shrink-0"
+                >
+                  <Icon
+                    name="Spinner"
+                    className="size-3 animate-spin text-amber-600"
+                    aria-hidden
+                  />
+                </span>
+              ) : null}
+              {snoozed ? (
+                <span
+                  data-snooze-chip
+                  title={`Wakes ${describeWakeAt(snoozeWakeAt, now)}`}
+                  className="inline-flex shrink-0 items-center gap-0.5 whitespace-nowrap text-[10px] text-muted-foreground"
+                >
+                  <Icon name="Clock" className="size-3" aria-hidden />
+                  {compact ? "" : `Snoozed · wakes ${describeWakeAt(snoozeWakeAt, now)}`}
+                </span>
+              ) : null}
+              <span className="ml-auto shrink-0 text-[10px] tabular-nums text-muted-foreground/60">
+                {relativeTime(thread.updatedAt, now)}
               </span>
-            ) : null}
-            {snoozed ? (
-              <span
-                data-snooze-chip
-                title={`Wakes ${describeWakeAt(snoozeWakeAt, now)}`}
-                className="inline-flex shrink-0 items-center gap-0.5 whitespace-nowrap text-[10px] text-muted-foreground"
-              >
-                <Icon name="Clock" className="size-3" aria-hidden />
-                {compact ? "" : `Snoozed · wakes ${describeWakeAt(snoozeWakeAt, now)}`}
-              </span>
-            ) : null}
-            <span className="ml-auto shrink-0 text-[10px] tabular-nums text-muted-foreground/60">
-              {relativeTime(thread.updatedAt, now)}
-            </span>
-          </div>
-          <p data-title="" className={cn("mt-0.5 line-clamp-2 pl-1.5 leading-snug", compact ? "text-[11px]" : "text-[13px]")}>{thread.displayTitle}</p>
-          <p className="mt-0.5 truncate pl-1.5 text-[11px] text-muted-foreground/70">
-            {projectName}
-            {branch === "" ? null : <span className="text-muted-foreground/40"> · {branch}</span>}
-          </p>
+            </div>
+            <p data-title="" className={cn("mt-0.5 line-clamp-2 pl-1.5 leading-snug", compact ? "text-[11px]" : "text-[13px]")}>{thread.displayTitle}</p>
+            <p className="mt-0.5 truncate pl-1.5 text-[11px] text-muted-foreground/70">
+              {projectName}
+              {branch === "" ? null : <span className="text-muted-foreground/40"> · {branch}</span>}
+            </p>
+          </a>
           {chipRows.length === 0 ? null : (
-            <div className="mt-1 flex flex-col gap-1 pl-1.5">
+            <div className="mt-1 flex flex-col gap-1 px-3 pb-2 pl-1.5">
               {chipRows.map((row) => (
                 // One provider per row; issues chip first and the PRs chip
                 // after it. justify-between spreads the pair — issues left,
@@ -1008,7 +1015,7 @@ export function ThreadCard({
               ))}
             </div>
           )}
-        </a>
+        </div>
         {chipCount > 0 ? (
           // Family-size metadata only: the collapsed rows' dot strip lives in
           // the child section below, directly under the "N child threads"

@@ -1,0 +1,248 @@
+{
+  "issue": "cristoslc/bb-plugin-focus-board#171",
+  "url": "http://localhost:5181/",
+  "domEvidence": {
+    "cards": 59,
+    "chips": 5,
+    "chipMarks": 5,
+    "chipIds": 24,
+    "findings": [
+      {
+        "card": "thr_chips",
+        "outerHref": "/projects/board/threads/thr_chips",
+        "innerHref": "https://github.com/cristoslc/bb-plugin-focus-board/issues",
+        "innerMark": true,
+        "innerId": null
+      },
+      {
+        "card": "thr_chips",
+        "outerHref": "/projects/board/threads/thr_chips",
+        "innerHref": "https://github.com/cristoslc/bb-plugin-focus-board/issues/43",
+        "innerMark": false,
+        "innerId": "#43"
+      },
+      {
+        "card": "thr_chips",
+        "outerHref": "/projects/board/threads/thr_chips",
+        "innerHref": "https://github.com/cristoslc/bb-plugin-focus-board/issues/44",
+        "innerMark": false,
+        "innerId": "#44"
+      },
+      {
+        "card": "thr_chips",
+        "outerHref": "/projects/board/threads/thr_chips",
+        "innerHref": "https://github.com/cristoslc/bb-plugin-focus-board/issues/45",
+        "innerMark": false,
+        "innerId": "#45"
+      },
+      {
+        "card": "thr_chips",
+        "outerHref": "/projects/board/threads/thr_chips",
+        "innerHref": "https://github.com/cristoslc/bb-plugin-focus-board/issues/46",
+        "innerMark": false,
+        "innerId": "#46"
+      },
+      {
+        "card": "thr_chips",
+        "outerHref": "/projects/board/threads/thr_chips",
+        "innerHref": "https://github.com/cristoslc/bb-plugin-focus-board/issues/47",
+        "innerMark": false,
+        "innerId": "#47"
+      },
+      {
+        "card": "thr_chips",
+        "outerHref": "/projects/board/threads/thr_chips",
+        "innerHref": "https://github.com/cristoslc/bb-plugin-focus-board/issues/48",
+        "innerMark": false,
+        "innerId": "#48"
+      },
+      {
+        "card": "thr_chips",
+        "outerHref": "/projects/board/threads/thr_chips",
+        "innerHref": "https://github.com/cristoslc/bb-plugin-focus-board/issues/49",
+        "innerMark": false,
+        "innerId": "#49"
+      },
+      {
+        "card": "thr_chips",
+        "outerHref": "/projects/board/threads/thr_chips",
+        "innerHref": "https://github.com/cristoslc/bb-plugin-focus-board/issues/50",
+        "innerMark": false,
+        "innerId": "#50"
+      },
+      {
+        "card": "thr_chips",
+        "outerHref": "/projects/board/threads/thr_chips",
+        "innerHref": "https://github.com/cristoslc/bb-plugin-focus-board/issues/51",
+        "innerMark": false,
+        "innerId": "#51"
+      },
+      {
+        "card": "thr_chips",
+        "outerHref": "/projects/board/threads/thr_chips",
+        "innerHref": "https://github.com/cristoslc/bb-plugin-focus-board/issues/52",
+        "innerMark": false,
+        "innerId": "#52"
+      },
+      {
+        "card": "thr_chips",
+        "outerHref": "/projects/board/threads/thr_chips",
+        "innerHref": "https://github.com/cristoslc/bb-plugin-focus-board/issues/53",
+        "innerMark": false,
+        "innerId": "#53"
+      },
+      {
+        "card": "thr_chips",
+        "outerHref": "/projects/board/threads/thr_chips",
+        "innerHref": "https://github.com/cristoslc/bb-plugin-focus-board/issues/54",
+        "innerMark": false,
+        "innerId": "#54"
+      },
+      {
+        "card": "thr_chips",
+        "outerHref": "/projects/board/threads/thr_chips",
+        "innerHref": "https://github.com/cristoslc/bb-plugin-focus-board/issues/55",
+        "innerMark": false,
+        "innerId": "#55"
+      },
+      {
+        "card": "thr_chips",
+        "outerHref": "/projects/board/threads/thr_chips",
+        "innerHref": "https://github.com/cristoslc/bb-plugin-focus-board/issues/56",
+        "innerMark": false,
+        "innerId": "#56"
+      },
+      {
+        "card": "thr_chips_single",
+        "outerHref": "/projects/board/threads/thr_chips_single",
+        "innerHref": "https://github.com/cristoslc/bb-plugin-focus-board/issues",
+        "innerMark": true,
+        "innerId": null
+      },
+      {
+        "card": "thr_chips_single",
+        "outerHref": "/projects/board/threads/thr_chips_single",
+        "innerHref": "https://github.com/cristoslc/bb-plugin-focus-board/issues/32",
+        "innerMark": false,
+        "innerId": "#32"
+      },
+      {
+        "card": "thr_chips_pair",
+        "outerHref": "/projects/board/threads/thr_chips_pair",
+        "innerHref": "https://github.com/cristoslc/bb-plugin-focus-board/issues",
+        "innerMark": true,
+        "innerId": null
+      },
+      {
+        "card": "thr_chips_pair",
+        "outerHref": "/projects/board/threads/thr_chips_pair",
+        "innerHref": "https://github.com/cristoslc/bb-plugin-focus-board/issues/61",
+        "innerMark": false,
+        "innerId": "#61"
+      },
+      {
+        "card": "thr_chips_pair",
+        "outerHref": "/projects/board/threads/thr_chips_pair",
+        "innerHref": "https://github.com/cristoslc/bb-plugin-focus-board/issues/62",
+        "innerMark": false,
+        "innerId": "#62"
+      },
+      {
+        "card": "thr_chips_open",
+        "outerHref": "/projects/board/threads/thr_chips_open",
+        "innerHref": "https://github.com/cristoslc/bb-plugin-focus-board/issues",
+        "innerMark": true,
+        "innerId": null
+      },
+      {
+        "card": "thr_chips_open",
+        "outerHref": "/projects/board/threads/thr_chips_open",
+        "innerHref": "https://github.com/cristoslc/bb-plugin-focus-board/issues/17",
+        "innerMark": false,
+        "innerId": "#17"
+      },
+      {
+        "card": "thr_chips_open",
+        "outerHref": "/projects/board/threads/thr_chips_open",
+        "innerHref": "https://github.com/cristoslc/bb-plugin-focus-board/issues/21",
+        "innerMark": false,
+        "innerId": "#21"
+      },
+      {
+        "card": "thr_chips_open",
+        "outerHref": "/projects/board/threads/thr_chips_open",
+        "innerHref": "https://github.com/cristoslc/bb-plugin-focus-board/issues/30",
+        "innerMark": false,
+        "innerId": "#30"
+      },
+      {
+        "card": "thr_chips_cove",
+        "outerHref": "/projects/board/threads/thr_chips_cove",
+        "innerHref": "https://git.cove.local/cove/cove/issues",
+        "innerMark": true,
+        "innerId": null
+      },
+      {
+        "card": "thr_chips_cove",
+        "outerHref": "/projects/board/threads/thr_chips_cove",
+        "innerHref": "https://git.cove.local/cove/cove/issues/101",
+        "innerMark": false,
+        "innerId": "cove 0dac60e"
+      },
+      {
+        "card": "thr_chips_cove",
+        "outerHref": "/projects/board/threads/thr_chips_cove",
+        "innerHref": "https://git.cove.local/cove/cove/issues/102",
+        "innerMark": false,
+        "innerId": "cove 9271bac"
+      },
+      {
+        "card": "thr_chips_cove",
+        "outerHref": "/projects/board/threads/thr_chips_cove",
+        "innerHref": "https://git.cove.local/cove/cove/issues/103",
+        "innerMark": false,
+        "innerId": "cove f7c3b2e1"
+      },
+      {
+        "card": "thr_chips_cove",
+        "outerHref": "/projects/board/threads/thr_chips_cove",
+        "innerHref": "https://git.cove.local/cove/cove/issues/104",
+        "innerMark": false,
+        "innerId": "cove 4d1e88a0"
+      }
+    ]
+  },
+  "nestedAnchorConsoleErrors": [
+    {
+      "type": "error",
+      "text": "In HTML, %s cannot be a descendant of <%s>.\nThis will cause a hydration error.%s <a> a \n\n  ...\n    <div className=\"flex h-ful...\">\n      <BoardToolbar>\n      <Board columns={[...]} groupBy=\"status\" activeThreadId={null} cardTransport=\"zoom\" motionPref=\"system\" ...>\n        <div className=\"flex min-h...\">\n          <div>\n          <div ref={{...}} onClick={function handleBackgroundClick} data-columns-board={true} className=\"min-h-0 fl...\">\n            <p>\n            <div className=\"flex h-ful...\">\n              <section>\n              <section>\n              <section>\n              <section>\n              <section data-column-id=\"idle-recent\" data-column-ordered={false} aria-label=\"Idle · Rec...\" ...>\n                <header>\n                <div data-card-list={true} className=\"min-h-0 fl...\">\n                  <ul className=\"flex flex-...\">\n                    <li>\n                    <li>\n                    <li>\n                    <li>\n                    <li>\n                    <li>\n                    <li aria-hidden={undefined} data-transport-ghost={undefined} data-transport-out={undefined} ...>\n                      <div data-transport-fade={undefined} className=\"contents\" style={undefined} ref={function ref}>\n                        <ThreadCard thread={{...}} stateDot={<StateDot>} isActive={false} isTransportGhost={false} ...>\n                          <ThreadCardMenu anchor={<div>} actions={[...]} href=\"/projects/...\" onOpen={function onOpen} ...>\n                            <div onContextMenu={function onContextMenu}>\n                              <div data-thread-card=\"thr_chips_...\" data-sweep-highlighted={undefined} ...>\n                                <span>\n                                <div className=\"flex items...\">\n>                                 <a\n>                                   href=\"/projects/board/threads/thr_chips_cove\"\n>                                   aria-current={undefined}\n>                                   draggable={true}\n>                                   onDragStart={function onDragStart}\n>                                   onDragEnd={function onDragEnd}\n>                                   onClick={function onClick}\n>                                   className=\"relative min-w-0 flex-1 focus:outline-none focus-visible:ring-2 focus-v...\"\n>                                 >\n                                    <div>\n                                    <p>\n                                    <p>\n                                    <div className=\"mt-1 flex ...\">\n                                      <div data-provider-row=\"git.cove.l...\" className=\"flex flex-...\">\n                                        <ProviderTicketChip row={{key:\"git.c...\", ...}} chip={{kind:\"issue\", ...}} ...>\n                                          <span className=\"inline-fle...\" data-ticket-chip=\"\">\n>                                           <a\n>                                             href=\"https://git.cove.local/cove/cove/issues\"\n>                                             target=\"_blank\"\n>                                             rel=\"noreferrer\"\n>                                             onClick={function onClick}\n>                                             title=\"Issues list\"\n>                                             className=\"inline-flex shrink-0\"\n>                                             data-ticket-chip-mark=\"\"\n>                                           >\n                                            ...\n                            ...\n                    ...\n              ...\n"
+    },
+    {
+      "type": "error",
+      "text": "In HTML, %s cannot be a descendant of <%s>.\nThis will cause a hydration error.%s <a> a \n\n  ...\n    <div className=\"flex h-ful...\">\n      <BoardToolbar>\n      <Board columns={[...]} groupBy=\"status\" activeThreadId={null} cardTransport=\"zoom\" motionPref=\"system\" ...>\n        <div className=\"flex min-h...\">\n          <div>\n          <div ref={{...}} onClick={function handleBackgroundClick} data-columns-board={true} className=\"min-h-0 fl...\">\n            <p>\n            <div className=\"flex h-ful...\">\n              <section>\n              <section>\n              <section>\n              <section>\n              <section data-column-id=\"idle-recent\" data-column-ordered={false} aria-label=\"Idle · Rec...\" ...>\n                <header>\n                <div data-card-list={true} className=\"min-h-0 fl...\">\n                  <ul className=\"flex flex-...\">\n                    <li>\n                    <li>\n                    <li>\n                    <li>\n                    <li>\n                    <li>\n                    <li aria-hidden={undefined} data-transport-ghost={undefined} data-transport-out={undefined} ...>\n                      <div data-transport-fade={undefined} className=\"contents\" style={undefined} ref={function ref}>\n                        <ThreadCard thread={{...}} stateDot={<StateDot>} isActive={false} isTransportGhost={false} ...>\n                          <ThreadCardMenu anchor={<div>} actions={[...]} href=\"/projects/...\" onOpen={function onOpen} ...>\n                            <div onContextMenu={function onContextMenu}>\n                              <div data-thread-card=\"thr_chips_...\" data-sweep-highlighted={undefined} ...>\n                                <span>\n                                <div className=\"flex items...\">\n>                                 <a\n>                                   href=\"/projects/board/threads/thr_chips_cove\"\n>                                   aria-current={undefined}\n>                                   draggable={true}\n>                                   onDragStart={function onDragStart}\n>                                   onDragEnd={function onDragEnd}\n>                                   onClick={function onClick}\n>                                   className=\"relative min-w-0 flex-1 focus:outline-none focus-visible:ring-2 focus-v...\"\n>                                 >\n                                    <div>\n                                    <p>\n                                    <p>\n                                    <div className=\"mt-1 flex ...\">\n                                      <div data-provider-row=\"git.cove.l...\" className=\"flex flex-...\">\n                                        <ProviderTicketChip row={{key:\"git.c...\", ...}} chip={{kind:\"issue\", ...}} ...>\n                                          <span className=\"inline-fle...\" data-ticket-chip=\"\">\n>                                           <a\n>                                             href=\"https://git.cove.local/cove/cove/issues\"\n>                                             target=\"_blank\"\n>                                             rel=\"noreferrer\"\n>                                             onClick={function onClick}\n>                                             title=\"Issues list\"\n>                                             className=\"inline-flex shrink-0\"\n>                                             data-ticket-chip-mark=\"\"\n>                                           >\n                                            ...\n                            ...\n                    ...\n              ...\n"
+    }
+  ],
+  "consoleTraceCount": 5,
+  "consoleTraceAfterReload": [
+    {
+      "type": "error",
+      "text": "In HTML, %s cannot be a descendant of <%s>.\nThis will cause a hydration error.%s <a> a \n\n  ...\n    <div className=\"flex h-ful...\">\n      <BoardToolbar>\n      <Board columns={[...]} groupBy=\"status\" activeThreadId={null} cardTransport=\"zoom\" motionPref=\"system\" ...>\n        <div className=\"flex min-h...\">\n          <div>\n          <div ref={{...}} onClick={function handleBackgroundClick} data-columns-board={true} className=\"min-h-0 fl...\">\n            <p>\n            <div className=\"flex h-ful...\">\n              <section>\n              <section>\n              <section>\n              <section>\n              <section data-column-id=\"idle-recent\" data-column-ordered={false} aria-label=\"Idle · Rec...\" ...>\n                <header>\n                <div data-card-list={true} className=\"min-h-0 fl...\">\n                  <ul className=\"flex flex-...\">\n                    <li>\n                    <li>\n                    <li>\n                    <li>\n                    <li>\n                    <li>\n                    <li aria-hidden={undefined} data-transport-ghost={undefined} data-transport-out={undefined} ...>\n                      <div data-transport-fade={undefined} className=\"contents\" style={undefined} ref={function ref}>\n                        <ThreadCard thread={{...}} stateDot={<StateDot>} isActive={false} isTransportGhost={false} ...>\n                          <ThreadCardMenu anchor={<div>} actions={[...]} href=\"/projects/...\" onOpen={function onOpen} ...>\n                            <div onContextMenu={function onContextMenu}>\n                              <div data-thread-card=\"thr_chips_...\" data-sweep-highlighted={undefined} ...>\n                                <span>\n                                <div className=\"flex items...\">\n>                                 <a\n>                                   href=\"/projects/board/threads/thr_chips_cove\"\n>                                   aria-current={undefined}\n>                                   draggable={true}\n>                                   onDragStart={function onDragStart}\n>                                   onDragEnd={function onDragEnd}\n>                                   onClick={function onClick}\n>                                   className=\"relative min-w-0 flex-1 focus:outline-none focus-visible:ring-2 focus-v...\"\n>                                 >\n                                    <div>\n                                    <p>\n                                    <p>\n                                    <div className=\"mt-1 flex ...\">\n                                      <div data-provider-row=\"git.cove.l...\" className=\"flex flex-...\">\n                                        <ProviderTicketChip row={{key:\"git.c...\", ...}} chip={{kind:\"issue\", ...}} ...>\n                                          <span className=\"inline-fle...\" data-ticket-chip=\"\">\n>                                           <a\n>                                             href=\"https://git.cove.local/cove/cove/issues\"\n>                                             target=\"_blank\"\n>                                             rel=\"noreferrer\"\n>                                             onClick={function onClick}\n>                                             title=\"Issues list\"\n>                                             className=\"inline-flex shrink-0\"\n>                                             data-ticket-chip-mark=\"\"\n>                                           >\n                                            ...\n                            ...\n                    ...\n              ...\n"
+    },
+    {
+      "type": "error",
+      "text": "<%s> cannot contain a nested %s.\nSee this log for the ancestor stack trace. a <a>"
+    },
+    {
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 404 (Not Found)"
+    },
+    {
+      "type": "error",
+      "text": "In HTML, %s cannot be a descendant of <%s>.\nThis will cause a hydration error.%s <a> a \n\n  ...\n    <div className=\"flex h-ful...\">\n      <BoardToolbar>\n      <Board columns={[...]} groupBy=\"status\" activeThreadId={null} cardTransport=\"zoom\" motionPref=\"system\" ...>\n        <div className=\"flex min-h...\">\n          <div>\n          <div ref={{...}} onClick={function handleBackgroundClick} data-columns-board={true} className=\"min-h-0 fl...\">\n            <p>\n            <div className=\"flex h-ful...\">\n              <section>\n              <section>\n              <section>\n              <section>\n              <section data-column-id=\"idle-recent\" data-column-ordered={false} aria-label=\"Idle · Rec...\" ...>\n                <header>\n                <div data-card-list={true} className=\"min-h-0 fl...\">\n                  <ul className=\"flex flex-...\">\n                    <li>\n                    <li>\n                    <li>\n                    <li>\n                    <li>\n                    <li>\n                    <li aria-hidden={undefined} data-transport-ghost={undefined} data-transport-out={undefined} ...>\n                      <div data-transport-fade={undefined} className=\"contents\" style={undefined} ref={function ref}>\n                        <ThreadCard thread={{...}} stateDot={<StateDot>} isActive={false} isTransportGhost={false} ...>\n                          <ThreadCardMenu anchor={<div>} actions={[...]} href=\"/projects/...\" onOpen={function onOpen} ...>\n                            <div onContextMenu={function onContextMenu}>\n                              <div data-thread-card=\"thr_chips_...\" data-sweep-highlighted={undefined} ...>\n                                <span>\n                                <div className=\"flex items...\">\n>                                 <a\n>                                   href=\"/projects/board/threads/thr_chips_cove\"\n>                                   aria-current={undefined}\n>                                   draggable={true}\n>                                   onDragStart={function onDragStart}\n>                                   onDragEnd={function onDragEnd}\n>                                   onClick={function onClick}\n>                                   className=\"relative min-w-0 flex-1 focus:outline-none focus-visible:ring-2 focus-v...\"\n>                                 >\n                                    <div>\n                                    <p>\n                                    <p>\n                                    <div className=\"mt-1 flex ...\">\n                                      <div data-provider-row=\"git.cove.l...\" className=\"flex flex-...\">\n                                        <ProviderTicketChip row={{key:\"git.c...\", ...}} chip={{kind:\"issue\", ...}} ...>\n                                          <span className=\"inline-fle...\" data-ticket-chip=\"\">\n>                                           <a\n>                                             href=\"https://git.cove.local/cove/cove/issues\"\n>                                             target=\"_blank\"\n>                                             rel=\"noreferrer\"\n>                                             onClick={function onClick}\n>                                             title=\"Issues list\"\n>                                             className=\"inline-flex shrink-0\"\n>                                             data-ticket-chip-mark=\"\"\n>                                           >\n                                            ...\n                            ...\n                    ...\n              ...\n"
+    },
+    {
+      "type": "error",
+      "text": "<%s> cannot contain a nested %s.\nSee this log for the ancestor stack trace. a <a>"
+    }
+  ]
+}

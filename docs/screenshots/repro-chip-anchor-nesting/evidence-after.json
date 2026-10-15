@@ -1,0 +1,19 @@
+{
+  "issue": "cristoslc/bb-plugin-focus-board#171",
+  "url": "http://localhost:5181/",
+  "domEvidence": {
+    "cards": 59,
+    "chips": 5,
+    "chipMarks": 5,
+    "chipIds": 24,
+    "findings": []
+  },
+  "nestedAnchorConsoleErrors": [],
+  "consoleTraceCount": 1,
+  "consoleTraceAfterReload": [
+    {
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 404 (Not Found)"
+    }
+  ]
+}

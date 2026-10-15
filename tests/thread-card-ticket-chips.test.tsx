@@ -265,3 +265,21 @@ describe("ticket chip icons — issue vs PR glyph", () => {
     expect(glyph.getAttribute("class")).toContain("text-muted-foreground/50");
   });
 });
+
+describe("DOM validity — no link nests inside the card's own link (issue #171)", () => {
+  it("a chip's mark and id anchors render outside the card's content anchor", async () => {
+    renderCard("resolve #17: surface a thread's ticket");
+    await chipIcon("GithubMark");
+    const card = document.querySelector('[data-thread-card="thr_ref"]');
+    if (card === null) throw new Error("missing card");
+    // The board must stay HTML-valid: a chip's per-ticket link (the mark's
+    // list-page href and each id's item href) may not sit inside the card's
+    // own content anchor — React logs "In HTML, <a> cannot be a descendant
+    // of <a>" for every affected card otherwise.
+    const anchors = Array.from(card.querySelectorAll("a"));
+    // The content anchor plus the chip's mark and id anchors are all present.
+    expect(anchors.length).toBeGreaterThanOrEqual(2);
+    const nested = anchors.filter((el) => el.parentElement?.closest("a") !== null);
+    expect(nested.map((el) => el.getAttribute("href"))).toEqual([]);
+  });
+});
