@@ -553,9 +553,16 @@ const pageFocusLabelled = ({ label }) => {
  * land — the retry only covers React scheduling jitter, it never clicks a
  * stale item.
  */
-const pageMenu = async ({ card, item }) => {
-  const host = document.querySelector(`[data-thread-card="${CSS.escape(card)}"]`);
-  if (!host) throw new Error(`menu: no card ${card}`);
+const pageMenu = async ({ card, box, item }) => {
+  // `box` right-clicks a feature-group box's own surface — its label — whose
+  // contextmenu bubbles to the dashed container's guarded handler; `card`
+  // stays the card path. The box's member cards stop their own menus'
+  // propagation, so a label right-click can only ever open the box's menu.
+  const host =
+    box !== undefined
+      ? document.querySelector(`[data-group-box-label="${CSS.escape(box)}"]`)
+      : document.querySelector(`[data-thread-card="${CSS.escape(card)}"]`);
+  if (!host) throw new Error(`menu: no card ${card} or box ${box}`);
   const rect = host.getBoundingClientRect();
   host.dispatchEvent(
     new MouseEvent("contextmenu", {

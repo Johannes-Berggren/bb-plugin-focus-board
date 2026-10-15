@@ -15,6 +15,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - **A card menu action clears an acknowledged error out of Needs you.** Right-clicking a card whose Needs-you claim comes from error signals alone (a hard-failed turn or a failed send, never a pending interaction) offers "Clear error". The card settles into its normal lane and stays clear across reloads, and the thread's own view keeps showing the error. An acknowledgment rides per-thread plugin metadata and dies the moment the thread runs a new turn, so a fresh error claims attention on its own.
 
+#### Feature groups
+
+- **A group box's context menu gains Zoom to group.** Right-clicking a feature-group box offers "Zoom to group", which restricts the existing Group filter to exactly that group so the board shows its threads only. Clearing the filter chip restores the whole board, and the restriction persists across a refresh like any other filter.
+
 ### Changed
 
 #### Thread pane

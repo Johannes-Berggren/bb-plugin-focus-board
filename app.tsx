@@ -1172,6 +1172,15 @@ function BoardPage({ subPath }: { subPath: string }) {
     setSearch(value);
     writeStored(SEARCH_KEY, value);
   }, []);
+  // Zoom-to-group (a group box's context-menu entry): one write through the
+  // existing group-restrict set — the same persisted filter state the
+  // toolbar's group dropdown drives, not a second, parallel filter.
+  const zoomToGroup = useCallback(
+    (groupId: string) => {
+      persistFilter({ ...filter, groups: new Set([groupId]) });
+    },
+    [filter, persistFilter],
+  );
 
   const persistNestChildren = useCallback((enabled: boolean) => {
     setNestChildren(enabled);
@@ -2994,6 +3003,7 @@ function BoardPage({ subPath }: { subPath: string }) {
             onRenameGroup={renameGroup}
             onDeleteGroup={deleteGroup}
             onNewThreadInGroup={openNewThreadInGroup}
+            onZoomToGroup={zoomToGroup}
             collapsedFamilyIds={collapsedFamilies}
             onFamilyCollapsedChange={setFamilyCollapsed}
             dimmedIds={dimmedIds}

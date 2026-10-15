@@ -8,7 +8,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import type { PluginSidebarThread } from "@get-bb/plugin-sdk/app";
 import { Board } from "../components/board";
-import { buildColumns } from "../components/grouping";
+import { buildColumns, filterThreads } from "../components/grouping";
 import { thread } from "./thread-fixture";
 
 afterEach(cleanup);
@@ -25,6 +25,7 @@ function renderBoard(
     onNewThreadInGroup?: (groupId: string) => void;
     onRenameGroup?: (groupId: string, name: string) => void;
     onDeleteGroup?: (groupId: string) => void;
+    onZoomToGroup?: (groupId: string) => void;
     menuActionsFor?: BoardProps["menuActionsFor"];
   } = {},
 ) {
@@ -51,6 +52,7 @@ function renderBoard(
     onNewThreadInGroup: options.onNewThreadInGroup,
     onRenameGroup: options.onRenameGroup,
     onDeleteGroup: options.onDeleteGroup,
+    onZoomToGroup: options.onZoomToGroup,
   } as unknown as BoardProps;
   render(<Board {...props} />);
 }
@@ -74,9 +76,10 @@ function openGroupMenu() {
 const menus = () => screen.queryAllByRole("menu");
 
 describe("right-click on the group box", () => {
-  it("opens one group menu naming the group, with all three entries", () => {
+  it("opens one group menu naming the group, with all four entries", () => {
     renderBoard(members, groupBoxOf, {
       onNewThreadInGroup: () => {},
+      onZoomToGroup: () => {},
       onRenameGroup: () => {},
       onDeleteGroup: () => {},
     });
@@ -86,6 +89,7 @@ describe("right-click on the group box", () => {
     const text = open[0].textContent ?? "";
     expect(text).toContain("Auth rework");
     expect(text).toContain("New thread in group…");
+    expect(text).toContain("Zoom to group");
     expect(text).toContain("Rename group…");
     expect(text).toContain("Ungroup all members");
     expect(text).not.toContain("Open thread");
@@ -97,6 +101,43 @@ describe("right-click on the group box", () => {
     openGroupMenu();
     fireEvent.click(screen.getByText("New thread in group…"));
     expect(onNewThreadInGroup).toHaveBeenCalledWith("grp_auth");
+  });
+
+  it("Zoom to group reports the group id and closes the menu", () => {
+    const onZoomToGroup = vi.fn();
+    renderBoard(members, groupBoxOf, { onZoomToGroup });
+    openGroupMenu();
+    fireEvent.click(screen.getByText("Zoom to group"));
+    expect(onZoomToGroup).toHaveBeenCalledWith("grp_auth");
+    expect(menus()).toHaveLength(0);
+  });
+
+  it("Zoom to group writes the existing group filter, which keeps only that group's threads", () => {
+    // The handler mirrors the app's wiring: a single write through the
+    // existing group-restrict set, never a second filter state.
+    const filter: { projects: Set<string>; providers: Set<string>; states: Set<string>; groups?: Set<string> } = {
+      projects: new Set(),
+      providers: new Set(),
+      states: new Set(),
+    };
+    const stranger = thread({ id: "thr_z", displayTitle: "Stray thread", status: "active", updatedAt: NOW - 3000 });
+    renderBoard([...members, stranger], groupBoxOf, {
+      onZoomToGroup: (groupId) => {
+        filter.groups = new Set([groupId]);
+      },
+    });
+    openGroupMenu();
+    fireEvent.click(screen.getByText("Zoom to group"));
+    expect(filter.groups).toEqual(new Set(["grp_auth"]));
+    // The same predicate the toolbar's group dropdown feeds keeps only
+    // the zoomed group: the stranger's bucket misses and drops.
+    const kept = filterThreads(
+      [...members, stranger],
+      filter,
+      new Map([["thr_a", "grp_auth"], ["thr_b", "grp_auth"]]),
+      NOW,
+    );
+    expect(kept.map((t) => t.id)).toEqual(["thr_a", "thr_b"]);
   });
 
   it("Rename group… opens the label editor", () => {
@@ -143,5 +184,13 @@ describe("without any group wiring the box offers no menu", () => {
     renderBoard(members, groupBoxOf);
     openGroupMenu();
     expect(menus()).toHaveLength(0);
+  });
+
+  it("an unwired zoom never offers the entry (the other actions may stay)", () => {
+    renderBoard(members, groupBoxOf, { onRenameGroup: () => {} });
+    openGroupMenu();
+    expect(menus()).toHaveLength(1);
+    expect(screen.queryByText("Zoom to group")).toBeNull();
+    expect(screen.getByText("Rename group…")).toBeTruthy();
   });
 });
