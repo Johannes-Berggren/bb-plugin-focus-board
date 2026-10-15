@@ -11,7 +11,7 @@ export const UNRELEASED_ITEMS: readonly { text: string; children: string[]; grou
     "group": "Zoom to family"
   },
   {
-    "text": "**A family's child section can hide its idle children.** A small eye button beside the \"N child threads\" toggle filters idle children out of both the expanded rows and the collapsed dot strip, and the choice persists per family.",
+    "text": "**A family's child section can hide its idle children.** A small eye button beside the \"N child threads\" toggle filters idle children out of both the expanded rows and the collapsed dot strip, the count enumerates what is hidden (\"1 active, 15 idle child threads\") while the filter is hiding something, and the choice persists per family.",
     "children": [],
     "group": "Child threads"
   },

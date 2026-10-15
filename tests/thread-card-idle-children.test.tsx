@@ -83,7 +83,8 @@ describe("the idle-children filter, expanded", () => {
     expect(row("thr_c2")).not.toBeNull();
     expect(row("thr_c3")).not.toBeNull();
     expect(row("thr_c4")).not.toBeNull();
-    expect(sectionToggle(false).textContent).toContain("3 child threads");
+    expect(sectionToggle(false).textContent).toContain("3 active, 1 idle child threads");
+    expect(sectionToggle(false).textContent).not.toContain("3 child threads");
     // The button reflects the filter state and announces how to undo it.
     expect(idleToggle(true).getAttribute("aria-pressed")).toBe("true");
   });
@@ -107,7 +108,7 @@ describe("the idle-children filter, collapsed to dots", () => {
     // the first dot in line is now the second child, its idle sibling gone.
     expect(dots().children[0]?.getAttribute("aria-label")).toContain("Child two");
     expect(row("thr_c1")).toBeNull();
-    expect(sectionToggle(true).textContent).toContain("3 child threads");
+    expect(sectionToggle(true).textContent).toContain("3 active, 1 idle child threads");
   });
 
   it("the filter and the fold compose in the other order too", () => {
@@ -136,7 +137,7 @@ describe("every child idle", () => {
     expect(row("thr_c1")).toBeNull();
     expect(document.querySelector("[data-child-thread-dots]")).toBeNull();
     expect(document.querySelector("[data-nested-rows]")).toBeNull();
-    expect(sectionToggle(false).textContent).toContain("0 child threads");
+    expect(sectionToggle(false).textContent).toContain("0 active, 4 idle child threads");
     expect(idleToggle(true)).not.toBeNull();
     fireEvent.click(idleToggle(true));
     expect(row("thr_c1")).not.toBeNull();
@@ -184,8 +185,8 @@ describe("sub-rows follow the filter", () => {
     expect(row("thr_c3")).not.toBeNull();
     expect(row("thr_g2")).toBeNull();
     expect(row("thr_g3")).not.toBeNull();
-    // Three visible children plus one visible sub-row.
-    expect(sectionToggle(false).textContent).toContain("4 child threads");
+    // Three visible children plus one visible sub-row, one idle child away.
+    expect(sectionToggle(false).textContent).toContain("4 active, 1 idle child threads");
     fireEvent.click(idleToggle(true));
     expect(row("thr_g1")).not.toBeNull();
     expect(row("thr_g2")).not.toBeNull();
@@ -202,6 +203,29 @@ describe("without any idle-child gesture the card renders every child", () => {
   });
 });
 
+describe("the enumerated count", () => {
+  it("names what is shown and what is hidden; nothing idle means the plain count", () => {
+    // An all-working family: hiding "idle" removes nothing, so the label
+    // stays the plain count instead of enumerating "2 active, 0 idle".
+    const { parent, children } = family();
+    const allWorking = children.map((child) =>
+      thread({
+        id: child.id,
+        parentThreadId: "thr_parent",
+        displayTitle: child.displayTitle,
+        status: "active",
+        isUnread: false,
+        hasPendingInteraction: false,
+        updatedAt: child.updatedAt,
+      }),
+    );
+    renderCard({ thread: parent, childThreads: allWorking });
+    fireEvent.click(idleToggle(false));
+    expect(sectionToggle(false).textContent).toContain("4 child threads");
+    expect(sectionToggle(false).textContent).not.toContain("active");
+  });
+});
+
 describe("the filter and the family's open child (issue #174 composition)", () => {
   it("the open child keeps its single row below the strip even when every other child hides", () => {
     // Child one is idle but OPEN: the count hides it, the open-child row
@@ -212,7 +236,7 @@ describe("the filter and the family's open child (issue #174 composition)", () =
     expect(row("thr_c1")).not.toBeNull();
     // The count still names the three visible dots; the open row rides
     // below them, not inside the count.
-    expect(sectionToggle(true).textContent).toContain("3 child threads");
+    expect(sectionToggle(true).textContent).toContain("3 active, 1 idle child threads");
     expect(document.querySelector("[data-child-active-row]")).not.toBeNull();
     fireEvent.click(idleToggle(true));
     expect(sectionToggle(true).textContent).toContain("4 child threads");
