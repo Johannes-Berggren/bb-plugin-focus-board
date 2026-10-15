@@ -1158,7 +1158,13 @@ export function ThreadCard({
                 toggleCollapsed();
               }}
               className={cn(
-                "ml-[18px] flex max-w-full flex-wrap items-center gap-1.5 rounded-sm py-0.5 pr-1",
+                // The strip's first dot sits in the rows' dot column: the
+                // 12px indent plus the glyph's centered position inside its
+                // 16px button land the 6px dot's left edge at 17px, the
+                // same x the expanded and active rows' dots start at (1px
+                // border + 8px padding + the row anchor's 8px). The strip,
+                // the grid it wraps into, and the rows read one grid.
+                "ml-3 flex max-w-full flex-wrap items-center gap-1.5 rounded-sm py-0.5 pr-1",
                 "transition-colors hover:bg-accent/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring",
               )}
             >

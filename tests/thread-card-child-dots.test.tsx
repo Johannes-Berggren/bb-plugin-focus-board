@@ -190,6 +190,35 @@ describe("the strip keeps its expand role", () => {
   });
 });
 
+describe("the dot grid and the child rows share one dot column", () => {
+  // jsdom does no layout, so the alignment contract is pinned at the class
+  // level: the strip's indent and glyph geometry put its first dot's left
+  // edge at the same x as the rows' dot (strip margin 12px + centered glyph
+  // inside its 16px button = 17px; rows: 1px border + 8px padding + the
+  // row anchor's own 8px = 17px).
+  it("the strip's indent puts its dots in the rows' dot column", () => {
+    renderCard({ isCollapsed: true, onCollapsedChange: vi.fn(), activeThreadId: "thr_c2" });
+    expect(dots().className).toContain("ml-3");
+    expect(dots().className).not.toContain("ml-[18px]");
+  });
+
+  it("the active child row uses the rows' indent geometry, not a new one", () => {
+    // Render the expanded card to read the rows container's own indent
+    // classes, then the collapsed one, and compare: the active row is one
+    // of the family's rows, so it must not carry geometry of its own.
+    const expanded = renderCard();
+    const rows = document.querySelector("[data-nested-rows]");
+    if (!(rows instanceof HTMLElement)) throw new Error("missing rows container");
+    const rowsGeometry = rows.className;
+    expanded.unmount();
+
+    renderCard({ isCollapsed: true, onCollapsedChange: vi.fn(), activeThreadId: "thr_c2" });
+    const active = document.querySelector("[data-child-active-row]");
+    if (!(active instanceof HTMLElement)) throw new Error("missing active row");
+    expect(active.className).toBe(rowsGeometry);
+  });
+});
+
 function threadCardWithActive(activeThreadId: string) {
   const { parent, children } = family();
   const props = {
