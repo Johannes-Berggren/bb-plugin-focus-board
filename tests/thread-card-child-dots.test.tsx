@@ -100,6 +100,18 @@ describe("a child dot's hover preview", () => {
     expect(preview("thr_c3").textContent).toContain("Background agent running");
   });
 
+  it("is sized independently of its 16px dot button", () => {
+    // The bubble is absolutely positioned inside the 16px dot button, and
+    // shrink-to-fit clamps an unsized absolute box to the containing block,
+    // so a long title wrapped into a ~70px column (operator report). The
+    // width is explicit, and the title clamps to two lines.
+    renderCard({ isCollapsed: true });
+    const bubble = preview("thr_c2");
+    expect(bubble.className).toContain("w-64");
+    expect(bubble.className).not.toContain("max-w-56");
+    expect(bubble.firstElementChild?.className).toContain("line-clamp-2");
+  });
+
   it("is aria-hidden: the dot's aria-label carries the child's name for screen readers", () => {
     renderCard({ isCollapsed: true });
     const button = dot("thr_c2");
