@@ -28,6 +28,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 #### Board toolbar
 
 - **The View dropdown shows a kanban board in place of its sliders icon.** It switches the board's group-by layout, so the icon now pictures the columns it produces.
+- **The View dropdown stays out of the Filters palette while the collapsed toolbar row has room for it.** A header that borrows the mobile ribbon keeps the View button on its row, left of the Filters toggle, until the band drops to about 560px, where the search field needs all the space the row frees up.
 
 ### Fixed
 
