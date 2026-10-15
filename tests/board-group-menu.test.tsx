@@ -113,8 +113,10 @@ describe("right-click on the group box", () => {
   });
 
   it("Zoom to group writes the existing group filter, which keeps only that group's threads", () => {
-    // The handler mirrors the app's wiring: a single write through the
-    // existing group-restrict set, never a second filter state.
+    // The handler mirrors the app's wiring: the existing group-restrict set
+    // to exactly the boxed group, never a second filter state. (The app's
+    // own zoom additionally switches the view to the Group board — that
+    // wiring lives app-side and is pinned in tests/app-zoom-to-group-view.)
     const filter: { projects: Set<string>; providers: Set<string>; states: Set<string>; groups?: Set<string> } = {
       projects: new Set(),
       providers: new Set(),

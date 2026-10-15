@@ -341,8 +341,9 @@ interface BoardProps {
   onNewThreadInGroup?: (groupId: string) => void;
   /**
    * Zoom the board to a registry group (the box context menu's "Zoom to
-   * group"): the caller writes the existing group filter restricted to
-   * exactly that group, so the board shows the group's threads only and
+   * group"): the caller lands the board on the Group view (the view the
+   * group boxes belong to) and writes the existing group filter restricted
+   * to exactly that group, so the board shows the group's threads only and
    * the toolbar chip clears it back. Unwired → the menu offers no zoom
    * entry.
    */
