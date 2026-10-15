@@ -131,14 +131,16 @@ describe("a child dot's hover preview", () => {
     expect(document.querySelector("[data-child-dot-preview]")).toBeNull();
   });
 
-  it("lights a subtle halo behind the dot while it is hovered or focused", () => {
+  it("lights an amber halo behind the dot while it is hovered or focused", () => {
     renderCard({ isCollapsed: true });
     const button = dot("thr_c2");
     // The halo rides the button's own hover/focus (the group-hover variant
     // cannot style a button from its own group marker — `:is(.group:hover *)`
     // matches only descendants, and the halo target IS the group element).
-    expect(button.className).toContain("hover:bg-accent/70");
-    expect(button.className).toContain("focus-visible:bg-accent/70");
+    // Amber: the grey accent wash was too subtle at this size (operator).
+    expect(button.className).toContain("hover:bg-amber-500/20");
+    expect(button.className).toContain("focus-visible:bg-amber-500/20");
+    expect(button.className).not.toContain("hover:bg-accent");
   });
 
   it("is aria-hidden: the dot's aria-label carries the child's name for screen readers", () => {
