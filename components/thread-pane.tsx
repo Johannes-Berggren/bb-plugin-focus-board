@@ -843,11 +843,39 @@ export function ThreadPane({
             <Icon name="ChevronLeft" className="size-5" />
           </Button>
         ) : null}
-        <Icon
-          name={thread.status === "active" ? "Loading" : "MessageSquare"}
-          className="size-3.5 shrink-0 text-muted-foreground"
-          aria-hidden
-        />
+        {(() => {
+          // The done checkbox, in the slot the chat icon used to hold just
+          // left of the title. Same checkbox language as the board cards'
+          // done checkbox (thread-card.tsx): an empty box on not-done
+          // threads, a checked one on done. There is no arming here — the
+          // card arms only because its checkbox is a hover-revealed target
+          // inside a clickable anchor, while this button is a standalone
+          // header control, so one click toggles, like the actions menu's
+          // own "Mark Done" item. aria-label stays off the "Mark thread"
+          // prefix, which is the read-state toggle's namespace.
+          const doneLabel = isDone ? "Mark not done" : "Mark done";
+          return (
+            <button
+              type="button"
+              data-pane-done-checkbox=""
+              aria-label={doneLabel}
+              title={doneLabel}
+              onClick={() => onToggleDone(!isDone)}
+              className={cn(
+                "shrink-0 rounded-sm p-0.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                isDone
+                  ? "text-muted-foreground"
+                  : "text-muted-foreground/60 hover:text-muted-foreground",
+              )}
+            >
+              <Icon
+                name={isDone ? "CheckboxChecked" : "Checkbox"}
+                className="size-3.5"
+                aria-hidden
+              />
+            </button>
+          );
+        })()}
         <EditableTitle
           title={thread.displayTitle}
           onRename={onRename}

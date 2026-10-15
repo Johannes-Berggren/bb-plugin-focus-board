@@ -9,6 +9,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+#### Thread pane
+
+- **The pane header marks threads done where the chat icon used to sit.** The small chat bubble left of the title is now a done checkbox matching the ones on the overview cards: an empty box marks the thread done, a checked box marks it not done.
+
 ### Fixed
 
 #### Card animations
