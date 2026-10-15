@@ -195,7 +195,25 @@ function publishThreadChanged(): void {
   }
 }
 
-const rpcCall = async (method: string): Promise<unknown> => {
+// Feature-group fake state: the registry and the assignments the group_*
+// writes mutate directly. `useRealtime` above is a no-op, so — as in a
+// connection window where ephemeral signals cannot deliver — the app under
+// test can settle its group surface only through its own writes' responses.
+let fakeGroups: Record<string, { name: string; createdAt: string }> = {};
+let fakeGroupMemberships: Record<string, string> = {};
+let fakeGroupSeq = 0;
+
+/** Seed the fake group registry and memberships (fresh per test). */
+export function seedFakeGroups(
+  groups: Record<string, { name: string; createdAt: string }>,
+  memberships: Record<string, string> = {},
+): void {
+  fakeGroups = structuredClone(groups);
+  fakeGroupMemberships = structuredClone(memberships);
+  fakeGroupSeq = 0;
+}
+
+const rpcCall = async (method: string, args?: unknown): Promise<unknown> => {
   switch (method) {
     case "done_list":
       return { doneIds: [], records: {} };
@@ -210,7 +228,47 @@ const rpcCall = async (method: string): Promise<unknown> => {
     case "rank_list":
       return { orders: {} };
     case "groups_list":
-      return { groups: {}, memberships: {} };
+      return {
+        groups: structuredClone(fakeGroups),
+        memberships: structuredClone(fakeGroupMemberships),
+      };
+    case "group_create": {
+      const { name } = args as { name: string };
+      const existing = Object.entries(fakeGroups).find(([, record]) => record.name === name);
+      if (existing !== undefined) {
+        return { group: { id: existing[0], ...existing[1] } };
+      }
+      fakeGroupSeq += 1;
+      const id = `grp_fake_${fakeGroupSeq}`;
+      const record = { name, createdAt: new Date().toISOString() };
+      fakeGroups[id] = record;
+      return { group: { id, ...record } };
+    }
+    case "group_rename": {
+      const { groupId, name } = args as { groupId: string; name: string };
+      if (fakeGroups[groupId] === undefined) {
+        throw new Error(`group ${groupId} does not exist`);
+      }
+      fakeGroups[groupId] = { ...fakeGroups[groupId], name };
+      return { group: { id: groupId, ...fakeGroups[groupId] } };
+    }
+    case "group_set": {
+      const { threadId, groupId } = args as { threadId: string; groupId: string | null };
+      if (groupId !== null && fakeGroups[groupId] === undefined) {
+        throw new Error(`group ${groupId} does not exist`);
+      }
+      if (groupId !== null) fakeGroupMemberships[threadId] = groupId;
+      else delete fakeGroupMemberships[threadId];
+      return { threadId, groupId };
+    }
+    case "group_delete": {
+      const { groupId } = args as { groupId: string };
+      delete fakeGroups[groupId];
+      for (const [threadId, assigned] of Object.entries(fakeGroupMemberships)) {
+        if (assigned === groupId) delete fakeGroupMemberships[threadId];
+      }
+      return { groupId };
+    }
     case "tracker_validate":
       return { results: {} };
     default:
