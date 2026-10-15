@@ -17,6 +17,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - **The pane header marks threads done where the chat icon used to sit.** The small chat bubble left of the title is now a done checkbox matching the ones on the overview cards: an empty box marks the thread done, a checked box marks it not done.
 
+#### New thread composer
+
+- **The composer remembers your environment pick.** New thread now opens with the environment of the project's last successful spawn still selected, so a "(new) worktree" pick stays picked instead of falling back to Project checkout. The memory is kept per project, a failed spawn writes nothing, and "New child thread…" on a worktree parent still wins when the two differ.
+
 ### Fixed
 
 #### Card animations
