@@ -25,6 +25,7 @@ Fine-grained notes that don't belong in the README's feature list.
 - A column drained to zero by nesting hides until a card returns to it.
 - A family card's nested rows can be collapsed: the chevron folds the rows into a "N child threads" pill that re-opens them, and the collapsed families persist across sessions (localStorage).
 - A collapsed card opens by itself when one of its nested children turns unread or needs you; a family collapsed while a child was already unread stays folded.
+- The card menu's "Zoom to family" entry (offered on cards that nest child threads and on their nested rows) lands the Parent view scoped to that family: the family's lane shows alone, the scope rides the filter row as a Family chip that clears, and it persists with the other filters. A nested row zooms to the family's owner, never a sub-child.
 
 ## Snooze
 

@@ -7,6 +7,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+#### Zoom to family
+
+- **A card menu action zooms the board to one family.** Right-clicking a card that nests child threads, or a nested row of one, gains "Zoom to family": the Parent view opens showing that family alone. The scoping rides the filter row as a Family chip that clears it, and it persists across reloads like the other filters.
+
 ### Changed
 
 ### Fixed

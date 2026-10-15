@@ -21,7 +21,7 @@ interface FakeSidebarThread {
   isPinned: boolean;
   isArchived: boolean;
   isHidden: boolean;
-  parentThreadId: null;
+  parentThreadId: string | null;
   hasPendingInteraction: boolean;
   updatedAt: number;
   displayTitle: string;

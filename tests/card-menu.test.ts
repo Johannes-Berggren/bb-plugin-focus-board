@@ -19,6 +19,7 @@ const noop = () => {};
 
 function makeHandlers(): CardMenuHandlers {
 	return {
+		zoomToFamily: vi.fn(noop),
 		togglePinned: vi.fn(noop),
 		toggleRead: vi.fn(noop),
 		toggleDone: vi.fn(noop),
@@ -43,6 +44,7 @@ function makeInputs(overrides?: {
 	isKept?: boolean;
 	grouped?: boolean;
 	canClearError?: boolean;
+	inFamily?: boolean;
 }): CardMenuInputs {
 	return {
 		thread: {
@@ -59,6 +61,7 @@ function makeInputs(overrides?: {
 		isKept: overrides?.isKept ?? false,
 		grouped: overrides?.grouped ?? false,
 		canClearError: overrides?.canClearError ?? false,
+		inFamily: overrides?.inFamily ?? false,
 	};
 }
 
@@ -220,6 +223,51 @@ describe("card menu state-driven labels and icons", () => {
 		const live = action(makeInputs(), "archive");
 		expect(live.label).toBe("Archive");
 		expect(live.icon).toBe("Archive");
+	});
+});
+
+describe("card menu Zoom to family (issue #170)", () => {
+	it("a family member's card opens the lineage group with Zoom to family ahead of New child thread…", () => {
+		const actions = cardMenuActions(makeInputs({ inFamily: true }), makeHandlers());
+		const ids = actions.map((entry) => entry.id);
+		expect(ids).toEqual([
+			"open-in-browser",
+			"reveal-browser-tab",
+			"pin",
+			"read",
+			"done",
+			"snooze",
+			"group",
+			"zoom-to-family",
+			"new-child",
+			"sweep-keep",
+			"archive",
+			"delete",
+		]);
+	});
+
+	it("Zoom to family is the lineage divider's head; New child thread… follows undivided", () => {
+		const actions = cardMenuActions(makeInputs({ inFamily: true }), makeHandlers());
+		const byId = Object.fromEntries(actions.map((entry) => [entry.id, entry]));
+		expect(byId["zoom-to-family"].dividerAbove).toBe(true);
+		expect(byId["new-child"].dividerAbove).toBeUndefined();
+	});
+
+	it("the entry reads Zoom to family (ZoomIn)", () => {
+		const entry = action(makeInputs({ inFamily: true }), "zoom-to-family");
+		expect(entry.label).toBe("Zoom to family");
+		expect(entry.icon).toBe("ZoomIn");
+	});
+
+	it("a card outside any multi-member family carries no zoom entry", () => {
+		const actions = cardMenuActions(makeInputs({ inFamily: false }), makeHandlers());
+		expect(actions.find((entry) => entry.id === "zoom-to-family")).toBeUndefined();
+	});
+
+	it("running Zoom to family invokes the caller's handler once", () => {
+		const handlers = makeHandlers();
+		action(makeInputs({ inFamily: true }), "zoom-to-family", handlers).run();
+		expect(handlers.zoomToFamily).toHaveBeenCalledTimes(1);
 	});
 });
 

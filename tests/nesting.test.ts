@@ -12,6 +12,7 @@ import {
   assembleBoard,
   buildFamilyIndex,
   familyColumnOverrides,
+  familyRootIdOf,
   filterFamilies,
   filterIndividually,
   nestUnderParents,
@@ -441,6 +442,97 @@ describe("nestUnderParents — depth cap (rows carry one sub-tier)", () => {
     // family's Done projection, not as a root-level sibling there.
     expect((nested.doneChildrenByParent.get("c") ?? []).map((t) => t.id)).toEqual(["g"]);
     expect(nested.doneChildrenByParent.has("p")).toBe(false);
+  });
+});
+
+describe("family scope filter — the card menu's Zoom to family (issue #170)", () => {
+  const parent = thread({ id: "p", updatedAt: NOW - HOUR });
+  const child = thread({ id: "c", parentThreadId: "p", updatedAt: NOW - 2 * HOUR });
+  const subChild = thread({ id: "sc", parentThreadId: "c", updatedAt: NOW - 3 * HOUR });
+  const otherParent = thread({ id: "o", updatedAt: NOW - 4 * HOUR });
+  const otherChild = thread({ id: "oc", parentThreadId: "o", updatedAt: NOW - 5 * HOUR });
+
+  it("familyRootIdOf walks the display parent chain to the family root; a root is its own id", () => {
+    const index = buildFamilyIndex([parent, child, subChild, otherParent, otherChild]);
+    expect(familyRootIdOf("p", index)).toBe("p");
+    expect(familyRootIdOf("c", index)).toBe("p");
+    // A sub-child zooms to the family's OWNER, never a sub-edge of its own.
+    expect(familyRootIdOf("sc", index)).toBe("p");
+    expect(familyRootIdOf("oc", index)).toBe("o");
+  });
+
+  it("a familyRootId scope keeps only that family, members dimmed by nothing", () => {
+    const index = buildFamilyIndex([parent, child, subChild, otherParent, otherChild]);
+    const result = filterFamilies(
+      [parent, child, subChild, otherParent, otherChild],
+      index,
+      { projects: new Set(), providers: new Set(), states: new Set(), familyRootId: "p" },
+      "",
+    );
+    expect(result.kept.map((t) => t.id).sort()).toEqual(["c", "p", "sc"]);
+    expect(result.dimmedIds.size).toBe(0);
+  });
+
+  it("scoping survives the family's own filter misses (state filters still apply inside the family)", () => {
+    const index = buildFamilyIndex([parent, child]);
+    const result = filterFamilies(
+      [parent, child],
+      index,
+      { projects: new Set(), providers: new Set(), states: new Set(["working"]), familyRootId: "p" },
+      "",
+    );
+    // The zoom does not shield the family from an operator's state filter.
+    expect(result.kept).toHaveLength(0);
+  });
+
+  it("a stale familyRootId (the family is gone) keeps nothing; Clear recovers", () => {
+    const index = buildFamilyIndex([otherParent, otherChild]);
+    const result = filterFamilies(
+      [otherParent, otherChild],
+      index,
+      { projects: new Set(), providers: new Set(), states: new Set(), familyRootId: "p" },
+      "",
+    );
+    expect(result.kept).toHaveLength(0);
+  });
+
+  it("an absent familyRootId — a legacy stored filter — restricts nothing", () => {
+    const index = buildFamilyIndex([parent, child, otherParent]);
+    const result = filterFamilies(
+      [parent, child, otherParent],
+      index,
+      { projects: new Set(), providers: new Set(), states: new Set() },
+      "",
+    );
+    expect(result.kept).toHaveLength(3);
+  });
+
+  it("filterIndividually (flat board) keeps only the scoped family's members", () => {
+    const index = buildFamilyIndex([parent, child, subChild, otherParent, otherChild]);
+    const result = filterIndividually(
+      [parent, child, subChild, otherParent, otherChild],
+      { projects: new Set(), providers: new Set(), states: new Set(), familyRootId: "p" },
+      "",
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      index,
+    );
+    expect(result.kept.map((t) => t.id).sort()).toEqual(["c", "p", "sc"]);
+  });
+
+  it("filterIndividually honours the scope without a supplied index (the pass builds one from the board's own set)", () => {
+    const result = filterIndividually(
+      [parent, child, otherParent],
+      { projects: new Set(), providers: new Set(), states: new Set(), familyRootId: "p" },
+      "",
+    );
+    // No family index supplied: the pass builds one from the board's own
+    // set, so flat mode still honours the scope.
+    expect(result.kept.map((t) => t.id).sort()).toEqual(["c", "p"]);
   });
 });
 

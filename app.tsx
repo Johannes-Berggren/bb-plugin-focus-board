@@ -46,6 +46,7 @@ import {
 import { staleErrorAckIds } from "./lib/error-ack-metadata";
 import {
   buildFamilyIndex,
+  familyRootIdOf,
   filterFamilies,
   filterIndividually,
   assembleBoard,
@@ -813,6 +814,7 @@ function BoardPage({ subPath }: { subPath: string }) {
     providers: new Set(readStoredList(`${FILTER_KEY}:providers`)),
     states: new Set(parseStoredStateFilter(readStoredList(`${FILTER_KEY}:states`))),
     groups: new Set(readStoredList(`${FILTER_KEY}:groups`)),
+    familyRootId: readStoredText(`${FILTER_KEY}:family`, "") || undefined,
   }));
   const [search, setSearch] = useState<string>(() => readStoredText(SEARCH_KEY, ""));
   // R3 "Nest child threads" toggle, default ON, persisted like groupBy.
@@ -1180,6 +1182,9 @@ function BoardPage({ subPath }: { subPath: string }) {
     writeStored(`${FILTER_KEY}:providers`, JSON.stringify([...next.providers]));
     writeStored(`${FILTER_KEY}:states`, JSON.stringify([...next.states]));
     writeStored(`${FILTER_KEY}:groups`, JSON.stringify([...(next.groups ?? [])]));
+    // The family scope (Zoom to family) stores a bare id: a cleared scope
+    // writes "" so the stored value keeps its single honest shape.
+    writeStored(`${FILTER_KEY}:family`, next.familyRootId ?? "");
   }, []);
   const persistSearch = useCallback((value: string) => {
     setSearch(value);
@@ -1740,7 +1745,15 @@ function BoardPage({ subPath }: { subPath: string }) {
     filter.providers.size > 0 ||
     filter.states.size > 0 ||
     (filter.groups?.size ?? 0) > 0 ||
+    filter.familyRootId !== undefined ||
     searchActive;
+  // The family scope's chip label (issue #170): the scoped family root's
+  // own display title. A stale root (the family is gone) reads "Unknown
+  // family" — the chip stays visible so the scope stays clearable.
+  const familyScopeLabel = filter.familyRootId === undefined
+    ? undefined
+    : (sidebarThreads.find((thread) => thread.id === filter.familyRootId)?.displayTitle ??
+      "Unknown family");
   // The board's own new-thread composer: a modal over the board and pane, so
   // composing never leaves the surface and bb's new-thread window stays out
   // of the way. The nonce re-focuses the composer editor on every open.
@@ -2706,6 +2719,12 @@ function BoardPage({ subPath }: { subPath: string }) {
       const isThreadDone = doneIds.has(thread.id);
       const isThreadSnoozed = snoozedIds.has(thread.id);
       const isThreadKept = doneAgeSource.kept(thread.id);
+      // Zoom to family (issue #170): the entry pays off only when the card's
+      // family is more than itself — it renders nested child rows, or is
+      // itself a nested row of one. A lone top-level card stays unscoped.
+      const inFamily =
+        (familyIndex.childrenByParent.get(thread.id)?.length ?? 0) > 0 ||
+        familyIndex.parentOf.has(thread.id);
       // Current intent: any state-changing gesture on a snoozed card lifts
       // the snooze first — the wake recipe (read → unread later) would fire
       // under a read/pin/done/archive write that has already superseded it.
@@ -2725,6 +2744,7 @@ function BoardPage({ subPath }: { subPath: string }) {
           isSnoozed: isThreadSnoozed,
           isKept: isThreadKept,
           grouped: groupAssignments[thread.id] !== undefined,
+          inFamily,
           // Clear error (issue #157): offer only on attention the error arms
           // carry — threadState attention minus a pending interaction, and
           // not already acknowledged.
@@ -2753,6 +2773,18 @@ function BoardPage({ subPath }: { subPath: string }) {
             void window.open(url, "_blank", "noopener");
           },
           openNewChild: () => openNewChildThread(thread.id),
+          zoomToFamily: () => {
+            // Zoom to family (issue #170): the Parent view scoped to the
+            // card's OWN family root — a nested row's write names the
+            // family's owner, never a sub-child of it. Two persisted
+            // writes, the same way the View chip and the filter menu's
+            // picks write their state.
+            persistGroupBy("parent");
+            persistFilter({
+              ...filter,
+              familyRootId: familyRootIdOf(thread.id, familyIndex),
+            });
+          },
           togglePinned: () => {
             liftSnooze();
             // Live intent beats the parked value: a park this gesture's
@@ -2878,7 +2910,7 @@ function BoardPage({ subPath }: { subPath: string }) {
         },
       }));
     },
-    [actions, applyUnreadStateEffects, clearParkPin, clearSnooze, doneAgeSource, doneIds, exitPinnedLane, groupAssignments, openNewChildThread, pendingStateClaimsRef, releaseAttentionFor, requestReveal, restoreParkedPin, runBrowserReveal, rpc, setBrowserNotice, setDoneExtras, setDoneIds, setGroupDialogFor, setSnoozeDialogFor, snoozedIds, sdk],
+    [actions, applyUnreadStateEffects, clearParkPin, clearSnooze, doneAgeSource, doneIds, exitPinnedLane, familyIndex, filter, groupAssignments, openNewChildThread, pendingStateClaimsRef, persistFilter, persistGroupBy, releaseAttentionFor, requestReveal, restoreParkedPin, runBrowserReveal, rpc, setBrowserNotice, setDoneExtras, setDoneIds, setGroupDialogFor, setSnoozeDialogFor, snoozedIds, sdk],
   );
 
   if (sidebarStatus === "loading" && threads.length === 0) {
@@ -2943,6 +2975,7 @@ function BoardPage({ subPath }: { subPath: string }) {
           projectIds={filterOptions.projectIds}
           providerIds={filterOptions.providerIds}
           groupOptions={filterOptions.groupOptions}
+          familyScopeLabel={familyScopeLabel}
           projects={projects}
           providers={providers}
           onCreateProject={createProject}

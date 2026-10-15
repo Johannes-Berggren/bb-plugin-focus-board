@@ -522,6 +522,10 @@ interface BoardToolbarProps {
    *  sentinel), labels resolved — the Group filter's rows, and the label
    *  source the hide gesture's write-through resolves ids by. */
   groupOptions?: readonly { id: string; label: string }[];
+  /** The family scope's label (issue #170): the zoomed family root's title.
+   *  Undefined when no scope is in force; a stale root reads "Unknown
+   *  family" from the app so the chip stays visible and clearable. */
+  familyScopeLabel?: string;
   onCreateProject: (name: string) => Promise<void>;
   totalCount: number;
   onClearFilters: () => void;
@@ -537,6 +541,42 @@ interface BoardToolbarProps {
  *  restricted. Module-level stable so the Group filter's selected-set
  *  identity holds across renders. */
 const EMPTY_SET: ReadonlySet<string> = new Set();
+
+/**
+ * The family scope chip (issue #170): the zoom gesture's visible face on
+ * the filter surface. Names the zoomed family root's title beside the other
+ * filter dropdowns, and its X clears the scope alone — the Clear button
+ * still clears everything. Not a dropdown: the scope has one fixed value at
+ * a time and nothing to pick.
+ */
+function FamilyScopeChip({
+  label,
+  onClear,
+}: {
+  label: string;
+  onClear: () => void;
+}) {
+  return (
+    <span
+      data-family-scope-chip=""
+      title={`Zoomed to the family of ${label}`}
+      className="inline-flex h-8 items-center gap-1.5 rounded-md bg-accent px-2 text-xs font-medium text-foreground"
+    >
+      <Icon name="ZoomIn" className="size-3.5 text-muted-foreground" aria-hidden />
+      <span className="text-muted-foreground">Family:</span>
+      <span className="max-w-40 truncate">{label}</span>
+      <button
+        type="button"
+        aria-label={`Clear family zoom (${label})`}
+        title={`Clear family zoom (${label})`}
+        onClick={onClear}
+        className="flex size-4 items-center justify-center rounded-sm text-muted-foreground transition-colors hover:bg-background hover:text-foreground focus-visible:outline focus-visible:outline-1 focus-visible:outline-ring"
+      >
+        <Icon name="X" className="size-3" aria-hidden />
+      </button>
+    </span>
+  );
+}
 
 export function BoardToolbar({
   groupBy,
@@ -554,6 +594,7 @@ export function BoardToolbar({
   projects,
   providers,
   groupOptions = [],
+  familyScopeLabel,
   onCreateProject,
   totalCount,
   onClearFilters,
@@ -612,12 +653,14 @@ export function BoardToolbar({
     });
   };
   // How many narrowing values are active right now — the badge the collapsed
-  // toggle shows so hidden-but-in-force filters stay discoverable.
+  // toggle shows so hidden-but-in-force filters stay discoverable. The
+  // family scope (Zoom to family) counts as one when it is in force.
   const hiddenFilterCount =
     filter.projects.size +
     (filter.groups?.size ?? 0) +
     filter.providers.size +
-    filter.states.size;
+    filter.states.size +
+    (filter.familyRootId !== undefined && filter.familyRootId !== "" ? 1 : 0);
   const newThreadButton = (
     /* Creation leads at the far left, one line like everything else: the
         thread count is board metadata and rides at the row's end with the
@@ -841,6 +884,14 @@ export function BoardToolbar({
         }
         onClear={() => onFilterChange({ ...filter, states: new Set() })}
       />
+      {filter.familyRootId !== undefined &&
+      filter.familyRootId !== "" &&
+      familyScopeLabel !== undefined ? (
+        <FamilyScopeChip
+          label={familyScopeLabel}
+          onClear={() => onFilterChange({ ...filter, familyRootId: undefined })}
+        />
+      ) : null}
       {clearButton}
     </>
   );
