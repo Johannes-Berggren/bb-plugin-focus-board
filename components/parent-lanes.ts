@@ -48,9 +48,10 @@ function rowFor(
   thread: PluginSidebarThread,
   doneIds: ReadonlySet<string>,
   now: number,
+  errorAcks: ReadonlySet<string> = new Set<string>(),
 ): { id: string; label: string } {
   if (doneIds.has(thread.id)) return { id: "done", label: "Done" };
-  return columnFor(thread, "status", EMPTY_CONTEXT, now);
+  return columnFor(thread, "status", EMPTY_CONTEXT, now, errorAcks);
 }
 
 function isLive(thread: PluginSidebarThread, doneIds: ReadonlySet<string>): boolean {
@@ -65,10 +66,13 @@ export function parentLaneRowLabel(id: string): string {
   return IDLE_BUCKETS.find((bucket) => bucket.id === id)?.label ?? id;
 }
 
-function sortActiveRow(threads: readonly PluginSidebarThread[]): PluginSidebarThread[] {
+function sortActiveRow(
+  threads: readonly PluginSidebarThread[],
+  errorAcks: ReadonlySet<string> = new Set<string>(),
+): PluginSidebarThread[] {
   return [...threads].sort((a, b) => {
-    const aUrgent = threadState(a) === "attention" ? 0 : 1;
-    const bUrgent = threadState(b) === "attention" ? 0 : 1;
+    const aUrgent = threadState(a, errorAcks) === "attention" ? 0 : 1;
+    const bUrgent = threadState(b, errorAcks) === "attention" ? 0 : 1;
     if (aUrgent !== bUrgent) return aUrgent - bUrgent;
     return derivedCompare(a, b);
   });
@@ -114,10 +118,11 @@ function buildRows(
   doneIds: ReadonlySet<string>,
   now: number,
   doneTimes: ReadonlyMap<string, number>,
+  errorAcks: ReadonlySet<string> = new Set<string>(),
 ): ParentLaneRow[] {
   const buckets = new Map<string, { label: string; threads: PluginSidebarThread[] }>();
   for (const card of cards) {
-    const target = rowFor(card, doneIds, now);
+    const target = rowFor(card, doneIds, now, errorAcks);
     const bucket = buckets.get(target.id);
     if (bucket === undefined) {
       buckets.set(target.id, { label: target.label, threads: [card] });
@@ -130,7 +135,7 @@ function buildRows(
     const bucket = buckets.get(id);
     const label = bucket?.label ?? parentLaneRowLabel(id);
     const source = bucket?.threads ?? [];
-    const threads = id === "done" ? [...source].sort(doneRecencyCompare(doneTimes)) : sortActiveRow(source);
+    const threads = id === "done" ? [...source].sort(doneRecencyCompare(doneTimes)) : sortActiveRow(source, errorAcks);
     return { id, label, threads };
   });
 }
@@ -159,6 +164,7 @@ export function buildParentLanes(
   doneIds: ReadonlySet<string> = new Set(),
   now: number = Date.now(),
   doneTimes: ReadonlyMap<string, number> = new Map(),
+  errorAcks: ReadonlySet<string> = new Set(),
 ): ParentLane[] {
   const familyIndex = buildFamilyIndex(threads);
   const threadById = new Map(threads.map((t) => [t.id, t]));
@@ -192,7 +198,7 @@ export function buildParentLanes(
       parent,
       label: parent.displayTitle,
       childCount: allChildren.length,
-      rows: buildRows(allChildren, doneIds, now, doneTimes),
+      rows: buildRows(allChildren, doneIds, now, doneTimes, errorAcks),
     });
   }
 

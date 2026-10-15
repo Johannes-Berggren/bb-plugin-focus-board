@@ -112,6 +112,12 @@ export interface NestingOptions {
    */
   doneIds?: ReadonlySet<string>;
   /**
+   * Clear-error acknowledgment ids (issue #157, lib/error-ack-metadata):
+   * threads whose error signals the operator acknowledged. Acked error arms
+   * read quiet — childPlacement re-nests, family drive rules skip them.
+   */
+  errorAcks?: ReadonlySet<string>;
+  /**
    * The attention freeze (components/attention-freeze): the plan compiled
    * from the captures app.tsx holds for attended cards — the lane pins that
    * win over every claim, the final-list slot pins, and the nested-row
@@ -231,6 +237,7 @@ export function assembleBoard(
       ranks,
       familyOverrides,
       attentionColumns,
+      options.errorAcks,
     ),
     visible,
     groupBy,
@@ -428,6 +435,8 @@ function childPlacement(
    * the un-nest happens the moment attention releases.
    */
   stayNested: ReadonlySet<string> = new Set<string>(),
+  /** Clear-error acknowledgment ids (issue #157): acked error arms stay quiet. */
+  errorAcks: ReadonlySet<string> = new Set<string>(),
 ): ChildPlacement {
   // Step 1: done is its own space.
   if (doneIds.has(child.id)) {
@@ -437,7 +446,7 @@ function childPlacement(
   if (child.isPinned) {
     return "flat";
   }
-  if (threadState(child) === "attention" && !stayNested.has(child.id)) {
+  if (threadState(child, errorAcks) === "attention" && !stayNested.has(child.id)) {
     return "flat";
   }
   // Step 3: a Done root shares its space with no live child.
@@ -487,6 +496,7 @@ export function familyDriveMembers(
   byId: ReadonlyMap<string, PluginSidebarThread>,
   familyIndex: FamilyIndex,
   doneIds: ReadonlySet<string>,
+  errorAcks: ReadonlySet<string> = new Set<string>(),
 ): PluginSidebarThread[] {
   const drive: PluginSidebarThread[] = [];
   const stack = [rootId];
@@ -497,7 +507,7 @@ export function familyDriveMembers(
     seen.add(id);
     const member = byId.get(id);
     if (member === undefined || member.isArchived) continue;
-    if (member.id === rootId || familyRowMember(member, doneIds)) {
+    if (member.id === rootId || familyRowMember(member, doneIds, errorAcks)) {
       drive.push(member);
     }
     for (const child of familyIndex.childrenByParent.get(id) ?? []) {
@@ -518,17 +528,19 @@ export function familyDriveMembers(
 function familyRowMember(
   member: PluginSidebarThread,
   doneIds: ReadonlySet<string>,
+  errorAcks: ReadonlySet<string> = new Set<string>(),
 ): boolean {
-  return !doneIds.has(member.id) && !member.isPinned && threadState(member) !== "attention";
+  return !doneIds.has(member.id) && !member.isPinned && threadState(member, errorAcks) !== "attention";
 }
 
 function driveElevates(
   a: PluginSidebarThread,
   b: PluginSidebarThread,
   groupBy: GroupBy,
+  errorAcks: ReadonlySet<string> = new Set<string>(),
 ): boolean {
   if (groupBy === "recency") return a.updatedAt > b.updatedAt;
-  return stateRank(threadState(a)) < stateRank(threadState(b));
+  return stateRank(threadState(a, errorAcks)) < stateRank(threadState(b, errorAcks));
 }
 
 /**
@@ -559,6 +571,7 @@ export function familyColumnOverrides(
   context: GroupingContext,
   doneIds: ReadonlySet<string>,
   now: number = Date.now(),
+  errorAcks: ReadonlySet<string> = new Set<string>(),
 ): ReadonlyMap<string, { id: string; label: string }> {
   if (groupBy !== "status" && groupBy !== "recency") return new Map();
   const byId = new Map(threads.map((thread) => [thread.id, thread]));
@@ -566,15 +579,15 @@ export function familyColumnOverrides(
   for (const rootId of familyIndex.rootIds) {
     const root = byId.get(rootId);
     if (root === undefined || root.isArchived || doneIds.has(rootId)) continue;
-    const best = bestFamilyDriver(rootId, byId, familyIndex, doneIds, groupBy);
+    const best = bestFamilyDriver(rootId, byId, familyIndex, doneIds, groupBy, errorAcks);
     if (best === undefined) continue;
     // Under the status grouping an all-idle drive set names no lane (idle
     // ranks below every state that can demand a column move): the family
     // keeps the parent's own bucket, so no entry.
-    if (groupBy === "status" && stateRank(threadState(best)) === Number.MAX_SAFE_INTEGER) {
+    if (groupBy === "status" && stateRank(threadState(best, errorAcks)) === Number.MAX_SAFE_INTEGER) {
       continue;
     }
-    overrides.set(rootId, columnFor(best, groupBy, context, now));
+    overrides.set(rootId, columnFor(best, groupBy, context, now, errorAcks));
   }
   return overrides;
 }
@@ -586,10 +599,11 @@ function bestFamilyDriver(
   familyIndex: FamilyIndex,
   doneIds: ReadonlySet<string>,
   groupBy: GroupBy,
+  errorAcks: ReadonlySet<string> = new Set<string>(),
 ): PluginSidebarThread | undefined {
   let best: PluginSidebarThread | undefined;
-  for (const member of familyDriveMembers(rootId, byId, familyIndex, doneIds)) {
-    if (best === undefined || driveElevates(member, best, groupBy)) {
+  for (const member of familyDriveMembers(rootId, byId, familyIndex, doneIds, errorAcks)) {
+    if (best === undefined || driveElevates(member, best, groupBy, errorAcks)) {
       best = member;
     }
   }
@@ -638,6 +652,7 @@ export function nestUnderParents(
   const threadById = new Map(threads.map((thread) => [thread.id, thread]));
   const ranks = options.ranks ?? {};
   const doneIds = options.doneIds ?? new Set<string>();
+  const errorAcks = options.errorAcks ?? new Set<string>();
   const doneTimes = options.doneTimes ?? new Map<string, number>();
 
   // R3: nesting disabled — a fully flat board. Columns pass through
@@ -668,7 +683,7 @@ export function nestUnderParents(
       flatIds.add(childId);
       continue;
     }
-  const placement = childPlacement(child, parent, groupBy, context, doneIds, options.attentionFreeze?.stayNested);
+  const placement = childPlacement(child, parent, groupBy, context, doneIds, options.attentionFreeze?.stayNested, errorAcks);
     if (placement === "flat") {
       flatIds.add(childId);
       continue;
@@ -704,7 +719,7 @@ export function nestUnderParents(
   // Pinned-lane attention lift: a pinned card whose OWN state needs the
   // operator rises to the top of the lane (a pinned attention child un-nests
   // and surfaces in Needs you instead — see `pinnedAttentionIds`).
-  const pinnedAttention = pinnedAttentionIds(columns);
+  const pinnedAttention = pinnedAttentionIds(columns, errorAcks);
 
   // The Done projection: each live parent whose done children moved to the
   // Done space also renders a second card there — the family's projection
@@ -798,12 +813,13 @@ export function nestUnderParents(
  */
 export function pinnedAttentionIds(
   columns: readonly BoardColumn[],
+  errorAcks: ReadonlySet<string> = new Set<string>(),
 ): ReadonlySet<string> {
   const pinned = columns.find((column) => column.id === "pinned");
   const ids = new Set<string>();
   if (pinned === undefined) return ids;
   for (const thread of pinned.threads) {
-    if (threadState(thread) === "attention") ids.add(thread.id);
+    if (threadState(thread, errorAcks) === "attention") ids.add(thread.id);
   }
   return ids;
 }

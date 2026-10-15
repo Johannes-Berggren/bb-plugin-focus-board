@@ -69,7 +69,10 @@ export interface GroupingContext {
   groupNames?: ReadonlyMap<string, string>;
 }
 
-export function threadState(thread: PluginSidebarThread): ThreadState {
+export function threadState(
+  thread: PluginSidebarThread,
+  errorAcks?: ReadonlySet<string>,
+): ThreadState {
   // Attention outranks working: a turn that is paused waiting on the operator
   // (a pending interaction such as a secret request, or an unread error) still
   // reports a running status, but the card belongs in "Needs you" until the
@@ -78,12 +81,20 @@ export function threadState(thread: PluginSidebarThread): ThreadState {
   // unread-error-style indicator) needs the operator's eye, not a gray idle
   // dot — on the errored thread's own row everywhere, and on a collapsed
   // family's child-dot strip.
+  //
+  // The Clear-error acknowledgment (issue #157, lib/error-ack-metadata)
+  // silences exactly those error arms: the operator said "seen, dealt with",
+  // so the card settles out pending bb's own record unchanged. A pending
+  // interaction is never ackable — a wait for the operator needs a real
+  // answer, and lib/interaction-sync.ts would fight a fake clear.
+  const errorAcked = errorAcks?.has(thread.id) === true;
   if (
     thread.hasPendingInteraction ||
-    thread.indicator === "unread-error" ||
-    thread.indicator === "queued-failed" ||
-    thread.queuedWork === "failed" ||
-    thread.status === "error"
+    (!errorAcked &&
+      (thread.indicator === "unread-error" ||
+        thread.indicator === "queued-failed" ||
+        thread.queuedWork === "failed" ||
+        thread.status === "error"))
   ) {
     return "attention";
   }
@@ -279,9 +290,10 @@ export function stateFilterPasses(
   thread: PluginSidebarThread,
   selected: ReadonlySet<StateFilterValue>,
   now: number = Date.now(),
+  errorAcks?: ReadonlySet<string>,
 ): boolean {
   if (selected.size === 0) return true;
-  const state = threadState(thread);
+  const state = threadState(thread, errorAcks);
   if (selected.has(state)) return true;
   if (state !== "idle") return false;
   return selected.has(ageBucketFor(now - thread.updatedAt, IDLE_BUCKETS).id);
@@ -475,10 +487,11 @@ export function columnFor(
   groupBy: GroupBy,
   context: GroupingContext,
   now: number = Date.now(),
+  errorAcks?: ReadonlySet<string>,
 ): { id: string; label: string } {
   if (groupBy === "none") return { id: "all", label: "Threads" };
   if (groupBy === "status") {
-    const state = threadState(thread);
+    const state = threadState(thread, errorAcks);
     if (state !== "idle") return { id: state, label: THREAD_STATE_LABELS[state] };
     const age = now - thread.updatedAt;
     return ageBucketFor(age, IDLE_BUCKETS);
@@ -545,6 +558,13 @@ export function buildColumns(
    * re-laning the moment attention releases.
    */
   attentionColumns: ReadonlyMap<string, { id: string; label: string }> = new Map(),
+  /**
+   * The Clear-error acknowledgment ids (issue #157, lib/error-ack-metadata):
+   * threads whose error signals the operator acknowledged. Rides beside
+   * doneIds to every lane decision below — an acked errored card settles
+   * into its state column (or nests quiet) instead of Needs you.
+   */
+  errorAcks: ReadonlySet<string> = new Set(),
 ): BoardColumn[] {
   // Threads marked Done form their own column, always farthest right on the
   // Attention board and present (dimmed) on every other grouping.
@@ -571,7 +591,7 @@ export function buildColumns(
       attentionColumns.get(thread.id) ??
         columnOverrides.get(thread.id) ??
         frozenColumns.get(thread.id) ??
-        columnFor(thread, groupBy, context, now),
+        columnFor(thread, groupBy, context, now, errorAcks),
     );
   }
 
