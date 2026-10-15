@@ -226,8 +226,47 @@ let simThreads: readonly SimThread[] = DEMO_MODE
 /** Threads archived in the harness; `threads.list({ archived: true })` serves these. */
 let simArchived: readonly SimThread[] = [];
 
-/** Ticket-chip store links (the app's link_list): none in the simulation. */
-const simLinks: Record<string, unknown> = {};
+/** Ticket-chip store links (the app's link_list): the chip probe's card of
+ * long external labels in demo mode — the overflow case that a wide label
+ * ("cove 0dac60e") poses; empty runs keep the UAT fixtures pinned. */
+const simLinks: Record<string, unknown> = DEMO_MODE
+  ? {
+      thr_chips_cove: [
+        {
+          tracker: "external",
+          url: "https://git.cove.local/cove/cove/issues/101",
+          hostname: "git.cove.local",
+          label: "cove 0dac60e",
+          createdAt: "2026-10-14T00:00:00.000Z",
+          source: "operator",
+        },
+        {
+          tracker: "external",
+          url: "https://git.cove.local/cove/cove/issues/102",
+          hostname: "git.cove.local",
+          label: "cove 9271bac",
+          createdAt: "2026-10-14T00:00:00.000Z",
+          source: "operator",
+        },
+        {
+          tracker: "external",
+          url: "https://git.cove.local/cove/cove/issues/103",
+          hostname: "git.cove.local",
+          label: "cove f7c3b2e1",
+          createdAt: "2026-10-14T00:00:00.000Z",
+          source: "operator",
+        },
+        {
+          tracker: "external",
+          url: "https://git.cove.local/cove/cove/issues/104",
+          hostname: "git.cove.local",
+          label: "cove 4d1e88a0",
+          createdAt: "2026-10-14T00:00:00.000Z",
+          source: "operator",
+        },
+      ],
+    }
+  : {};
 
 /** Realtime subscribers (the app subscribes with `{ event, callback }`). */
 type MockSubscribeArgs = { event: string; callback: (event: { entity: string; changes: string[] }) => void };
@@ -485,7 +524,9 @@ const rpcCall = async (method: string, args?: unknown): Promise<unknown> => {
   // The mock previously fell through to `{}` here, and the app's links
   // reader (`Object.entries(result.links)`) recorded an unhandled rejection
   // on every harness boot and every "link-changed" wake.
-  if (method === "link_list") return { links: {} };
+  if (method === "link_list") {
+    return { links: structuredClone(simLinks) };
+  }
   // Live chip status: the sim answers merged for the chip-probe card's PR
   // run and a couple of open/closed items for the follow-up card, so dark
   // and light screenshots show every state treatment.

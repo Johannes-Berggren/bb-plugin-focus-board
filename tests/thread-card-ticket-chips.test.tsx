@@ -191,11 +191,17 @@ describe("ticket chip icons — issue vs PR glyph", () => {
     expect(anchor?.getAttribute("aria-label") ?? "").toContain("#17");
   });
 
-  it("ids render in a three-track grid and enlarge on hover by transform", () => {
+  it("ids flow in a wrapping flex row and enlarge on hover by transform", () => {
     renderCard("#101 #102 #103 #104 #105 #106 #107 #108 resolve");
-    const grid = chip().querySelector("[data-ticket-chip] > [class*='grid-cols']");
-    expect(grid).not.toBeNull();
-    expect(grid?.className).toContain("grid-cols-[repeat(3,max-content)]");
+    const flow = chip().querySelector("[data-ticket-chip] > [data-ticket-ids]");
+    expect(flow).not.toBeNull();
+    // The ids wrap as they run out of width: flex-wrap, not a fixed
+    // max-content grid whose tracks refuse to shrink (a long external label
+    // like "cove 0dac60e" would overflow the card instead of wrapping).
+    expect(flow?.className).toContain("flex");
+    expect(flow?.className).toContain("flex-wrap");
+    expect(flow?.className).toContain("min-w-0");
+    expect(flow?.className).not.toContain("grid-cols");
     const ids = chip().querySelectorAll("[data-ticket-id]");
     expect(ids.length).toBeGreaterThanOrEqual(4);
     const anchor = ids[0];
@@ -204,21 +210,21 @@ describe("ticket chip icons — issue vs PR glyph", () => {
     expect(anchor.getAttribute("class") ?? "").not.toContain("hover:text-");
   });
 
-  it("a single-id chip reserves one track — no phantom width from empty columns", () => {
+  it("a single-id chip reserves no phantom width — a flex flow holds no empty tracks", () => {
     renderCard("Mark thread done rename worktree #32");
-    const grid = chip().querySelector("[data-ticket-chip] > [class*='grid-cols']");
-    expect(grid?.className).toContain("grid-cols-[max-content]");
-    // Empty tracks would still collect their column gaps, leaving the chip
-    // wider than its one id.
-    expect(grid?.className).not.toContain("repeat(3");
+    const flow = chip().querySelector("[data-ticket-chip] > [data-ticket-ids]");
+    expect(flow?.className).toContain("flex");
+    // A fixed multi-column grid would still collect empty tracks' column
+    // gaps, leaving the chip wider than its one id.
+    expect(flow?.className).not.toContain("grid-cols");
     expect(chip().querySelectorAll("[data-ticket-id]")).toHaveLength(1);
   });
 
-  it("a two-id chip reserves two tracks", () => {
+  it("two ids share the wrapping flow like any other count", () => {
     renderCard("Watch the pair #61 #62 settle");
-    const grid = chip().querySelector("[data-ticket-chip] > [class*='grid-cols']");
-    expect(grid?.className).toContain("grid-cols-[repeat(2,max-content)]");
-    expect(grid?.className).not.toContain("repeat(3");
+    const flow = chip().querySelector("[data-ticket-chip] > [data-ticket-ids]");
+    expect(flow?.className).toContain("flex-wrap");
+    expect(flow?.className).not.toContain("grid-cols");
   });
 
   it("a single-row chip centers its content vertically; a wrapped chip stays top-anchored", () => {
@@ -233,8 +239,11 @@ describe("ticket chip icons — issue vs PR glyph", () => {
   it("a chip with many ids wraps onto extra lines instead of overflowing", () => {
     renderCard("#101 #102 #103 #104 #105 #106 #107 #108 resolve");
     const chipEl = chip();
-    const gridEl = chipEl.querySelector("[data-ticket-chip] > [class*='grid-cols']");
-    expect(gridEl?.className).toContain("grid-cols-[repeat(3,max-content)]");
+    const flowEl = chipEl.querySelector("[data-ticket-chip] > [data-ticket-ids]");
+    expect(flowEl?.className).toContain("flex-wrap");
+    // The shell must shrink to the card's width, letting the inner flow do
+    // the wrapping — the un-shrinkable grid made the whole shell overflow.
+    expect(flowEl?.className).toContain("min-w-0");
     expect(chipEl.className).not.toContain("flex-wrap");
   });
 

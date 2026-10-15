@@ -26,6 +26,11 @@ export const UNRELEASED_ITEMS: readonly { text: string; children: string[]; grou
     "group": "Thread pane"
   },
   {
+    "text": "**Ticket chips wrap their ids onto extra lines instead of overflowing the card.** A chip carrying long external labels (a cove forge link's \"cove 0dac60e\") used to run past the card's right edge; the ids now reflow onto extra lines whatever their width.",
+    "children": [],
+    "group": "Ticket chips"
+  },
+  {
     "text": "**Sweep-selected cards keep their opaque card surface.** The selection's amber wash used a translucent card background that replaced the card's surface, so selected cards faded toward transparent while chosen for a sweep; the wash now rides an overlay and the card stays solid.",
     "children": [],
     "group": "Card animations"
