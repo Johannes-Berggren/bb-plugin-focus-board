@@ -41,6 +41,7 @@ A fix that arrives without a test that failed first is not ready.
 ## Opening a pull request
 
 - Target `dev`. Rebase onto the fetched `origin/dev` before opening the pull request, never after.
+- When the pull request closes an open issue, the `Fixes #N` line is in the body before you open it: it is the mechanism, not a decoration, and a pull request without it leaves the issue open after the fix ships. Check the issue's state is `open` first; if it is already closed, reference it without keywords. A maintainer thread that merges still re-checks after the merge and closes any left-open issue the same day, citing the fix commit and pull request.
 - A pull request bigger than a small fix lands a direction agreed in an issue, so it closes one. When no issue exists, file it first and let the direction settle before writing code. Never invent the `Fixes #N` line the template asks for; a small fix may stand alone, and says under "What changed" that there is no linked issue.
 - Fill the pull request template completely. Paste real command output under "How it was checked", and say plainly when a check failed or was skipped. Re-run the checks after every push to the branch, including review commits; output from before the last change is stale.
 - Do not tick "I read the diff and ran the checks above myself". That box is the accountable person's statement, not the agent's. Tick the AI-assisted box instead, with the tool and model named.
