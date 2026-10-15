@@ -42,6 +42,7 @@ Fine-grained notes that don't belong in the README's feature list.
 ## Thread pane and history
 
 - The open pane is part of the panel's URL (`…/board/t/<threadId>`), so bb's back arrow returns you to the pane you left after following a link out to a full thread in main bb — and walks back through cards you lost track of, one pane per step. A deep link opens the board with that pane directly.
+- Agent-written reference tokens in the pane's chat paint as labeled chips: `@thread:thr_…` opens that thread in the pane (or bb's main thread view when the board does not list it), `@project:proj_…` opens that project. Labels resolve from the board's own thread and project rows; an unknown target shows the raw id. Chips are reachable by keyboard (Tab, then Enter/Space) and clicking claims them — an agent reference never lands on an error page or stays dead text.
 - Grouping, filters, and search are preferences, not history: they persist across sessions in localStorage and are deliberately not replayed by the back arrow (see [ADR 0001](adr/0001-pane-history-in-url-preferences-in-localstorage.md)).
 - The board keeps the active card in view when its lane changes (pin, done, grouping) and when a pane is restored from history.
 - The pane's more-actions menu (beside Mark Done) pins and unpins with the card menu's semantics: the gesture lifts a snooze and clears a parked pin, and the board reveals the card's lane move after the pin lands. An archived row's menu keeps just its Unarchive.
