@@ -7,36 +7,38 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+### Changed
+
+### Fixed
+
+## [1.4.0] - 2026-10-15
+
+### Added
+
 #### Card animations
 
-- **A motion slider replaces the Motion dropdown, with a follow-system checkbox.** The Motion row is now a checkbox over a notched slider: "Follow my system setting" hands everything to the OS's reduce-motion signal and greys the slider out, and a slide left of stock quiets the board ("Reduce"). The notches right of stock stretch the card animations on a log scale (1x, 2x, 4x, 8x), so the longest read is clearly slower, not a hair longer. The choice persists per browser, and yesterday's stored tri-state carries over.
+- **A motion slider replaces the Motion dropdown, with a follow-system checkbox.** The Motion row is now a checkbox over a notched slider: "Follow my system setting" hands everything to the OS's reduce-motion signal and greys the slider out, and a slide left of stock quiets the board ("Reduce"). The notches right of stock stretch the card animations on a log scale (1x, 2x, 4x, 8x), so the longest read is clearly slower, not a hair longer; the choice persists per browser, and yesterday's stored tri-state carries over.
 
-#### Clear error
+#### Cards and chips
 
-- **A card menu action clears an acknowledged error out of Needs you.** Right-clicking a card whose Needs-you claim comes from error signals alone (a hard-failed turn or a failed send, never a pending interaction) offers "Clear error". The card settles into its normal lane and stays clear across reloads, and the thread's own view keeps showing the error. An acknowledgment rides per-thread plugin metadata and dies the moment the thread runs a new turn, so a fresh error claims attention on its own.
+- **A card menu action clears an acknowledged error out of Needs you.** Right-clicking a card whose Needs-you claim comes from error signals alone (a hard-failed turn or a failed send, never a pending interaction) offers "Clear error"; the card settles into its normal lane, staying clear across reloads while the thread's own view keeps showing the error. The acknowledgment rides per-thread plugin metadata and dies the moment the thread runs a new turn, so a fresh error claims attention on its own.
 
-#### Feature groups
+#### Groups and family boxes
 
 - **A group box's context menu gains Zoom to group.** Right-clicking a feature-group box offers "Zoom to group", which restricts the existing Group filter to exactly that group so the board shows its threads only. Clearing the filter chip restores the whole board, and the restriction persists across a refresh like any other filter.
 
 ### Changed
 
-#### Thread pane
+#### Board layout
 
 - **The pane header marks threads done where the chat icon used to sit.** The small chat bubble left of the title is now a done checkbox matching the ones on the overview cards: an empty box marks the thread done, a checked box marks it not done.
-
-#### New thread composer
-
 - **The composer remembers your environment pick.** New thread now opens with the environment of the project's last successful spawn still selected, so a "(new) worktree" pick stays picked instead of falling back to Project checkout. The memory is kept per project, a failed spawn writes nothing, and "New child thread…" on a worktree parent still wins when the two differ.
 
 ### Fixed
 
-#### Thread pane
+#### Cards and chips
 
 - **Agent-written reference tokens in pane messages become clickable chips.** An agent's `@thread:thr_…` or `@project:proj_…` token used to stay dead text, and a raw thread token vanished behind the host's empty mention element. They now paint as labeled chips from the board's own thread and project rows, falling back to the raw id; clicking opens the thread in the pane, or bb's main thread/project view for a target the board does not list.
-
-#### Ticket chips
-
 - **Ticket chips wrap their ids onto extra lines instead of overflowing the card.** A chip carrying long external labels (a cove forge link's "cove 0dac60e") used to run past the card's right edge; the ids now reflow onto extra lines whatever their width.
 - **Ticket chip links no longer render inside the card's own link.** A chip's mark and id links used to sit inside the card's opening link, an invalid HTML pairing React logged on every render of the card; the chip rows now sit beside the card's link and every chip link still opens its own ticket directly.
 
@@ -45,7 +47,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **Sweep-selected cards keep their opaque card surface.** The selection's amber wash used a translucent card background that replaced the card's surface, so selected cards faded toward transparent while chosen for a sweep; the wash now rides an overlay and the card stays solid.
 - **A focused card no longer recedes under the spotlight.** The pane-open card and a needs-attention card used to drop to 70% opacity while another card sat under the pointer; they now carry the same never-fade marker the done, dimmed, snoozed, and sweep-picked cards get.
 
-#### Feature groups
+#### Groups and family boxes
 
 - **Create & assign shows the new group's box right away.** The Group picker's create path used to leave the board and the picker stale until a separate sync signal arrived, so a fresh group sometimes never appeared and the card stayed unboxed. The record now lands from the create response itself, the same settle path the rename and delete writers already use.
 
