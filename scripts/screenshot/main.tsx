@@ -19,6 +19,14 @@ window.localStorage.setItem("focus-board:search", "");
 window.localStorage.setItem("focus-board:filter:projects", "[]");
 window.localStorage.setItem("focus-board:filter:providers", "[]");
 window.localStorage.setItem("focus-board:filter:states", "[]");
+// The group-restrict set: the UAT battery re-seeds the stored filters on
+// every goto like the other three sets, unless `?groups=<id>` (repeatable)
+// seeds the restrict — the shape the app's own filter writes store, so a
+// suite can prove the restore path after a "reload".
+window.localStorage.setItem(
+  "focus-board:filter:groups",
+  JSON.stringify(params.getAll("groups")),
+);
 window.localStorage.setItem(
   "focus-board:paneWidth",
   params.get("paneWidth") ?? "480",

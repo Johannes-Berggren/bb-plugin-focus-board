@@ -339,6 +339,14 @@ interface BoardProps {
    * the menu offers no spawn entry.
    */
   onNewThreadInGroup?: (groupId: string) => void;
+  /**
+   * Zoom the board to a registry group (the box context menu's "Zoom to
+   * group"): the caller writes the existing group filter restricted to
+   * exactly that group, so the board shows the group's threads only and
+   * the toolbar chip clears it back. Unwired → the menu offers no zoom
+   * entry.
+   */
+  onZoomToGroup?: (groupId: string) => void;
   /** Family members that did not match the active filters; rendered dimmed. */
   dimmedIds: ReadonlySet<string>;
   /**
@@ -653,6 +661,7 @@ export function Board({
   onRenameGroup,
   onDeleteGroup,
   onNewThreadInGroup,
+  onZoomToGroup,
   onJoinGroup,
   dimmedIds,
   collapsedFamilyIds,
@@ -3178,6 +3187,7 @@ export function Board({
                           // surface opens nothing.
                           if (
                             onNewThreadInGroup === undefined &&
+                            onZoomToGroup === undefined &&
                             onRenameGroup === undefined &&
                             onDeleteGroup === undefined
                           ) {
@@ -3541,6 +3551,14 @@ export function Board({
                     const groupId = groupMenu.groupId;
                     closeGroupMenu();
                     startLabelRename(groupId);
+                  },
+            zoom:
+              onZoomToGroup === undefined
+                ? undefined
+                : () => {
+                    const groupId = groupMenu.groupId;
+                    closeGroupMenu();
+                    onZoomToGroup(groupId);
                   },
             ungroup:
               onDeleteGroup === undefined

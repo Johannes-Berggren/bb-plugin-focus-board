@@ -139,20 +139,23 @@ describe("the metadata key contract", () => {
 });
 
 describe("groupBoxMenuActions (the group box's own right-click menu)", () => {
-  it("carries all three entries in order: spawn, rename, ungroup-all", () => {
+  it("carries all four entries in order: spawn, zoom, rename, ungroup-all", () => {
     const actions = groupBoxMenuActions({
       armed: false,
       spawn: () => undefined,
+      zoom: () => undefined,
       rename: () => undefined,
       ungroup: () => undefined,
     });
     expect(actions.map((action) => action.id)).toEqual([
       "new-thread-in-group",
+      "zoom-to-group",
       "rename-group",
       "ungroup-all",
     ]);
     expect(actions.map((action) => action.label)).toEqual([
       "New thread in group…",
+      "Zoom to group",
       "Rename group…",
       "Ungroup all members",
     ]);
@@ -163,30 +166,50 @@ describe("groupBoxMenuActions (the group box's own right-click menu)", () => {
     const actions = groupBoxMenuActions({
       armed: false,
       spawn: () => (ran = "spawn"),
+      zoom: () => (ran = "zoom"),
       rename: () => (ran = "rename"),
       ungroup: () => (ran = "ungroup"),
     });
     for (const action of actions) action.run();
     expect(ran).toBe("ungroup");
+    const zoom = actions.find((action) => action.id === "zoom-to-group")!;
+    expect(zoom.icon).toBe("ZoomIn");
+    expect(zoom.danger).toBeUndefined();
   });
 
   it("an unwired capability is omitted, never a dead menu entry", () => {
     expect(
-      groupBoxMenuActions({ armed: false, spawn: undefined, rename: undefined, ungroup: undefined }),
+      groupBoxMenuActions({
+        armed: false,
+        spawn: undefined,
+        zoom: undefined,
+        rename: undefined,
+        ungroup: undefined,
+      }),
     ).toEqual([]);
     const spawnOnly = groupBoxMenuActions({
       armed: false,
       spawn: () => undefined,
+      zoom: undefined,
       rename: undefined,
       ungroup: undefined,
     });
     expect(spawnOnly.map((action) => action.id)).toEqual(["new-thread-in-group"]);
+    const zoomOnly = groupBoxMenuActions({
+      armed: false,
+      spawn: undefined,
+      zoom: () => undefined,
+      rename: undefined,
+      ungroup: undefined,
+    });
+    expect(zoomOnly.map((action) => action.id)).toEqual(["zoom-to-group"]);
   });
 
   it("the ungroup entry arms in place: the armed menu says click-again and draws danger", () => {
     const armed = groupBoxMenuActions({
       armed: true,
       spawn: () => undefined,
+      zoom: () => undefined,
       rename: () => undefined,
       ungroup: () => undefined,
     });

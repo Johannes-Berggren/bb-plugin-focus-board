@@ -1,0 +1,50 @@
+# Operator-assisted E2E: "Zoom to group" on a group box's context menu.
+#
+# The harness mounts the actual app.tsx against the mocked SDK
+# (scripts/screenshot), whose default group registry holds ONE feature group
+# ("chat-imagegent") wrapping the two active threads thr_column_sort and
+# thr_drag_done; every other fixture thread is unassigned. The suite walks
+# the menu gesture (right-click the box's label, a real contextmenu event on
+# the label that bubbles to the dashed container's guarded handler) and the
+# result: the board's existing group-restrict filter set to exactly that
+# group — the toolbar's Group dropdown state, not a second filter. A later
+# goto seeds the same stored restrict (`?groups=<id>`) — the shape the
+# app's own filter writes persist — and proves the board re-opens filtered,
+# the refresh-restore path.
+#
+# Run: npm run uat -- tests/manual/uat-group-zoom.yaml
+suite: group-zoom
+harness:
+  config: scripts/screenshot/vite.config.ts
+  port: 5177
+defaults:
+  groupBy: status
+  theme: dark
+  viewport: { width: 1280, height: 800 }
+
+steps:
+  - id: unfiltered-board-shows-the-group-and-the-strangers
+    title: The board opens unfiltered — the boxed members and an ungrouped thread all visible
+    goto: "?groupBy=status"
+    assert:
+      - text_visible: "Refactor grouping.ts column sort keys"
+      - text_visible: "Write E2E test for drag-to-done"
+      - text_visible: "Research: bb plugin RPC auth tokens"
+      - text_visible: "chat-imagegent"
+
+  - id: menu-item-zooms-to-the-boxs-group
+    title: Right-clicking the box and choosing Zoom to group restricts the board to that group
+    goto: "?groupBy=status"
+    menu: { box: grp_chat_imagegent, item: "Zoom to group" }
+    assert:
+      - text_visible: "Refactor grouping.ts column sort keys"
+      - text_visible: "Write E2E test for drag-to-done"
+      - text_hidden: "Research: bb plugin RPC auth tokens"
+
+  - id: the-stored-restrict-restores-after-a-reload
+    title: The stored group restrict re-opens the board filtered (the refresh-restore path)
+    goto: "?groupBy=status&groups=grp_chat_imagegent"
+    assert:
+      - text_visible: "Refactor grouping.ts column sort keys"
+      - text_visible: "Write E2E test for drag-to-done"
+      - text_hidden: "Research: bb plugin RPC auth tokens"
