@@ -27,6 +27,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+#### Thread pane
+
+- **Agent-written reference tokens in pane messages become clickable chips.** An agent's `@thread:thr_…` or `@project:proj_…` token used to stay dead text, and a raw thread token vanished behind the host's empty mention element. They now paint as labeled chips from the board's own thread and project rows, falling back to the raw id; clicking opens the thread in the pane, or bb's main thread/project view for a target the board does not list.
+
 #### Card animations
 
 - **Sweep-selected cards keep their opaque card surface.** The selection's amber wash used a translucent card background that replaced the card's surface, so selected cards faded toward transparent while chosen for a sweep; the wash now rides an overlay and the card stays solid.

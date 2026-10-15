@@ -1,0 +1,43 @@
+# Operator-assisted E2E: agent-written reference tokens in the pane's chat
+# (issue #161) paint as labeled, navigable chips.
+#
+# The broken state this suite pins: the token `@project:proj_api` renders as
+# dead plain text in the live pane (the host's shared markdown renderer
+# autolinks only raw `@thread:` tokens, and paints even those only for
+# composer-sent messages — an agent-written project reference gets nothing).
+#
+# The fixture (scripts/screenshot/mock-sdk.tsx CONVERSATIONS.thr_review_pr)
+# renders the raw token text in an agent message; the app's pane decorator
+# (components/decorate-reference-mentions.ts) must paint each token as a chip
+# labeled from the board's own rows and route the thread chip back into the
+# board's own pane.
+#
+# Run: npm run uat -- tests/manual/uat-pane-reference-chips.yaml
+suite: pane-reference-chips
+harness:
+  config: scripts/screenshot/vite.config.ts
+  port: 5175
+defaults:
+  groupBy: status
+  theme: dark
+
+steps:
+  - id: tokens-paint-as-navigable-chips
+    title: Agent-written reference tokens paint as labeled chips, not dead text
+    goto: "?groupBy=status#/plugins/focus-board/board/t/thr_review_pr"
+    assert:
+      - text_hidden: "@project:proj_api"
+      - text_hidden: "@thread:thr_glyph_glue#msg=12"
+    gestures:
+      # The click is the paint assertion: nothing else in the DOM carries the
+      # chip's aria-label, so a dead click_aria names exactly what broke.
+      - click_aria: "OpenProject API Gateway"
+
+  - id: thread-chip-opens-the-referenced-thread-in-the-pane
+    title: Clicking a thread chip opens that thread in the board's pane
+    goto: "?groupBy=status#/plugins/focus-board/board/t/thr_review_pr"
+    gestures:
+      - click_aria: "OpenThread Wrap check: long path with the open glyph"
+    assert:
+      - pane: { threadId: thr_glyph_glue }
+      - url: { suffix: "/board/t/thr_glyph_glue" }
