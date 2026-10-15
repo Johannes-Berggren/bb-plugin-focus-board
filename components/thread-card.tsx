@@ -248,7 +248,7 @@ export const HOVER_SURFACE =
  * external tracker's mark stays inert. Each ID keeps its own href, and the
  * kind glyph carries the state color — read from the group's primary (first)
  * ref's status — while ID text stays neutral and each ID's state survives on
- * its hover title. The chip shell wraps, so a long ID list reflows onto
+ * its hover title. The chip's id flow wraps, so a long ID list reflows onto
  * extra lines instead of overflowing the card.
  */
 function ProviderTicketChip({
@@ -269,18 +269,14 @@ function ProviderTicketChip({
   const [faviconFailed, setFaviconFailed] = useState(false);
   const isGithub = row.provider === "github";
   const markHref = ticketChipIconHref(row, chip.kind);
-  // The ids' grid row count: one grid line holds up to three ids. A chip
-  // whose ids all fit one line centers its content vertically (the shell's
-  // min-height would otherwise leave the mark, glyph, and ids hugging the
-  // top); a wrapped chip keeps them top-anchored so the mark and glyph
-  // stay pinned at the top-left corner beside the first id line.
+  // The ids' vertical anchor: a chip whose ids all fit one line centers its
+  // content vertically (the shell's min-height would otherwise leave the
+  // mark, glyph, and ids hugging the top); a many-id chip keeps them
+  // top-anchored so the mark and glyph stay pinned at the top-left corner
+  // beside the first id line. The ref count stands in for "fits one line"
+  // — short ids do for three or fewer; very long external labels that wrap
+  // stay centered, a harmless cosmetic drift.
   const singleRow = chip.refs.length <= 3;
-  const columnClass =
-    chip.refs.length === 1
-      ? "grid-cols-[max-content]"
-      : chip.refs.length === 2
-        ? "grid-cols-[repeat(2,max-content)]"
-        : "grid-cols-[repeat(3,max-content)]";
   const className = cn(
     "inline-flex min-h-5 gap-x-1 rounded bg-muted px-1 py-0.5 font-mono text-[10px] leading-none text-muted-foreground",
     singleRow ? "items-center" : "items-start",
@@ -406,13 +402,13 @@ function ProviderTicketChip({
     <span className={className} data-ticket-chip="">
       {markElement}
       {kindGlyph}
-      {/* The ids sit in a real grid, left-aligned max-content tracks (one
-          per id, capped at three per line) so every wrapped line shares the
-          same columns — and so a short list reserves no empty tracks, whose
-          column gaps would hold phantom width past the last id (the mark
-          and glyph anchor the top-left corner and never join the id flow
-          to shorten the first line). */}
-      <span className={cn("grid justify-items-start gap-x-2 gap-y-0.5", columnClass)}>
+      {/* The ids sit in a wrapping flex flow: no fixed tracks, so a short
+          list reserves no phantom width (the empty-column-gap trap of the
+          old three-track grid) and a long list of wide external labels
+          wraps onto extra lines instead of overflowing the card. min-w-0
+          lets the shell shrink with the row so this flow, not the shell,
+          does the wrapping; the mark and glyph never join the id flow. */}
+      <span data-ticket-ids className="flex min-w-0 flex-wrap gap-x-2 gap-y-0.5">
         {ids}
       </span>
     </span>

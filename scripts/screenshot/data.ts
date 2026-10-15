@@ -442,6 +442,16 @@ export const SIM_DEMO_THREADS: readonly SimThread[] = [
     updatedAt: SIM_NOW - 18 * MINUTE,
     lastReadAt: SIM_NOW - 17 * MINUTE,
   }),
+  // Chip-probe card: four external store links with long labels (the sim's
+  // link_list serves them — mock-sdk.tsx). One provider hostname groups
+  // them into a single chip, and the wide label is the wrapping case.
+  thread({
+    id: "thr_chips_cove",
+    displayTitle: "Automate issue triage",
+    status: "idle",
+    updatedAt: SIM_NOW - 23 * MINUTE,
+    lastReadAt: SIM_NOW - 22 * MINUTE,
+  }),
   // Family A — Working (lifted by its two active children), expanded in the
   // shots: a parent card with three nested child rows visible.
   thread({

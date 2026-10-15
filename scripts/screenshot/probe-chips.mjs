@@ -29,7 +29,7 @@ for (const theme of ["dark", "light"]) {
     document.documentElement.classList.toggle("dark", t === "dark");
   }, theme);
   await new Promise((resolve) => setTimeout(resolve, 400));
-  for (const thrId of ["thr_chips", "thr_chips_open", "thr_chips_single", "thr_chips_pair"]) {
+  for (const thrId of ["thr_chips", "thr_chips_open", "thr_chips_single", "thr_chips_pair", "thr_chips_cove"]) {
     const card = await page.waitForSelector(`[data-thread-card="${thrId}"]`, { timeout: 10_000 });
     await card.screenshot({ path: `${OUT}chip-probe-${thrId}-${theme}.png`, timeout: 15_000 });
     console.log(`shot chip-probe-${thrId}-${theme}.png`);
