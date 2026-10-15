@@ -392,7 +392,7 @@ export const SIM_THREADS: readonly SimThread[] = [
   }),
   thread({
     id: "thr_gutter_family_c0",
-    displayTitle: "Regress the sub-row indent",
+    displayTitle: "Regress the sub-row indent #193",
     parentThreadId: "thr_gutter_family",
     updatedAt: SIM_NOW - 18 * DAY + 2 * MINUTE,
     lastReadAt: SIM_NOW - 18 * DAY,
