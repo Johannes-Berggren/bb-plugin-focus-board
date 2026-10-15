@@ -28,10 +28,19 @@ export type TrackerStatusRpc = {
 export function useTicketStatuses({
   rpc,
   visibleRefKey,
+  refreshSignal,
 }: {
   rpc: TrackerStatusRpc;
   /** Sorted, comma-joined visible refs ("owner/repo#42,...") — "" when none. */
   visibleRefKey: string;
+  /**
+   * The operator-moment bump (issue #205): the caller fingerprints the
+   * board's display state (pane open/close, lane transitions, re-sorts).
+   * A change refetches immediately with the ref set unchanged; an
+   * equal string borrows the in-flight or settled snapshot, so a
+   * fingerprint-stable rerender costs nothing.
+   */
+  refreshSignal?: string;
 }): Record<string, Record<number, TicketStatus>> {
   const [ticketStatuses, setTicketStatuses] = useState<
     Record<string, Record<number, TicketStatus>>
@@ -98,6 +107,6 @@ export function useTicketStatuses({
       clearInterval(interval);
       window.removeEventListener("focus", fetchAll);
     };
-  }, [visibleRefKey, rpc]);
+  }, [visibleRefKey, refreshSignal, rpc]);
   return ticketStatuses;
 }

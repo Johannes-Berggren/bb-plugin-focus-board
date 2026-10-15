@@ -21,6 +21,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+#### Cards and chips
+
+- **Chip statuses refetch at the operator's moments.** Opening or closing the thread pane, a card changing lanes, and a re-sort or rank move each bump the chip snapshot, so the dots you are looking at are the freshly settled ones (issue #205); the batched design stays, one snapshot per event and never a per-card call.
+
 #### Board toolbar
 
 - **The View dropdown shows a kanban board in place of its sliders icon.** It switches the board's group-by layout, so the icon now pictures the columns it produces.
