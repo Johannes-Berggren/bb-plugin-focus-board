@@ -1,0 +1,28 @@
+{
+  "pass": true,
+  "failures": [],
+  "lightPass": {
+    "theme": "light",
+    "cardId": "thr_ship_release",
+    "rest": {
+      "backgroundColor": "oklch(0.985 0 0)",
+      "lightness": 0.985
+    },
+    "hovered": {
+      "backgroundColor": "oklch(0.985 0 0)",
+      "lightness": 0.985
+    }
+  },
+  "darkPass": {
+    "theme": "dark",
+    "cardId": "thr_ship_release",
+    "rest": {
+      "backgroundColor": "oklch(0.195 0 0)",
+      "lightness": 0.195
+    },
+    "hovered": {
+      "backgroundColor": "oklab(0.156 0 0)",
+      "lightness": 0.156
+    }
+  }
+}

@@ -36,6 +36,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **A nested child row shows its child's ticket chips.** A child thread that ties to a tracker item used to chip only as a standalone card, so the family view hid the tie. Its row carries the same chips now, a step smaller and inert: the row itself is one link.
 - **A family card's nested rows keep the card's right gutter.** Child and grandchild rows used to run flush against the card's right edge while the left kept its 12px indent. The child-thread section mirrors its left margin on the right now.
 
+#### Board cards
+
+- **Hovering a card in light mode no longer mutes it.** The hover surface darkened a near-white card into mid-gray on the light theme, which reads as muting. The light hover keeps the card surface and the ring plus the other cards' recede carry the emphasis; the dark theme keeps its darkening.
+
 #### Thread pane
 
 - **Bare reference ids in pane messages become chips too.** Agents often drop the kind prefix and write `@proj_…` or `@thr_…` straight, and those tokens stayed dead text. The pane paints them like the full forms now, and a trailing `#msg=N` fragment is swallowed the same way.

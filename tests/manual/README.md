@@ -66,6 +66,18 @@ through `puppeteer-core` (nothing is downloaded), writes a report per suite to
   modal }`) reads the gift button and modal (the pulse is the compiled
   `motion-safe:animate-pulse` class); `text_visible` checks a substring of
   the page's text.
+- `hover_card` rests the real pointer on a top-level card's center
+  (`{ card: thr_x }`), so the CSS `:hover` and the spotlight's `:has()` rule
+  both arm the way an operator's idle pointer does; `mouse_to` parks it at
+  plain viewport coordinates (`{ x, y, wait_ms }`). The `hover_prominence`
+  assertion (`{ card }`, optional `pointer_hover: false` for the release case)
+  samples the settled computed styles: the hovered surface must be opaque, the
+  dark theme's surface may darken and the light theme's must NEVER darken
+  (#195), and a sibling must recede while a card is under the pointer.
+- A step's `theme` (`light` or `dark`) overrides the suite default and flips
+  BOTH theme switches: the `dark` class for the token set and Tailwind's
+  media-based `dark:` utilities (`prefers-color-scheme` emulation) — the
+  class alone cannot flip a `dark:` variant.
 - The harness seeds the what's-new state via `?lastSeenVersion=<version>`
   (absent → first visit stamps the running version as seen).
 - `column` assertions read a lane by `data-column-id`, from the top-level
@@ -144,6 +156,13 @@ through `puppeteer-core` (nothing is downloaded), writes a report per suite to
   fails on a tree without it), and the card's right gutter holds at both
   depths (`right_gutter`, issue #192). The three-tier family is the base
   fixture's `thr_gutter_family` chain.
+- `uat-hover-prominence.yaml` — hovered-card prominence in both themes (issue
+  #195): the dark theme's hovered card darkens and the other cards recede, the
+  light theme's hover never darkens the surface (darkening there reads as
+  muting), and parking the pointer hands the surface and the dim back. The
+  runner's `hover_card` gesture rests the real pointer on a card's center, and
+  one suite covers both schemes via the per-step `theme` (which flips the
+  `dark` class and Tailwind's media `dark:` variants together).
 
 ## Notes
 

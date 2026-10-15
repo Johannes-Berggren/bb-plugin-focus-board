@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
-// Hovered-card prominence (issue #123, then the #123 follow-up): a card under
-// the pointer must read MORE prominent, not less. The hover style used to swap
-// the card's opaque surface (`bg-card`) for a translucent one
+// Hovered-card prominence (issue #123, then the #195 light-mode follow-up): a
+// card under the pointer must read MORE prominent, not less. The hover style
+// used to swap the card's opaque surface (`bg-card`) for a translucent one
 // (`hover:bg-accent/50`), so the hovered card let the lane background /
 // wallpaper bleed through — it faded. The fix keeps the hovered surface
 // opaque; the follow-up darkens it below the resting surface (mixing the card
@@ -14,6 +14,12 @@
 // computed by components/card-status.ts, and it covers every user-focus
 // source: the pane-open card and a needs-attention card are immune too —
 // focus outranks transparency.
+//
+// Issue #195 narrows the darkening's reach: darkening a near-white card on
+// the LIGHT canvas reads as muting, not emphasis, so the darkening became a
+// `dark:` media variant and the light theme's hover keeps the card's opaque
+// surface untouched — the ring and the spotlight's sibling recede carry the
+// emphasis there instead.
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, render } from "@testing-library/react";
 import type { ComponentProps } from "react";
@@ -76,15 +82,29 @@ describe("the hovered card's surface (issue #123)", () => {
     expect(tokens().some((t) => t.startsWith("hover:bg-accent"))).toBe(false);
   });
 
-  it("the hover surface derives from the card token, DARKER than the rest state", () => {
-    // Mixing `--card` toward black: the hovered surface darkens below the
-    // resting surface in BOTH themes (dark: 19.5% -> ~15.6%, light: 98.5% ->
-    // ~78.8%), the direction `accent` cannot deliver — accent is ink-ward, so
-    // on a dark canvas it LIGHTENED the hovered card (27.5% over 19.5%).
+  it("darkens the surface in the DARK theme via the dark: media variant", () => {
+    // Issue #123 and its follow-up: mixing `--card` toward black keeps the
+    // hovered surface OPAQUE and darker than the resting surface on the dark
+    // canvas (19.5% → ~15.6%), where darkening IS the emphasis — `accent`
+    // cannot deliver it (it is ink-ward, so on a dark canvas it LIGHTENED the
+    // hovered card, 27.5% over 19.5%).
     renderCard();
     expect(HOVER_SURFACE).toBe(
-      "hover:bg-[color-mix(in_oklab,var(--card)_80%,black)]",
+      "dark:hover:bg-[color-mix(in_oklab,var(--card)_80%,black)]",
     );
+  });
+
+  it("the LIGHT theme's hover never darkens the card (darkening reads as muting there)", () => {
+    // Issue #195: the theme-blind mix graying a near-white card
+    // (98.5% → ~78.8%) reads as muting, not emphasis. The light hover keeps
+    // the card's opaque `bg-card` surface untouched and the `hover:ring-border`
+    // ring plus the spotlight's sibling recede carry the emphasis — the same
+    // design point the done cards' opaque-surface lesson makes.
+    renderCard();
+    expect(tokens().some((t) => t.startsWith("hover:bg-"))).toBe(false);
+    expect(tokens().some((t) => t.startsWith("hover:bg-accent"))).toBe(false);
+    expect(tokens()).toContain("bg-card");
+    expect(tokens()).toContain("hover:ring-border");
   });
 
   it("keeps the ring emphasis on hover", () => {

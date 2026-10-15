@@ -1,0 +1,60 @@
+# Operator-assisted E2E: hovered-card prominence in BOTH themes.
+#
+# Rendered and driven for real: the harness mounts the actual app.tsx against
+# the mocked SDK (scripts/screenshot), the hover_card gesture moves the real
+# pointer onto a card's center, and the assertions sample the settled computed
+# styles — so what the probe reads is what an operator's idle pointer paints.
+#
+# Issue #195 context: the #123 follow-up made the hovered card's surface
+# darken in BOTH themes (an opaque color-mix toward black). On the dark canvas
+# that IS emphasis; on the light canvas it grays a near-white card
+# (98.5% → ~78.8%) and reads as MUTING. The fix makes the darkening a `dark:`
+# media variant; the light theme's hover keeps the card surface and lets the
+# ring plus the spotlight's sibling recede carry the emphasis.
+#
+# Run: npm run uat -- tests/manual/uat-hover-prominence.yaml
+# (npm run build first — the harness loads dist/app.css)
+
+suite: hover-prominence
+harness:
+  config: scripts/screenshot/vite.config.ts
+  port: 5173
+defaults:
+  groupBy: status
+  theme: dark
+
+steps:
+  - id: dark-hover-darkens-and-keeps-others-back
+    title: The dark theme's hovered card darkens, stays opaque, and the other cards recede
+    goto: "?groupBy=status"
+    theme: dark
+    hover_card: { card: thr_rpc_auth }
+    assert:
+      - hover_prominence: { card: thr_rpc_auth }
+
+  - id: light-hover-never-darkens-the-card
+    title: The light theme's hover keeps the card surface — darkening there reads as muting
+    # The step's own theme overrides the suite default, so one suite covers
+    # both schemes on the same board. The assertion checks the direction the
+    # probe finds: with the light theme active, the hovered surface must not
+    # drop below the resting surface's lightness.
+    goto: "?groupBy=status"
+    theme: light
+    hover_card: { card: thr_rpc_auth }
+    assert:
+      - hover_prominence: { card: thr_rpc_auth }
+
+  - id: light-hover-releases-cleanly-when-the-pointer-leaves
+    title: Moving the pointer off the card hands the surface back with nothing stuck
+    # Hover, then park the pointer on the board's far edge: the hovered card
+    # must read as the resting token again, and the recede dim must have let
+    # go of the sibling.
+    goto: "?groupBy=status"
+    theme: light
+    hover_card: { card: thr_rpc_auth }
+    mouse_to:
+      x: 8
+      y: 8
+      wait_ms: 800
+    assert:
+      - hover_prominence: { card: thr_rpc_auth, pointer_hover: false }

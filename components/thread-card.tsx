@@ -283,14 +283,21 @@ export function previewLeftFor(
  * marker components/card-status.ts computes). Pure CSS; the card just wears
  * the marker.
  */
-/** The hovered card's surface, one source of truth: the card token mixed
- *  toward BLACK — an OPAQUE surface DARKER than the rest state in both themes
- *  (issue #123 and its follow-up). `accent` was the first cut: it reads
- *  ink-ward, so on the dark canvas it LIGHTENED the hovered card (27.5% over
- *  19.5%), the opposite of the prominence the operator asked for. The 80%
- *  share is the "a bit darker" step; the ring hover emphasis rides along. */
+/**
+ * The hovered card's surface, one source of truth. Scheme-aware since the
+ * #195 follow-up: in the DARK theme the card token mixes toward BLACK — an
+ * OPAQUE surface darker than the rest state, where darkening IS the emphasis
+ * (`accent` was the first cut: it is ink-ward, so on the dark canvas it
+ * LIGHTENED the hovered card, the opposite of the prominence the operator
+ * asked for). The LIGHT theme keeps the card's opaque surface untouched: the
+ * same mix darkens a near-white card (98.5%) into mid-gray (78.8%), and on a
+ * light canvas that reads MUTED, not emphasized (#195) — the hover ring
+ * (`hover:ring-border`) plus the spotlight's sibling recede carry the
+ * emphasis there instead. The `dark:` variant is Tailwind's media-based
+ * scheme switch, the same one the amber banners already ride.
+ */
 export const HOVER_SURFACE =
-  "hover:bg-[color-mix(in_oklab,var(--card)_80%,black)]";
+  "dark:hover:bg-[color-mix(in_oklab,var(--card)_80%,black)]";
 
 /**
  * One provider-grouped chip (lib/ticket-chips.ts): all the provider's IDs of
@@ -1018,12 +1025,13 @@ export function ThreadCard({
         // overrides this ease with its own armed rest (300ms) and sweep (300ms);
         // the un-dim always rides this base 150ms.
         "transition-[color,background-color,border-color,outline-color,text-decoration-color,opacity,fill,stroke]",
-        // Hover = MORE prominence, never less (issue #123): an OPAQUE surface
-        // DARKER than the rest state (`--card` mixed toward black), never a
-        // translucent background-color on the card itself — card-level
-        // transparency lets the lane background / wallpaper bleed through
-        // (the lesson the wallpaper-contrast under-scrim already teaches).
-        // The ring below carries the emphasis along with it.
+        // Hover = MORE prominence, never less (issue #123): an OPAQUE surface,
+        // never a translucent background-color on the card itself — card-level
+        // transparency lets the lane background / wallpaper bleed through (the
+        // lesson the wallpaper-contrast under-scrim already teaches). The
+        // scheme direction rides HOVER_SURFACE (#195): the dark canvas
+        // darkens the hovered card; the light canvas keeps the card surface
+        // and the ring below carries the emphasis instead.
         HOVER_SURFACE,
         // A card with a child section needs bottom padding beyond the body's
         // own 8px: the rows (or the folded strip) would otherwise sit flush
