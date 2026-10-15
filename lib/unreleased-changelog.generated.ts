@@ -36,6 +36,11 @@ export const UNRELEASED_ITEMS: readonly { text: string; children: string[]; grou
     "group": "Child threads"
   },
   {
+    "text": "**Hovering a card in light mode no longer mutes it.** The hover surface darkened a near-white card into mid-gray on the light theme, which reads as muting. The light hover keeps the card surface and the ring plus the other cards' recede carry the emphasis; the dark theme keeps its darkening.",
+    "children": [],
+    "group": "Board cards"
+  },
+  {
     "text": "**Bare reference ids in pane messages become chips too.** Agents often drop the kind prefix and write `@proj_…` or `@thr_…` straight, and those tokens stayed dead text. The pane paints them like the full forms now, and a trailing `#msg=N` fragment is swallowed the same way.",
     "children": [],
     "group": "Thread pane"
