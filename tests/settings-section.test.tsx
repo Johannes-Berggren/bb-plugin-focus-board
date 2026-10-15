@@ -8,6 +8,7 @@ import { act, cleanup, fireEvent, render, screen } from "@testing-library/react"
 import {
   CARD_TRANSPORT_KEY,
   MOTION_PACING_KEY,
+  LANE_DIRECTION_KEY,
   MOTION_PREF_KEY,
   WALLPAPER_KEY,
 } from "../components/preferences";
@@ -32,7 +33,7 @@ describe("configuration-page Appearance section", () => {
     render(<AppearanceSettingsSection />);
     const card = [...document.querySelectorAll('[role="radio"][aria-checked="true"]')]
       .map((el) => el.textContent);
-    expect(card).toEqual(["Zoom out / in"]);
+    expect(card).toEqual(["Zoom out / in", "Vertical"]);
     expect(followBox().checked).toBe(true);
     expect(motionSlider().value).toBe("1");
     expect(motionSlider().disabled).toBe(true);
@@ -42,15 +43,24 @@ describe("configuration-page Appearance section", () => {
     seeded({
       [CARD_TRANSPORT_KEY]: "teleport",
       [MOTION_PREF_KEY]: "full",
+      [LANE_DIRECTION_KEY]: "horizontal",
     });
     render(<AppearanceSettingsSection />);
     const checked = [...document.querySelectorAll('[role="radio"][aria-checked="true"]')]
       .map((el) => el.textContent);
-    expect(checked).toEqual(["Teleport"]);
+    expect(checked).toEqual(["Teleport", "Horizontal"]);
     // The legacy tri-state's "full" reads as manual motion at stock 1x.
     expect(followBox().checked).toBe(false);
     expect(motionSlider().value).toBe("1");
     expect(motionSlider().disabled).toBe(false);
+  });
+
+  it("a lane-direction pick writes the modal's localStorage key", () => {
+    seeded({});
+    render(<AppearanceSettingsSection />);
+    fireEvent.click(screen.getByRole("radio", { name: "Horizontal" }));
+    expect(window.localStorage.getItem(LANE_DIRECTION_KEY)).toBe("horizontal");
+  });
   });
 
   it("a transport pick writes the modal's localStorage key through the shared serializer", () => {

@@ -11,6 +11,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - **The Parent view's rows each carry their own sweep.** Every sweepable row's rail cell has the same broom the Focus view's columns use, and arming it sweeps that row's cards across every family lane. The A-while-ago row marks its aged-out children Done, the Done row archives, and the Needs-you and Working rows carry no sweep at all.
 
+- **The board's lanes can run horizontal.** A "Lane direction" choice in the Appearance settings tab (mirrored on the plugin configuration page) turns the shipped column board into lanes as rows, each lane's cards flowing left to right; the choice persists across sessions.
+
 #### New Thread composer
 
 - **The overview board opens the New Thread composer on a keyboard shortcut.** Pressing the configured key (default C) with no pane open opens the same composer the New Thread button does; typing in a pane never triggers it, and the key is changeable or switchable off in Settings → Behavior.

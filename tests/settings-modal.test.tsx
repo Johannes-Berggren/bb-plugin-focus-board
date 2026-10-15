@@ -29,6 +29,7 @@ interface RenderHandlers {
   onSetCardTransport: ReturnType<typeof vi.fn>;
   onSetMotionFollow: ReturnType<typeof vi.fn>;
   onSetMotionPacing: ReturnType<typeof vi.fn>;
+  onSetLaneDirection: ReturnType<typeof vi.fn>;
   onWallpaperChange: ReturnType<typeof vi.fn>;
   onOpenChange: ReturnType<typeof vi.fn>;
 }
@@ -51,6 +52,7 @@ function renderModal(
     cardTransport: "none" | "teleport" | "zoom";
     follow: boolean;
     motionPacing: "reduce" | 1 | 2 | 4 | 8;
+    laneDirection: "vertical" | "horizontal";
     wallpaper: WallpaperSettings;
     onSetEscStopsRunningThread: (value: boolean) => void | Promise<void>;
     onSetNewThreadShortcutKey: (value: string) => void | Promise<void>;
@@ -59,6 +61,7 @@ function renderModal(
     onSetMotionFollow: (value: boolean) => void;
     onSetMotionFollow: (value: boolean) => void;
     onSetMotionPacing: (value: "reduce" | 1 | 2 | 4 | 8) => void;
+    onSetLaneDirection: (value: "vertical" | "horizontal") => void;
     onWallpaperChange: (next: WallpaperSettings) => void;
     onOpenChange: (open: boolean) => void;
   }> = {},
@@ -70,6 +73,7 @@ function renderModal(
     onSetCardTransport: vi.fn(),
     onSetMotionFollow: vi.fn(),
     onSetMotionPacing: vi.fn(),
+    onSetLaneDirection: vi.fn(),
     onWallpaperChange: vi.fn(),
     onOpenChange: vi.fn(),
   };
@@ -86,11 +90,13 @@ function renderModal(
       onSetSweep={handlers.onSetSweep}
       cardTransport="zoom"
       follow={true}
+      laneDirection="vertical"
       wallpaper={NULL_WALLPAPER}
       onSetCardTransport={handlers.onSetCardTransport}
       onSetMotionFollow={handlers.onSetMotionFollow}
       motionPacing={1}
       onSetMotionPacing={handlers.onSetMotionPacing}
+      onSetLaneDirection={handlers.onSetLaneDirection}
       onWallpaperChange={handlers.onWallpaperChange}
       onOpenChange={handlers.onOpenChange}
       {...overrides}
@@ -495,6 +501,7 @@ describe("settings modal: Appearance tab", () => {
         onSetSweep={vi.fn()}
         cardTransport="teleport"
         follow={true}
+        laneDirection="vertical"
         wallpaper={NULL_WALLPAPER}
         onSetEscStopsRunningThread={vi.fn()}
         onSetNewThreadShortcutKey={vi.fn()}
@@ -502,6 +509,7 @@ describe("settings modal: Appearance tab", () => {
         onSetMotionFollow={vi.fn()}
         motionPacing={1}
         onSetMotionPacing={vi.fn()}
+        onSetLaneDirection={vi.fn()}
         onWallpaperChange={vi.fn()}
         onOpenChange={vi.fn()}
       />,
@@ -550,6 +558,23 @@ describe("settings modal: Appearance tab", () => {
     expect(slider.disabled).toBe(false);
     const checkbox = screen.getByRole("checkbox", { name: "Follow my system setting" }) as HTMLInputElement;
     expect(checkbox.checked).toBe(false);
+  });
+
+  it("offers the two lane-direction choices with the vertical default selected", () => {
+    renderModal({ tab: "appearance" });
+    const group = document.querySelector('[role="radiogroup"][aria-label="Lane direction"]');
+    expect(group).not.toBeNull();
+    const radios = [...document.querySelectorAll('[role="radio"][aria-checked]')].filter(
+      (el) => group?.contains(el),
+    );
+    expect(radios.map((el) => el.textContent)).toEqual(["Vertical", "Horizontal"]);
+    expect(radios[0]?.getAttribute("aria-checked")).toBe("true");
+  });
+
+  it("picking a lane direction reports it through the handler", () => {
+    const { onSetLaneDirection } = renderModal({ tab: "appearance", laneDirection: "vertical" });
+    fireEvent.click(screen.getByRole("radio", { name: "Horizontal" }));
+    expect(onSetLaneDirection).toHaveBeenCalledWith("horizontal");
   });
 
   it("mounts the wallpaper picker contents inline in the tab content", () => {

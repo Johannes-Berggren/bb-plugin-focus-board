@@ -9,6 +9,7 @@ import type { MotionPacing, WallpaperSettings } from "@/components/preferences";
 import { WhatsNewFeed } from "@/components/whats-new-feed";
 import {
   CardTransportChoice,
+  LaneDirectionChoice,
   MotionControl,
   WallpaperGroup,
 } from "@/components/appearance-controls";
@@ -84,6 +85,7 @@ export function SettingsModal({
   cardTransport,
   follow,
   motionPacing,
+  laneDirection,
   wallpaper,
   onSetEscStopsRunningThread,
   onSetNewThreadShortcutKey,
@@ -91,6 +93,7 @@ export function SettingsModal({
   onSetCardTransport,
   onSetMotionFollow,
   onSetMotionPacing,
+  onSetLaneDirection,
   onWallpaperChange,
 }: {
   open: boolean;
@@ -140,11 +143,14 @@ export function SettingsModal({
   follow: boolean;
   /** The Appearance tab's notched motion slider (components/preferences.ts). */
   motionPacing: MotionPacing;
+  /** The Appearance tab's lane-direction choice (components/preferences.ts). */
+  laneDirection: "vertical" | "horizontal";
   /** The board wallpaper document, rendered by the same picker the toolbar hosts. */
   wallpaper: WallpaperSettings;
   onSetCardTransport: (value: "none" | "teleport" | "zoom") => void;
   onSetMotionFollow: (value: boolean) => void;
   onSetMotionPacing: (value: MotionPacing) => void;
+  onSetLaneDirection: (value: "vertical" | "horizontal") => void;
   onWallpaperChange: (next: WallpaperSettings) => void;
 }) {
   if (!open) return null;
@@ -220,10 +226,12 @@ export function SettingsModal({
                 cardTransport={cardTransport}
                 follow={follow}
                 motionPacing={motionPacing}
+                laneDirection={laneDirection}
                 wallpaper={wallpaper}
                 onSetCardTransport={onSetCardTransport}
                 onSetMotionFollow={onSetMotionFollow}
                 onSetMotionPacing={onSetMotionPacing}
+                onSetLaneDirection={onSetLaneDirection}
                 onWallpaperChange={onWallpaperChange}
               />
             )}
@@ -260,19 +268,23 @@ function AppearanceContent({
   cardTransport,
   follow,
   motionPacing,
+  laneDirection,
   wallpaper,
   onSetCardTransport,
   onSetMotionFollow,
   onSetMotionPacing,
+  onSetLaneDirection,
   onWallpaperChange,
 }: {
   cardTransport: "none" | "teleport" | "zoom";
   follow: boolean;
   motionPacing: MotionPacing;
+  laneDirection: "vertical" | "horizontal";
   wallpaper: WallpaperSettings;
   onSetCardTransport: (value: "none" | "teleport" | "zoom") => void;
   onSetMotionFollow: (value: boolean) => void;
   onSetMotionPacing: (value: MotionPacing) => void;
+  onSetLaneDirection: (value: "vertical" | "horizontal") => void;
   onWallpaperChange: (next: WallpaperSettings) => void;
 }) {
   return (
@@ -287,6 +299,7 @@ function AppearanceContent({
         pacing={motionPacing}
         onPacingChange={onSetMotionPacing}
       />
+      <LaneDirectionChoice selected={laneDirection} onSelect={onSetLaneDirection} />
       <WallpaperGroup wallpaper={wallpaper} onWallpaperChange={onWallpaperChange} />
     </div>
   );
