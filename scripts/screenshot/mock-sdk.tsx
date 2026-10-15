@@ -744,6 +744,13 @@ const CONVERSATIONS: Record<string, MockMessage[]> = {
       text:
         "Remote: registered as @project:proj_api; packaging thread: @thread:thr_glyph_glue#msg=12 is now active, so its tokens are chips here.",
     },
+    {
+      role: "agent",
+      // The bare id forms agents abbreviate to (issue #178): the id prefix
+      // alone must paint the same chips the full forms do.
+      text:
+        "Bare forms: vision stays on @proj_api, and the twin @thr_glyph_glue#msg=3 is catching up. The numeric @21@ marker is not a reference.",
+    },
   ],
   thr_glyph_glue: [
     {

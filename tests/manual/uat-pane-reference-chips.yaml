@@ -1,5 +1,7 @@
 # Operator-assisted E2E: agent-written reference tokens in the pane's chat
-# (issue #161) paint as labeled, navigable chips.
+# (issue #161) paint as labeled, navigable chips — in the bare id forms too
+# (issue #178: `@proj_api`, `@thr_glyph_glue#msg=3`), while a numeric
+# marker the pane cannot route stays raw text.
 #
 # The broken state this suite pins: the token `@project:proj_api` renders as
 # dead plain text in the live pane (the host's shared markdown renderer
@@ -41,3 +43,11 @@ steps:
     assert:
       - pane: { threadId: thr_glyph_glue }
       - url: { suffix: "/board/t/thr_glyph_glue" }
+
+  - id: bare-id-forms-paint-too
+    title: Bare @thr_ / @proj_ id tokens paint as chips, a numeric marker stays raw
+    goto: "?groupBy=status#/plugins/focus-board/board/t/thr_review_pr"
+    assert:
+      - text_hidden: "@proj_api"
+      - text_hidden: "@thr_glyph_glue#msg=3"
+      - text_visible: "@21@"
