@@ -49,5 +49,10 @@ export const UNRELEASED_ITEMS: readonly { text: string; children: string[]; grou
     "text": "**A focused card no longer recedes under the spotlight.** The pane-open card and a needs-attention card used to drop to 70% opacity while another card sat under the pointer; they now carry the same never-fade marker the done, dimmed, snoozed, and sweep-picked cards get.",
     "children": [],
     "group": "Card animations"
+  },
+  {
+    "text": "**Create & assign shows the new group's box right away.** The Group picker's create path used to leave the board and the picker stale until a separate sync signal arrived, so a fresh group sometimes never appeared and the card stayed unboxed. The record now lands from the create response itself, the same settle path the rename and delete writers already use.",
+    "children": [],
+    "group": "Feature groups"
   }
 ];

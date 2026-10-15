@@ -45,6 +45,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **Sweep-selected cards keep their opaque card surface.** The selection's amber wash used a translucent card background that replaced the card's surface, so selected cards faded toward transparent while chosen for a sweep; the wash now rides an overlay and the card stays solid.
 - **A focused card no longer recedes under the spotlight.** The pane-open card and a needs-attention card used to drop to 70% opacity while another card sat under the pointer; they now carry the same never-fade marker the done, dimmed, snoozed, and sweep-picked cards get.
 
+#### Feature groups
+
+- **Create & assign shows the new group's box right away.** The Group picker's create path used to leave the board and the picker stale until a separate sync signal arrived, so a fresh group sometimes never appeared and the card stayed unboxed. The record now lands from the create response itself, the same settle path the rename and delete writers already use.
+
 ## [1.3.1] - 2026-10-14
 
 ### Added

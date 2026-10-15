@@ -646,12 +646,25 @@ function BoardPage({ subPath }: { subPath: string }) {
       rpc
         .call("group_create", { name })
         .then((created: unknown) => {
-          const groupId = (created as { group: { id: string } }).group.id;
-          setThreadGroup(threadId, groupId);
+          const group = (created as { group: { id: string; name: string; createdAt: string } })
+            .group;
+          // The registry record lands from the response, not from the echo:
+          // realtime is ephemeral (a signal can fail to deliver — the SDK
+          // documents the reconcile path), and the board drops an assignment
+          // whose group id the registry doesn't know yet, so betting on the
+          // group-changed refetch left the card unboxed and the picker's
+          // list without the new group. Same optimistic pattern the
+          // rename/delete writers use; the echo's refetch still settles.
+          setGroupRegistry((current) =>
+            current[group.id] !== undefined
+              ? current
+              : { ...current, [group.id]: { name: group.name, createdAt: group.createdAt } },
+          );
+          setThreadGroup(threadId, group.id);
         })
         .catch(() => refetchGroups());
     },
-    [rpc, refetchGroups, setThreadGroup],
+    [rpc, refetchGroups, setGroupRegistry, setThreadGroup],
   );
   /**
    * Rename a registry group in place. Optimistic (the shared record means
