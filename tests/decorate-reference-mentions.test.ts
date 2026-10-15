@@ -117,6 +117,51 @@ describe("decorateReferenceMentions", () => {
     );
   });
 
+  it("paints a bare project id token the agent abbreviates to", () => {
+    // Verbatim shape from thread thr_646fydrhzt: agents frequently drop the
+    // `project:` prefix and write the bare id (`@proj_…`), so the chip must
+    // dispatch on the id prefix itself.
+    const root = message(
+      "<p>(vision stays on it for @proj_api); the pruned chat is ready</p>",
+    );
+    decorateReferenceMentions(root, labels);
+    const chip = root.querySelector<HTMLElement>("[data-focus-board-ref-kind]");
+    expect(decoratedReferencePaneTarget(chip)).toEqual({
+      kind: "project",
+      id: "proj_api",
+      messageSeq: null,
+    });
+    expect(chip!.textContent).toContain("API Gateway");
+    expect(root.querySelector("p")!.textContent).toBe(
+      "(vision stays on it for API Gateway); the pruned chat is ready",
+    );
+  });
+
+  it("paints a bare thread id token and swallows an attached #msg fragment", () => {
+    const root = message("<p>twin of @thr_glyph_glue#msg=5 is catching up</p>");
+    decorateReferenceMentions(root, labels);
+    const chip = root.querySelector<HTMLElement>("[data-focus-board-ref-kind]");
+    expect(decoratedReferencePaneTarget(chip)).toEqual({
+      kind: "thread",
+      id: "thr_glyph_glue",
+      messageSeq: 5,
+    });
+    expect(chip!.textContent).toContain("Wrap check: long path with the open glyph");
+    expect(root.querySelector("p")!.textContent).not.toContain("#msg=5");
+  });
+
+  it("leaves the host's numeric mention form and arbitrary @word@ text inert", () => {
+    // A numeric form like `@291@` is not a bb reference the pane can route:
+    // it never carries a target id, so converting it would invent
+    // navigation. Arbitrary `@handle@` prose stays raw for the same reason.
+    const root = message("<p>message 291 marker @291@ stays raw</p>");
+    decorateReferenceMentions(root, labels);
+    expect(root.querySelector("p")!.textContent).toBe(
+      "message 291 marker @291@ stays raw",
+    );
+    expect(root.querySelectorAll("[data-focus-board-ref-kind]")).toHaveLength(0);
+  });
+
   it("decorates inside inline code but leaves links, code blocks, and host chips alone", () => {
     const root = message(
       '<a href="x">@project:proj_api</a>' +

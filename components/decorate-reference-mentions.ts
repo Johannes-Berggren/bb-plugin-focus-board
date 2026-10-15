@@ -15,7 +15,8 @@
 // DOM of the pane's embedded ThreadChat, because the pane cannot re-render
 // the host's markdown:
 //
-// - A raw serialized token — `@thread:thr_…` or `@project:proj_…`, with an
+// - A serialized token — the full `@thread:thr_…` / `@project:proj_…` form
+//   or the bare id form agents abbreviate to (`@thr_…` / `@proj_…`), with an
 //   optional `#msg=N` fragment swallowed — becomes a button carrying the
 //   target's display label (the raw id when the caller's labeler does not
 //   know it yet).
@@ -77,10 +78,13 @@ export const REFERENCE_PAINTED_LABEL_FLAG = "data-focus-board-ref-painted-label"
 /** Marks the chip's label span inside the chip element. */
 const REFERENCE_LABEL_SPAN_FLAG = "data-focus-board-ref-label-span";
 
-/** The serialized token shapes the agent writes. The `#msg=N` fragment is
+/** The serialized token shapes the agent writes: the full `@thread:thr_…` /
+ *  `@project:proj_…` forms and the bare id forms (`@thr_…` / `@proj_…`) it
+ *  abbreviates to, dispatched by the id prefix. The `#msg=N` fragment is
  *  only meaningful for thread tokens; it is swallowed for either kind so a
- *  converted token never leaves one dangling. */
-const TOKEN = /@(thread|project):([A-Za-z0-9_-]+)(?:#msg=(0|[1-9]\d*))?/gu;
+ *  converted token never leaves one dangling. The full form stands first in
+ *  the alternation so a fully-written token never converts as its id half. */
+const TOKEN = /@(thread|project):([A-Za-z0-9_-]+)(?:#msg=(0|[1-9]\d*))?|@(thr|proj)_([A-Za-z0-9_-]+)(?:#msg=(0|[1-9]\d*))?/gu;
 
 const THREAD_ID_PREFIX = "thr_";
 const PROJECT_ID_PREFIX = "proj_";
@@ -118,7 +122,17 @@ function parseMessageSeq(raw: string | null): number | null {
 
 /** A token's parsed target, or null when the serialized form is malformed
  *  (a mismatched kind/id prefix stays literal text — fail-safe over
- *  converting something the agent never meant). */
+ *  converting something the agent never meant). Dispatches on the match's
+ *  shape: a full-form match carries the kind word in group 1, a bare-form
+ *  match carries the id prefix in group 4. */
+function targetFromMatch(match: RegExpExecArray): PaneReferenceTarget | null {
+	if (match[2] !== undefined) {
+		return targetFromToken(match[1]!, match[2]!, match[3]);
+	}
+	return targetFromToken(match[4] === "thr" ? "thread" : "project", `${match[4]}_${match[5]}`, match[6]);
+}
+
+/** A full-form token's parsed target, or null on a kind/id mismatch. */
 function targetFromToken(kind: string, id: string, seq: string | undefined): PaneReferenceTarget | null {
 	const expectedPrefix = kind === "thread" ? THREAD_ID_PREFIX : PROJECT_ID_PREFIX;
 	if (!id.startsWith(expectedPrefix)) return null;
@@ -244,7 +258,7 @@ export function decorateReferenceMentions(
 		let last = 0;
 		let match: RegExpExecArray | null;
 		while ((match = token.exec(text.data)) !== null) {
-			const target = targetFromToken(match[1]!, match[2]!, match[3]);
+			const target = targetFromMatch(match);
 			if (target === null) continue;
 			if (match.index > last) {
 				fragment.appendChild(doc.createTextNode(text.data.slice(last, match.index)));

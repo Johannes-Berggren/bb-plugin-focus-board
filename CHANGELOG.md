@@ -11,6 +11,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+#### Thread pane
+
+- **Bare reference ids in pane messages become chips too.** Agents often drop the kind prefix and write `@proj_…` or `@thr_…` straight, and those tokens stayed dead text. The pane paints them like the full forms now, and a trailing `#msg=N` fragment is swallowed the same way.
+
 ## [1.4.0] - 2026-10-15
 
 ### Added
@@ -39,6 +43,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 #### Cards and chips
 
 - **Agent-written reference tokens in pane messages become clickable chips.** An agent's `@thread:thr_…` or `@project:proj_…` token used to stay dead text, and a raw thread token vanished behind the host's empty mention element. They now paint as labeled chips from the board's own thread and project rows, falling back to the raw id; clicking opens the thread in the pane, or bb's main thread/project view for a target the board does not list.
+
+#### Ticket chips
 - **Ticket chips wrap their ids onto extra lines instead of overflowing the card.** A chip carrying long external labels (a cove forge link's "cove 0dac60e") used to run past the card's right edge; the ids now reflow onto extra lines whatever their width.
 - **Ticket chip links no longer render inside the card's own link.** A chip's mark and id links used to sit inside the card's opening link, an invalid HTML pairing React logged on every render of the card; the chip rows now sit beside the card's link and every chip link still opens its own ticket directly.
 
