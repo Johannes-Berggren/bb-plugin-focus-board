@@ -137,6 +137,13 @@ through `puppeteer-core` (nothing is downloaded), writes a report per suite to
   opens the full-screen sheet, the compact actions menu carries Full Screen
   (the standalone button is dropped on compact), and choosing it runs the
   maximize path (the mock's navigation is a no-op, so the pane stays).
+- `uat-grandchildren.yaml` — the depth-2 (three-tier) family card in real
+  Chrome: the grandchild sub-row renders under its parent row indented right
+  of it, the family fold hides and restores the sub-row tier with the rows,
+  ticket chips reach depth 2 (`child_chip` — pins PR #194's behavior and
+  fails on a tree without it), and the card's right gutter holds at both
+  depths (`right_gutter`, issue #192). The three-tier family is the base
+  fixture's `thr_gutter_family` chain.
 
 ## Notes
 

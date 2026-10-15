@@ -379,6 +379,32 @@ export const SIM_THREADS: readonly SimThread[] = [
     }),
   ),
 
+  // Depth-2 (three-tier) family fixture (issue #192's UAT coverage): parent
+  // card > nested child row > grandchild sub-row, with ticket refs on the
+  // parent and the grandchild so chip tiers can be asserted at both depth
+  // levels. Older than every other family (18 days) so the parent-lane UAT
+  // lane order above stays put, and all-idle so no attention column moves.
+  thread({
+    id: "thr_gutter_family",
+    displayTitle: "Three-tier family fixture #192",
+    updatedAt: SIM_NOW - 18 * DAY,
+    lastReadAt: SIM_NOW - 18 * DAY,
+  }),
+  thread({
+    id: "thr_gutter_family_c0",
+    displayTitle: "Regress the sub-row indent",
+    parentThreadId: "thr_gutter_family",
+    updatedAt: SIM_NOW - 18 * DAY + 2 * MINUTE,
+    lastReadAt: SIM_NOW - 18 * DAY,
+  }),
+  thread({
+    id: "thr_gutter_family_c0_gc0",
+    displayTitle: "Pin the depth-2 chip gutter #191",
+    parentThreadId: "thr_gutter_family_c0",
+    updatedAt: SIM_NOW - 18 * DAY + 4 * MINUTE,
+    lastReadAt: SIM_NOW - 18 * DAY,
+  }),
+
   // Done
   thread({
     id: "thr_pane_padding",

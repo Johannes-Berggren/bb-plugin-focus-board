@@ -1,0 +1,76 @@
+# Operator-assisted E2E: the depth-2 (three-tier) family card.
+#
+# Issue #192's verification surface: a family card whose child rows carry
+# their OWN child rows (parent card > nested child row > grandchild
+# sub-row). jsdom suites pin the markup (tests/thread-card-nested-rows.tsx);
+# this suite measures the real layout — the sub-row's indent, the fold
+# hiding the sub-row tier with the rest, the ticket chips reaching depth 2,
+# and the card's right gutter holding at both depths.
+#
+# Run: npm run uat -- tests/manual/uat-grandchildren.yaml
+#
+# The "A while ago" lane's simulated three-tier family (all idle, 18 days
+# old, so it never moves between suites):
+#   thr_gutter_family (chip ref #192)
+#     └ thr_gutter_family_c0 (chip ref #193)
+#         └ thr_gutter_family_c0_gc0 (chip ref #191)
+#
+# The child_chip rules pin the #191 behavior (PR #194): nested rows carry
+# the row's own condensed chips. On a tree without PR #194 those two steps
+# fail by design — everything else in the suite must pass regardless.
+suite: three-tier-grandchildren
+harness:
+  config: scripts/screenshot/vite.config.ts
+  port: 5173
+defaults:
+  groupBy: status
+  theme: dark
+
+steps:
+  - id: reachable-and-indented
+    title: The grandchild renders under its parent row, indented right of it
+    goto: "?groupBy=status"
+    assert:
+      - nested_row: { id: thr_gutter_family_c0, shown: true }
+      - sub_row: { id: thr_gutter_family_c0_gc0, under: thr_gutter_family_c0, shown: true }
+
+  - id: chips-reach-depth-2
+    title: The child row and the grandchild sub-row both chip their ticket refs
+    goto: "?groupBy=status"
+    assert:
+      - text_visible: "Three-tier family fixture"
+      - child_chip: { id: thr_gutter_family_c0, text: "#193" }
+      - child_chip: { id: thr_gutter_family_c0_gc0, text: "#191", in_sub_rows: true }
+
+  - id: right-gutter-at-depth-2
+    title: The card's right gutter holds with the sub-row tier expanded
+    # Issue #192: every content surface (title, project line, time, chip
+    # rows, and both row tiers) stops short of the card's right edge by at
+    # least CELL_PAD, and the card box stops short of the lane's edge.
+    goto: "?groupBy=status"
+    assert:
+      - right_gutter: { card: thr_gutter_family }
+
+  - id: family-fold-hides-sub-rows
+    title: Folding the family hides the child rows and the sub-row tier with them
+    goto: "?groupBy=status"
+    gestures:
+      - click_aria: { label: "Collapse subthreads", within: thr_gutter_family }
+    assert:
+      - nested_row: { id: thr_gutter_family_c0, shown: false }
+      - sub_row: { id: thr_gutter_family_c0_gc0, under: thr_gutter_family_c0, shown: false }
+
+  - id: family-unfold-restores-sub-rows
+    title: Unfolding restores both tiers, indent, chips, and gutter unchanged
+    # One step, fold-then-unfold: every step's goto starts from a fresh
+    # board where the family renders expanded, so the Expand label only
+    # exists after the Collapse gesture in this same step.
+    goto: "?groupBy=status"
+    gestures:
+      - click_aria: { label: "Collapse subthreads", within: thr_gutter_family }
+      - click_aria: { label: "Expand subthreads", within: thr_gutter_family }
+    assert:
+      - nested_row: { id: thr_gutter_family_c0, shown: true }
+      - sub_row: { id: thr_gutter_family_c0_gc0, under: thr_gutter_family_c0, shown: true }
+      - right_gutter: { card: thr_gutter_family }
+      - child_chip: { id: thr_gutter_family_c0_gc0, text: "#191", in_sub_rows: true }
