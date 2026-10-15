@@ -1389,14 +1389,16 @@ export function ThreadCard({
                     }}
                     className={cn(
                       "group/dot relative flex size-4 items-center justify-center rounded-full",
-                      // The hovered (or keyboard-focused) dot lights a
-                      // subtle accent halo behind its glyph — the
-                      // hovered-preview pair reads as one thing. Plain
-                      // hover/focus variants: the group-hover form cannot
-                      // style a button from its own group marker (:is(
-                      // .group:hover *) matches only descendants, and the
-                      // halo's target IS the group element).
-                      "hover:bg-accent/70 focus-visible:bg-accent/70",
+                      // The hovered (or keyboard-focused) dot lights an
+                      // amber wash behind its glyph — the preview pair and
+                      // the attention signals read one language, and the
+                      // grey accent wash was too subtle at this size
+                      // (operator). Plain hover/focus variants: the
+                      // group-hover form cannot style a button from its own
+                      // group marker (:is(.group:hover *) matches only
+                      // descendants, and the halo's target IS the group
+                      // element).
+                      "hover:bg-amber-500/20 focus-visible:bg-amber-500/20",
                       "focus:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                       isChildActive && "bg-accent/70 ring-2 ring-ring",
                     )}
