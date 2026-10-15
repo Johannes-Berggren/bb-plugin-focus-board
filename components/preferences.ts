@@ -230,16 +230,18 @@ export function sweepUnitFromSetting(
 }
 
 /**
- * The board motion preference: `system` defers to the OS media query (the
- * default), `reduce` forces the reduced-motion path on regardless, `full`
- * forces the full-motion path on regardless. Wired into the board's
- * transport wipe gating, which already has both branches.
+ * The board motion preference's stored shape: `system` (the default) means
+ * the follow-system checkbox is checked and the OS media query rules motion
+ * alone at stock speed; `manual` means the board reads the pacing slider's
+ * notch instead. Yesterday's stored tri-state values carry over in
+ * `parseMotionSettings` (a stored `reduce` reads as manual motion notch 0,
+ * a stored `full` as manual motion 1x) — no migration key.
  */
-export type MotionPref = "system" | "reduce" | "full";
+export type MotionPref = "system" | "manual";
 
 export const MOTION_PREF_KEY = "focus-board:motion";
 
-const ALLOWED_MOTION: readonly MotionPref[] = ["system", "reduce", "full"];
+const ALLOWED_MOTION: readonly MotionPref[] = ["system", "manual"];
 
 export function parseMotionStored(raw: string | null): MotionPref {
   return (ALLOWED_MOTION as readonly string[]).includes(raw ?? "")
@@ -247,32 +249,88 @@ export function parseMotionStored(raw: string | null): MotionPref {
     : "system";
 }
 
-export function motionStoredValue(value: MotionPref): MotionPref {
-  return value;
-}
-
 /**
- * The transports' pacing: how LONG the board's transport animations run,
- * alongside the Motion override which gates whether they run. 1 is the stock
- * clock; 2 runs the same movement twice as long (the prolong direction:
- * fewer, slower, follow-able movements, the counterpart of reduce). The
- * slider writes this 0.25 grid and the parser accepts only its values.
+ * The transports' pacing notches, the slider's whole axis: the leftmost
+ * notch is reduce (the board's moves go quiet), the second is stock 1x, and
+ * each notch right doubles the dwell — 2x, 4x, 8x. A logarithmic scale, so
+ * every notch is a clearly different read: at 8x the transporter dissolve
+ * runs ~4s where stock runs ~0.5s.
  */
-export type MotionPacing = 1 | 1.25 | 1.5 | 1.75 | 2;
+export type MotionPacing = "reduce" | 1 | 2 | 4 | 8;
+
+export const MOTION_PACING_STEPS: readonly MotionPacing[] = ["reduce", 1, 2, 4, 8];
 
 export const MOTION_PACING_KEY = "focus-board:motion-pacing";
 
-const ALLOWED_MOTION_PACING: readonly MotionPacing[] = [1, 1.25, 1.5, 1.75, 2];
+/** The notches' stored texts, so "8" round-trips numerically and "reduce" never reads as a number. */
+const MOTION_PACING_STORED = new Map<MotionPacing, string>(
+  MOTION_PACING_STEPS.map((step) => [step, String(step)] as const),
+);
 
 export function parseMotionPacing(raw: string | null): MotionPacing {
-  const parsed = Number.parseFloat(raw ?? "");
-  return (ALLOWED_MOTION_PACING as readonly number[]).includes(parsed)
+  const parsed = raw === "reduce" ? "reduce" : Number.parseFloat(raw ?? "");
+  return (MOTION_PACING_STEPS as readonly unknown[]).includes(parsed)
     ? (parsed as MotionPacing)
     : 1;
 }
 
 export function motionPacingStoredValue(value: MotionPacing): string {
-  return String(value);
+  const stored = MOTION_PACING_STORED.get(value);
+  if (stored === undefined) {
+    throw new Error(`motion pacing: ${String(value)} is not a slider notch`);
+  }
+  return stored;
+}
+
+/** The slider's notch a pacing value sits on (0 = reduce, 4 = 8x). */
+export function motionPacingIndex(value: MotionPacing): number {
+  const index = MOTION_PACING_STEPS.indexOf(value);
+  if (index === -1) {
+    throw new Error(`motion pacing: ${String(value)} is not a slider notch`);
+  }
+  return index;
+}
+
+export function motionPacingFromIndex(index: number): MotionPacing {
+  return MOTION_PACING_STEPS[index] ?? 1;
+}
+
+/**
+ * The motion settings as one read of the two keys: whether the board
+ * follows the system, and the slider's notch when it does not. Yesterday's
+ * stored tri-state carries over: a stored `reduce` reads as manual motion
+ * with the leftmost notch, a stored `full` as manual motion 1x, and the
+ * stored `system` as the checkbox checked.
+ */
+export interface MotionSettings {
+  /** The "Follow my system setting" checkbox. */
+  follow: boolean;
+  /** The notched slider's value; ignored while follow is checked. */
+  pacing: MotionPacing;
+}
+
+export function parseMotionSettings(
+  rawPref: string | null,
+  rawPacing: string | null,
+): MotionSettings {
+  if (rawPref === "system" || rawPref === null || rawPref === "") {
+    // The system rule is the default: the checkbox checked, the slider
+    // disabled. The pacing key (if any) belongs to the manual path only.
+    return { follow: true, pacing: 1 };
+  }
+  if (rawPref === "reduce") return { follow: false, pacing: "reduce" };
+  if (rawPref === "full") return { follow: false, pacing: 1 };
+  if (rawPref === "manual") return { follow: false, pacing: parseMotionPacing(rawPacing) };
+  // Missing or foreign pref values keep the system default.
+  return { follow: true, pacing: 1 };
+}
+
+/** The pair the persist path writes back into the two keys. */
+export function motionSettingsStoredValues(
+  follow: boolean,
+  pacing: MotionPacing,
+): { pref: MotionPref; pacing: MotionPacing } {
+  return { pref: follow ? "system" : "manual", pacing };
 }
 
 /**

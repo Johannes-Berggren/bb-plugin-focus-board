@@ -1,7 +1,7 @@
 import { useState } from "react";
 import {
   CardTransportChoice,
-  MotionGroup,
+  MotionControl,
   WallpaperGroup,
 } from "@/components/appearance-controls";
 import {
@@ -11,17 +11,15 @@ import {
   WALLPAPER_KEY,
   cardTransportStoredValue,
   motionPacingStoredValue,
-  motionStoredValue,
+  motionSettingsStoredValues,
   parseCardTransportStored,
-  parseMotionPacing,
-  parseMotionStored,
+  parseMotionSettings,
   parseWallpaperStored,
   readStoredText,
   wallpaperStoredValue,
   writeStored,
   type CardTransportPref,
-  type MotionPacing,
-  type MotionPref,
+  type MotionSettings,
   type WallpaperSettings,
 } from "@/components/preferences";
 
@@ -40,12 +38,10 @@ export function AppearanceSettingsSection() {
   const [cardTransport, setCardTransport] = useState<CardTransportPref>(
     () => parseCardTransportStored(readStoredText(CARD_TRANSPORT_KEY, "")),
   );
-  const [motionPref, setMotionPref] = useState<MotionPref>(
-    () => parseMotionStored(readStoredText(MOTION_PREF_KEY, "")),
+  const [motion, setMotion] = useState<MotionSettings>(() =>
+    parseMotionSettings(readStoredText(MOTION_PREF_KEY, ""), readStoredText(MOTION_PACING_KEY, "")),
   );
-  const [motionPacing, setMotionPacing] = useState<MotionPacing>(
-    () => parseMotionPacing(readStoredText(MOTION_PACING_KEY, "")),
-  );
+  const { follow, pacing } = motion;
   const [wallpaper, setWallpaper] = useState<WallpaperSettings>(
     () => parseWallpaperStored(readStoredText(WALLPAPER_KEY, "")),
   );
@@ -59,16 +55,18 @@ export function AppearanceSettingsSection() {
           setCardTransport(value);
         }}
       />
-      <MotionGroup
-        motionPref={motionPref}
-        onMotionPrefChange={(value) => {
-          writeStored(MOTION_PREF_KEY, motionStoredValue(value));
-          setMotionPref(value);
+      <MotionControl
+        follow={follow}
+        onFollowChange={(value) => {
+          writeStored(MOTION_PREF_KEY, motionSettingsStoredValues(value, pacing).pref);
+          writeStored(MOTION_PACING_KEY, motionPacingStoredValue(pacing));
+          setMotion({ ...motion, follow: value });
         }}
-        pacing={motionPacing}
+        pacing={pacing}
         onPacingChange={(value) => {
+          writeStored(MOTION_PREF_KEY, motionSettingsStoredValues(follow, value).pref);
           writeStored(MOTION_PACING_KEY, motionPacingStoredValue(value));
-          setMotionPacing(value);
+          setMotion({ ...motion, pacing: value });
         }}
       />
       <WallpaperGroup

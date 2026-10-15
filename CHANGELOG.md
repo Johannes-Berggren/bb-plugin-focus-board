@@ -9,7 +9,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 #### Card animations
 
-- **A pacing slider stretches the card animations longer in the Appearance tab.** The Motion row gains a "Animation pacing" control from 1x to 2x longer that scales every transport clock, so the same lane-move choreography can run slower and easier to follow. The slider greys out while the board follows the system or reduce is forced, and reduce-motion still wins over any pacing.
+- **A motion slider replaces the Motion dropdown, with a follow-system checkbox.** The Motion row is now a checkbox over a notched slider: "Follow my system setting" hands everything to the OS's reduce-motion signal and greys the slider out, and a slide left of stock quiets the board ("Reduce"). The notches right of stock stretch the card animations on a log scale (1x, 2x, 4x, 8x), so the longest read is clearly slower, not a hair longer. The choice persists per browser, and yesterday's stored tri-state carries over.
 
 #### Clear error
 

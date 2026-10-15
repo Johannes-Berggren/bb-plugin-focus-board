@@ -509,16 +509,17 @@ interface BoardProps {
    */
   cardTransport?: "none" | "teleport" | "zoom";
   /**
-   * The Appearance tab's motion override: `reduce`/`full` force the
-   * reduced/full-motion path regardless of the OS media query; `system`
-   * (default) defers to the media query.
+   * The Appearance tab's motion preference: `manual` reads the pacing
+   * slider instead (a `reduce` notch quiets the board, a number stretches
+   * the transport clock); `system` (default) defers to the OS media query
+   * and plays stock.
    */
-  motionPref?: "system" | "reduce" | "full";
+  motionPref?: "system" | "manual";
   /**
-   * The transports' pacing (components/preferences.ts): how long the
-   * transport clocks run. 1 is stock; 2 runs the same movement twice as
-   * long. Reduce-motion supersedes it (a suppressed transport has no clock
-   * to stretch).
+   * The Appearance tab's transports' pacing (components/preferences.ts):
+   * the notched slider's value. "reduce" quiets the board (with a manual
+   * motion preference); 1 is stock; 2, 4, and 8 stretch the transport
+   * clocks log-scale. Ignored while the board follows the system (stock).
    */
   motionPacing?: MotionPacing;
   /**
@@ -884,13 +885,21 @@ export function Board({
   // static styles. The Appearance tab's motion override replaces the media
   // query when the user forces a side.
   const systemReducedMotion = usePrefersReducedMotion();
+  // The Motion settings' gate: following the system defers to the OS media
+  // query (the checkbox's branch); manual motion reads the slider, whose
+  // leftmost notch is reduce and whose numbers stretch every transport clock.
   const prefersReducedMotion =
-    motionPref === "reduce" ? true : motionPref === "full" ? false : systemReducedMotion;
+    motionPref === "manual" && motionPacing === "reduce"
+      ? true
+      : motionPref === "system"
+        ? systemReducedMotion
+        : false;
+  const paceFactor = motionPacing === "reduce" ? 1 : motionPacing;
   // The transports' pace: every transport clock (the phase timers, the WAAPI
   // durations, the glint field's phase) passes through this one seam, so the
   // stock read above and the stretched read below can never drift apart.
   // Stock pacing is the identity (1 -> the stock milliseconds).
-  const paceMs = (ms: number) => pacedTransportMs(ms, motionPacing);
+  const paceMs = (ms: number) => pacedTransportMs(ms, paceFactor);
   // The Appearance choice is the operator's voice at the board's own seam:
   // zoom and teleport map onto the transport variants, none never reaches
   // the planner. UNSET, `transportVariant` keeps its own voice — the
@@ -1218,7 +1227,7 @@ export function Board({
         // The dissolve fades in place with a bloom; the zoom recedes toward
         // the portal scale, accelerating away.
         effectiveTransportVariant === "zoom" ? zoomOutKeyframes() : wipeOutKeyframes(),
-        effectiveTransportVariant === "zoom" ? pacedTransportMs(TRANSPORT_ZOOM_OUT_MS, motionPacing) : pacedTransportMs(TRANSPORT_WIPE_OUT_MS, motionPacing),
+        effectiveTransportVariant === "zoom" ? pacedTransportMs(TRANSPORT_ZOOM_OUT_MS, paceFactor) : pacedTransportMs(TRANSPORT_WIPE_OUT_MS, paceFactor),
         effectiveTransportVariant === "zoom" ? TRANSPORT_ZOOM_OUT_EASE : TRANSPORT_EASE,
       );
       if (effectiveTransportVariant === "dissolve") {
@@ -1241,7 +1250,7 @@ export function Board({
         // The dissolve materializes out of the beam's bloom; the zoom grows
         // from the portal scale, landing opaque as its space opens.
         effectiveTransportVariant === "zoom" ? zoomInKeyframes() : wipeInKeyframes(),
-        effectiveTransportVariant === "zoom" ? pacedTransportMs(TRANSPORT_ZOOM_IN_MS, motionPacing) : pacedTransportMs(TRANSPORT_WIPE_IN_MS, motionPacing),
+        effectiveTransportVariant === "zoom" ? pacedTransportMs(TRANSPORT_ZOOM_IN_MS, paceFactor) : pacedTransportMs(TRANSPORT_WIPE_IN_MS, paceFactor),
         effectiveTransportVariant === "zoom" ? TRANSPORT_ZOOM_IN_EASE : TRANSPORT_EASE,
       );
       // The dissolve rides the space growing: the new slot opens from zero
@@ -1264,7 +1273,7 @@ export function Board({
           // The dissolve's space opens early under its materialize; the
           // zoom's space expands on the SAME clock as the card's growth, so
           // the space and the card land together.
-          effectiveTransportVariant === "zoom" ? pacedTransportMs(TRANSPORT_ZOOM_IN_MS, motionPacing) : pacedTransportMs(TRANSPORT_GROW_MS, motionPacing),
+          effectiveTransportVariant === "zoom" ? pacedTransportMs(TRANSPORT_ZOOM_IN_MS, paceFactor) : pacedTransportMs(TRANSPORT_GROW_MS, paceFactor),
           effectiveTransportVariant === "zoom" ? TRANSPORT_ZOOM_IN_EASE : TRANSPORT_GROW_EASE,
         );
       }
@@ -1311,7 +1320,7 @@ export function Board({
             // The zoom's slot close rides the shrink's clock and ease (the
             // space recedes with the card); the dissolve keeps its own
             // quicker close after the wipe.
-            effectiveTransportVariant === "zoom" ? pacedTransportMs(TRANSPORT_ZOOM_OUT_MS, motionPacing) : pacedTransportMs(TRANSPORT_COLLAPSE_MS, motionPacing),
+            effectiveTransportVariant === "zoom" ? pacedTransportMs(TRANSPORT_ZOOM_OUT_MS, paceFactor) : pacedTransportMs(TRANSPORT_COLLAPSE_MS, paceFactor),
             effectiveTransportVariant === "zoom" ? TRANSPORT_ZOOM_OUT_EASE : TRANSPORT_EASE,
           );
         }

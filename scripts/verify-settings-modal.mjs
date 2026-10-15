@@ -282,7 +282,7 @@ const selectedTab = (page) =>
     checked: [...document.querySelectorAll('[role="radio"][aria-checked="true"]')].map((r) => r.textContent),
     wallpaper: document.querySelector('input[aria-label="Wallpaper image url"]') !== null,
   }));
-  const mountOk = section.mounted && JSON.stringify(section.groups) === JSON.stringify(["Card animations", "Motion"]) && section.wallpaper;
+  const mountOk = section.mounted && JSON.stringify(section.groups) === JSON.stringify(["Card animations"]) && section.wallpaper;
   if (mountOk) ok(`config page mounts the Appearance mirror (${section.checked.join(", ")})`);
   else fail(`config page section wrong: ${JSON.stringify(section)}`);
 
@@ -299,7 +299,7 @@ const selectedTab = (page) =>
   const reloaded = await open("?page=configuration&groupBy=status");
   const mirrored = await reloaded.evaluate(() =>
     [...document.querySelectorAll('[role="radio"][aria-checked="true"]')].map((r) => r.textContent));
-  if (JSON.stringify(mirrored) === JSON.stringify(["None", "Use my system setting"])) {
+  if (JSON.stringify(mirrored) === JSON.stringify(["None"])) {
     ok("a fresh config page renders the picked value (the mirror reads the truth, not a copy)");
   } else fail(`fresh config page ignored the pick: ${JSON.stringify(mirrored)}`);
   await reloaded.close();

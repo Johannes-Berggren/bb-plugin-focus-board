@@ -26,7 +26,7 @@ interface RenderHandlers {
   onSetEscStopsRunningThread: ReturnType<typeof vi.fn>;
   onSetSweep: ReturnType<typeof vi.fn>;
   onSetCardTransport: ReturnType<typeof vi.fn>;
-  onSetMotionPref: ReturnType<typeof vi.fn>;
+  onSetMotionFollow: ReturnType<typeof vi.fn>;
   onSetMotionPacing: ReturnType<typeof vi.fn>;
   onWallpaperChange: ReturnType<typeof vi.fn>;
   onOpenChange: ReturnType<typeof vi.fn>;
@@ -47,13 +47,15 @@ function renderModal(
     escStopsRunningThread: boolean | undefined;
     sweep: typeof NULL_SWEEP;
     cardTransport: "none" | "teleport" | "zoom";
-    motionPref: "system" | "reduce" | "full";
+    follow: boolean;
+    motionPacing: "reduce" | 1 | 2 | 4 | 8;
     wallpaper: WallpaperSettings;
     onSetEscStopsRunningThread: (value: boolean) => void | Promise<void>;
     onSetSweep: (write: { key: string; value: number | string }) => void | Promise<void>;
     onSetCardTransport: (value: "none" | "teleport" | "zoom") => void;
-    onSetMotionPref: (value: "system" | "reduce" | "full") => void;
-    onSetMotionPacing: (value: 1 | 1.25 | 1.5 | 1.75 | 2) => void;
+    onSetMotionFollow: (value: boolean) => void;
+    onSetMotionFollow: (value: boolean) => void;
+    onSetMotionPacing: (value: "reduce" | 1 | 2 | 4 | 8) => void;
     onWallpaperChange: (next: WallpaperSettings) => void;
     onOpenChange: (open: boolean) => void;
   }> = {},
@@ -62,7 +64,7 @@ function renderModal(
     onSetEscStopsRunningThread: vi.fn(),
     onSetSweep: vi.fn(),
     onSetCardTransport: vi.fn(),
-    onSetMotionPref: vi.fn(),
+    onSetMotionFollow: vi.fn(),
     onSetMotionPacing: vi.fn(),
     onWallpaperChange: vi.fn(),
     onOpenChange: vi.fn(),
@@ -77,10 +79,10 @@ function renderModal(
       onSetEscStopsRunningThread={handlers.onSetEscStopsRunningThread}
       onSetSweep={handlers.onSetSweep}
       cardTransport="zoom"
-      motionPref="system"
+      follow={true}
       wallpaper={NULL_WALLPAPER}
       onSetCardTransport={handlers.onSetCardTransport}
-      onSetMotionPref={handlers.onSetMotionPref}
+      onSetMotionFollow={handlers.onSetMotionFollow}
       motionPacing={1}
       onSetMotionPacing={handlers.onSetMotionPacing}
       onWallpaperChange={handlers.onWallpaperChange}
@@ -386,11 +388,13 @@ describe("settings modal: Appearance tab", () => {
         sweep={NULL_SWEEP}
         onSetSweep={vi.fn()}
         cardTransport="teleport"
-        motionPref="system"
+        follow={true}
         wallpaper={NULL_WALLPAPER}
         onSetEscStopsRunningThread={vi.fn()}
         onSetCardTransport={vi.fn()}
-        onSetMotionPref={vi.fn()}
+        onSetMotionFollow={vi.fn()}
+        motionPacing={1}
+        onSetMotionPacing={vi.fn()}
         onWallpaperChange={vi.fn()}
         onOpenChange={vi.fn()}
       />,
@@ -403,59 +407,42 @@ describe("settings modal: Appearance tab", () => {
     expect(checked).toHaveLength(1);
   });
 
-  it("offers the motion preference with the system's media query selected by default", () => {
+  it("the Motion control is a follow-system checkbox over a notched slider", () => {
     renderModal({ tab: "appearance" });
-    const group = document.querySelector('[role="radiogroup"][aria-label="Motion"]');
-    expect(group).not.toBeNull();
-    const radios = [...document.querySelectorAll('[role="radio"][aria-checked]')].filter(
-      (el) => group?.contains(el),
-    );
-    expect(radios.map((el) => el.textContent)).toEqual([
-      "Use my system setting",
-      "Always reduce",
-      "Always play in full",
-    ]);
-    expect(radios[0]?.getAttribute("aria-checked")).toBe("true");
-  });
-
-  it("picking a motion choice reports it through the handler", () => {
-    const { onSetMotionPref } = renderModal({ tab: "appearance", motionPref: "system" });
-    fireEvent.click(screen.getByRole("radio", { name: "Always reduce" }));
-    expect(onSetMotionPref).toHaveBeenCalledWith("reduce");
-  });
-
-  it("the pacing slider reads the pacing value and sits beside the Motion choice", () => {
-    renderModal({ tab: "appearance", motionPref: "full", motionPacing: 1.5 });
-    const slider = screen.getByRole("slider", { name: "Animation pacing" }) as HTMLInputElement;
-    expect(slider.value).toBe("1.5");
-    // The readout names the stretch: a first-time reader can tell 1.5 is longer, not faster.
-    expect(document.body.textContent).toContain("1.5x longer");
-  });
-
-  it("pacing the transports reports the value through the handler", () => {
-    const { onSetMotionPacing } = renderModal({ tab: "appearance", motionPref: "full" });
-    fireEvent.change(screen.getByRole("slider", { name: "Animation pacing" }), {
-      target: { value: "2" },
-    });
-    expect(onSetMotionPacing).toHaveBeenCalledWith(2);
-  });
-
-  it("following the system (Use my system setting) disables the pacing slider", () => {
-    renderModal({ tab: "appearance", motionPref: "system" });
-    const slider = screen.getByRole("slider", { name: "Animation pacing" }) as HTMLInputElement;
+    // The checkbox defaults to following the system.
+    const checkbox = screen.getByRole("checkbox", { name: "Follow my system setting" }) as HTMLInputElement;
+    expect(checkbox.checked).toBe(true);
+    // The slider replaces the old tri-state: leftmost notch is reduce, the
+    // second is stock 1x, and the notches right of stock stretch logarithmically.
+    const slider = screen.getByRole("slider", { name: "Motion" }) as HTMLInputElement;
+    expect(slider.value).toBe("1"); // notch index 1 = 1x stock
+    expect(slider.min).toBe("0");
+    expect(slider.max).toBe("4");
     expect(slider.disabled).toBe(true);
+    // The readout names the notch.
+    expect(document.body.textContent).toContain("Stock (1x)");
   });
 
-  it("always reduce disables the pacing slider (nothing left to stretch)", () => {
-    renderModal({ tab: "appearance", motionPref: "reduce" });
-    const slider = screen.getByRole("slider", { name: "Animation pacing" }) as HTMLInputElement;
-    expect(slider.disabled).toBe(true);
+  it("unchecking follow-system enables the notched slider, and notching it reports", () => {
+    const { onSetMotionFollow, onSetMotionPacing } = renderModal({ tab: "appearance", follow: false });
+    expect(screen.getByRole("slider", { name: "Motion" }).getAttribute("aria-disabled")).toBeNull();
+    const slider = screen.getByRole("slider", { name: "Motion" }) as HTMLInputElement;
+    fireEvent.change(slider, { target: { value: "4" } });
+    expect(onSetMotionPacing).toHaveBeenCalledWith(8);
+    fireEvent.change(slider, { target: { value: "0" } });
+    expect(onSetMotionPacing).toHaveBeenCalledWith("reduce");
+    const checkbox = screen.getByRole("checkbox", { name: "Follow my system setting" });
+    fireEvent.click(checkbox);
+    expect(onSetMotionFollow).toHaveBeenCalledWith(true);
   });
 
-  it("always play in full enables the pacing slider", () => {
-    renderModal({ tab: "appearance", motionPref: "full" });
-    const slider = screen.getByRole("slider", { name: "Animation pacing" }) as HTMLInputElement;
+  it("the slider reads a seeded manual pacing and its follow state from the props", () => {
+    renderModal({ tab: "appearance", follow: false, motionPacing: 4 });
+    const slider = screen.getByRole("slider", { name: "Motion" }) as HTMLInputElement;
+    expect(slider.value).toBe("3"); // notch index 3 = 4x
     expect(slider.disabled).toBe(false);
+    const checkbox = screen.getByRole("checkbox", { name: "Follow my system setting" }) as HTMLInputElement;
+    expect(checkbox.checked).toBe(false);
   });
 
   it("mounts the wallpaper picker contents inline in the tab content", () => {

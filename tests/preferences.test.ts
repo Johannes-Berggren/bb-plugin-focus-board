@@ -8,14 +8,18 @@ import {
   cardTransportStoredValue,
   collapsedFamiliesStoredValue,
   escStopsRunningFromSetting,
+  motionPacingFromIndex,
+  motionPacingIndex,
   motionPacingStoredValue,
+  motionSettingsStoredValues,
   MOTION_PACING_KEY,
+  MOTION_PACING_STEPS,
   nestStoredValue,
   parseCardTransportStored,
   parseCollapsedFamiliesStored,
   parseGroupStored,
   parseMotionPacing,
-  parseMotionStored,
+  parseMotionSettings,
   parseNestStored,
   parseParentLaneOrderStored,
   parseWallpaperStored,
@@ -341,22 +345,20 @@ describe("simultaneous corruption (every key garbage at once)", () => {
     }
   });
 
-  it("parses the motion preference; the system's media query is the default", () => {
+  it("the motion preference key feeds the settings pair; system is the default", () => {
     expect(MOTION_PREF_KEY).toBe("focus-board:motion");
-    expect(parseMotionStored("reduce")).toBe("reduce");
-    expect(parseMotionStored("full")).toBe("full");
     for (const raw of [null, "", "not json", "on", "off", "always"]) {
-      expect(parseMotionStored(raw)).toBe("system");
+      expect(parseMotionSettings(raw, null)).toEqual({ follow: true, pacing: 1 });
     }
+    expect(parseMotionSettings("system", "4")).toEqual({ follow: true, pacing: 1 });
+    expect(parseMotionSettings("reduce", null)).toEqual({ follow: false, pacing: "reduce" });
+    expect(parseMotionSettings("full", null)).toEqual({ follow: false, pacing: 1 });
   });
 
-  it("parses the motion pacing; only the slider's 0.25 grid parses, stock (1) is the default", () => {
+  it("parses the motion pacing: the log grid reduce/1x/2x/4x/8x, stock (1) the default", () => {
     expect(MOTION_PACING_KEY).toBe("focus-board:motion-pacing");
-    for (const raw of [null, ""]) {
-      expect(parseMotionPacing(raw)).toBe(1);
-    }
-    for (const raw of ["1", "1.25", "1.5", "1.75", "2"]) {
-      expect(parseMotionPacing(raw)).toBe(Number.parseFloat(raw!));
+    for (const raw of ["reduce", "1", "2", "4", "8"]) {
+      expect(parseMotionPacing(raw)).toBe(raw === "reduce" ? "reduce" : Number.parseFloat(raw!));
     }
     for (const raw of [
       null,
@@ -364,19 +366,47 @@ describe("simultaneous corruption (every key garbage at once)", () => {
       "not json",
       "0",
       "0.5",
+      "1.25",
+      "1.5",
+      "1.75",
+      "3",
       "1.3",
-      "1.1",
       "2.5",
+      "16",
       "-1",
-      "1,25",
       "NaN",
     ]) {
       expect(parseMotionPacing(raw)).toBe(1);
     }
     // The serializer's stored text round-trips through the parser.
-    for (const value of [1, 1.25, 1.5, 1.75, 2] as const) {
+    for (const value of ["reduce", 1, 2, 4, 8] as const) {
       expect(parseMotionPacing(motionPacingStoredValue(value))).toBe(value);
     }
+    // The notch <-> value mapping the slider rides (leftmost is reduce).
+    expect(MOTION_PACING_STEPS).toEqual(["reduce", 1, 2, 4, 8]);
+    expect(MOTION_PACING_STEPS.map((_, index) => motionPacingFromIndex(index))).toEqual(
+      MOTION_PACING_STEPS,
+    );
+    for (const [index, value] of MOTION_PACING_STEPS.entries()) {
+      expect(motionPacingIndex(value)).toBe(index);
+    }
+  });
+
+  it("parses the motion settings pair, carrying yesterday's stored tri-state across", () => {
+    // Legacy stored values map without a migration key: the tri-state's
+    // forced values land on the slider, its system value stays the checkbox.
+    expect(parseMotionSettings("system", null)).toEqual({ follow: true, pacing: 1 });
+    expect(parseMotionSettings("reduce", null)).toEqual({ follow: false, pacing: "reduce" });
+    expect(parseMotionSettings("full", null)).toEqual({ follow: false, pacing: 1 });
+    expect(parseMotionSettings("manual", "8")).toEqual({ follow: false, pacing: 8 });
+    expect(parseMotionSettings("manual", "1.5")).toEqual({ follow: false, pacing: 1 });
+    // Missing or foreign pref values keep the system default (the checkbox
+    // checked), whatever the pacing key holds.
+    expect(parseMotionSettings(null, "4")).toEqual({ follow: true, pacing: 1 });
+    expect(parseMotionSettings("", "1.5")).toEqual({ follow: true, pacing: 1 });
+    // The write path stores the pair back under the two keys.
+    expect(motionSettingsStoredValues(true, 2)).toEqual({ pref: "system", pacing: 2 });
+    expect(motionSettingsStoredValues(false, "reduce")).toEqual({ pref: "manual", pacing: "reduce" });
   });
 
   it("every parser survives the full garbage list and returns its documented fallback", () => {
