@@ -123,6 +123,10 @@ export function experimental_useSidebarThreads(): unknown {
   };
 }
 
+// The realtime signal channels: useRealtime registers handlers, tests fire
+// them through fireRealtime.
+const realtimeChannels = new Map<string, Set<(payload: unknown) => void>>();
+
 function mutateThread(threadId: string, patch: (thread: FakeSidebarThread) => FakeSidebarThread): void {
   store.threads = store.threads.map((thread) =>
     thread.id === threadId ? patch(thread) : thread,
@@ -192,7 +196,16 @@ export function experimental_usePluginId(): string {
   return "focus-board";
 }
 
-export function useRealtime(): void {}
+export function useRealtime(channel: string, handler: (payload: unknown) => void): void {
+  if (channel === undefined) return; // legacy no-arg stub signature
+  if (!realtimeChannels.has(channel)) realtimeChannels.set(channel, new Set());
+  realtimeChannels.get(channel)?.add(handler);
+}
+
+/** Every handler registered for `channel` (the fake equivalent of a realtime signal). */
+export function fireRealtime(channel: string, payload: unknown = {}): void {
+  for (const handler of [...realtimeChannels.get(channel) ?? []]) handler(payload);
+}
 
 const rpcSubscribers = new Set<(event: unknown) => void>();
 function publishThreadChanged(): void {
