@@ -28,6 +28,8 @@ import Copy01Icon from "@hugeicons/core-free-icons/Copy01Icon";
 import DashedLineCircleIcon from "@hugeicons/core-free-icons/DashedLineCircleIcon";
 import Delete02Icon from "@hugeicons/core-free-icons/Delete02Icon";
 import UngroupIcon from "@hugeicons/core-free-icons/UngroupIcon";
+import ViewIcon from "@hugeicons/core-free-icons/ViewIcon";
+import ViewOffIcon from "@hugeicons/core-free-icons/ViewOffIcon";
 import Download01Icon from "@hugeicons/core-free-icons/Download01Icon";
 import Edit02Icon from "@hugeicons/core-free-icons/Edit02Icon";
 import FilterHorizontalIcon from "@hugeicons/core-free-icons/FilterHorizontalIcon";
@@ -266,6 +268,10 @@ const CORE_ICON_MAP = {
   Ungroup: UngroupIcon,
   Unavailable: UnavailableIcon,
   UserRoundPlus: UserAdd01Icon,
+  // The child section's idle-children filter: the slashed eye is the idle
+  // filter ARMED (hide the family's idle children), the plain eye un-hides.
+  View: ViewIcon,
+  ViewOff: ViewOffIcon,
   Workflow: WorkflowCircle03Icon,
   X: Cancel01Icon,
   Zap: ZapIcon,

@@ -135,13 +135,16 @@ import {
 import { useSweepClickAway } from "./components/board";
 import {
   COLLAPSED_FAMILIES_KEY,
+  HIDE_IDLE_CHILDREN_KEY,
   GROUP_BY_KEY,
   NEST_CHILDREN_KEY,
   PARENT_LANE_ORDER_KEY,
   collapsedFamiliesStoredValue,
   escStopsRunningFromSetting,
+  hideIdleChildrenStoredValue,
   nestStoredValue,
   parseCollapsedFamiliesStored,
+  parseHideIdleChildrenStored,
   parseNestStored,
   parseGroupStored,
   parseParentLaneOrderStored,
@@ -832,6 +835,14 @@ function BoardPage({ subPath }: { subPath: string }) {
   const [collapsedFamilies, setCollapsedFamilies] = useState<ReadonlySet<string>>(() =>
     parseCollapsedFamiliesStored(readStoredText(COLLAPSED_FAMILIES_KEY, "")),
   );
+  // Hide-idle-children families: the parent ids (Done projections keyed
+  // `done:<parent id>`, same as the fold) whose child sections hide their
+  // idle children. Same deliberate-toggle-only shape as the collapsed set:
+  // a family never toggled renders its children, and a corrupt stored list
+  // degrades to nobody hidden.
+  const [hideIdleFamilies, setHideIdleFamilies] = useState<ReadonlySet<string>>(() =>
+    parseHideIdleChildrenStored(readStoredText(HIDE_IDLE_CHILDREN_KEY, "")),
+  );
   // Board wallpaper: a versioned settings document (single global layer
   // today; per-project / per-group overrides extend the same document).
   const [wallpaper, setWallpaper] = useState<WallpaperSettings>(() =>
@@ -1221,6 +1232,20 @@ function BoardPage({ subPath }: { subPath: string }) {
     setCollapsedFamilies((current) => {
       const next = new Set(current);
       if (collapsed) next.add(parentId);
+      else next.delete(parentId);
+      return next;
+    });
+  }, []);
+  // Single writer for the hide-idle set, same serialization as the fold:
+  // state is the only mutation surface, the effect serializes, and the mount
+  // run repairs a corrupt stored list.
+  useEffect(() => {
+    writeStored(HIDE_IDLE_CHILDREN_KEY, hideIdleChildrenStoredValue(hideIdleFamilies));
+  }, [hideIdleFamilies]);
+  const setFamilyHideIdle = useCallback((parentId: string, hide: boolean) => {
+    setHideIdleFamilies((current) => {
+      const next = new Set(current);
+      if (hide) next.add(parentId);
       else next.delete(parentId);
       return next;
     });
@@ -3055,6 +3080,8 @@ function BoardPage({ subPath }: { subPath: string }) {
             onZoomToGroup={zoomToGroup}
             collapsedFamilyIds={collapsedFamilies}
             onFamilyCollapsedChange={setFamilyCollapsed}
+            hideIdleFamilyIds={hideIdleFamilies}
+            onFamilyHideIdleChange={setFamilyHideIdle}
             dimmedIds={dimmedIds}
             projectNameFor={projectNameFor}
             repoBaseFor={repoBaseFor}
