@@ -2060,12 +2060,17 @@ function BoardPage({ subPath }: { subPath: string }) {
   const referenceMentions = useMemo<ReferenceMentions>(
     () => ({
       labels: {
-        threadLabel: (threadId) =>
-          threads.find((thread) => thread.id === threadId)?.displayTitle ??
-          archivedThreads.find((archived) => archived.id === threadId)?.title ??
-          archivedThreads.find((archived) => archived.id === threadId)
-            ?.titleFallback ??
-          null,
+        threadLabel: (threadId) => {
+          const archived = archivedThreads.find(
+            (archived) => archived.id === threadId,
+          );
+          return (
+            threads.find((thread) => thread.id === threadId)?.displayTitle ??
+            archived?.title ??
+            archived?.titleFallback ??
+            null
+          );
+        },
         projectLabel: (projectId) => {
           const row = projects.find((project) => project.id === projectId);
           if (row === undefined) return null;

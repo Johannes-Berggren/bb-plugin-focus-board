@@ -85,11 +85,36 @@ const TOKEN = /@(thread|project):([A-Za-z0-9_-]+)(?:#msg=(0|[1-9]\d*))?/gu;
 const THREAD_ID_PREFIX = "thr_";
 const PROJECT_ID_PREFIX = "proj_";
 
+/** The chip's accessible name and the pane's tooltip are one spelling. The
+ *  full string is load bearing: tests/manual/uat-pane-reference-chips.yaml
+ *  clicks each chip by this exact aria-label, so a prefix rewording (or a
+ *  glued CamelCase form the screen reader will not split) must not drift —
+ *  a wording change updates that suite's click_aria entries in the same
+ *  commit. */
+function chipAriaLabel(target: PaneReferenceTarget, label: string): string {
+	return `${target.kind === "thread" ? "Open thread" : "Open project"} ${label}`;
+}
+
+/** The thread chip icon: a 12px speech bubble sized to the host's composer
+ *  pills. scripts/security-gates.mjs allows an innerHTML sink only through
+ *  one all-caps _ICON constant on the right side — keep the SVG wholly
+ *  inside this constant, assign it at its sink sites in one statement
+ *  each, and register a new kind's icon the same way with the approving
+ *  review named in the gate. */
 const THREAD_ICON =
 	'<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>';
 
+/** The project chip icon: a 12px folder, same gates rule as THREAD_ICON. */
 const PROJECT_ICON =
 	'<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></svg>';
+
+/** The swallowed `#msg=N` fragment's number, or null: absent, empty (the
+ *  DOM attribute spelling of "none"), or not an integer all read as none. */
+function parseMessageSeq(raw: string | null): number | null {
+	if (raw === null || raw === "") return null;
+	const parsed = Number(raw);
+	return Number.isInteger(parsed) ? parsed : null;
+}
 
 /** A token's parsed target, or null when the serialized form is malformed
  *  (a mismatched kind/id prefix stays literal text — fail-safe over
@@ -97,11 +122,10 @@ const PROJECT_ICON =
 function targetFromToken(kind: string, id: string, seq: string | undefined): PaneReferenceTarget | null {
 	const expectedPrefix = kind === "thread" ? THREAD_ID_PREFIX : PROJECT_ID_PREFIX;
 	if (!id.startsWith(expectedPrefix)) return null;
-	const messageSeq = seq === undefined ? null : Number(seq);
 	return {
 		kind: kind === "thread" ? "thread" : "project",
 		id,
-		messageSeq: messageSeq !== null && Number.isInteger(messageSeq) ? messageSeq : null,
+		messageSeq: parseMessageSeq(seq ?? null),
 	};
 }
 
@@ -119,11 +143,10 @@ export function decoratedReferencePaneTarget(
 		return null;
 	}
 	const seqRaw = chip.getAttribute(REFERENCE_SEQ_FLAG);
-	const messageSeq = seqRaw === null ? null : Number(seqRaw);
 	return {
 		kind,
 		id,
-		messageSeq: messageSeq !== null && Number.isInteger(messageSeq) ? messageSeq : null,
+		messageSeq: parseMessageSeq(seqRaw),
 	};
 }
 
@@ -165,10 +188,7 @@ function createChip(
 	chip.className =
 		"inline-flex max-w-full min-w-0 cursor-pointer items-center gap-1 overflow-hidden rounded-md bg-muted/70 px-1 py-0.5 text-xs font-normal text-muted-foreground hover:bg-accent hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring";
 	chip.title = target.kind === "thread" ? "Open thread" : "Open project";
-	chip.setAttribute(
-		"aria-label",
-		`${target.kind === "thread" ? "OpenThread" : "OpenProject"} ${label}`,
-	);
+	chip.setAttribute("aria-label", chipAriaLabel(target, label));
 	const icon = doc.createElement("span");
 	icon.className = "shrink-0";
 	icon.setAttribute("aria-hidden", "true");
@@ -201,12 +221,17 @@ export function decorateReferenceMentions(
 	root: ParentNode,
 	labels: ReferenceLabeler,
 ): void {
-	const walker = document.createTreeWalker(root, 4 /* Text */);
+	// The tokenizer compiles once per call: TOKEN declares the pattern
+	// source, but its `g` state is per-call (probe and splitter are two
+	// state styles over the same source).
+	const tokenProbe = new RegExp(TOKEN.source, "u");
+	const tokenSplitter = () => new RegExp(TOKEN.source, "gu");
+	const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
 	const nodes: Text[] = [];
 	let node: Node | null;
 	while ((node = walker.nextNode()) !== null) {
 		if (claimedByOtherSurface(node)) continue;
-		if (!new RegExp(TOKEN.source, "u").test(node.nodeValue ?? "")) continue;
+		if (!tokenProbe.test(node.nodeValue ?? "")) continue;
 		nodes.push(node as Text);
 	}
 	for (const text of nodes) {
@@ -215,7 +240,7 @@ export function decorateReferenceMentions(
 		const doc = text.ownerDocument;
 		if (doc === null) continue;
 		const fragment = doc.createDocumentFragment();
-		const token = new RegExp(TOKEN.source, "gu");
+		const token = tokenSplitter();
 		let last = 0;
 		let match: RegExpExecArray | null;
 		while ((match = token.exec(text.data)) !== null) {
@@ -249,7 +274,7 @@ export function decorateReferenceMentions(
 		const target: PaneReferenceTarget = {
 			kind: "thread",
 			id,
-			messageSeq: seqRaw !== null && Number.isInteger(Number(seqRaw)) ? Number(seqRaw) : null,
+			messageSeq: parseMessageSeq(seqRaw),
 		};
 		host.setAttribute(REFERENCE_KIND_FLAG, "thread");
 		host.setAttribute(REFERENCE_ID_FLAG, id);
@@ -257,8 +282,14 @@ export function decorateReferenceMentions(
 			host.setAttribute(REFERENCE_SEQ_FLAG, String(target.messageSeq));
 		}
 		host.title = "Open thread";
-		host.style.display = "inline-flex";
 		const label = labelFor(labels, target);
+		host.setAttribute("aria-label", chipAriaLabel(target, label));
+		// The repainted element must match the painted button's reach: focus
+		// goes to it with Tab and Enter/Space drive the pane's keyboard
+		// capture (thread-pane.tsx's keydown handler claims chips by role).
+		host.tabIndex = 0;
+		host.setAttribute("role", "button");
+		host.style.display = "inline-flex";
 		host.setAttribute(REFERENCE_PAINTED_LABEL_FLAG, label);
 		const icon = doc.createElement("span");
 		icon.className = "shrink-0";

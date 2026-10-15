@@ -31,13 +31,13 @@ steps:
     gestures:
       # The click is the paint assertion: nothing else in the DOM carries the
       # chip's aria-label, so a dead click_aria names exactly what broke.
-      - click_aria: "OpenProject API Gateway"
+      - click_aria: "Open project API Gateway"
 
   - id: thread-chip-opens-the-referenced-thread-in-the-pane
     title: Clicking a thread chip opens that thread in the board's pane
     goto: "?groupBy=status#/plugins/focus-board/board/t/thr_review_pr"
     gestures:
-      - click_aria: "OpenThread Wrap check: long path with the open glyph"
+      - click_aria: "Open thread Wrap check: long path with the open glyph"
     assert:
       - pane: { threadId: thr_glyph_glue }
       - url: { suffix: "/board/t/thr_glyph_glue" }

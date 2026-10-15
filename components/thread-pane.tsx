@@ -3,6 +3,7 @@ import {
   useEffect,
   useRef,
   useState,
+  type KeyboardEvent as ReactKeyboardEvent,
   type MouseEvent,
 } from "react";
 import {
@@ -724,6 +725,23 @@ export function ThreadPane({
     },
     [onChatClickCapture],
   );
+
+  // The repainted host mention elements (role=button) and the painted chips
+  // are keyboard-operable: Enter or Space on a focused chip routes the same
+  // target the click-capture handler does.
+  const onChatKeyDownCapture = useCallback(
+    (event: ReactKeyboardEvent<HTMLDivElement>) => {
+      if (event.key !== "Enter" && event.key !== " ") return;
+      const target = event.target;
+      if (!(target instanceof Element)) return;
+      const reference = decoratedReferencePaneTarget(target);
+      if (reference === null || referenceMentions === undefined) return;
+      event.preventDefault();
+      event.stopPropagation();
+      referenceMentions.onOpen(reference);
+    },
+    [referenceMentions],
+  );
   useEffect(() => {
     const guard = createChatClickJumpGuard(() => chatBodyRef.current);
     chatJumpGuardRef.current = guard;
@@ -1101,6 +1119,7 @@ export function ThreadPane({
         ref={chatBodyRef}
         className="min-h-0 flex-1"
         onClickCapture={onChatBodyClickCapture}
+        onKeyDownCapture={onChatKeyDownCapture}
       >
         <ThreadChat threadId={thread.id} variant="compact" layout="contained" />
       </div>
