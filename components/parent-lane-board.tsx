@@ -37,6 +37,8 @@ interface ParentLaneBoardProps {
   lanes: readonly ParentLane[];
   activeThreadId: string | null;
   doneIds: ReadonlySet<string>;
+  /** Clear-error acknowledgment ids (issue #157): acked error dots sit quiet. */
+  errorAckIds?: ReadonlySet<string>;
   /** Members of kept families that did not match the filters/search. */
   dimmedIds: ReadonlySet<string>;
   /** Raw parent → children map, used for the level-1 child +N chip. */
@@ -84,12 +86,19 @@ const DOT_CLASS: Record<string, string> = {
   idle: "bg-muted-foreground/30",
 };
 
-function LaneStateDot({ thread }: { thread: PluginSidebarThread }) {
+function LaneStateDot({
+  thread,
+  errorAcks = new Set<string>(),
+}: {
+  thread: PluginSidebarThread;
+  /** Clear-error acknowledgment ids (issue #157): an acked error dot sits quiet. */
+  errorAcks?: ReadonlySet<string>;
+}) {
   return (
     <span
       className={cn(
         "inline-block size-1.5 shrink-0 rounded-full",
-        DOT_CLASS[threadState(thread)] ?? "bg-muted-foreground/30",
+        DOT_CLASS[threadState(thread, errorAcks)] ?? "bg-muted-foreground/30",
       )}
       aria-hidden
     />
@@ -119,6 +128,7 @@ function LaneHeader({
   lane,
   locked,
   doneIds,
+  errorAcks = new Set<string>(),
   sectionLabel,
   onOpenThread,
   onLock,
@@ -126,6 +136,7 @@ function LaneHeader({
   lane: ParentLane;
   locked: boolean;
   doneIds: ReadonlySet<string>;
+  errorAcks?: ReadonlySet<string>;
   sectionLabel: string | null;
   onOpenThread: (threadId: string) => void;
   onLock: () => void;
@@ -152,7 +163,7 @@ function LaneHeader({
             {sectionLabel} ·
           </span>
         ) : null}
-        <LaneStateDot thread={parent} />
+        <LaneStateDot thread={parent} errorAcks={errorAcks} />
         {lane.childCount > 0 ? (
           <span className="ml-auto shrink-0 rounded-full bg-muted px-1.5 text-[10px] tabular-nums text-muted-foreground">
             {lane.childCount}
@@ -227,6 +238,7 @@ export function ParentLaneBoard({
   lanes,
   activeThreadId,
   doneIds,
+  errorAckIds,
   dimmedIds,
   childrenByParent,
   projectNameFor,
@@ -824,6 +836,7 @@ export function ParentLaneBoard({
                   lane={lane}
                   locked={locked}
                   doneIds={doneIds}
+                  errorAcks={errorAckIds}
                   sectionLabel={entry.sectionLabel}
                   onOpenThread={onOpenThread}
                   onLock={() => lockToRef.current(laneIndex)}
@@ -885,7 +898,7 @@ export function ParentLaneBoard({
                         <ThreadCard
                           thread={cell.thread}
                           compact={cell.variant === "mini"}
-                          stateDot={<LaneStateDot thread={cell.thread} />}
+                          stateDot={<LaneStateDot thread={cell.thread} errorAcks={errorAckIds} />}
                           isActive={cell.thread.id === activeThreadId}
                           isDone={doneIds.has(cell.thread.id)}
                           onAttentionEnter={onAttentionEnter}

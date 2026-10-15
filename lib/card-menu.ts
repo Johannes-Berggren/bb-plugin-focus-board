@@ -53,12 +53,23 @@ export interface CardMenuInputs {
   isKept: boolean;
   /** Assigned to a named family box (`lib/group-metadata`)? */
   grouped: boolean;
+  /**
+   * The card's Needs-you claim comes from error signals only — a hard-failed
+   * turn or failed send (threadState attention minus any pending
+   * interaction), and the operator has not acknowledged it yet. True when
+   * the menu offers "Clear error" (lib/error-ack-metadata). A pending
+   * interaction never qualifies: a wait for the operator needs a real
+   * answer (lib/interaction-sync.ts owns that flag).
+   */
+  canClearError: boolean;
 }
 
 export interface CardMenuHandlers {
   togglePinned: () => void;
   toggleRead: () => void;
   toggleDone: () => void;
+  /** Acknowledge the card's error (issue #157): the board stops claiming attention. */
+  clearError: () => void;
   toggleSweepKeep: () => void;
   /** Detach a nested thread from its family (drop-onto gesture's undo). */
   makeTopLevel: () => void;
@@ -83,7 +94,7 @@ export function cardMenuActions(
   inputs: CardMenuInputs,
   handlers: CardMenuHandlers,
 ): readonly CardMenuAction[] {
-  const { thread, isDone, isSnoozed, isKept, grouped } = inputs;
+  const { thread, isDone, isSnoozed, isKept, grouped, canClearError } = inputs;
   // The shared snooze entries come back with their divider dropped so
   // snooze reads as part of the state group here; the pane's actions
   // menu keeps the builder's own divider — card menu only.
@@ -146,6 +157,16 @@ export function cardMenuActions(
       icon: thread.isUnread ? "MailOpen" : "Mail",
       run: handlers.toggleRead,
     },
+    ...(canClearError
+      ? [
+          {
+            id: "clear-error",
+            label: "Clear error",
+            icon: "BellOff",
+            run: handlers.clearError,
+          } satisfies CardMenuAction,
+        ]
+      : []),
     {
       id: "done",
       label: isDone ? "Mark Not Done" : "Mark Done",

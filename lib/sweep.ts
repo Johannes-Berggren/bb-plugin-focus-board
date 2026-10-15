@@ -98,11 +98,13 @@ export function sweepCandidatesForIdleColumn(
   config: SweepConfig,
   now: number,
   liveChildParents: ReadonlySet<string> = new Set(),
+  /** Clear-error acknowledgment ids (issue #157): acked error arms read idle. */
+  errorAcks: ReadonlySet<string> = new Set<string>(),
 ): string[] {
   const threshold = config.idleArchiveMs ?? DEFAULT_IDLE_ARCHIVE_MS;
   return threads
     .filter((thread) => !doneIds.has(thread.id) && !thread.isPinned)
-    .filter((thread) => threadState(thread) === "idle")
+    .filter((thread) => threadState(thread, errorAcks) === "idle")
     .filter((thread) => !(config.kept?.(thread.id) ?? false))
     .filter((thread) => !liveChildParents.has(thread.id))
     .filter((thread) => now - thread.updatedAt >= threshold)
