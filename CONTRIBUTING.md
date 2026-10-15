@@ -98,10 +98,11 @@ The full rules, including the What's-new modal grouping, live in [.agents/agents
 ## Opening the pull request
 
 - Title: one line stating the behavior change, in the style of recent history ("The done checkbox swaps into the state dot's slot on hover"). Leave out ticket prefixes and branch names.
-- Body: fill in the pull request template. Link the issue it closes with `Fixes #N`.
+- Body: fill in the pull request template. When the pull request closes a tracked issue, carry the closing keyword line (`Fixes #N` or `Closes #N`) exactly once. Without it the issue never auto-closes and stays open after its fix is merged. Link related issues that are not closed by this change with plain `#N` references only. If the issue closed in an earlier pull request, name that in "What changed" instead.
 - Commits: write each message as a short behavior summary. Add a body when the why is not obvious from the diff. Keep history reviewable, with no fixup chains left behind.
 - A maintainer reviews and merges with a merge commit. Squash and rebase merges are not used, so each commit that carries a changelog bullet stays in the history. You do not merge your own pull request.
 - Respond to review by pushing new commits to the same branch. Rebase onto `origin/dev` again only when a maintainer asks or the branch conflicts.
+- After the merge, check the linked issue actually closed. The auto-close needs the keyword line in the pull request that landed on `dev`. An issue still open after its fix merged is a bookkeeping bug: close it the same day with a comment citing the fix commit and pull request.
 
 ## AI-assisted contributions
 
