@@ -402,6 +402,7 @@ describe("entriesSince", () => {
   it("returns entries strictly newer than the stored version", () => {
     const entries = entriesSince("0.4.2");
     expect(entries.map((entry) => entry.version)).toEqual([
+      "1.4.0",
       "1.3.1",
       "1.3.0",
       "1.2.0",
