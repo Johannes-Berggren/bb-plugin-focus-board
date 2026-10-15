@@ -32,6 +32,15 @@ const FILTER_RIBBON_ID = "focus-board-filter-ribbon";
  *  squeezing the board both count. */
 export const NARROW_HEADER_COLLAPSE_WIDTH = 1024;
 
+/** The narrowest collapsed band that still affords TWO keep-visible buttons
+ *  at the far right (issue #206): the row's fixed controls (New thread, a
+ *  usable ~200px search, the Filters toggle, the settings icon, gaps and
+ *  padding) plus the View chip measure about 560px — below it a row-one
+ *  View starves the search field, so the View menu joins the ribbon like
+ *  before. Estimated like NARROW_HEADER_COLLAPSE_WIDTH, measured live by
+ *  the same band observer. */
+export const VIEW_KEEP_VISIBLE_MIN_WIDTH = 560;
+
 /**
  * Linear-model dropdown: clicking a row's label applies it as the single
  * selection (and closes); a checkbox appears in the left margin on hover to
@@ -627,14 +636,19 @@ export function BoardToolbar({
   // ResizeObserver is guarded (jsdom has none, like the wallpaper viewport
   // and the lane board): tests and old hosts degrade to the media query.
   const headerRef = useRef<HTMLDivElement>(null);
-  const [headerNarrow, setHeaderNarrow] = useState(false);
+  // The band's own measured width (ResizeObserver, jsdom degrades to a
+  // null read): it draws the two collapse floors —
+  // NARROW_HEADER_COLLAPSE_WIDTH borrows the ribbon, and between the
+  // keep-visible floor and it, the collapsed row keeps the View chip
+  // outside the ribbon.
+  const [bandWidth, setBandWidth] = useState<number | null>(null);
   useEffect(() => {
     const header = headerRef.current;
     if (header === null || typeof ResizeObserver === "undefined") return;
     const observer = new ResizeObserver((entries) => {
       const width =
         entries[entries.length - 1]?.contentRect.width ?? header.clientWidth;
-      setHeaderNarrow(width < NARROW_HEADER_COLLAPSE_WIDTH);
+      setBandWidth(width);
     });
     observer.observe(header);
     return () => observer.disconnect();
@@ -642,7 +656,17 @@ export function BoardToolbar({
   // The collapsed header layout (and its search-field fill behavior)
   // applies whether the band is compact by media query or narrow by
   // measurement — the borrowed collapse shares everything with mobile.
-  const collapsedHeader = compact || headerNarrow;
+  const collapsedHeader =
+    compact || (bandWidth !== null && bandWidth < NARROW_HEADER_COLLAPSE_WIDTH);
+  // Issue #206: inside the borrowed collapse, the band between the
+  // keep-visible floor and the collapse threshold still affords a second
+  // far-right button — the View chip stays out on the row (left of the
+  // Filters toggle) there, and only drops into the ribbon below the floor.
+  // No measurement yet (jsdom, old hosts) degrades to the old hiding.
+  const viewOnRow =
+    collapsedHeader &&
+    bandWidth !== null &&
+    bandWidth >= VIEW_KEEP_VISIBLE_MIN_WIDTH;
   const [filterRibbonOpen, setFilterRibbonOpen] = useState<boolean>(() =>
     parseFilterRibbonStored(readStoredText(TOOLBAR_FILTER_RIBBON_KEY, "")),
   );
@@ -934,6 +958,7 @@ export function BoardToolbar({
       <div ref={headerRef} className="flex flex-wrap items-center gap-2 border-b border-border bg-muted/50 px-3 py-2">
         {newThreadButton}
         {searchBox}
+        {viewOnRow ? viewMenu : null}
         <button
           type="button"
           onClick={toggleFilterRibbon}
@@ -967,7 +992,7 @@ export function BoardToolbar({
             id={FILTER_RIBBON_ID}
             className="flex w-full flex-wrap items-center gap-2"
           >
-            {viewMenu}
+            {viewOnRow ? null : viewMenu}
             {filterDropdowns}
             {threadCount}
           </div>

@@ -26,6 +26,11 @@ export const UNRELEASED_ITEMS: readonly { text: string; children: string[]; grou
     "group": "Board toolbar"
   },
   {
+    "text": "**The View dropdown stays out of the Filters palette while the collapsed toolbar row has room for it.** A header that borrows the mobile ribbon keeps the View button on its row, left of the Filters toggle, until the band drops to about 560px, where the search field needs all the space the row frees up.",
+    "children": [],
+    "group": "Board toolbar"
+  },
+  {
     "text": "**A nested child row shows its child's ticket chips.** A child thread that ties to a tracker item used to chip only as a standalone card, so the family view hid the tie. Its row carries the same chips now, a step smaller and inert: the row itself is one link.",
     "children": [],
     "group": "Child threads"
