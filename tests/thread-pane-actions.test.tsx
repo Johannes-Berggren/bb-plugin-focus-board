@@ -42,14 +42,18 @@ function renderPane({
   compact,
   pinned = false,
   archived = false,
+  done = false,
   onTogglePinned = noop,
+  onDoneToggle = noop,
   onNewChildThread,
   snoozeMenuItems,
 }: {
   compact: boolean;
   pinned?: boolean;
   archived?: boolean;
+  done?: boolean;
   onTogglePinned?: () => void;
+  onDoneToggle?: (done: boolean) => void;
   onNewChildThread?: () => void;
   snoozeMenuItems?: Parameters<typeof ThreadPane>[0]["snoozeMenuItems"];
 }) {
@@ -66,8 +70,8 @@ function renderPane({
           isPinned: pinned,
         },
         isArchived: archived,
-        isDone: false,
-        onToggleDone: noop,
+        isDone: done,
+        onToggleDone: onDoneToggle,
         onToggleArchived: noop,
         onTogglePinned,
         onToggleUnread: noop,
@@ -325,5 +329,59 @@ describe("new child thread entry in the actions menu", () => {
     renderPane({ compact: false });
     openActionsMenu();
     expect(screen.queryByRole("menuitem", { name: "New child thread…" })).toBeNull();
+  });
+});
+
+describe("done checkbox in the pane header", () => {
+  // The pane header keeps no chat icon: the slot left of the title carries
+  // the done checkbox instead, the same checkbox language the board cards
+  // reveal over their state dot (Checkbox / CheckboxChecked icons).
+  function headerOf() {
+    return screen.getByRole("complementary", { name: "Thread: Test thread" });
+  }
+
+  it.each([false, true])(
+    "shows no chat icon (compact: %s)",
+    (compact) => {
+      renderPane({ compact });
+      expect(headerOf().querySelector('svg[data-icon="MessageSquare"]')).toBeNull();
+      expect(headerOf().querySelector('svg[data-icon="Loading"]')).toBeNull();
+    },
+  );
+
+  it("marks a not-done thread done on one click", () => {
+    const onToggleDone = vi.fn();
+    renderPane({ compact: false, done: false, onDoneToggle: onToggleDone });
+    const checkbox = screen.getByRole("button", { name: "Mark done" });
+    expect(checkbox.querySelector('svg[data-icon="Checkbox"]')).not.toBeNull();
+    fireEvent.click(checkbox);
+    expect(onToggleDone).toHaveBeenCalledWith(true);
+  });
+
+  it("marks a done thread not done on one click, showing the checked box", () => {
+    const onToggleDone = vi.fn();
+    renderPane({ compact: false, done: true, onDoneToggle: onToggleDone });
+    const checkbox = screen.getByRole("button", { name: "Mark not done" });
+    expect(checkbox.querySelector('svg[data-icon="CheckboxChecked"]')).not.toBeNull();
+    fireEvent.click(checkbox);
+    expect(onToggleDone).toHaveBeenCalledWith(false);
+  });
+
+  it("the checkbox sits in the header before the title, at both widths", () => {
+    for (const compact of [false, true]) {
+      cleanup();
+      renderPane({ compact });
+      const header = headerOf();
+      const checkbox = screen.getByRole("button", { name: "Mark done" });
+      // The editable title follows the checkbox in the header row: the
+      // checkbox took the chat icon's slot.
+      const title = header.querySelector('button[title="Rename thread"]');
+      expect(title).toBeTruthy();
+      expect(header.contains(checkbox)).toBe(true);
+      expect(
+        checkbox.compareDocumentPosition(title as Node) &
+          Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy();
+    }
   });
 });
