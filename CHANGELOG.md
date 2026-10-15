@@ -30,6 +30,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 #### Child threads
 
 - **A nested child row shows its child's ticket chips.** A child thread that ties to a tracker item used to chip only as a standalone card, so the family view hid the tie. Its row carries the same chips now, a step smaller and inert: the row itself is one link.
+- **A family card's nested rows keep the card's right gutter.** Child and grandchild rows used to run flush against the card's right edge while the left kept its 12px indent. The child-thread section mirrors its left margin on the right now.
 
 #### Thread pane
 

@@ -1,0 +1,50 @@
+{
+  "columnsBoard": {
+    "cardRightMinusLaneRight": -6,
+    "laneWidth": 256,
+    "cardWidth": 244,
+    "rows": [
+      {
+        "surface": "anchor",
+        "selector": "a[href]",
+        "cardRightMinusContentRight": 24.42,
+        "contentRightMinusLaneRight": -30.42
+      },
+      {
+        "surface": "title",
+        "selector": "[data-title]",
+        "cardRightMinusContentRight": 36.42,
+        "contentRightMinusLaneRight": -42.42
+      },
+      {
+        "surface": "chip-row",
+        "selector": "[data-provider-row]",
+        "cardRightMinusContentRight": 36.42,
+        "contentRightMinusLaneRight": -42.42
+      },
+      {
+        "surface": "nested-rows",
+        "selector": "[data-nested-rows]",
+        "cardRightMinusContentRight": 12,
+        "contentRightMinusLaneRight": -18
+      },
+      {
+        "surface": "nested-child-row",
+        "selector": "[data-nested-rows] [data-thread-card]",
+        "cardRightMinusContentRight": 12,
+        "contentRightMinusLaneRight": -18
+      },
+      {
+        "surface": "sub-rows",
+        "selector": "[data-child-sub-rows]",
+        "cardRightMinusContentRight": 12,
+        "contentRightMinusLaneRight": -18
+      }
+    ]
+  },
+  "parentLanes": {
+    "laneWidth": 288,
+    "cellCount": 3,
+    "minCellInsetFromLaneRight": 4
+  }
+}

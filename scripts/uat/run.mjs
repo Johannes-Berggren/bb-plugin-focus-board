@@ -421,6 +421,105 @@ const pageNestRing = ({ to }) => {
 };
 
 /**
+ * Depth-2 (three-tier) sub-row probe (issue #192's UAT coverage): the
+ * grandchild row renders inside the `[data-child-sub-rows]` list that hangs
+ * under its parent row's list item, and indents — the sub-row's left edge
+ * sits right of its parent row's in Chrome's real layout (jsdom can wrap
+ * text but cannot measure where an indent lands).
+ */
+const pageSubRow = ({ id, under }) => {
+  const parentRow = document.querySelector(`[data-nested-rows] [data-thread-card="${under}"]`);
+  if (!parentRow) {
+    return { present: false, indented: false, indentPx: 0, reason: `no nested row for parent ${under}` };
+  }
+  const row = document.querySelector(`[data-child-sub-rows] [data-thread-card="${id}"]`);
+  if (!row) {
+    return { present: false, indented: false, indentPx: 0, reason: `no sub-row ${id}` };
+  }
+  const underSameParent = parentRow.closest("li")?.contains(row) ?? false;
+  if (!underSameParent) {
+    return { present: true, indented: false, indentPx: 0, reason: `sub-row ${id} renders under a different parent` };
+  }
+  const indentPx = row.getBoundingClientRect().left - parentRow.getBoundingClientRect().left;
+  return {
+    present: true,
+    indented: indentPx > 0,
+    indentPx: Math.round(indentPx * 100) / 100,
+    reason: `sub-row indents ${Math.round(indentPx * 100) / 100}px under its parent row`,
+  };
+};
+
+/**
+ * A nested row's own condensed chips (PR #194, the #191 behavior): the row
+ * renders `[data-child-chip-rows]` with inert id spans (`data-ticket-id`).
+ * The probe reports which id texts the row carries and which tier it lives
+ * in — a sub-row (grandchild) chip is the depth-2 case.
+ */
+const pageChildChip = ({ id, text }) => {
+  const row = document.querySelector(`[data-nested-rows] [data-thread-card="${id}"]`);
+  if (!row) return { shown: false, tier: null, chips: [], reason: `no nested row ${id}` };
+  const chips = [...row.querySelectorAll("[data-child-chip-rows] [data-ticket-id]")].map(
+    (el) => el.getAttribute("data-ticket-id"),
+  );
+  const tier = row.closest("[data-child-sub-rows]") !== null ? "sub-row" : "child-row";
+  return {
+    shown: chips.includes(text),
+    tier,
+    chips,
+    reason: chips.length > 0 ? `row chips: ${chips.join(", ")}` : "the row carries no chips",
+  };
+};
+
+/**
+ * The family card's right gutter (issue #192): every content surface —
+ * title, project line, the anchor's time stamp, chip rows, and every row
+ * tier's box — must stop short of the card's right edge by at least
+ * minInset px, and the card box must stop short of its lane's right edge.
+ * The probe fails loudly with one line per leaking surface.
+ */
+const pageRightGutter = ({ card, minInset }) => {
+  const cardEl = document.querySelector(`[data-thread-card="${card}"]`);
+  if (!cardEl) return { ok: false, failures: [`no such card (${card})`] };
+  const lane = cardEl.closest("[data-column-id]") ?? cardEl.closest("[data-lane-id]");
+  if (!lane) return { ok: false, failures: ["the card has no lane ancestor"] };
+  const cardRect = cardEl.getBoundingClientRect();
+  const laneRect = lane.getBoundingClientRect();
+  const failures = [];
+  if (cardRect.right >= laneRect.right) {
+    failures.push(`card box crosses the lane's right edge by ${Math.round(cardRect.right - laneRect.right)}px`);
+  }
+  const surfaces = [
+    ["title", "[data-title]"],
+    ["project-line", null],
+    ["time", "a span.ml-auto"],
+    ["chip-rows", "[data-provider-row]"],
+    ["nested-rows", "[data-nested-rows]"],
+    ["nested-child-row", "[data-nested-rows] [data-thread-card]"],
+    ["sub-rows", "[data-child-sub-rows]"],
+    ["sub-row", "[data-child-sub-rows] [data-thread-card]"],
+  ];
+  for (const [name, sel] of surfaces) {
+    let node = null;
+    if (name === "project-line") {
+      // The anchor's second <p> — title's following sibling.
+      const title = cardEl.querySelector("[data-title]");
+      node = title?.nextElementSibling ?? null;
+    } else if (name === "time") {
+      // The card's OWN anchor is its first <a>; its trailing time stamp.
+      node = cardEl.querySelector("a span.ml-auto");
+    } else {
+      node = cardEl.querySelector(sel);
+    }
+    if (!node) continue;
+    const inset = cardRect.right - node.getBoundingClientRect().right;
+    if (inset < minInset) {
+      failures.push(`${name} sits ${Math.round(inset * 100) / 100}px from the card's right edge`);
+    }
+  }
+  return { ok: failures.length === 0, failures };
+};
+
+/**
  * A drop whose payload carries no card id — the shape of the failure where the
  * board cannot attribute the gesture to a card. The rank type is still set, so
  * the drop is accepted, but the id is empty.
@@ -522,10 +621,18 @@ const pageClickCard = ({ card }) => {
  * spells `- { click_aria: "Label" }`) or `{ label: "…" }`. */
 const pageClickAria = (payload) => {
   const label = typeof payload === "string" ? payload : payload?.label;
+  const within = payload?.within;
+  // `within` scopes the search to one card's subtree — the label repeats on
+  // every family card ("Collapse subthreads"), so a suite folding a specific
+  // family must not grab a neighbor's toggle.
+  const scope = within !== undefined
+    ? document.querySelector(`[data-thread-card="${CSS.escape(within)}"]`)
+    : document;
+  if (scope === null) throw new Error(`click_aria: within names no card (${within})`);
   const el =
-    document.querySelector(`button[aria-label="${CSS.escape(label)}"]`) ??
-    document.querySelector(`[aria-label="${CSS.escape(label)}"]`) ??
-    [...document.querySelectorAll("button")].find(
+    scope.querySelector(`button[aria-label="${CSS.escape(label)}"]`) ??
+    scope.querySelector(`[aria-label="${CSS.escape(label)}"]`) ??
+    [...scope.querySelectorAll("button")].find(
       (button) => button.textContent?.trim() === label,
     );
   if (!el) throw new Error(`click_aria: nothing labelled ${label}`);
@@ -1347,6 +1454,46 @@ async function check(step, page, gestureResults = []) {
         want.shown ? `nested row under the family card (${want.id})` : `no nested row (${want.id})`,
         found.found === want.shown,
         `nested-row slot ${want.shown ? "absent" : "present"}`,
+      );
+    }
+    if (rule.sub_row !== undefined) {
+      // Depth-2 (issue #192's UAT coverage): the grandchild row renders under
+      // its parent row and indents.
+      const want = rule.sub_row; // { id, under, shown }
+      const probe = await page.evaluate(pageSubRow, { id: want.id, under: want.under });
+      expect(
+        want.shown
+          ? `sub-row under its parent row (${want.id} under ${want.under})`
+          : `no sub-row (${want.id})`,
+        probe.present === want.shown && (want.shown ? probe.indented : true),
+        probe.reason,
+      );
+    }
+    if (rule.child_chip !== undefined) {
+      // The nested row's own condensed chip (PR #194, the #191 behavior).
+      // `in_sub_rows: true` pins the depth-2 case: a grandchild's chip.
+      const want = rule.child_chip; // { id, text, in_sub_rows?: boolean }
+      const probe = await page.evaluate(pageChildChip, { id: want.id, text: want.text });
+      const tierOk =
+        want.in_sub_rows === undefined || (want.in_sub_rows === (probe.tier === "sub-row"));
+      expect(
+        `nested row chips its ticket ${want.text} (${want.id})`,
+        probe.shown === true && tierOk,
+        probe.reason,
+      );
+    }
+    if (rule.right_gutter !== undefined) {
+      // The family card's right gutter (issue #192): content surfaces stop
+      // short of the card's right edge, the card box stops short of the lane's.
+      const want = rule.right_gutter; // { card, min_inset? }
+      const probe = await page.evaluate(pageRightGutter, {
+        card: want.card,
+        minInset: want.min_inset ?? 4,
+      });
+      expect(
+        `${want.card} respects the right gutter (≥${want.min_inset ?? 4}px on every surface)`,
+        probe.ok,
+        probe.failures.length > 0 ? probe.failures.join("; ") : "all surfaces measured",
       );
     }
     if (rule.floor_amber !== undefined) {
