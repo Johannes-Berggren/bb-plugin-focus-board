@@ -7,6 +7,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+#### Thread pane
+
+- **The thread pane's composer names the project it writes into again.** bb's embedded chat stopped showing the project and checkout line on a pane-sized surface, so the pane now checks the chat's DOM for it and draws its own "project · worktree · branch" line under the transcript when the host paints none. The probe stays quiet whenever bb shows its own context again, so the line never doubles up.
+
 #### Groups and family boxes
 
 - **A collapsed family's child dot previews its child and opens it.** Hovering a dot shows that child's title and state; clicking a dot opens it in the thread pane without expanding the rows. The family's open child lists itself below the strip while the rest stay dots, and the strip's background still expands the family.

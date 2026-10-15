@@ -25,6 +25,7 @@ import {
   isExternalHref,
   workspacePathFromHref,
 } from "@/components/chat-link-intercept";
+import type { PaneContextInfo } from "@/lib/pane-context";
 import {
   decorateVerifiedInlineCodeLinks,
   decoratedCodePath,
@@ -44,6 +45,7 @@ import {
 import { attachScrollDebug } from "@/components/scroll-debug";
 import { AutotitleFallbackModal } from "@/components/autotitle-fallback-modal";
 import { WorkspaceOpenMenu, OPEN_LABEL_MIN_PANE_WIDTH } from "@/components/workspace-open-menu";
+import { usePaneContextRowMissing, PaneContextRow } from "@/components/pane-context-row";
 import { HEADER_ICON_BUTTON_CLASS } from "@/lib/pane-chrome";
 import type {
   AutotitleFallbackState,
@@ -102,6 +104,14 @@ export interface ThreadPaneThread {
    * menu's "Open in browser" and "Copy thread link" destinations.
    */
   href: string;
+  /**
+   * Project + checkout facts (lib/pane-context) backing the composer-context
+   * fallback row: null when the thread has no environment to describe
+   * (archived rows, provisional spawns) — the same threads bb's own page
+   * shows no context row for. Absent means the same, so older call shapes
+   * stay quiet rather than flash a wrong line.
+   */
+  context?: PaneContextInfo | null;
 }
 
 interface ThreadPaneProps {
@@ -717,6 +727,10 @@ export function ThreadPane({
   // defensive revert guard on chat clicks until bb ships the fix (see
   // docs/chat-click-jump-2026-09-29.md, where this module is covered too).
   const chatBodyRef = useRef<HTMLDivElement>(null);
+  // The embedded ThreadChat renders no composer context on a pane container
+  // (it never receives bb's compact summary), so watch its DOM and fall
+  // back to our own project + checkout line when nothing shows.
+  const contextRowMissing = usePaneContextRowMissing(chatBodyRef, thread.id);
   const chatJumpGuardRef = useRef<ChatClickJumpGuard | null>(null);
   const onChatBodyClickCapture = useCallback(
     (event: MouseEvent<HTMLDivElement>) => {
@@ -1123,6 +1137,14 @@ export function ThreadPane({
       >
         <ThreadChat threadId={thread.id} variant="compact" layout="contained" />
       </div>
+      {/* bb's embedded chat shows no project/checkout context on a pane
+          container; when its row is genuinely absent from the chat DOM this
+          line answers "where does my next message land". The probe stays
+          quiet whenever the host paints its own context, so bb fixing the
+          gap never duplicates the line. */}
+      {contextRowMissing && thread.context !== null && thread.context !== undefined ? (
+        <PaneContextRow info={thread.context} />
+      ) : null}
     </aside>
   );
 }
