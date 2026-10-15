@@ -903,6 +903,60 @@ const pageBandHover = () => {
 };
 
 /**
+ * Hover-prominence probe (issue #195): sampled WHILE the real pointer rests
+ * on a top-level card's center (the hover_card gesture moved it). Reads the
+ * hovered card's computed surface, a non-hovered sibling's surface as the
+ * rest reference (the spotlight dims OPACITY, so a dimmed sibling's
+ * background-color is still the resting card token), and the harness's
+ * active theme class. The direction the hovered surface may take is
+ * theme-dependent: the dark theme's surface is pinned to darken
+ * (the #123 follow-up's emphasis); the light theme's must NOT — darkening a
+ * near-white card reads as muting, not emphasis (#195).
+ */
+const pageHoverProminence = (id) => {
+  const lightness = (color) => {
+    const lch = color.match(/oklch\(\s*([0-9.]+)(%?)\b/);
+    if (lch !== null) return lch[2] === "%" ? parseFloat(lch[1]) / 100 : parseFloat(lch[1]);
+    const lab = color.match(/oklab\(\s*([0-9.]+)\b/);
+    return lab === null ? null : parseFloat(lab[1]);
+  };
+  const alpha = (color) => {
+    const slash = color.match(/\/\s*([0-9.]+)\s*\)\s*$/);
+    if (slash !== null) return parseFloat(slash[1]);
+    const comma = color.match(/,\s*([0-9.]+)\s*\)\s*$/);
+    return comma !== null ? parseFloat(comma[1]) : 1;
+  };
+  const cards = [...document.querySelectorAll("div[data-thread-card]")];
+  const card = cards.find((el) => el.getAttribute("data-thread-card") === id);
+  if (!card) return { ok: false, reason: `no card div ${id}` };
+  const hovered = getComputedStyle(card).backgroundColor;
+  const restCard = cards.find(
+    (el) =>
+      el !== card &&
+      !el.hasAttribute("data-spotlight-immune") &&
+      !el.matches(":hover") &&
+      el.getBoundingClientRect().width > 100 &&
+      el.getBoundingClientRect().height > 40 &&
+      el.getBoundingClientRect().bottom < innerHeight,
+  );
+  if (!restCard) return { ok: false, reason: "no rest-state sibling card found to read" };
+  const rest = getComputedStyle(restCard).backgroundColor;
+  return {
+    ok: true,
+    pointerHover: card.matches(":hover"),
+    dark: document.documentElement.classList.contains("dark"),
+    hovered,
+    hoveredL: lightness(hovered),
+    alpha: alpha(hovered),
+    rest,
+    restL: lightness(rest),
+    siblingId: restCard.getAttribute("data-thread-card"),
+    siblingOpacity: getComputedStyle(restCard).opacity,
+    siblingImmune: restCard.hasAttribute("data-spotlight-immune"),
+  };
+};
+
+/**
  * Is the locked lane pinned flush against the rail? A wheel overshoot inside
  * the locked lane's own grab window must snap the board BACK to the flush
  * position (runCorrections drift re-pin) rather than leave the ruler sitting
@@ -1335,6 +1389,64 @@ async function check(step, page, gestureResults = []) {
       const got = await page.evaluate(pageBandHover);
       expect(`swimlane hover shades one row across lanes`, got.ok === rule.band_hover, got.reason ?? "");
     }
+    if (rule.hover_prominence !== undefined) {
+      const want = rule.hover_prominence; // { card, pointer_hover? }
+      const got = await page.evaluate(pageHoverProminence, want.card);
+      if (got.ok === false) {
+        expect(`hover prominence (${want.card})`, false, got.reason);
+      } else if (want.pointer_hover === false) {
+        // The release case: the pointer has been parked elsewhere, so the
+        // surface hands back — the card reads the resting token again, and
+        // the recede dim has let go of the sibling (rule removes, dim eases
+        // out over the card's own 150ms transition).
+        expect(
+          `the pointer left ${want.card}`,
+          got.pointerHover === false,
+          got.pointerHover ? "still hovered" : "not hovered",
+        );
+        expect(
+          "the card surface is the resting token again",
+          got.hoveredL !== null && Math.abs(got.hoveredL - got.restL) < 0.001,
+          `rest ${got.rest} (${got.restL}) hovered ${got.hovered} (${got.hoveredL})`,
+        );
+        expect(
+          "the recede dim let go",
+          parseFloat(got.siblingOpacity) === 1,
+          `sibling ${got.siblingId} opacity ${got.siblingOpacity}`,
+        );
+      } else {
+        expect(
+          `hover probe landed on ${want.card}`,
+          got.pointerHover === true,
+          got.pointerHover ? "hovered" : "the pointer never produced a :hover on the card",
+        );
+        expect(
+          "hovered surface opaque — the lane/wallpaper never bleeds through",
+          got.alpha >= 1,
+          `alpha ${got.alpha} (${got.hovered})`,
+        );
+        if (got.restL === null || got.hoveredL === null) {
+          expect("rest and hovered surfaces readable", false, `not OK-space colors: rest ${got.rest} / hovered ${got.hovered}`);
+        } else if (got.dark) {
+          expect(
+            "dark theme: the hovered surface DARKENS (the emphasis direction, 19.5% → ~15.6%)",
+            got.hoveredL < got.restL,
+            `dark rest L ${got.restL} hovered L ${got.hoveredL}`,
+          );
+        } else {
+          expect(
+            "light theme: the hovered surface NEVER darkens (#195 — darkening there reads as muting)",
+            got.hoveredL >= got.restL - 0.001,
+            `light rest L ${got.restL} hovered L ${got.hoveredL} (hovered surface ${got.hovered})`,
+          );
+        }
+        expect(
+          "spotlight recedes another card while a card is under the pointer",
+          parseFloat(got.siblingOpacity) < 1,
+          `sibling ${got.siblingId} opacity ${got.siblingOpacity}`,
+        );
+      }
+    }
     if (rule.nest_locked !== undefined) {
       const toggle = await page.evaluate(pageNestToggle);
       if (!toggle.present) {
@@ -1603,7 +1715,19 @@ async function runSuite(file, { port, browser }) {
         // The parent-thread view legitimately renders no sections when a
         // filter/search drops every family, so the wait must accept both.
         await page.waitForSelector("section[aria-label], [role=status]", { timeout: 30_000 });
-        await page.evaluate((t) => document.documentElement.classList.toggle("dark", t === "dark"), theme);
+        // The theme rides BOTH switches (production parity): the `dark` class
+        // drives the token set, and `prefers-color-scheme` emulation drives
+        // Tailwind's media-based `dark:` utilities — the class alone cannot
+        // flip a `dark:` variant. A step may override the suite's default
+        // (`theme: light`), which is how one suite covers both schemes.
+        const effectiveTheme = step.theme ?? theme;
+        await page.evaluate(
+          (t) => document.documentElement.classList.toggle("dark", t === "dark"),
+          effectiveTheme,
+        );
+        await page.emulateMediaFeatures([
+          { name: "prefers-color-scheme", value: effectiveTheme },
+        ]);
         await page.evaluate(() => globalThis.__uat.resetCalls());
         await sleep(300);
       }
@@ -1620,7 +1744,7 @@ async function runSuite(file, { port, browser }) {
       // is insertion order), not in this runner's historical fixed order — a
       // pane-history step sequences pushes and backs deliberately, and
       // silently reordering them rewrites the history under test.
-      const GESTURE_ORDER = ["drag", "drag_unidentified", "drag_to_column", "drag_child_to_floor", "drag_child_to_header", "hover_header", "hover", "key", "back", "click", "click_aria", "type", "menu", "scroll", "wheel_pan", "resize", "sleep", "press_escape", "push_url"];
+      const GESTURE_ORDER = ["drag", "drag_unidentified", "drag_to_column", "drag_child_to_floor", "drag_child_to_header", "hover_header", "hover", "hover_card", "mouse_to", "key", "back", "click", "click_aria", "type", "menu", "scroll", "wheel_pan", "resize", "sleep", "press_escape", "push_url"];
       let gestureFailed = false;
       // A gesture that cannot even run (its own element is absent — a
       // regression deleted what the step targets) records the step and
@@ -1712,6 +1836,37 @@ async function runSuite(file, { port, browser }) {
               await page.mouse.move(rect.left, y);
               await sleep(120);
             }
+          } else if (gesture === "hover_card") {
+            // The real pointer rests on a top-level card's center, so the CSS
+            // :hover and the spotlight's :has() rule both arm — the same
+            // state an operator's idle pointer produces. The settle waits past
+            // the spotlight's 300ms debounce plus its 300ms ease, so an
+            // assertion samples the settled dim. The card must sit inside the
+            // viewport: a hover the operator cannot even make proves nothing.
+            const hoverRect = await page.evaluate(
+              (id) => {
+                const card = document.querySelector(`div[data-thread-card="${id}"]`);
+                if (!card) return null;
+                const box = card.getBoundingClientRect();
+                return {
+                  x: box.left + box.width / 2,
+                  y: box.top + box.height / 2,
+                  visible: box.top > 0 && box.bottom < innerHeight && box.left > 0 &&
+                    box.right < innerWidth && box.width > 100 && box.height > 40,
+                };
+              },
+              payload.card,
+            );
+            if (hoverRect === null) throw new Error(`no card div to hover: ${payload.card}`);
+            if (!hoverRect.visible) throw new Error(`${payload.card} is not fully in the viewport`);
+            await page.mouse.move(hoverRect.x, hoverRect.y);
+            await sleep(800);
+          } else if (gesture === "mouse_to") {
+            // Absolute viewport coordinates (`{ x, y, wait_ms }`): parking the
+            // pointer somewhere specific — e.g. off every card, to let a
+            // hover's promise hand the surface back.
+            await page.mouse.move(Number(payload.x), Number(payload.y));
+            await sleep(Math.max(0, Number(payload.wait_ms ?? 300)));
           } else if (gesture === "key") {
             await page.evaluate(pageKey, payload);
             await sleep(200);

@@ -84,9 +84,15 @@ function setTheme(dark) {
 }
 
 /** One pass: read the card's rest surface, hover it, read the hovered
- *  surface, and capture a screenshot for each state. */
+ *  surface, and capture a screenshot for each state. The scheme rides BOTH
+ *  switches, mirroring production: the `dark` CLASS drives the token set and
+ *  `prefers-color-scheme` emulation drives Tailwind's media-based `dark:`
+ *  utilities — the class alone cannot flip a `dark:` variant. */
 async function runPass(dark) {
   const theme = dark ? "dark" : "light";
+  await page.emulateMediaFeatures([
+    { name: "prefers-color-scheme", value: theme },
+  ]);
   await setTheme(dark);
   await sleep(400);
   const rest = await page.evaluate(pickVisibleCard);

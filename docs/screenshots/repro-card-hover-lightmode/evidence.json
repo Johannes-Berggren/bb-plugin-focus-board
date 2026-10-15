@@ -1,8 +1,6 @@
 {
-  "pass": false,
-  "failures": [
-    "in light mode the hovered card's surface DARKENED (rest L 0.985, hovered L 0.788) — on a light canvas darkening reads as muting, not emphasis"
-  ],
+  "pass": true,
+  "failures": [],
   "lightPass": {
     "theme": "light",
     "cardId": "thr_ship_release",
@@ -11,8 +9,8 @@
       "lightness": 0.985
     },
     "hovered": {
-      "backgroundColor": "oklab(0.788 0 0)",
-      "lightness": 0.788
+      "backgroundColor": "oklch(0.985 0 0)",
+      "lightness": 0.985
     }
   },
   "darkPass": {
