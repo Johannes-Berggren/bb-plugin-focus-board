@@ -108,6 +108,7 @@ Using an AI agent to write code, tests, or reports is fine. The rules are the sa
 
 - A person is accountable for every contribution. That person has read the diff and run the checks.
 - Disclose agent involvement in the pull request or issue. The templates have a field for it.
+- Any issue, pull request, or comment written wholly or mostly by an agent ends with the signature line `> AGENT GENERATED CONTENT`, as a markdown blockquote on its own last line, like bb adds to agent-written threads. The line goes on the written content itself, not a commit message or checklist field.
 - Do not paste unverified agent output. A bug report needs a real reproduction. A fix needs a test that failed first.
 - Agents must not mark a pull request ready for review, request reviewers, merge, or close issues unless the person they work for says to.
 - Agents must read [AGENTS.md](AGENTS.md) and the files it links before touching the repo.
