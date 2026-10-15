@@ -1,0 +1,83 @@
+# Operator-assisted E2E: the card menu's "Zoom to family" gesture (issue #170).
+#
+# The harness mounts the actual app.tsx against the mocked SDK
+# (scripts/screenshot), with the parent-lane fixtures (thr_parent_lane /
+# thr_child_lane) as the zoom target and the sweep family
+# (thr_sweep_parent / "Sweep the done archive") as the other family whose
+# lane must drop while the scope is in force. The suite exercises the
+# gesture itself in a real browser: the parent card's right-click menu
+# offers "Zoom to family" only when the family is more than itself,
+# choosing it lands the Parent view with only that family visible, a
+# nested child row zooms to the family's OWNER (never a sub-child), and
+# the toolbar's family chip names the family and clears the scope back to
+# the unfiltered Parent view.
+#
+# Refresh survival of the stored scope is pinned at the app level
+# (tests/board-family-zoom.test.tsx: the persisted fields and a remount).
+#
+# Run: npm run uat -- tests/manual/uat-family-zoom.yaml
+suite: family-zoom
+harness:
+  config: scripts/screenshot/vite.config.ts
+  port: 5182
+defaults:
+  theme: dark
+  viewport: { width: 1280, height: 800 }
+
+steps:
+  # The harness boots a fresh vite dev server per run; its dep-optimization
+  # pass can reload the page seconds after the first load, destroying any
+  # gesture's execution context mid-run. This step absorbs that reload so
+  # the gesture steps run against a settled server.
+  - id: harness-warmup
+    title: The board boots (absorbs vite's dev-server dep-optimization reload)
+    goto: "?groupBy=status"
+    sleep: 2000
+    assert:
+      - text_visible: "Parent thread lane fixture"
+
+  - id: zoom-from-the-parent-card-lands-the-scoped-parent-view
+    title: Choosing Zoom to family on a family parent shows only that family
+    goto: "?groupBy=status"
+    assert_before_drag:
+      - nested_row: { id: thr_child_lane, shown: true }
+      - text_visible: "Sweep the done archive"
+    gestures:
+      - menu: { card: thr_parent_lane, item: "Zoom to family" }
+    # The lane board's arrival plays over a few frames.
+    sleep: 800
+    assert:
+      # The family's child still shows — as a lane card now, no longer a
+      # nested row (the parent view's shape).
+      - text_visible: "Child thread lane fixture"
+      - nested_row: { id: thr_child_lane, shown: false }
+      # The other family dropped whole; its sweep child is gone.
+      - text_hidden: "Sweep the done archive"
+      # The View chip names the landed view.
+      - text_visible: "Parent thread"
+
+  - id: zoom-from-a-nested-child-row-names-the-owner
+    title: Zoom launched from a nested child row scopes the family's owner
+    goto: "?groupBy=status"
+    gestures:
+      - menu: { card: thr_child_lane, item: "Zoom to family" }
+    sleep: 800
+    assert:
+      # The whole family shows: the owner's lane and the child's card. A
+      # scope recorded as the child's own id would key no family and drop
+      # both, so both titles visible is the owner-zoom proof.
+      - text_visible: "Parent thread lane fixture"
+      - text_visible: "Child thread lane fixture"
+      - text_hidden: "Sweep the done archive"
+
+  - id: the-family-chip-clears-the-scope-back-to-the-unfiltered-parent-view
+    title: The toolbar family chip names the family and clears the scope
+    goto: "?groupBy=status"
+    gestures:
+      - menu: { card: thr_parent_lane, item: "Zoom to family" }
+      - click_aria: "Clear family zoom (Parent thread lane fixture)"
+    sleep: 800
+    assert:
+      # The view stays Parent and the second family's lane is back.
+      - text_visible: "Child thread lane fixture"
+      - text_visible: "Sweep the done archive"

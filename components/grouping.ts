@@ -52,6 +52,16 @@ export type FilterState = {
    *  the state. The Group view's hide gesture writes this set (the lane's
    *  group leaves the selection). */
   groups?: ReadonlySet<string>;
+  /**
+   * The card menu's "Zoom to family" gesture (issue #170): the family root
+   * the board is zoomed to — the Parent view shows only that family (the
+   * root itself plus its nested children). Absent means unscoped. The root
+   * id resolves the same families `filterFamilies` keys (`familyRootIdOf`,
+   * components/nesting.ts); the toolbar's Family chip shows and clears the
+   * scope, and a stale id (the family is gone) restricts to nothing until
+   * cleared, exactly like every other persisted filter id.
+   */
+  familyRootId?: string;
 };
 
 export interface BoardColumn {

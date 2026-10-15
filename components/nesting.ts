@@ -903,6 +903,50 @@ function nestedKeys(nested: ReadonlyMap<string, readonly PluginSidebarThread[]>)
 }
 
 /**
+ * The id of the family root `threadId` belongs to — the thread's own id when
+ * it IS a root, otherwise the ancestor its display parent chain ends at. The
+ * walk rides the same `familyIndex.parentOf` edges the family grouping in
+ * `filterFamilies` keys families by, so the result scopes exactly one of those
+ * families: this is what the card menu's "Zoom to family" gesture writes
+ * (issue #170), so triggering from a nested row names the family's OWNER,
+ * never a sub-child of it.
+ *
+ * `buildFamilyIndex` has already unlinked corrupt cycles from `parentOf`, so
+ * the walk terminates; an index that could still cycle is a broken index and
+ * throws instead of picking an arbitrary ancestor (fail loud, never coerce).
+ */
+export function familyRootIdOf(threadId: string, familyIndex: FamilyIndex): string {
+  let cursor = threadId;
+  const bound = familyIndex.parentOf.size + 1;
+  for (let hop = 0; hop <= bound; hop++) {
+    const next = familyIndex.parentOf.get(cursor);
+    if (next === undefined) return cursor;
+    cursor = next;
+    if (cursor === threadId) {
+      throw new Error(`family index cycle through ${threadId}`);
+    }
+  }
+  throw new Error(`family index cycle through ${threadId}`);
+}
+
+/**
+ * The family-scope half of the zoom gesture, kept beside the family-aware
+ * passes it gates (filterFamilies, filterIndividually). An absent (or empty-
+ * string — never a written value, but a defensive read) `familyRootId`
+ * restricts nothing: legacy stored filters scope the board the same way the
+ * group filter's empty set does.
+ */
+function familyScopeMisses(
+  thread: PluginSidebarThread,
+  filter: FilterState,
+  familyIndex: FamilyIndex,
+): boolean {
+  const scopeRoot = filter.familyRootId === "" ? undefined : filter.familyRootId;
+  if (scopeRoot === undefined) return false;
+  return familyRootIdOf(thread.id, familyIndex) !== scopeRoot;
+}
+
+/**
  * Family-aware filtering: a family passes when ANY of its members passes the
  * filters or search; every member of a passing family is kept, with
  * non-matching members recorded in `dimmedIds` so the board can render them
@@ -955,7 +999,14 @@ export function filterFamilies(
 
   const kept: PluginSidebarThread[] = [];
   const dimmedIds = new Set<string>();
-  for (const family of families.values()) {
+  // The family scope (Zoom to family, issue #170): only the scoped family
+  // survives the pass, and nothing dims for it — the other families drop
+  // whole, exactly what the zoomed Parent view shows. The families map is
+  // keyed by the walk `familyRootIdOf` performs, so the scope matches the
+  // gesture's recorded root id.
+  const scopeRoot = filter.familyRootId === "" ? undefined : filter.familyRootId;
+  for (const [rootId, family] of families.entries()) {
+    if (scopeRoot !== undefined && rootId !== scopeRoot) continue;
     const matching = family.filter(passes);
     if (matching.length === 0) continue;
     for (const thread of family) {
@@ -987,7 +1038,11 @@ export function filterFamilies(
 /**
  * R3: per-thread filtering for the flat board (nesting toggle OFF). No
  * family keep, no dimming — each thread passes or fails on its own, and
- * archived threads never render in flat mode.
+ * archived threads never render in flat mode. The family scope (Zoom to
+ * family) still applies: a thread stays only if it belongs to the scoped
+ * family, resolved from the same index the gesture recorded its root from
+ * (a pass without an index builds one from the board's own set, so flat
+ * mode honours the scope with the exact edges the board sees).
  */
 export function filterIndividually(
   threads: readonly PluginSidebarThread[],
@@ -999,9 +1054,11 @@ export function filterIndividually(
   groupsByThread?: ReadonlyMap<string, string>,
   now: number = Date.now(),
   errorAcks?: ReadonlySet<string>,
+  familyIndex: FamilyIndex = buildFamilyIndex(threads),
 ): FamilyFilterResult {
   const kept: PluginSidebarThread[] = [];
   for (const thread of threads) {
+    if (familyScopeMisses(thread, filter, familyIndex)) continue;
     if (
       threadPassesFilter(
         thread,

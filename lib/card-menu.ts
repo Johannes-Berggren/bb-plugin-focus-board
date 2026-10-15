@@ -14,7 +14,7 @@
 //   2. State — pin, read, done, snooze, group (the pickers open from
 //      here; the snooze and group builders' own dividers are suppressed
 //      so this group reads as one).
-//   3. Lineage — spawn a child, un-nest a child.
+//   3. Lineage — zoom to the family, spawn a child, un-nest a child.
 //   4. Lifecycle — sweep protection, archive, delete.
 //
 // A divider opens each group head and nothing else, and no group
@@ -62,9 +62,23 @@ export interface CardMenuInputs {
    * answer (lib/interaction-sync.ts owns that flag).
    */
   canClearError: boolean;
+  /**
+   * The card's family is more than itself: it renders nested child rows, or
+   * it is itself a nested row of one. True exactly when the menu offers
+   * "Zoom to family" (issue #170) — a lone top-level card has no family to
+   * zoom to, so the entry stays hidden beside the conditional Clear-error
+   * entry's shape.
+   */
+  inFamily: boolean;
 }
 
 export interface CardMenuHandlers {
+  /**
+   * Zoom to family (issue #170): switch the board to the Parent view scoped
+   * to the acted-on card's OWN family (a nested row zooms the family's
+   * owner, never a sub-child).
+   */
+  zoomToFamily: () => void;
   togglePinned: () => void;
   toggleRead: () => void;
   toggleDone: () => void;
@@ -94,7 +108,7 @@ export function cardMenuActions(
   inputs: CardMenuInputs,
   handlers: CardMenuHandlers,
 ): readonly CardMenuAction[] {
-  const { thread, isDone, isSnoozed, isKept, grouped, canClearError } = inputs;
+  const { thread, isDone, isSnoozed, isKept, grouped, canClearError, inFamily } = inputs;
   // The shared snooze entries come back with their divider dropped so
   // snooze reads as part of the state group here; the pane's actions
   // menu keeps the builder's own divider — card menu only.
@@ -175,11 +189,25 @@ export function cardMenuActions(
     },
     ...snoozeEntries,
     ...groupEntries,
+    ...(inFamily
+      ? [
+          {
+            id: "zoom-to-family",
+            label: "Zoom to family",
+            icon: "ZoomIn",
+            dividerAbove: true,
+            run: handlers.zoomToFamily,
+          } satisfies CardMenuAction,
+        ]
+      : []),
     {
       id: "new-child",
       label: "New child thread…",
       icon: "Fork",
-      dividerAbove: true,
+      // The lineage divider rides the group head: Zoom to family when the
+      // card zooms (its own divider above), New child thread… when it does
+      // not — the same conditional-head shape the snooze group folds with.
+      dividerAbove: inFamily ? undefined : true,
       run: handlers.openNewChild,
     },
     ...unnest,
