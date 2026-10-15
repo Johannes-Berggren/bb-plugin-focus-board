@@ -20,7 +20,12 @@ merging into `dev`, releasing, changelog writing, or tagging.
     distribution means main's tip being slightly stale between releases is
     harmless; divergent history is not.
   - `dev` is the integration branch: thread branches from it, rebase onto
-    it, and land on it only through a pull request on the remote. While
+    it, and land on it only through a pull request on the remote. `dev` is
+    also GitHub's default branch, so the code view, fresh clones, a new
+    pull request's base, and the default-branch alert scanner all read the
+    integration tree; a `Fixes #N` link closes its issue at the `dev` merge,
+    one release before the fix ships (the changelog's `[Unreleased]` group
+    carries the shipped-but-unreleased mark). While
     unreleased, `dev` carries a provisional prerelease
     version — the next release candidate + `-dev` (e.g. `0.6.0-dev`) — in
     `package.json` and `APP_VERSION`. The `-dev` suffix marks the number as

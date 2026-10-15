@@ -55,6 +55,7 @@ Never create or retarget a `node_modules` symlink, in the main checkout or in a 
 
 - `main` is the stable public branch. It only ever moves by fast-forward at release time. Never open a pull request against `main`.
 - `dev` is the integration branch. Branch from it, and open every pull request against it.
+- `dev` is also GitHub's default branch, so a new pull request defaults to the right base, and a `Fixes #N` link closes its issue when the pull request lands on `dev` (the fix reaches a shipped release at the next release).
 - Name your branch for the change: `fix-chip-overflow`, `add-group-filter`. Maintainer threads use `bb/<slug>-thr_<id>`, which you can ignore.
 - Fork the repo if you do not have write access. Rebase onto the latest `origin/dev` before you open the pull request, never after:
 
