@@ -4,7 +4,9 @@
 // merging (same ref, new state in the plugin's cache) never reached the
 // chip. The hook must also refetch on a poll interval and on window
 // focus: change the mocked cache state between two ticks with the ref
-// set unchanged and the dot has to update.
+// set unchanged and the dot has to update. Issue #205 adds the operator
+// moments on top: a refresh-signal bump (the app fingerprints pane
+// open/close, lane transitions, and re-sorts) refetches immediately.
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, cleanup, renderHook } from "@testing-library/react";
 import { useTicketStatuses, type TrackerStatusRpc } from "../hooks/use-ticket-statuses";
@@ -154,5 +156,60 @@ describe("useTicketStatuses refreshing behavior (issue #92)", () => {
       vi.advanceTimersByTime(POLL_MS * 3);
     });
     expect(mock.calls.length).toBe(callsAtUnmount);
+  });
+});
+
+describe("useTicketStatuses refresh triggers (issue #205)", () => {
+  it("a refresh-signal bump refetches with the ref set unchanged", async () => {
+    const mock = makeRpcMock();
+    const { result, rerender } = renderHook(
+      ({ k, s }: { k: string; s: string }) =>
+        useTicketStatuses({ rpc: mock.rpc, visibleRefKey: k, refreshSignal: s }),
+      { initialProps: { k: REF_KEY, s: "before" } },
+    );
+    await mock.settleAll();
+    expect(result.current).toEqual({
+      "o/r": { [REF]: { kind: "pull", state: "OPEN" } },
+    });
+
+    // The board repainted (a lane transition or a re-sort): only the
+    // display fingerprint changes, the ref set is identical.
+    mock.cache[REF] = { kind: "pull", state: "MERGED" };
+    rerender({ k: REF_KEY, s: "after" });
+    await mock.settleAll();
+    expect(result.current).toEqual({
+      "o/r": { [REF]: { kind: "pull", state: "MERGED" } },
+    });
+  });
+
+  it("a fingerprint-equal rerender never refetches", async () => {
+    const mock = makeRpcMock();
+    const { rerender } = renderHook(
+      ({ k, s }: { k: string; s: string }) =>
+        useTicketStatuses({ rpc: mock.rpc, visibleRefKey: k, refreshSignal: s }),
+      { initialProps: { k: REF_KEY, s: "same" } },
+    );
+    await mock.settleAll();
+    const callsAfterFirstFetch = mock.calls.length;
+    rerender({ k: REF_KEY, s: "same" });
+    await act(async () => {
+      vi.advanceTimersByTime(POLL_MS / 2); // well before the next poll tick
+    });
+    expect(mock.calls.length).toBe(callsAfterFirstFetch);
+  });
+
+  it("a signal bump inside the poll cadence still refetches (operator moments do not wait)", async () => {
+    const mock = makeRpcMock();
+    const { rerender } = renderHook(
+      ({ k, s }: { k: string; s: string }) =>
+        useTicketStatuses({ rpc: mock.rpc, visibleRefKey: k, refreshSignal: s }),
+      { initialProps: { k: REF_KEY, s: "a" } },
+    );
+    await mock.settleAll();
+    const callsAfterFirstFetch = mock.calls.length;
+    // Pane opened a second after the last fetch: the bump lands immediately.
+    rerender({ k: REF_KEY, s: "b" });
+    await mock.settleAll();
+    expect(mock.calls.length).toBe(callsAfterFirstFetch + 1);
   });
 });

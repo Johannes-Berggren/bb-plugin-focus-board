@@ -1705,6 +1705,45 @@ function BoardPage({ subPath }: { subPath: string }) {
         .join(","),
     [liveThreads, repoBaseByProject, linksByThread],
   );
+  // The operator-moment fingerprint for the chip snapshot (issue #205):
+  // pane open/close, a card's lane (threadState under the current error
+  // acks), and every display container's order — the assembled columns,
+  // the nested and done child rows, and the parent view's lanes. A lane
+  // transition or a re-sort changes the join, so the hook refetches with
+  // the ref set unchanged; a fingerprint-equal render (the common case)
+  // borrows the settled snapshot. "" mirrors the empty ref set.
+  const chipRepaintSignal = useMemo(() => {
+    if (visibleRefKey === "") return "";
+    const parts: string[] = [`pane:${openThreadId ?? "closed"}`];
+    const paint = (thread: PluginSidebarThread) => {
+      parts.push(
+        `${thread.id}:${threadState(thread, errorAckIds)}${doneIds.has(thread.id) ? ":done" : ""}`,
+      );
+    };
+    for (const column of columns) {
+      parts.push(`col:${column.id}`);
+      for (const thread of column.threads) paint(thread);
+    }
+    nestedChildrenByParent.forEach((children, parentId) => {
+      parts.push(`nested:${parentId}`);
+      for (const thread of children) paint(thread);
+    });
+    const doneRowsByParent = assembly?.doneChildrenByParent ?? EMPTY_NESTED;
+    doneRowsByParent.forEach((children, parentId) => {
+      parts.push(`doneRow:${parentId}`);
+      for (const thread of children) paint(thread);
+    });
+    if (parentLanes !== null) {
+      for (const lane of parentLanes) {
+        parts.push(`lane:${lane.id}`);
+        for (const row of lane.rows) {
+          parts.push(`row:${row.id}`);
+          for (const thread of row.threads) paint(thread);
+        }
+      }
+    }
+    return parts.join(",");
+  }, [visibleRefKey, columns, nestedChildrenByParent, parentLanes, openThreadId, errorAckIds, doneIds, assembly]);
   // Text-ref hrefs across visible threads, the tracker_validate batch (the
   // chip rule: a #N/URL in text chips only when the item is confirmed).
   // Sorted-join mirrors visibleRefKey: cheap string equality as the effect
@@ -1755,10 +1794,11 @@ function BoardPage({ subPath }: { subPath: string }) {
   }, [rpc, textRefHrefsKey]);
   // Live tracker status for ticket chips. Batched: one RPC per visible-ref
   // snapshot (numeric refs grouped per repo), re-fetched when the visible
-  // ref set changes, on a poll interval, and on window focus — no per-card
-  // calls. Failures degrade to "no status known"; the board never breaks
+  // ref set changes, on a poll interval, on window focus, and on an
+  // operator-moment bump (the repaint fingerprint below — no per-card
+  // calls). Failures degrade to "no status known"; the board never breaks
   // on this path.
-  const ticketStatuses = useTicketStatuses({ rpc, visibleRefKey });
+  const ticketStatuses = useTicketStatuses({ rpc, visibleRefKey, refreshSignal: chipRepaintSignal });
 
   const statusFor = useCallback(
     (repo: string | null, number: number | undefined) => {
