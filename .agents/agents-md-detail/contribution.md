@@ -41,8 +41,13 @@ A fix that arrives without a test that failed first is not ready.
 ## Opening a pull request
 
 - Target `dev`. Rebase onto the fetched `origin/dev` before opening the pull request, never after.
-- Fill the pull request template completely. Paste real command output under "How it was checked", and say plainly when a check failed or was skipped.
+- A pull request bigger than a small fix lands a direction agreed in an issue, so it closes one. When no issue exists, file it first and let the direction settle before writing code. Never invent the `Fixes #N` line the template asks for; a small fix may stand alone, and says under "What changed" that there is no linked issue.
+- Fill the pull request template completely. Paste real command output under "How it was checked", and say plainly when a check failed or was skipped. Re-run the checks after every push to the branch, including review commits; output from before the last change is stale.
+- Do not tick "I read the diff and ran the checks above myself". That box is the accountable person's statement, not the agent's. Tick the AI-assisted box instead, with the tool and model named.
+- Open the pull request as a draft until the person you work for has read the diff. Marking it ready for review is their say-so, per the section below.
+- End agent-written pull request descriptions and comments with the `> AGENT GENERATED CONTENT` signature line, as [CONTRIBUTING.md](../../CONTRIBUTING.md) requires. The line goes on the written text itself, never in a commit message or checklist field.
 - User-facing changes add changelog bullets under `[Unreleased]`, per `release.md`. New bullet text passes the `ai-output-humanizer` scan with no em dashes.
+- Answer review with new commits on the same branch, plus a short comment that says what changed. Rebase onto `origin/dev` again only when the maintainer asks or the branch now conflicts. Never force-push to hide review history.
 - In a bb thread, link the issue or pull request to the board with `focus_board_link_issue`. Without plugin tools, run `bb focus-board link set "$BB_THREAD_ID" <url>`.
 
 ## Actions that need the person's say-so
