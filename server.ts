@@ -25,6 +25,12 @@ import {
   type DoneRecord,
 } from "./lib/done-metadata";
 import {
+  ERROR_ACK_METADATA_KEY,
+  parseErrorAckRecord,
+  stampErrorAck,
+  type ErrorAckRecord,
+} from "./lib/error-ack-metadata";
+import {
   LINK_METADATA_KEY,
   clearLinkedIssues,
   linkHref,
@@ -260,6 +266,25 @@ export const rpcContract = defineRpcContract({
   pin_park_set: {
     input: z.object({ threadId: z.string().min(1), parked: z.boolean() }),
     output: z.object({ threadId: z.string(), parked: z.boolean() }),
+  },
+  /**
+   * Clear error (issue #157): per-thread plugin metadata key "errorAck" →
+   * { ackedAt } (lib/error-ack-metadata). The operator's acknowledgment of
+   * an errored card: the board stops claiming attention for that thread's
+   * error signals. The pending-interaction arm is never ackable — a wait
+   * for the operator needs a real answer — so the metadata only ever rides
+   * beside the error arms of `threadState()`.
+   */
+  error_acks_list: {
+    input: z.null(),
+    output: z.object({
+      ackIds: z.array(z.string()),
+      records: z.record(z.string(), z.object({ ackedAt: z.string() })),
+    }),
+  },
+  error_ack_set: {
+    input: z.object({ threadId: z.string().min(1), acked: z.boolean() }),
+    output: z.object({ threadId: z.string(), acked: z.boolean() }),
   },
   /**
    * Snooze: read now, unread later. The record map rides off the live
@@ -574,6 +599,11 @@ const DONE_CHANGED = "done-changed";
 /** Realtime signal after every snooze set/clear/wake. Payload is
  *  { threadId }; consumers refetch the record map. */
 const SNOOZE_CHANGED = "snooze-changed";
+/** Realtime signal after every error-ack set/clear. Payload is
+ *  { threadId, acked }; consumers refetch the record map, the same refetch
+ *  contract done-changed holds (a payload the consumer reads blind cannot
+ *  desync a board that missed an earlier event). */
+const ERROR_ACK_CHANGED = "error-ack-changed";
 /** Realtime signal after every link set/clear. Payload is { threadIds };
  *  consumers refetch the record map. */
 const LINK_CHANGED = "link-changed";
@@ -819,6 +849,39 @@ export default async function plugin(bb: BbPluginApi) {
       await bb.sdk.threads.updatePluginMetadata({
         threadId,
         remove: [PIN_PARK_METADATA_KEY],
+      });
+    }
+  }
+
+  async function readErrorAckRecord(
+    threadId: string,
+  ): Promise<ErrorAckRecord | null> {
+    // Same cast contract as readDoneRecord: getPluginMetadata returns an
+    // untyped namespace record; parseErrorAckRecord validates the shape.
+    const namespace = await bb.sdk.threads.getPluginMetadata({ threadId });
+    const value = (namespace as Record<string, JsonValue>)[
+      ERROR_ACK_METADATA_KEY
+    ];
+    return parseErrorAckRecord(value);
+  }
+
+  /**
+   * Acknowledge or un-acknowledge a thread's error. Acknowledging stamps a
+   * fresh record — a re-ack refreshes the stamping; clearing deletes the
+   * key (a thread that never carried a record clears clean, the stale-ack
+   * sweep's shape: the caller may sweep an id the store has already dropped).
+   */
+  async function writeErrorAck(threadId: string, acked: boolean): Promise<void> {
+    if (acked) {
+      const record = stampErrorAck(new Date());
+      await bb.sdk.threads.updatePluginMetadata({
+        threadId,
+        set: { [ERROR_ACK_METADATA_KEY]: record },
+      });
+    } else {
+      await bb.sdk.threads.updatePluginMetadata({
+        threadId,
+        remove: [ERROR_ACK_METADATA_KEY],
       });
     }
   }
@@ -1962,6 +2025,25 @@ export default async function plugin(bb: BbPluginApi) {
     pin_park_set: async ({ threadId, parked }) => {
       await writePinPark(threadId, parked);
       return { threadId, parked };
+    },
+    error_acks_list: async () => {
+      // The live list only, like pin_parks_list: an ack on an archived
+      // thread has no card to drive (the card is not on the board). The
+      // record stays dormant in metadata and re-arms if the thread returns
+      // still errored; the client's stale sweep drops it after any turn
+      // that leaves the error status, so a later error is never masked.
+      const rows = await bb.sdk.threads.list({});
+      const records: Record<string, ErrorAckRecord> = {};
+      for (const row of rows) {
+        const record = await readErrorAckRecord(row.id);
+        if (record !== null) records[row.id] = record;
+      }
+      return { ackIds: Object.keys(records).sort(), records };
+    },
+    error_ack_set: async ({ threadId, acked }) => {
+      await writeErrorAck(threadId, acked);
+      bb.realtime.publish(ERROR_ACK_CHANGED, { threadId, acked });
+      return { threadId, acked };
     },
     snooze_list: async () => {
       // The live list only, like pin_parks_list: a snooze record on an
