@@ -2957,6 +2957,7 @@ export function Board({
                           repoHrefBase={repoBaseFor(thread.projectId) ?? undefined}
                           statusFor={statusFor}
                           linkedIssues={linkedIssuesFor?.(thread.id)}
+                          childLinkedIssuesFor={linkedIssuesFor}
                           validatedHrefs={validatedHrefs}
                           menuActions={menuActionsFor(thread)}
                           // The hover checkbox shares the menu's "done"

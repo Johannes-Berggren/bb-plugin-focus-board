@@ -199,6 +199,13 @@ interface ThreadCardProps {
    */
   linkedIssues?: ThreadLink[];
   /**
+   * Issue #191: the board's links per child thread id — the lookup behind
+   * the cards' `linkedIssues`, reused so nested child rows chip exactly
+   * what each child chips standalone. Absent → child rows chip text refs
+   * only.
+   */
+  childLinkedIssuesFor?: (threadId: string) => ThreadLink[] | undefined;
+  /**
    * Hrefs the server's tracker_validate confirmed as existing (the chip
    * rule: a text ref chips only when something attached to the project can
    * validate it). Store links skip validation and always chip. Undefined =
@@ -265,11 +272,27 @@ function ProviderTicketChip({
   chip,
   statusFor,
   projectRepo,
+  condensed = false,
+  interactive = true,
 }: {
   row: TicketChipRow;
   chip: TicketChip;
   statusFor?: (repo: string | null, number: number | undefined) => GitHubItemStatus | undefined;
   projectRepo: string | null;
+  /**
+   * Issue #191: the nested child row's smaller cut — tighter min-height,
+   * one text step down, smaller marks. The card's own chip rows stay the
+   * full size.
+   */
+  condensed?: boolean;
+  /**
+   * The row variant renders INSIDE the child row's own anchor (issue
+   * #127): a link inside the link is forbidden HTML (#171's rule), so the
+   * non-interactive cut renders its mark and ids as spans — the ids keep
+   * their labels and hover bubbles, the hrefs never appear. Default true
+   * renders the card's own anchors.
+   */
+  interactive?: boolean;
 }) {
   // External providers show the site's favicon (forgejo bases, external
   // links — each carries its hostname; bb's app shell sets no CSP header,
@@ -287,24 +310,29 @@ function ProviderTicketChip({
   // stay centered, a harmless cosmetic drift.
   const singleRow = chip.refs.length <= 3;
   const className = cn(
-    "inline-flex min-h-5 gap-x-1 rounded bg-muted px-1 py-0.5 font-mono text-[10px] leading-none text-muted-foreground",
+    "inline-flex gap-x-1 rounded bg-muted py-0.5 font-mono leading-none text-muted-foreground",
+    // The condensed cut (nested child rows): one min-height and text step
+    // down plus a tighter pad, per the operator's spec — smaller, more
+    // compressed than the full card's chip row.
+    condensed ? "min-h-4 px-0.5 text-[9px]" : "min-h-5 px-1 text-[10px]",
     singleRow ? "items-center" : "items-start",
   );
+  const markSize = condensed ? "size-2.5 shrink-0" : "size-3 shrink-0";
   const mark =
     isGithub ? (
-      <Icon name="GithubMark" className="size-3 shrink-0" aria-hidden />
+      <Icon name="GithubMark" className={markSize} aria-hidden />
     ) : row.hostname !== undefined && !faviconFailed ? (
       <img
         src={`https://${row.hostname}/favicon.ico`}
         alt=""
         loading="lazy"
-        className="size-3 shrink-0 rounded-[2px]"
+        className={`${markSize} rounded-[2px]`}
         onError={() => setFaviconFailed(true)}
       />
     ) : (
-      <Icon name="Ticket" className="size-3 shrink-0" aria-hidden />
+      <Icon name="Ticket" className={markSize} aria-hidden />
     );
-  const markElement = markHref ? (
+  const markElement = interactive && markHref ? (
     <a
       href={markHref}
       target="_blank"
@@ -344,7 +372,8 @@ function ProviderTicketChip({
           : (primaryStatus?.state === "CLOSED" ? "IssueClosed" : "IssueOpen")
       }
       className={cn(
-        "size-3 shrink-0",
+        "shrink-0",
+        condensed ? "size-2.5" : "size-3",
         primaryStatus === undefined
           ? undefined
           : STATUS_ICON_CLASS[primaryStatus.state],
@@ -359,7 +388,9 @@ function ProviderTicketChip({
     // closed glyphs and all id text read plain. A merged id dims grey and
     // strikes through so it reads as done, with no color on hover. Each id
     // enlarges on hover by transform — never a layout change, so no id ever
-    // bumps a neighbor.
+    // bumps a neighbor. The row variant's ids render as spans: the child row
+    // is one anchor (#127), so the id never nests a link in it (#171's
+    // contract) — the label, state, and bubble all survive, the href does not.
     const status =
       isGithub && ref.number !== undefined
         ? statusFor?.(ticketStatusRepo(ref, projectRepo), ref.number)
@@ -385,8 +416,8 @@ function ProviderTicketChip({
         {text}
       </span>
     );
-    return ref.href === undefined ? (
-      <span key={index} title={title} aria-label={text} className={cell}>
+    return ref.href === undefined || !interactive ? (
+      <span key={index} title={title} aria-label={text} className={cell} data-ticket-id={text}>
         {body}
         {bubble}
       </span>
@@ -438,6 +469,9 @@ function ChildRow({
   rankDrag,
   onAttentionEnter,
   onAttentionLeave,
+  chipRows,
+  statusFor,
+  projectRepo = null,
 }: {
   child: PluginSidebarThread;
   /** A done child row dims, as does any child of a done parent. */
@@ -471,6 +505,16 @@ function ChildRow({
   /** Attention reporting for the row itself (nested rows pin their slots). */
   onAttentionEnter?: (threadId: string) => void;
   onAttentionLeave?: (threadId: string) => void;
+  /**
+   * Issue #191: the child's own provider-grouped chip rows (the same
+   * `cardTicketRefs` the thread chips with standalone) — rendered condensed
+   * and inert after the title. Absent/empty → no chip block.
+   */
+  chipRows?: readonly TicketChipRow[];
+  /** GitHub cache status lookup for the row's chips, when wired. */
+  statusFor?: (repo: string | null, number: number | undefined) => GitHubItemStatus | undefined;
+  /** The thread's project repo slug ("owner/repo") for status lookups. */
+  projectRepo?: string | null;
 }) {
   const now = Date.now();
   const childSnoozeWakeAt = snoozeFor?.(child.id) ?? null;
@@ -582,6 +626,37 @@ function ChildRow({
         </span>
       </div>
       <p className="mt-0.5 line-clamp-2 text-[12px] leading-snug">{child.displayTitle}</p>
+      {chipRows === undefined || chipRows.length === 0 ? null : (
+        // Issue #191: the row's condensed chip rows — one row per provider,
+        // left-aligned (no justify-between spread; the row is narrow), each
+        // chip the smaller, inert cut of ProviderTicketChip.
+        <div data-child-chip-rows="" className="mt-1 flex flex-col gap-0.5">
+          {chipRows.map((chipRow) => (
+            <div key={chipRow.key} data-provider-row={chipRow.key} className="flex flex-wrap gap-1">
+              {chipRow.issues === undefined ? null : (
+                <ProviderTicketChip
+                  row={chipRow}
+                  chip={chipRow.issues}
+                  statusFor={statusFor}
+                  projectRepo={projectRepo}
+                  condensed
+                  interactive={false}
+                />
+              )}
+              {chipRow.pulls === undefined ? null : (
+                <ProviderTicketChip
+                  row={chipRow}
+                  chip={chipRow.pulls}
+                  statusFor={statusFor}
+                  projectRepo={projectRepo}
+                  condensed
+                  interactive={false}
+                />
+              )}
+            </div>
+          ))}
+        </div>
+      )}
     </a>
   );
   if (menuActions === undefined) return row;
@@ -616,6 +691,7 @@ export function ThreadCard({
   repoHrefBase,
   statusFor,
   linkedIssues,
+  childLinkedIssuesFor,
   validatedHrefs,
   menuActions,
   childThreads,
@@ -672,6 +748,23 @@ export function ThreadCard({
     ...(validatedHrefs !== undefined ? { validatedHrefs } : {}),
   });
   const chipRows = ticketRefs.length === 0 || compact ? [] : ticketChipRows(ticketRefs);
+  // Issue #191: nested child rows show the child's own chips — the same
+  // `cardTicketRefs` call the child chips with standalone (title + branch
+  // scan, the project's repo base, the store links via `childLinkedIssuesFor`,
+  // and the same validation gate). The chips render condensed and inert:
+  // the row is one anchor, so no chip link nests inside it (#127). Compact
+  // minis keep the card's own no-chips rule.
+  const childChipRowsFor = (child: PluginSidebarThread): TicketChipRow[] => {
+    if (compact) return [];
+    const refs = cardTicketRefs({
+      title: child.displayTitle,
+      branch: child.environment?.branchName ?? child.host?.name ?? "",
+      ...(repoHrefBase !== undefined ? { repoHrefBase } : {}),
+      linkedIssues: childLinkedIssuesFor?.(child.id),
+      ...(validatedHrefs !== undefined ? { validatedHrefs } : {}),
+    });
+    return refs.length === 0 ? [] : ticketChipRows(refs);
+  };
   const children = childThreads ?? [];
   // The fold's count names what folding hides: the rows plus their sub-rows
   // (the toggle's summary and the "N child threads" label both fold the tier
@@ -1272,6 +1365,9 @@ export function ThreadCard({
                     snoozeFor={snoozeFor}
                     onAttentionEnter={onAttentionEnter}
                     onAttentionLeave={onAttentionLeave}
+                    chipRows={childChipRowsFor(activeCollapsedChild)}
+                    statusFor={statusFor}
+                    projectRepo={repo}
                   />
                 </li>
               </ul>
@@ -1318,6 +1414,9 @@ export function ThreadCard({
                         rankDrag={childRankDrag}
                         onAttentionEnter={onAttentionEnter}
                         onAttentionLeave={onAttentionLeave}
+                        chipRows={childChipRowsFor(child)}
+                        statusFor={statusFor}
+                        projectRepo={repo}
                       />
                       {subRows.length > 0 ? (
                         <ul
@@ -1344,6 +1443,9 @@ export function ThreadCard({
                                 onRankDragStart={onRankDragStart}
                                 onAttentionEnter={onAttentionEnter}
                                 onAttentionLeave={onAttentionLeave}
+                                chipRows={childChipRowsFor(sub)}
+                                statusFor={statusFor}
+                                projectRepo={repo}
                               />
                             </li>
                           ))}

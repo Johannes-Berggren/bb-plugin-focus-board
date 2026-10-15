@@ -487,6 +487,15 @@ export const SIM_DEMO_THREADS: readonly SimThread[] = [
     lastReadAt: SIM_NOW - 18 * MINUTE,
     environment: boardEnv("release/1.0.0"),
   }),
+  // Issue #191's demo row: a child whose title carries a text ref, so the
+  // nested row shows its condensed chip once rows carry chips.
+  thread({
+    id: "thr_demo_work_c3",
+    displayTitle: "Relink the board chip fixtures #16",
+    parentThreadId: "thr_demo_work",
+    updatedAt: SIM_NOW - 24 * MINUTE,
+    environment: boardEnv("release/1.0.0"),
+  }),
 
   // Family B — Needs you (lifted by the parent's own pending interaction),
   // collapsed in the shots: a "3 child threads" fold over a status dot strip
