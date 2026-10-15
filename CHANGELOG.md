@@ -7,6 +7,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+#### Card animations
+
+- **A pacing slider stretches the card animations longer in the Appearance tab.** The Motion row gains a "Animation pacing" control from 1x to 2x longer that scales every transport clock, so the same lane-move choreography can run slower and easier to follow. The slider greys out while the board follows the system or reduce is forced, and reduce-motion still wins over any pacing.
+
 #### Clear error
 
 - **A card menu action clears an acknowledged error out of Needs you.** Right-clicking a card whose Needs-you claim comes from error signals alone (a hard-failed turn or a failed send, never a pending interaction) offers "Clear error". The card settles into its normal lane and stays clear across reloads, and the thread's own view keeps showing the error. An acknowledgment rides per-thread plugin metadata and dies the moment the thread runs a new turn, so a fresh error claims attention on its own.

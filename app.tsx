@@ -156,12 +156,16 @@ import {
   WALLPAPER_KEY,
   CARD_TRANSPORT_KEY,
   MOTION_PREF_KEY,
+  MOTION_PACING_KEY,
   parseCardTransportStored,
   cardTransportStoredValue,
   parseMotionStored,
   motionStoredValue,
+  parseMotionPacing,
+  motionPacingStoredValue,
   type CardTransportPref,
   type MotionPref,
+  type MotionPacing,
   type SweepSettingKey,
 } from "./components/preferences";
 import { type ArchiveUnit } from "./lib/duration";
@@ -838,6 +842,15 @@ function BoardPage({ subPath }: { subPath: string }) {
   const persistMotionPref = useCallback((value: MotionPref) => {
     setMotionPref(value);
     writeStored(MOTION_PREF_KEY, motionStoredValue(value));
+  }, []);
+  // The transports' pacing beside the override: stock (1) until the user
+  // stretches it; the board's transport clock scales by this factor.
+  const [motionPacing, setMotionPacing] = useState<MotionPacing>(() =>
+    parseMotionPacing(readStoredText(MOTION_PACING_KEY, "")),
+  );
+  const persistMotionPacing = useCallback((value: MotionPacing) => {
+    setMotionPacing(value);
+    writeStored(MOTION_PACING_KEY, motionPacingStoredValue(value));
   }, []);
   // Scheme read for the wallpaper's dark variant: the hook lives with the
   // media-query hooks and flips live (a change listener, no reload).
@@ -2916,6 +2929,7 @@ function BoardPage({ subPath }: { subPath: string }) {
             activeThreadId={openThreadId}
             cardTransport={cardTransport}
             motionPref={motionPref}
+            motionPacing={motionPacing}
             doneIds={doneIds}
             errorAckIds={errorAckIds}
             nestedChildrenByParent={nestedChildrenByParent}
@@ -3207,9 +3221,11 @@ function BoardPage({ subPath }: { subPath: string }) {
         onSetEscStopsRunningThread={setEscStopsRunningThread}
         cardTransport={cardTransport}
         motionPref={motionPref}
+        motionPacing={motionPacing}
         wallpaper={wallpaper}
         onSetCardTransport={persistCardTransport}
         onSetMotionPref={persistMotionPref}
+        onSetMotionPacing={persistMotionPacing}
         onWallpaperChange={persistWallpaper}
       />
       {snoozeDialogFor === null ? null : (() => {

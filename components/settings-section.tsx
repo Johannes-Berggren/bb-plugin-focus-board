@@ -1,22 +1,26 @@
 import { useState } from "react";
 import {
   CardTransportChoice,
-  MotionChoice,
+  MotionGroup,
   WallpaperGroup,
 } from "@/components/appearance-controls";
 import {
   CARD_TRANSPORT_KEY,
+  MOTION_PACING_KEY,
   MOTION_PREF_KEY,
   WALLPAPER_KEY,
   cardTransportStoredValue,
+  motionPacingStoredValue,
   motionStoredValue,
   parseCardTransportStored,
+  parseMotionPacing,
   parseMotionStored,
   parseWallpaperStored,
   readStoredText,
   wallpaperStoredValue,
   writeStored,
   type CardTransportPref,
+  type MotionPacing,
   type MotionPref,
   type WallpaperSettings,
 } from "@/components/preferences";
@@ -39,6 +43,9 @@ export function AppearanceSettingsSection() {
   const [motionPref, setMotionPref] = useState<MotionPref>(
     () => parseMotionStored(readStoredText(MOTION_PREF_KEY, "")),
   );
+  const [motionPacing, setMotionPacing] = useState<MotionPacing>(
+    () => parseMotionPacing(readStoredText(MOTION_PACING_KEY, "")),
+  );
   const [wallpaper, setWallpaper] = useState<WallpaperSettings>(
     () => parseWallpaperStored(readStoredText(WALLPAPER_KEY, "")),
   );
@@ -52,11 +59,16 @@ export function AppearanceSettingsSection() {
           setCardTransport(value);
         }}
       />
-      <MotionChoice
-        selected={motionPref}
-        onSelect={(value) => {
+      <MotionGroup
+        motionPref={motionPref}
+        onMotionPrefChange={(value) => {
           writeStored(MOTION_PREF_KEY, motionStoredValue(value));
           setMotionPref(value);
+        }}
+        pacing={motionPacing}
+        onPacingChange={(value) => {
+          writeStored(MOTION_PACING_KEY, motionPacingStoredValue(value));
+          setMotionPacing(value);
         }}
       />
       <WallpaperGroup
