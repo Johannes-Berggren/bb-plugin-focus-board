@@ -672,6 +672,16 @@ export function ThreadCard({
   // counts children that render standalone (promoted / cross-axis).
   const hasRows = children.length > 0;
 
+  // Issue #174: with the rows folded, the family's open child still lists
+  // itself — a single row below the dot strip, so the active thread keeps an
+  // anchor in its family card. Null when the rows are unfolded (the rows
+  // list the whole family), when nothing in the family is open, or when the
+  // open thread is some other thread on the board.
+  const activeCollapsedChild =
+    collapsed && activeThreadId !== null && activeThreadId !== undefined
+      ? children.find((child) => child.id === activeThreadId) ?? null
+      : null;
+
   // The card's own attention: a pending interaction or an unread error. A
   // nested child can no longer be the cause — attention children un-nest
   // (nesting.ts `childPlacement`) and demand attention from their own card.
@@ -1059,15 +1069,16 @@ export function ThreadCard({
             {children.length + grandchildRowCount === 1 ? "child thread" : "child threads"}
           </button>
           {collapsed ? (
-            // The collapsed rows, immediately below their label: one
-            // status-colored dot per nested child, in display order. The
-            // strip answers "are there children, and does any of them want
-            // me?" at a glance without expanding; hovering a dot names its
-            // child, clicking the strip re-opens the rows.
-            <button
-              type="button"
+            // The collapsed rows, immediately below their label: one dot
+            // PER CHILD now, each its own control (issue #174). Hovering a
+            // dot previews that child — its title plus what the SDK exposes
+            // of it (state label, last-activity age, indicator label; the
+            // SDK does not expose a thread's messages). Clicking a dot
+            // opens that child's pane and leaves the rows folded. The
+            // strip's background keeps the strip's expand role, and the
+            // section toggle above stays the keyboard path.
+            <div
               data-child-thread-dots=""
-              aria-label="Expand subthreads"
               title="Show the nested child threads"
               onClick={(event) => {
                 event.preventDefault();
@@ -1075,25 +1086,90 @@ export function ThreadCard({
                 toggleCollapsed();
               }}
               className={cn(
-                "ml-[18px] flex max-w-full flex-wrap items-center gap-1 rounded-sm py-0.5 pr-1",
+                "ml-[18px] flex max-w-full flex-wrap items-center gap-1.5 rounded-sm py-0.5 pr-1",
                 "transition-colors hover:bg-accent/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring",
               )}
             >
               {children.map((child) => {
                 const state = threadState(child, errorAckIds);
                 return (
-                  <span
+                  <button
                     key={child.id}
-                    title={`${child.displayTitle} · ${THREAD_STATE_LABELS[state] ?? state}`}
-                    className={cn(
-                      "size-1.5 rounded-full",
-                      DOT_CLASS[state] ?? "bg-muted-foreground/30",
-                      state === "attention" && "motion-safe:animate-pulse",
-                    )}
-                  />
+                    type="button"
+                    data-child-dot={child.id}
+                    aria-label={`Open child thread: ${child.displayTitle}`}
+                    onClick={(event) => {
+                      // The dot's click belongs to the dot alone: it opens
+                      // its child and never reaches the strip's expand
+                      // surface beneath it.
+                      event.preventDefault();
+                      event.stopPropagation();
+                      if (onOpenThread === undefined) {
+                        toggleCollapsed();
+                        return;
+                      }
+                      onOpenThread(child.id);
+                    }}
+                    className="group/dot relative flex size-4 items-center justify-center rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  >
+                    <span
+                      aria-hidden
+                      data-child-dot-glyph=""
+                      className={cn(
+                        "size-1.5 rounded-full",
+                        DOT_CLASS[state] ?? "bg-muted-foreground/30",
+                        state === "attention" && "motion-safe:animate-pulse",
+                      )}
+                    />
+                    {/* The hover preview (issue #174): bb's sidebar thread
+                        preview shape — the title above, a supporting line
+                        under it. Decorative only (aria-hidden); the dot's
+                        aria-label names the child for screen readers. It
+                        shows while the dot is hovered or keyboard-focused. */}
+                    <span
+                      aria-hidden
+                      data-child-dot-preview=""
+                      className={cn(
+                        "pointer-events-none absolute bottom-full left-1/2 z-20 mb-1 hidden max-w-56 -translate-x-1/2",
+                        "rounded border border-border bg-popover px-2 py-1 text-left shadow-md",
+                        "group-hover/dot:block group-focus-within/dot:block",
+                      )}
+                    >
+                      <span className="block text-[11px] font-medium leading-tight text-popover-foreground">
+                        {child.displayTitle}
+                      </span>
+                      <span className="mt-0.5 block text-[10px] leading-tight text-popover-foreground/70">
+                        {THREAD_STATE_LABELS[state] ?? state} · {relativeTime(child.updatedAt, now)}
+                        {child.indicatorLabel === null ? null : ` · ${child.indicatorLabel}`}
+                      </span>
+                    </span>
+                  </button>
                 );
               })}
-            </button>
+            </div>
+          ) : null}
+          {activeCollapsedChild !== null && onOpenThread !== undefined ? (
+            // Issue #174: the family's open child keeps a single row below
+            // the strip while everything else stays a dot. No sub-rows and
+            // no reorder line: a one-row list has nothing to rank.
+            <div data-child-active-row="" className="mt-1 border-l border-border/70 pl-2">
+              <ul className="flex flex-col gap-1">
+                <li>
+                  <ChildRow
+                    child={activeCollapsedChild}
+                    dimmed={isDone}
+                    errorAcks={errorAckIds}
+                    isActive
+                    isTransportGhost={isTransportGhost}
+                    onOpenThread={onOpenThread}
+                    menuActions={childMenuActions?.(activeCollapsedChild)}
+                    snoozeFor={snoozeFor}
+                    onAttentionEnter={onAttentionEnter}
+                    onAttentionLeave={onAttentionLeave}
+                  />
+                </li>
+              </ul>
+            </div>
           ) : null}
           {!collapsed && onOpenThread !== undefined ? (
             <div
