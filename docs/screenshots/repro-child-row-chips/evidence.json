@@ -1,0 +1,20 @@
+{
+  "issue": "cristoslc/bb-plugin-focus-board#191",
+  "url": "http://localhost:5181/",
+  "child": "thr_demo_work_c3",
+  "domEvidence": {
+    "familyCardPresent": true,
+    "nestedRowPresent": true,
+    "chipRowKeys": [
+      "github"
+    ],
+    "chipTexts": [
+      "#16#16"
+    ],
+    "chipCondensed": [
+      true
+    ],
+    "nestedAnchorHrefs": [],
+    "standaloneCardChips": 1
+  }
+}

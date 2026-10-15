@@ -907,6 +907,7 @@ export function ParentLaneBoard({
                           repoHrefBase={repoBaseFor(cell.thread.projectId) ?? undefined}
                           statusFor={statusFor}
                           linkedIssues={linkedIssuesFor?.(cell.thread.id)}
+                          childLinkedIssuesFor={linkedIssuesFor}
                           validatedHrefs={validatedHrefs}
                           menuActions={menuActionsFor(cell.thread)}
                           snoozeFor={snoozeFor}

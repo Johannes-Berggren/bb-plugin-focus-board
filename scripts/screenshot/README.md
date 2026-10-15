@@ -39,6 +39,17 @@ host app involved.
   `phone-thread-pane.png`. Run the vite harness first (same as above),
   then `node scripts/screenshot/repro-markread-mobile.mjs`; honors the
   same `CHROME_PATH` and `HARNESS_URL` overrides.
+- `repro-child-row-chips.mjs` — one-shot headless repro/verification for the
+  nested-row ticket chips fix (#191): loads the demo Working family — whose
+  child `thr_demo_work_c3` carries a `#16` text ref — and exits non-zero
+  unless the nested row renders its condensed chip and no anchor nests inside
+  the row's own link. Artifacts land in `docs/screenshots/repro-child-row-chips/`
+  (two screenshots plus `evidence.json`; the pre-fix run's failing evidence
+  was captured into `docs/screenshots/repro-child-row-chips-prefix/` by
+  running the script with `OUT_DIR` pointed there before the fix). Run the
+  vite harness first (same as above), then `node
+  scripts/screenshot/repro-child-row-chips.mjs`; honors the same `CHROME_PATH`
+  and `HARNESS_URL` overrides, plus `OUT_DIR`.
 - `repro-done-scroll-yank.mjs` — one-shot headless regression driver for the
   post-done re-scroll yank (#119): opens a pane on the Unread card
   (`thr_uat_queue`) at 1280x800, marks it done via the on-card checkbox,
