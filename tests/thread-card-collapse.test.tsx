@@ -69,9 +69,11 @@ function chipRail(): HTMLElement {
 }
 
 function dotAt(index: number): Element {
-  const dot = dots().children[index];
-  if (dot === undefined) throw new Error(`missing dot ${index}`);
-  return dot;
+  // The strip's children are per-child dot buttons (issue #174); the colored
+  // circle — with its state classes — rides inside as the glyph.
+  const glyph = dots().children[index]?.querySelector("[data-child-dot-glyph]");
+  if (glyph === null || glyph === undefined) throw new Error(`missing dot glyph ${index}`);
+  return glyph;
 }
 
 function row(id: string): HTMLElement | null {
@@ -143,10 +145,12 @@ describe("uncontrolled collapse (callers without persistence)", () => {
     expect(dotAt(0).className).not.toContain("animate-pulse");
   });
 
-  it("each dot names its child on hover", () => {
+  it("each dot previews its child on hover", () => {
     renderCard();
     fireEvent.click(toggle(false));
-    expect(dotAt(1).getAttribute("title")).toContain("Child two");
+    const preview = dotAt(1).parentElement?.querySelector("[data-child-dot-preview]");
+    if (!(preview instanceof HTMLElement)) throw new Error("missing dot preview");
+    expect(preview.textContent).toContain("Child two");
   });
 
   it("one child reads singular: 1 child thread", () => {

@@ -7,6 +7,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+#### Groups and family boxes
+
+- **A collapsed family's child dot previews its child and opens it.** Hovering a dot shows that child's title and state; clicking a dot opens it in the thread pane without expanding the rows. The family's open child lists itself below the strip while the rest stay dots, and the strip's background still expands the family.
+
 #### Zoom to family
 
 - **A card menu action zooms the board to one family.** Right-clicking a card that nests child threads, or a nested row of one, gains "Zoom to family": the Parent view opens showing that family alone. The scoping rides the filter row as a Family chip that clears it, and it persists across reloads like the other filters.
