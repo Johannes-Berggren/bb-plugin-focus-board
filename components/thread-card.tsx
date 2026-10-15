@@ -1112,7 +1112,12 @@ export function ThreadCard({
                 className="size-3 shrink-0"
                 aria-hidden
               />
-              {visibleRowCount} {visibleRowCount === 1 ? "child thread" : "child threads"}
+              {/* The idle filter enumerates what it hides ("2 active, 3 idle
+                  child threads", issue #172); with the filter off, or hiding
+                  nothing, the plain count returns. */}
+              {hideIdle && children.length > visibleChildren.length
+                ? `${visibleRowCount} active, ${children.length - visibleChildren.length} idle child threads`
+                : `${visibleRowCount} ${visibleRowCount === 1 ? "child thread" : "child threads"}`}
             </button>
             <button
               type="button"

@@ -17,7 +17,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 #### Child threads
 
-- **A family's child section can hide its idle children.** A small eye button beside the "N child threads" toggle filters idle children out of both the expanded rows and the collapsed dot strip, and the choice persists per family.
+- **A family's child section can hide its idle children.** A small eye button beside the "N child threads" toggle filters idle children out of both the expanded rows and the collapsed dot strip, the count enumerates what is hidden ("1 active, 15 idle child threads") while the filter is hiding something, and the choice persists per family.
 
 ### Changed
 
