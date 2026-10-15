@@ -38,6 +38,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 #### Ticket chips
 
 - **Ticket chips wrap their ids onto extra lines instead of overflowing the card.** A chip carrying long external labels (a cove forge link's "cove 0dac60e") used to run past the card's right edge; the ids now reflow onto extra lines whatever their width.
+- **Ticket chip links no longer render inside the card's own link.** A chip's mark and id links used to sit inside the card's opening link, an invalid HTML pairing React logged on every render of the card; the chip rows now sit beside the card's link and every chip link still opens its own ticket directly.
 
 #### Card animations
 

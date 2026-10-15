@@ -11,6 +11,11 @@ export const UNRELEASED_ITEMS: readonly { text: string; children: string[]; grou
     "group": "Clear error"
   },
   {
+    "text": "**A group box's context menu gains Zoom to group.** Right-clicking a feature-group box offers \"Zoom to group\", which restricts the existing Group filter to exactly that group so the board shows its threads only. Clearing the filter chip restores the whole board, and the restriction persists across a refresh like any other filter.",
+    "children": [],
+    "group": "Feature groups"
+  },
+  {
     "text": "**The pane header marks threads done where the chat icon used to sit.** The small chat bubble left of the title is now a done checkbox matching the ones on the overview cards: an empty box marks the thread done, a checked box marks it not done.",
     "children": [],
     "group": "Thread pane"
@@ -27,6 +32,11 @@ export const UNRELEASED_ITEMS: readonly { text: string; children: string[]; grou
   },
   {
     "text": "**Ticket chips wrap their ids onto extra lines instead of overflowing the card.** A chip carrying long external labels (a cove forge link's \"cove 0dac60e\") used to run past the card's right edge; the ids now reflow onto extra lines whatever their width.",
+    "children": [],
+    "group": "Ticket chips"
+  },
+  {
+    "text": "**Ticket chip links no longer render inside the card's own link.** A chip's mark and id links used to sit inside the card's opening link, an invalid HTML pairing React logged on every render of the card; the chip rows now sit beside the card's link and every chip link still opens its own ticket directly.",
     "children": [],
     "group": "Ticket chips"
   },
