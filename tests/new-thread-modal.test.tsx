@@ -14,11 +14,15 @@ const onOpenChange = vi.fn();
 const onSpawned = vi.fn();
 const onMaximize = vi.fn();
 const rememberProjectId = vi.fn();
+const rememberEnvironment = vi.fn();
 
 // The submit request is opaque to the modal (it forwards verbatim to
-// spawn), so the test builds a minimal one and casts.
+// spawn), so the test builds a minimal one and casts. The environment field
+// rides along: the remember-environment test asserts the modally-resolved
+// environment itself is handed over, not a lib derivation.
 const REQUEST = {
   projectId: "proj_1",
+  environment: { type: "project-default" },
   input: [],
 } as unknown as NewThreadRequest;
 
@@ -63,6 +67,7 @@ beforeEach(() => {
   onSpawned.mockReset();
   onMaximize.mockReset();
   rememberProjectId.mockReset();
+  rememberEnvironment.mockReset();
   lastComposerProps = null;
   lastSubmitPromise = null;
 });
@@ -82,6 +87,7 @@ function renderModal(
     groupName,
     withMaximize = false,
     rememberProjectId,
+    rememberEnvironment,
   }: {
     open?: boolean;
     defaultProjectId?: string;
@@ -94,6 +100,7 @@ function renderModal(
     groupName?: string;
     withMaximize?: boolean;
     rememberProjectId?: ReturnType<typeof vi.fn>;
+    rememberEnvironment?: ReturnType<typeof vi.fn>;
   } = {},
 ) {
   return render(
@@ -110,6 +117,7 @@ function renderModal(
       ...(groupName !== undefined ? { groupName } : {}),
       onSpawned,
       ...(rememberProjectId !== undefined ? { rememberProjectId } : {}),
+      ...(rememberEnvironment !== undefined ? { rememberEnvironment } : {}),
       // A child preset cannot follow to the main view; the app passes the
       // handler only for root threads, mirrored here by the flag.
       onMaximize: withMaximize ? onMaximize : undefined,
@@ -198,9 +206,10 @@ describe("NewThreadModal", () => {
       expect(onSpawned).toHaveBeenCalledWith(SPAWNED);
     });
     // The parent rides on the verbatim request — the child fields (prompt,
-    // project, provider) stay whatever the operator composed.
+    // project, environment, provider) stay whatever the operator composed.
     expect(spawn).toHaveBeenCalledWith({
       projectId: "proj_1",
+      environment: REQUEST.environment,
       input: [],
       parentThreadId: "thr_root",
     });
@@ -281,6 +290,28 @@ describe("NewThreadModal", () => {
     });
     expect(rememberProjectId).toHaveBeenCalledTimes(1);
     expect(rememberProjectId).toHaveBeenCalledWith("proj_1");
+  });
+
+  it("hands the submitted environment to the board's remember-memory on success", async () => {
+    // The environment the composer RESOLVED (a "(new) worktree" pick or a
+    // reuse) reaches the board only through the submit request; the spawn
+    // result carries no environment. The success path feeds it to the
+    // per-project remembered-environment rung alongside the project.
+    renderModal({ rememberEnvironment });
+    fireEvent.click(submitButton());
+    await waitFor(() => {
+      expect(onSpawned).toHaveBeenCalledWith(SPAWNED);
+    });
+    expect(rememberEnvironment).toHaveBeenCalledTimes(1);
+    expect(rememberEnvironment).toHaveBeenCalledWith("proj_1", REQUEST.environment);
+  });
+
+  it("a failed spawn remembers the environment never (inverse)", async () => {
+    spawn.mockRejectedValue(new Error("spawn failed"));
+    renderModal({ rememberEnvironment });
+    fireEvent.click(submitButton());
+    await expect(lastSubmitPromise).rejects.toThrow("spawn failed");
+    expect(rememberEnvironment).not.toHaveBeenCalled();
   });
 
   it("a failed spawn remembers nothing (inverse)", async () => {

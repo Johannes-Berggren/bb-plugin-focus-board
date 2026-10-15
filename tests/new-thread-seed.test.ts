@@ -13,9 +13,13 @@ import { describe, expect, it } from "vitest";
 import {
   BB_PERSONAL_PROJECT_ID,
   newThreadSeedEnvironment,
+  newThreadSeedEnvironmentForProject,
   newThreadSeedProjectId,
   newThreadDerivedProjectId,
+  parseRememberedEnvironmentStored,
   parseRememberedProjectStored,
+  rememberedEnvironmentStorageKey,
+  rememberedEnvironmentStoredValue,
   rememberedProjectStorageKey,
   rememberedProjectStoredValue,
 } from "../lib/new-thread-seed";
@@ -283,5 +287,143 @@ describe("newThreadSeedEnvironment", () => {
     expect(
       newThreadSeedEnvironment({ parentEnvironment: undefined }),
     ).toBeUndefined();
+  });
+});
+
+// The remembered-environment rung: per-project (a `reuse` memory is bound to
+// one project's worktree — seeding it under another project would land the
+// thread in a worktree the operator did not pick), written on spawn success,
+// and beaten by the parent preset. A "(new) worktree" pick submits the
+// project-agnostic `managed-worktree` variant, whose `baseBranch` resolves
+// against the picked project at spawn time, so the memory travels across
+// projects of its own accord; the per-project keying still guards `reuse`.
+describe("remembered-environment storage (lib helpers)", () => {
+  const NEW_WORKTREE = {
+    type: "host",
+    workspace: { type: "managed-worktree", baseBranch: { kind: "default" } },
+  } as const;
+
+  it("the storage key is plugin-scoped", () => {
+    expect(rememberedEnvironmentStorageKey("focus-board")).toBe(
+      "focus-board:rememberedNewThreadEnvironments",
+    );
+  });
+
+  it("the stored map round-trips per project", () => {
+    const stored = rememberedEnvironmentStoredValue({
+      proj_home: NEW_WORKTREE,
+      proj_side: { type: "reuse", environmentId: "env_1" },
+    });
+    expect(parseRememberedEnvironmentStored(stored)).toEqual({
+      proj_home: NEW_WORKTREE,
+      proj_side: { type: "reuse", environmentId: "env_1" },
+    });
+  });
+
+  it("an absent, blank, or malformed record parses as no memory", () => {
+    expect(parseRememberedEnvironmentStored(null)).toBeUndefined();
+    expect(parseRememberedEnvironmentStored("")).toBeUndefined();
+    expect(parseRememberedEnvironmentStored("   ")).toBeUndefined();
+    expect(parseRememberedEnvironmentStored("{not json")).toBeUndefined();
+    expect(parseRememberedEnvironmentStored('["not","a","map"]')).toBeUndefined();
+    expect(parseRememberedEnvironmentStored('"plain"')).toBeUndefined();
+  });
+
+  it("malformed entries drop while well-formed entries keep (mixed map)", () => {
+    // localStorage is a host cache artifact: the board must not break on a
+    // record it cannot validate. Malformed entries read as no memory for
+    // their project; well-formed entries survive in the same map.
+    const stored = rememberedEnvironmentStoredValue({
+      proj_home: NEW_WORKTREE,
+      proj_bad: "not an environment" as never,
+    });
+    expect(parseRememberedEnvironmentStored(stored)).toEqual({
+      proj_home: NEW_WORKTREE,
+    });
+  });
+
+  it("unknown environment types are dropped", () => {
+    const stored = rememberedEnvironmentStoredValue({
+      proj_bad: { type: "teleport" } as never,
+      proj_reuse: { type: "reuse", environmentId: "env_1" },
+    });
+    expect(parseRememberedEnvironmentStored(stored)).toEqual({
+      proj_reuse: { type: "reuse", environmentId: "env_1" },
+    });
+  });
+
+  it("a reuse entry without an environmentId is dropped", () => {
+    const stored = rememberedEnvironmentStoredValue({
+      proj_bad: { type: "reuse", environmentId: 42 } as never,
+    });
+    expect(parseRememberedEnvironmentStored(stored)).toBeUndefined();
+  });
+});
+
+describe("newThreadSeedEnvironmentForProject", () => {
+  const NEW_WORKTREE = {
+    type: "host",
+    workspace: { type: "managed-worktree", baseBranch: { kind: "default" } },
+  } as const;
+  const parentEnvironment = { id: "env_parent", isWorktree: true } as const;
+
+  it("a remembered (new) worktree pick seeds the managed-worktree variant", () => {
+    // The shape "(new) worktree" submits and the composer's documented
+    // round-trippable seed: the next plain New thread opens pre-picked.
+    const seed = newThreadSeedEnvironmentForProject({
+      rememberedEnvironment: NEW_WORKTREE,
+    });
+    expect(seed).toEqual(NEW_WORKTREE);
+  });
+
+  it("a remembered reuse pick seeds the reuse seed", () => {
+    const seed = newThreadSeedEnvironmentForProject({
+      rememberedEnvironment: { type: "reuse", environmentId: "env_1" },
+    });
+    expect(seed).toEqual({ type: "reuse", environmentId: "env_1" });
+  });
+
+  it("a remembered project-default pick seeds nothing (inverse)", () => {
+    // "Project checkout" is the composer's own unseeded default; a memory
+    // of it must not turn into a seed (the SDK's `project-default` variant
+    // seeds nothing by contract). Silence keeps the composer default in
+    // charge exactly as before the memory existed.
+    const seed = newThreadSeedEnvironmentForProject({
+      rememberedEnvironment: { type: "project-default" },
+    });
+    expect(seed).toBeUndefined();
+  });
+
+  it("a no-project memory seeds nothing (inverse)", () => {
+    // The memory is a companion to the picked project, never a standalone
+    // pick: with no project resolved the rung stays silent.
+    expect(newThreadSeedEnvironmentForProject({})).toBeUndefined();
+  });
+
+  it("the parent preset beats the remembered rung", () => {
+    const seed = newThreadSeedEnvironmentForProject({
+      parentEnvironment,
+      rememberedEnvironment: NEW_WORKTREE,
+    });
+    expect(seed).toEqual({ type: "reuse", environmentId: "env_parent" });
+  });
+
+  it("a non-worktree parent falls through to the remembered rung", () => {
+    // The parent preset is about copying the parent's checkout WHEN one can
+    // be expressed; a plain-checkout parent says nothing about environments,
+    // so the remembered rung still seeds for the (parent-copied) project.
+    const seed = newThreadSeedEnvironmentForProject({
+      parentEnvironment: { id: "env_plain", isWorktree: false },
+      rememberedEnvironment: NEW_WORKTREE,
+    });
+    expect(seed).toEqual(NEW_WORKTREE);
+  });
+
+  it("an unknown-worktree-kind parent falls through to the remembered rung", () => {
+    const seed = newThreadSeedEnvironmentForProject({
+      parentEnvironment: { id: "env_unknown", isWorktree: null },
+      rememberedEnvironment: { type: "reuse", environmentId: "env_1" },
+    });
+    expect(seed).toEqual({ type: "reuse", environmentId: "env_1" });
   });
 });

@@ -54,6 +54,7 @@ export function NewThreadModal({
   groupName,
   onMaximize,
   rememberProjectId,
+  rememberEnvironment,
   onSpawned,
 }: {
   open: boolean;
@@ -113,6 +114,17 @@ export function NewThreadModal({
    * the remember — the composer works exactly as before.
    */
   rememberProjectId?: (projectId: string) => void;
+  /**
+   * Feed for the board's remembered-ENVIRONMENT seed rung: called with the
+   * submitted project id and the environment the composer RESOLVED (the
+   * spawn result carries no environment — the request does) on submit
+   * success, never on failure. Absent (the tests' stub flows) skips the
+   * remember — the composer works exactly as before.
+   */
+  rememberEnvironment?: (
+    projectId: string,
+    environment: NewThreadRequest["environment"],
+  ) => void;
   onSpawned: (thread: SpawnedThread) => void;
 }) {
   const sdk = useSdk();
@@ -139,6 +151,7 @@ export function NewThreadModal({
       try {
         const thread = await sdk.threads.spawn(spawnArgs);
         rememberProjectId?.(thread.projectId);
+        rememberEnvironment?.(thread.projectId, request.environment);
         onOpenChange(false);
         onSpawned(thread);
       } catch (error) {
@@ -146,7 +159,7 @@ export function NewThreadModal({
         throw error;
       }
     },
-    [sdk, onOpenChange, onSpawned, rememberProjectId, parentThreadId],
+    [sdk, onOpenChange, onSpawned, rememberProjectId, rememberEnvironment, parentThreadId],
   );
 
   return (

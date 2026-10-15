@@ -43,6 +43,7 @@
  * falls down the ladder the same way — the spawn still carries
  * `parentThreadId` (the preset is about the parent, not the project).
  */
+import type { NewThreadRequest } from "@get-bb/plugin-sdk/app";
 export function newThreadSeedProjectId({
   parentProjectId,
   filterProjectId,
@@ -170,6 +171,158 @@ export function newThreadSeedEnvironment({
     parentEnvironment.isWorktree === true
   ) {
     return { type: "reuse", environmentId: parentEnvironment.id };
+  }
+  return undefined;
+}
+
+/**
+ * The remembered-ENVIRONMENT rung (`rememberedEnvironmentStoredValue` and
+ * friends), keyed per project: a `reuse` memory is bound to one project's
+ * worktree, so seeding it while another project is picked would land the
+ * thread in a checkout the operator did not pick. The environment memory is
+ * a companion to the picked project — `newThreadSeedProjectId` decides the
+ * project first, and the app reads this rung's entry for THAT project; with
+ * no project resolved (no seed at all) the rung stays silent.
+ */
+export type NewThreadEnvironmentArgs = NewThreadRequest["environment"];
+
+/** The plugin-scoped localStorage key for the per-project environment map. */
+export function rememberedEnvironmentStorageKey(pluginId: string): string {
+  return `${pluginId}:rememberedNewThreadEnvironments`;
+}
+
+/**
+ * The stored value: a JSON map from project id to the environment args the
+ * composer resolved on that project's last successful spawn.
+ */
+export function rememberedEnvironmentStoredValue(
+  entries: Record<string, NewThreadEnvironmentArgs>,
+): string {
+  return JSON.stringify(entries);
+}
+
+/**
+ * Structural validation of one stored entry, the mirror of what the
+ * composer's environment picker submits. Returns the entry verbatim when it
+ * names a known, minimally-well-formed variant; undefined otherwise. The
+ * verbatim pass-through matters: the memory must round-trip the exact args
+ * the composer submitted (extra fields included), never a reconstruction.
+ */
+function rememberedEnvironmentArg(
+  value: unknown,
+): NewThreadEnvironmentArgs | undefined {
+  if (typeof value !== "object" || value === null) return undefined;
+  const record = value as Record<string, unknown>;
+  switch (record.type) {
+    case "reuse":
+      return typeof record.environmentId === "string"
+        ? (record as NewThreadEnvironmentArgs)
+        : undefined;
+    case "project-default":
+    case "personal":
+      return record as NewThreadEnvironmentArgs;
+    case "host": {
+      const workspace = record.workspace;
+      if (typeof workspace !== "object" || workspace === null) return undefined;
+      const ws = workspace as Record<string, unknown>;
+      if (ws.type === "unmanaged") {
+        if (typeof ws.path !== "string" && ws.path !== null) return undefined;
+      } else if (ws.type === "managed-worktree") {
+        const baseBranch = ws.baseBranch;
+        if (
+          typeof baseBranch !== "object" ||
+          baseBranch === null ||
+          !(
+            (baseBranch as Record<string, unknown>).kind === "default" ||
+            ((baseBranch as Record<string, unknown>).kind === "named" &&
+              typeof (baseBranch as Record<string, unknown>).name === "string")
+          )
+        ) {
+          return undefined;
+        }
+      } else {
+        return undefined;
+      }
+      return record as NewThreadEnvironmentArgs;
+    }
+    case "provider":
+      return typeof record.environmentProviderId === "string"
+        ? (record as NewThreadEnvironmentArgs)
+        : undefined;
+    default:
+      return undefined;
+  }
+}
+
+/**
+ * The plugin-scoped localStorage record parses as a per-project map. An
+ * absent, blank, or unparsable record is no memory; individual entries that
+ * fail the structural check drop while well-formed entries in the same map
+ * keep — the board must not break on a host cache artifact it cannot
+ * validate (the same policy lib/compose-maximize applies to draft records).
+ */
+export function parseRememberedEnvironmentStored(
+  raw: string | null,
+): Record<string, NewThreadEnvironmentArgs> | undefined {
+  const trimmed = raw?.trim();
+  if (trimmed === undefined || trimmed === "") return undefined;
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(trimmed);
+  } catch {
+    return undefined;
+  }
+  if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
+    return undefined;
+  }
+  const entries: Record<string, NewThreadEnvironmentArgs> = {};
+  let kept = 0;
+  for (const [projectId, value] of Object.entries(
+    parsed as Record<string, unknown>,
+  )) {
+    const environment = rememberedEnvironmentArg(value);
+    if (environment !== undefined) {
+      entries[projectId] = environment;
+      kept += 1;
+    }
+  }
+  return kept > 0 ? entries : undefined;
+}
+
+/**
+ * The environment seed for the board's composer, full ladder: the parent
+ * preset (a worktree parent's `reuse` copy) beats the remembered rung, and
+ * a non-worktree / unknown-kind parent falls through to the memory for the
+ * (parent-copied or otherwise picked) project — the preset is about copying
+ * the parent's checkout WHEN one can be expressed, not about environments
+ * generally. A remembered `project-default` pick seeds nothing: "Project
+ * checkout" is the composer's own unseeded default, so a memory of it must
+ * not harden into a seed the SDK contract would discard anyway. The memory
+ * never overrides the "no project resolved → no seed" rule; the app gates
+ * the rung on `newThreadSeedProjectId` having picked a project.
+ */
+export function newThreadSeedEnvironmentForProject({
+  parentEnvironment,
+  rememberedEnvironment,
+}: {
+  /** The preset parent's environment record; undefined when absent. */
+  parentEnvironment?:
+    | { id: string | null; isWorktree: boolean | null }
+    | null
+    | undefined;
+  /**
+   * The remembered entry for the project the seed ladder picked; undefined
+   * when no project is picked or the project has no memory yet.
+   */
+  rememberedEnvironment?: NewThreadEnvironmentArgs | undefined;
+}): NewThreadEnvironmentArgs | undefined {
+  const preset = newThreadSeedEnvironment({ parentEnvironment });
+  if (preset !== undefined) return preset;
+  if (
+    rememberedEnvironment !== undefined &&
+    rememberedEnvironment.type !== "project-default"
+  ) {
+    return rememberedEnvironment;
   }
   return undefined;
 }
