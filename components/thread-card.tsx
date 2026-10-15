@@ -1175,12 +1175,20 @@ export function ThreadCard({
             >
               {visibleChildren.map((child) => {
                 const state = threadState(child, errorAckIds);
+                // The child open in the pane reads selected on its dot
+                // (the follow-up to #174): a quiet accent background plus
+                // the app's active ring, so its dot answers which dot is
+                // the thread whose pane is open — the same selection its
+                // listed row below carries.
+                const isChildActive = child.id === activeThreadId;
                 return (
                   <button
                     key={child.id}
                     type="button"
                     data-child-dot={child.id}
+                    data-child-dot-active={isChildActive ? "" : undefined}
                     aria-label={`Open child thread: ${child.displayTitle}`}
+                    aria-current={isChildActive ? "true" : undefined}
                     onClick={(event) => {
                       // The dot's click belongs to the dot alone: it opens
                       // its child and never reaches the strip's expand
@@ -1193,7 +1201,19 @@ export function ThreadCard({
                       }
                       onOpenThread(child.id);
                     }}
-                    className="group/dot relative flex size-4 items-center justify-center rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    className={cn(
+                      "group/dot relative flex size-4 items-center justify-center rounded-full",
+                      // The hovered (or keyboard-focused) dot lights a
+                      // subtle accent halo behind its glyph — the
+                      // hovered-preview pair reads as one thing. Plain
+                      // hover/focus variants: the group-hover form cannot
+                      // style a button from its own group marker (:is(
+                      // .group:hover *) matches only descendants, and the
+                      // halo's target IS the group element).
+                      "hover:bg-accent/70 focus-visible:bg-accent/70",
+                      "focus:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                      isChildActive && "bg-accent/70 ring-2 ring-ring",
+                    )}
                   >
                     <span
                       aria-hidden

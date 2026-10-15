@@ -112,11 +112,56 @@ describe("a child dot's hover preview", () => {
     expect(bubble.firstElementChild?.className).toContain("line-clamp-2");
   });
 
+  it("lights a subtle halo behind the dot while it is hovered or focused", () => {
+    renderCard({ isCollapsed: true });
+    const button = dot("thr_c2");
+    // The halo rides the button's own hover/focus (the group-hover variant
+    // cannot style a button from its own group marker — `:is(.group:hover *)`
+    // matches only descendants, and the halo target IS the group element).
+    expect(button.className).toContain("hover:bg-accent/70");
+    expect(button.className).toContain("focus-visible:bg-accent/70");
+    expect(button.className).not.toContain("group-hover/dot:bg-accent");
+  });
+
   it("is aria-hidden: the dot's aria-label carries the child's name for screen readers", () => {
     renderCard({ isCollapsed: true });
     const button = dot("thr_c2");
     expect(button.getAttribute("aria-label")).toContain("Child two");
     expect(preview("thr_c2").hasAttribute("aria-hidden")).toBe(true);
+  });
+});
+
+describe("the child open in the pane reads selected on its dot", () => {
+  // The active child's dot holds a persistent emphasis (accent background
+  // plus the app's active ring) so the operator can see which dot is the
+  // thread open in the pane, matching the listed active row below.
+  function activeDot(id: string): HTMLElement {
+    const button = dot(id);
+    if (!button.hasAttribute("data-child-dot-active")) {
+      throw new Error(`dot ${id} does not read selected`);
+    }
+    return button;
+  }
+
+  it("the open child's dot holds the emphasis; its siblings stay quiet", () => {
+    renderCard({ isCollapsed: true, onCollapsedChange: vi.fn(), activeThreadId: "thr_c2" });
+    const active = activeDot("thr_c2");
+    expect(active.className).toMatch(/(^| )bg-accent\//);
+    expect(active.className).toMatch(/(^| )ring-2( |$)/);
+    expect(dot("thr_c1").hasAttribute("data-child-dot-active")).toBe(false);
+    expect(dot("thr_c1").className).not.toMatch(/(^| )bg-accent\//);
+    expect(dot("thr_c3").hasAttribute("data-child-dot-active")).toBe(false);
+  });
+
+  it("no dot reads selected when nothing in the family is open", () => {
+    renderCard({ isCollapsed: true, activeThreadId: null });
+    expect(dot("thr_c1").hasAttribute("data-child-dot-active")).toBe(false);
+    expect(dot("thr_c2").hasAttribute("data-child-dot-active")).toBe(false);
+  });
+
+  it("no dot reads selected when the open thread is not a nested child", () => {
+    renderCard({ isCollapsed: true, activeThreadId: "thr_other" });
+    expect(dot("thr_c1").hasAttribute("data-child-dot-active")).toBe(false);
   });
 });
 
