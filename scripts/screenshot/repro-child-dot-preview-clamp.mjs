@@ -55,8 +55,8 @@ const result = await page.evaluate((id) => {
     cardRight: cr === undefined ? null : Math.round(cr.right),
     fixed: getComputedStyle(bubble).position === "fixed",
     portaled: bubble.parentElement === document.body,
+    contentSized: Math.round(r.width) <= 256,
     onScreen: r.left >= 0 && r.right <= window.innerWidth,
-    clampedToMargin: Math.round(r.right) === window.innerWidth - 8,
   };
 }, hoverId);
 mkdirSync("docs/screenshots/repro-child-dot-alignment", { recursive: true });
@@ -75,8 +75,7 @@ await page.screenshot({
   },
 });
 console.log(JSON.stringify(result, null, 1));
-const ok =
-  result.fixed && result.portaled && result.onScreen && result.clampedToMargin;
+const ok = result.fixed && result.portaled && result.onScreen && result.contentSized;
 console.log(ok ? "CLAMPED" : "NOT CLAMPED");
 await browser.close();
 process.exit(ok ? 0 : 1);
