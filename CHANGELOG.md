@@ -37,6 +37,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 #### Board views
 
+- **Swimlanes.** A new Lanes control beside the View menu splits the column board into rows by Project, Group, Provider, Machine, Focus, or Last activity, under one sticky column-header row. Lanes fold from their title, and folds are remembered per lane type.
 - **The default board view is named Focus.** The View chip, the View dropdown, and every label that named the status grouping used to say "Attention", the same word that names the thread state a card reports; they say "Focus" now. Nothing re-lanes and stored settings keep working, so the rename is the whole change.
 
 ### Fixed

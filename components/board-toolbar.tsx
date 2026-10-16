@@ -18,7 +18,7 @@ import {
 } from "./preferences";
 import { useIsCompactViewport } from "./ui/hooks/use-compact-viewport";
 import type { FilterState, GroupBy, StateFilterValue } from "./grouping";
-import { GROUP_BY_OPTIONS, STATE_FILTER_OPTIONS } from "./grouping";
+import { GROUP_BY_OPTIONS, STATE_FILTER_OPTIONS, SWIMLANE_BY_OPTIONS, type SwimlaneBy } from "./grouping";
 
 /** The DOM id of the compact header's expandable filter ribbon, so the
  *  toggle's aria-controls points at the region it reveals. */
@@ -510,6 +510,9 @@ function GroupDropdown({
 interface BoardToolbarProps {
   groupBy: GroupBy;
   onGroupByChange: (value: GroupBy) => void;
+  /** Swimlanes: a second, horizontal grouping axis over the columns. */
+  swimlaneBy: SwimlaneBy;
+  onSwimlaneByChange: (value: SwimlaneBy) => void;
   /** R3: "Nest child threads" toggle — nested rendering on/off. */
   nestChildren: boolean;
   onNestChildrenChange: (enabled: boolean) => void;
@@ -590,6 +593,8 @@ function FamilyScopeChip({
 export function BoardToolbar({
   groupBy,
   onGroupByChange,
+  swimlaneBy,
+  onSwimlaneByChange,
   nestChildren,
   onNestChildrenChange,
   nestingLocked,
@@ -737,6 +742,27 @@ export function BoardToolbar({
       ) : null}
     </div>
   );
+  // Swimlanes split the column board into rows. Hidden on the Parent view,
+  // which already lays threads out in rows; the option matching the View is
+  // left out, since lanes on the column axis would just be a diagonal.
+  const lanesMenu =
+    groupBy === "parent" ? null : (
+      <MultiSelectDropdown
+        exclusive
+        label="Lanes"
+        icon="ListTodo"
+        selected={new Set([swimlaneBy === groupBy ? "none" : swimlaneBy])}
+        options={SWIMLANE_BY_OPTIONS.filter((option) => option.value !== groupBy).map(
+          (option) => ({ value: option.value, label: option.label }),
+        )}
+        summaryFor={() =>
+          swimlaneBy === groupBy
+            ? "None"
+            : (SWIMLANE_BY_OPTIONS.find((o) => o.value === swimlaneBy)?.label ?? swimlaneBy)
+        }
+        onSingleSelect={(value) => onSwimlaneByChange(value as SwimlaneBy)}
+      />
+    );
   const viewMenu = (
     /* The View menu: picking a grouping replaces the current one, and the
         "Nest child threads" toggle lives here now — it changes how the
@@ -959,6 +985,7 @@ export function BoardToolbar({
         {newThreadButton}
         {searchBox}
         {viewOnRow ? viewMenu : null}
+        {viewOnRow ? lanesMenu : null}
         <button
           type="button"
           onClick={toggleFilterRibbon}
@@ -993,6 +1020,7 @@ export function BoardToolbar({
             className="flex w-full flex-wrap items-center gap-2"
           >
             {viewOnRow ? null : viewMenu}
+            {viewOnRow ? null : lanesMenu}
             {filterDropdowns}
             {threadCount}
           </div>
@@ -1010,6 +1038,7 @@ export function BoardToolbar({
       <div className="flex items-center gap-2">
         {searchBox}
         {viewMenu}
+        {lanesMenu}
       </div>
       <div className="flex flex-wrap items-center gap-2">
         {filterDropdowns}

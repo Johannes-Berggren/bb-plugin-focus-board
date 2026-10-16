@@ -33,10 +33,12 @@ import { NewThreadModal } from "./components/new-thread-modal";
 import type { SpawnedThread } from "./components/new-thread-modal";
 import type { CardMenuAction } from "./components/thread-card-menu";
 import { cardMenuActions } from "./lib/card-menu";
-import type { FilterState, GroupBy, LaneHideOutcome } from "./components/grouping";
+import type { FilterState, GroupBy, LaneHideOutcome, SwimlaneBy } from "./components/grouping";
 import {
   buildColumns,
+  buildSwimlanes,
   columnFor,
+  swimlanesActive,
   filterBucketsWithoutLane,
   matchesFilter,
   NO_GROUP_BUCKET,
@@ -136,6 +138,11 @@ import {
 import { useSweepClickAway } from "./components/board";
 import {
   COLLAPSED_FAMILIES_KEY,
+  COLLAPSED_SWIMLANES_KEY,
+  SWIMLANE_BY_KEY,
+  collapsedSwimlanesStoredValue,
+  parseCollapsedSwimlanesStored,
+  parseSwimlaneStored,
   HIDE_IDLE_CHILDREN_KEY,
   GROUP_BY_KEY,
   NEST_CHILDREN_KEY,
@@ -833,6 +840,16 @@ function BoardPage({ subPath }: { subPath: string }) {
   // persisted like every other board preference. Anything absent renders
   // expanded — the stored list only ever records deliberate collapses, so a
   // reload re-opens exactly the families the operator folded.
+  // Swimlanes: a second grouping axis splitting the column board into rows,
+  // persisted like groupBy. "none" (the default) keeps the flat board.
+  const [swimlaneBy, setSwimlaneBy] = useState<SwimlaneBy>(() =>
+    parseSwimlaneStored(readStoredText(SWIMLANE_BY_KEY, "none")),
+  );
+  // Folded swimlanes, stored as `<swimlaneBy>:<laneId>` so each lane axis
+  // remembers its own folds.
+  const [collapsedSwimlanes, setCollapsedSwimlanes] = useState<ReadonlySet<string>>(() =>
+    parseCollapsedSwimlanesStored(readStoredText(COLLAPSED_SWIMLANES_KEY, "")),
+  );
   const [collapsedFamilies, setCollapsedFamilies] = useState<ReadonlySet<string>>(() =>
     parseCollapsedFamiliesStored(readStoredText(COLLAPSED_FAMILIES_KEY, "")),
   );
@@ -1184,6 +1201,26 @@ function BoardPage({ subPath }: { subPath: string }) {
     });
   }, []);
 
+  const persistSwimlaneBy = useCallback((value: SwimlaneBy) => {
+    setSwimlaneBy(value);
+    writeStored(SWIMLANE_BY_KEY, value);
+  }, []);
+  // Single writer for the folded-lane set, like the collapsed families.
+  useEffect(() => {
+    writeStored(COLLAPSED_SWIMLANES_KEY, collapsedSwimlanesStoredValue(collapsedSwimlanes));
+  }, [collapsedSwimlanes]);
+  const setSwimlaneCollapsed = useCallback(
+    (laneId: string, collapsed: boolean) => {
+      setCollapsedSwimlanes((current) => {
+        const next = new Set(current);
+        const key = `${swimlaneBy}:${laneId}`;
+        if (collapsed) next.add(key);
+        else next.delete(key);
+        return next;
+      });
+    },
+    [swimlaneBy],
+  );
   const persistGroupBy = useCallback((value: GroupBy) => {
     setGroupBy(value);
     writeStored(GROUP_BY_KEY, value);
@@ -1491,6 +1528,21 @@ function BoardPage({ subPath }: { subPath: string }) {
     [isParentGroupBy, searched, groupBy, groupContext, doneIds, nestChildren, ranks, doneTimes, attentionFreezePlan, errorAckIds],
   );
   const columns = assembly?.columns ?? [];
+  const swimlanes = useMemo(
+    () =>
+      assembly !== null && swimlanesActive(groupBy, swimlaneBy)
+        ? buildSwimlanes(assembly.columns, swimlaneBy, groupContext, Date.now(), errorAckIds)
+        : null,
+    [assembly, groupBy, swimlaneBy, groupContext, errorAckIds],
+  );
+  const collapsedSwimlaneIds = useMemo(() => {
+    const prefix = `${swimlaneBy}:`;
+    const ids = new Set<string>();
+    for (const key of collapsedSwimlanes) {
+      if (key.startsWith(prefix)) ids.add(key.slice(prefix.length));
+    }
+    return ids;
+  }, [collapsedSwimlanes, swimlaneBy]);
   // The map that actually renders as nested rows (nesting rules applied, so a
   // promoted, un-nested, or cross-axis child is absent — expanding the card
   // could never reveal it). Stable across renders.
@@ -3042,6 +3094,8 @@ function BoardPage({ subPath }: { subPath: string }) {
         <BoardToolbar
           groupBy={groupBy}
           onGroupByChange={persistGroupBy}
+          swimlaneBy={swimlaneBy}
+          onSwimlaneByChange={persistSwimlaneBy}
           filter={filter}
           onFilterChange={persistFilter}
           search={search}
@@ -3101,6 +3155,9 @@ function BoardPage({ subPath }: { subPath: string }) {
         ) : (
           <Board
             columns={columns}
+            swimlanes={swimlanes}
+            collapsedSwimlaneIds={collapsedSwimlaneIds}
+            onSwimlaneCollapsedChange={setSwimlaneCollapsed}
             groupBy={groupBy}
             activeThreadId={openThreadId}
             cardTransport={cardTransport}

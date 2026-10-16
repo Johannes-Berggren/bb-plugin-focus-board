@@ -15,6 +15,8 @@ import {
 const params = new URLSearchParams(window.location.search);
 const groupBy = params.get("groupBy") ?? "status";
 window.localStorage.setItem("focus-board:groupBy", groupBy);
+window.localStorage.setItem("focus-board:swimlaneBy", params.get("swimlanes") ?? "none");
+window.localStorage.setItem("focus-board:collapsedSwimlanes", "[]");
 window.localStorage.setItem("focus-board:search", "");
 window.localStorage.setItem("focus-board:filter:projects", "[]");
 window.localStorage.setItem("focus-board:filter:providers", "[]");

@@ -7,7 +7,7 @@ import {
   type MouseEvent,
 } from "react";
 import type { PluginSidebarThread } from "@get-bb/plugin-sdk/app";
-import type { BoardColumn, GroupBy, LaneHideOutcome } from "./grouping";
+import type { BoardColumn, GroupBy, LaneHideOutcome, Swimlane } from "./grouping";
 import { threadState } from "./grouping";
 import {
   SWEEP_DESTINATION_LABELS,
@@ -263,8 +263,26 @@ function nestedRowCount(
   return count;
 }
 
+/** Where one rendering of a column sits: the flat board, the swimlane header row, or a lane cell. */
+interface CellOptions {
+  /** Unique per rendering — drives React keys and drag-hover highlights. */
+  key: string;
+  /** The swimlane this cell belongs to; null on the flat board and the header row. */
+  laneId: string | null;
+  showHeader: boolean;
+  showList: boolean;
+}
+
 interface BoardProps {
   columns: readonly BoardColumn[];
+  /**
+   * Horizontal swimlanes over the same columns; null renders the flat board.
+   * Each lane's columns mirror `columns` (same ids and order).
+   */
+  swimlanes?: readonly Swimlane[] | null;
+  /** Lane ids folded to their header row, persisted by the caller. */
+  collapsedSwimlaneIds?: ReadonlySet<string>;
+  onSwimlaneCollapsedChange?: (laneId: string, collapsed: boolean) => void;
   /** The active grouping — a column's rank key is namespaced by it. */
   groupBy: GroupBy;
   activeThreadId: string | null;  doneIds: ReadonlySet<string>;
@@ -658,6 +676,9 @@ function SweepButton({
 
 export function Board({
   columns,
+  swimlanes = null,
+  collapsedSwimlaneIds,
+  onSwimlaneCollapsedChange,
   groupBy,
   activeThreadId,
   doneIds,
@@ -808,6 +829,10 @@ export function Board({
       const list = card.closest("[data-card-list]");
       if (list instanceof HTMLElement) {
         list.scrollTop += listScrollY(list.getBoundingClientRect(), cardRect);
+      }
+      // Swimlanes scroll the board itself vertically, not the cell.
+      if (swimlanes !== null) {
+        container.scrollTop += listScrollY(container.getBoundingClientRect(), cardRect);
       }
     };
     keepActiveCardInView();
@@ -1568,6 +1593,9 @@ export function Board({
   // dragover needs to know this to avoid drawing an insertion line on the
   // card under the cursor.
   const draggingIdRef = useRef<string | null>(null);
+  // The swimlane the dragged card came from (null on the flat board), so a
+  // same-column drag into another lane's cell is not mistaken for a reorder.
+  const draggingCellRef = useRef<string | null>(null);
 
   function clearRankDrop(): void {
     setRankDrop(null);
@@ -1872,169 +1900,7 @@ export function Board({
     if (columnId === "pinned") return onDropPinned ?? null;
     return null;
   };
-  return (
-    <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-      {/* The banner row lives above the horizontal scroll surface: a banner
-          inside the overflow-x-auto container rides the same scrollable
-          coordinate space as the columns, so once the column row overflows
-          and the operator scrolls, the banner — its message and dismiss
-          control included — is carried off the viewport's left edge (observed
-          2026-10-10). */}
-      <div data-banner-row className="shrink-0">
-        {/* Every banner here paints a full-strength surface, never a
-            translucent tint: the banner row sits over the board's wallpaper
-            when one is active, and a 10%-alpha tint under the banner's text
-            turns the message illegible on a photographic wallpaper (issue
-            #233) — the same lesson the context menu's popover learned (the
-            menu moved to a full-strength surface, PR #221). Text carries its
-            contrast; the tinted border keeps the surface's tone. */}
-        {rankError !== null ? (
-          <div
-            role="status"
-            data-testid="rank-error-banner"
-            className="mx-3 mb-1 flex items-center justify-between gap-2 rounded border border-destructive/40 bg-red-50 dark:bg-red-950 px-2 py-1 text-[11px] text-destructive dark:text-red-400"
-          >
-            <p className="min-w-0">{rankError}</p>
-            <button
-              type="button"
-              onClick={() => setRankError(null)}
-              aria-label="Dismiss error"
-              title="Dismiss"
-              className="shrink-0 rounded p-0.5 text-destructive/70 dark:text-red-400/70 transition-colors hover:bg-destructive/10 hover:text-destructive dark:hover:text-red-400 focus-visible:outline focus-visible:outline-1 focus-visible:outline-destructive"
-            >
-              <Icon name="X" className="size-3" aria-hidden />
-            </button>
-          </div>
-        ) : null}
-        {sweepNotice !== null ? (
-          <div
-            role="status"
-            data-testid="sweep-notice"
-            className="mx-3 mb-1 flex items-center justify-between gap-2 rounded border border-amber-500/40 bg-amber-50 dark:bg-amber-950 px-2 py-1 text-[11px] text-amber-700 dark:text-amber-400"
-          >
-            <p className="min-w-0">{sweepNotice.message}</p>
-            <span className="flex shrink-0 items-center gap-0.5">
-              {sweepNotice.undo !== undefined && sweepNotice.undo.ids.length > 0 ? (
-                <button
-                  type="button"
-                  data-sweep-undo=""
-                  onClick={() => {
-                    const undo = sweepNotice.undo;
-                    if (undo !== undefined) onSweepUndo?.(undo.ids, undo.destination);
-                  }}
-                  aria-label={
-                    sweepNotice.undo.destination === "done"
-                      ? `Undo the sweep: mark ${sweepNotice.undo.ids.length} threads not Done again`
-                      : `Undo the sweep: restore ${sweepNotice.undo.ids.length} archived threads`
-                  }
-                  className="rounded px-1.5 py-0.5 font-medium underline decoration-dotted underline-offset-2 transition-colors hover:bg-amber-500/10 hover:text-amber-700 focus-visible:outline focus-visible:outline-1 focus-visible:outline-amber-600 dark:hover:text-amber-400"
-                >
-                  Undo
-                </button>
-              ) : null}
-              <button
-                type="button"
-                onClick={() => onDismissSweepNotice?.()}
-                aria-label="Dismiss sweep notice"
-                title="Dismiss"
-                className="rounded p-0.5 text-amber-700/70 transition-colors hover:bg-amber-500/10 hover:text-amber-700 focus-visible:outline focus-visible:outline-1 focus-visible:outline-amber-600 dark:text-amber-400/70 dark:hover:text-amber-400"
-              >
-                <Icon name="X" className="size-3" aria-hidden />
-              </button>
-            </span>
-          </div>
-        ) : null}
-        {browserNotice !== null ? (
-          <div
-            role="status"
-            data-testid="browser-reveal-notice"
-            className="mx-3 mb-1 flex items-center justify-between gap-2 rounded border border-amber-500/40 bg-amber-50 dark:bg-amber-950 px-2 py-1 text-[11px] text-amber-700 dark:text-amber-400"
-          >
-            <p className="min-w-0">{browserNotice.message}</p>
-            <button
-              type="button"
-              onClick={() => onDismissBrowserNotice?.()}
-              aria-label="Dismiss browser notice"
-              title="Dismiss"
-              className="rounded p-0.5 text-amber-700/70 transition-colors hover:bg-amber-500/10 hover:text-amber-700 focus-visible:outline focus-visible:outline-1 focus-visible:outline-amber-600 dark:text-amber-400/70 dark:hover:text-amber-400"
-            >
-              <Icon name="X" className="size-3" aria-hidden />
-            </button>
-          </div>
-        ) : null}
-        {hideLaneReport !== null ? (
-          <div
-            role="status"
-            data-testid="lane-hide-notice"
-            className="mx-3 mb-1 flex items-center justify-between gap-2 rounded border border-amber-500/40 bg-amber-50 dark:bg-amber-950 px-2 py-1 text-[11px] text-amber-700 dark:text-amber-400"
-          >
-            <p className="min-w-0">{hideLaneReport.message}</p>
-            <button
-              type="button"
-              onClick={() => setHideLaneReport(null)}
-              aria-label="Dismiss lane notice"
-              title="Dismiss"
-              className="rounded p-0.5 text-amber-700/70 transition-colors hover:bg-amber-500/10 hover:text-amber-700 focus-visible:outline focus-visible:outline-1 focus-visible:outline-amber-600 dark:text-amber-400/70 dark:hover:text-amber-400"
-            >
-              <Icon name="X" className="size-3" aria-hidden />
-            </button>
-          </div>
-        ) : null}
-        {nestNotice !== null ? (
-          <div
-            role="status"
-            data-testid="nest-notice"
-            className="mx-3 mb-1 flex items-center justify-between gap-2 rounded border border-amber-500/40 bg-amber-50 dark:bg-amber-950 px-2 py-1 text-[11px] text-amber-700 dark:text-amber-400"
-          >
-            {/* A nested child's card keeps its own slot, so the family's
-                single render says little about the write: the receipt names
-                the new parent and the undo. */}
-            <p className="min-w-0">{nestNotice.message}</p>
-            <button
-              type="button"
-              onClick={() => setNestNotice(null)}
-              aria-label="Dismiss nest notice"
-              title="Dismiss"
-              className="rounded p-0.5 text-amber-700/70 transition-colors hover:bg-amber-500/10 hover:text-amber-700 focus-visible:outline focus-visible:outline-1 focus-visible:outline-amber-600 dark:text-amber-400/70 dark:hover:text-amber-400"
-            >
-              <Icon name="X" className="size-3" aria-hidden />
-            </button>
-          </div>
-        ) : null}
-        {sweepRefusal !== null ? (
-          <div
-            role="status"
-            data-testid="sweep-refusal"
-            className="mx-3 mb-1 flex items-center justify-between gap-2 rounded border border-destructive/40 bg-red-50 dark:bg-red-950 px-2 py-1 text-[11px] text-destructive dark:text-red-400"
-          >
-            <p className="min-w-0">{sweepRefusal}</p>
-            <button
-              type="button"
-              onClick={() => setSweepRefusal(null)}
-              aria-label="Dismiss sweep refusal"
-              title="Dismiss"
-              className="shrink-0 rounded p-0.5 text-destructive/70 dark:text-red-400/70 transition-colors hover:bg-destructive/10 hover:text-destructive dark:hover:text-red-400 focus-visible:outline focus-visible:outline-1 focus-visible:outline-destructive"
-            >
-              <Icon name="X" className="size-3" aria-hidden />
-            </button>
-          </div>
-        ) : null}
-      </div>
-      <div
-        ref={scrollRef}
-        onClick={handleBackgroundClick}
-        data-columns-board
-        className={cn(
-          "min-h-0 flex-1 overflow-x-auto overflow-y-hidden px-3 pb-3 pt-2",
-        )}
-      >
-        {/* The insertion line is the only visual feedback a reorder gives, so
-            a screen reader gets the same information in words. */}
-        <p aria-live="polite" className="sr-only">
-          {announcement}
-        </p>
-        <div className="flex h-full min-h-0 items-stretch gap-4">
-        {columns.map((column) => {
+  const renderColumn = (column: BoardColumn, cell: CellOptions) => {
           const dropHandler = dropHandlerFor(column.id);
           const isDropTarget = dropHandler !== null;
           const sweepKind = sweepColumnKind(column.id);
@@ -2109,6 +1975,12 @@ export function Board({
           // fresh install can reach the feature. The stored-order flag below
           // is for display only ("this lane is hand-ordered"), not a gate.
           const isOrdered = ranking && columnIsRanked(rankStore ?? {}, rankKey);
+          // A same-column drag only reorders inside its own cell: a card
+          // dragged into another swimlane's cell of the same column cannot
+          // change lane (the lane is the thread's own data), so it is treated
+          // like a drag from another column.
+          const isCellDrag = (types: readonly string[]): boolean =>
+            isLaneDrag(types, rankKey) && draggingCellRef.current === cell.laneId;
           // Family-box run info for this column (the decided group design):
           // who is boxed, at which edge — and which flat ids move as one
           // unit. Empty plan → plain cards everywhere, zero overhead.
@@ -2160,7 +2032,7 @@ export function Board({
             draggedId: string,
             event: React.DragEvent,
           ): { beforeId: string | null; toEnd: boolean } | null => {
-            if (!isLaneDrag(event.dataTransfer.types, rankKey)) return null;
+            if (!isCellDrag(event.dataTransfer.types)) return null;
             if (liveParentOf(draggedId) !== parent.id || draggedId === hoverChildId) return null;
             const rowIds = childRowsOf(parent.id).map((child) => child.id);
             const rect = event.currentTarget.getBoundingClientRect();
@@ -2247,8 +2119,9 @@ export function Board({
           };
           return (
             <section
-              key={column.id}
+              key={cell.key}
               data-column-id={column.id}
+              data-swimlane-id={cell.laneId ?? undefined}
               data-column-ordered={isOrdered}
               aria-label={`${column.label}, ${column.threads.length} threads`}
               onDragOver={(event) => {
@@ -2258,11 +2131,11 @@ export function Board({
                 const draggedId = draggingIdRef.current;
                 const childOf =
                   draggedId !== null && draggedId !== "" ? liveParentOf(draggedId) : null;
-                if (ranking && isLaneDrag(event.dataTransfer.types, rankKey)) {
+                if (ranking && isCellDrag(event.dataTransfer.types)) {
                   event.preventDefault();
                   event.dataTransfer.dropEffect = "move";
                   if (childOf !== null && onReparent !== undefined) {
-                    setFamilyFloorColumn(column.id);
+                    setFamilyFloorColumn(cell.key);
                   }
                   return;
                 }
@@ -2270,22 +2143,22 @@ export function Board({
                   if (childOf !== null && onReparent !== undefined) {
                     event.preventDefault();
                     event.dataTransfer.dropEffect = "move";
-                    setFamilyFloorColumn(column.id);
+                    setFamilyFloorColumn(cell.key);
                   }
                   return;
                 }
                 event.preventDefault();
                 event.dataTransfer.dropEffect = "move";
-                setDragOverColumn(column.id);
+                setDragOverColumn(cell.key);
                 if (childOf !== null && onReparent !== undefined) {
-                  setFamilyFloorColumn(column.id);
+                  setFamilyFloorColumn(cell.key);
                 }
               }}
               onDragLeave={
                 isDropTarget || onReparent !== undefined
                   ? () => {
-                      setDragOverColumn((c) => (c === column.id ? null : c));
-                      setFamilyFloorColumn((c) => (c === column.id ? null : c));
+                      setDragOverColumn((c) => (c === cell.key ? null : c));
+                      setFamilyFloorColumn((c) => (c === cell.key ? null : c));
                     }
                   : undefined
               }
@@ -2299,7 +2172,7 @@ export function Board({
                   // header drop bubbles into this very handler).
                   setFamilyHeaderColumn(null);
                 };
-                if (ranking && isLaneDrag(event.dataTransfer.types, rankKey)) {
+                if (ranking && isCellDrag(event.dataTransfer.types)) {
                   // Released over the lane's empty space below the last card:
                   // append. A drop ON a card was already claimed by that
                   // card's own handler, which stops propagation.
@@ -2344,15 +2217,17 @@ export function Board({
                 if (childOf !== null && onReparent !== undefined) commitUnnest(threadId);
               }}
               className={cn(
-                "flex h-full min-h-0 w-64 shrink-0 flex-col rounded-lg transition-colors",
-                familyFloorColumn === column.id
+                "flex w-64 shrink-0 flex-col rounded-lg transition-colors",
+                swimlanes === null && "h-full min-h-0",
+                familyFloorColumn === cell.key
                   // Amber is the family drop color — the same signal the nest
                   // ring on cards gives — so "un-nests on release" is legible
                   // before the drop happens.
                   ? "bg-accent/60 ring-2 ring-amber-500"
-                  : dragOverColumn === column.id && "bg-accent/60 ring-2 ring-ring",
+                  : dragOverColumn === cell.key && "bg-accent/60 ring-2 ring-ring",
               )}
             >
+              {cell.showHeader ? (
               <header
                 className={cn(
                   // `group` lights the hover-revealed hide-lane icon.
@@ -2361,7 +2236,7 @@ export function Board({
                   // with negated margins so no card moves beneath the cursor:
                   // +4px each side here, -4px back from the content flow.
                   dragInFlight && "px-2 pb-2.5 -mx-1 -mb-1",
-                  familyHeaderColumn === column.id
+                  familyHeaderColumn === cell.key
                     ? "rounded-md ring-2 ring-amber-500 bg-accent/40"
                     : null,
                 )}
@@ -2374,12 +2249,12 @@ export function Board({
                   const draggedId = draggingIdRef.current;
                   if (draggedId === null || draggedId === "") return;
                   if (onReparent === undefined || liveParentOf(draggedId) === null) return;
-                  setFamilyHeaderColumn(column.id);
-                  setFamilyFloorColumn(column.id);
+                  setFamilyHeaderColumn(cell.key);
+                  setFamilyFloorColumn(cell.key);
                 }}
                 onDragLeave={() => {
-                  setFamilyHeaderColumn((c) => (c === column.id ? null : c));
-                  setFamilyFloorColumn((c) => (c === column.id ? null : c));
+                  setFamilyHeaderColumn((c) => (c === cell.key ? null : c));
+                  setFamilyFloorColumn((c) => (c === cell.key ? null : c));
                 }}
                 onDrop={(event) => {
                   // A release on the TITLE is not a placement: no rank move,
@@ -2402,7 +2277,7 @@ export function Board({
                     commitUnnest(threadId);
                     return;
                   }
-                  if (isDropTarget && !isLaneDrag(event.dataTransfer.types, rankKey)) {
+                  if (isDropTarget && !isCellDrag(event.dataTransfer.types)) {
                     // Cross-lane release on the title: the state change only
                     // — the card keeps its lane membership, so the operator
                     // drags it beside a card when placement matters.
@@ -2529,12 +2404,19 @@ export function Board({
                   </span>
                 ) : null}
               </header>
+              ) : null}
+              {cell.showList ? (
               <div
                 data-card-list
-                className="min-h-0 flex-1 overflow-y-auto rounded-lg bg-muted/30 p-1.5"
+                className={cn(
+                  "rounded-lg bg-muted/30 p-1.5",
+                  // Lane cells grow with their cards; the board scrolls
+                  // vertically instead of each cell.
+                  swimlanes === null ? "min-h-0 flex-1 overflow-y-auto" : "min-h-12",
+                )}
               >
-                {column.threads.length === 0 && dragOverColumn !== column.id ? (
-                  column.id === "working" ? (
+                {column.threads.length === 0 && dragOverColumn !== cell.key ? (
+                  column.id === "working" && swimlanes === null ? (
                     // The ever-present Working lane answers the obvious
                     // question — is anything running? — with words.
                     <p className="px-1 py-3 text-center text-xs text-muted-foreground/60">
@@ -2542,7 +2424,7 @@ export function Board({
                     </p>
                   ) : isDropTarget ? (
                     <p className="px-1 py-3 text-center text-xs text-muted-foreground/60">
-                      Drop to {column.id === "done" ? "mark done" : "mark unread"}
+                      Drop to {column.id === "done" ? "mark done" : column.id === "pinned" ? "pin" : "mark unread"}
                     </p>
                   ) : null
                 ) : null}
@@ -2661,7 +2543,7 @@ export function Board({
                         onDragOver={
                           (event) => {
                             if (!ranking) return;
-                            if (!isLaneDrag(event.dataTransfer.types, rankKey)) {
+                            if (!isCellDrag(event.dataTransfer.types)) {
                               // A drag from ANOTHER lane. A lane that takes
                               // state-change drops accepts it positioned:
                               // the same insertion line a same-lane drag
@@ -2700,7 +2582,7 @@ export function Board({
                                 droppedHoverId ?? "",
                                 runInfo.get(thread.id)?.boxId,
                                 zone,
-                                isLaneDrag(event.dataTransfer.types, rankKey),
+                                isCellDrag(event.dataTransfer.types),
                               )
                             ) {
                               // The enclosing group box arms the join instead;
@@ -2802,7 +2684,7 @@ export function Board({
                                 droppedId,
                                 runInfo.get(thread.id)?.boxId,
                                 zone,
-                                isLaneDrag(event.dataTransfer.types, rankKey),
+                                isCellDrag(event.dataTransfer.types),
                               )
                             ) {
                               // Claimless on purpose: the event bubbles to the
@@ -2822,7 +2704,7 @@ export function Board({
                               return;
                             }
                             const edge: Half = zone;
-                            if (!isLaneDrag(event.dataTransfer.types, rankKey)) {
+                            if (!isCellDrag(event.dataTransfer.types)) {
                               // A cross-lane drop ON a card: the state change
                               // and the ranked position the line showed happen
                               // in the one drop — no second drag to place the
@@ -3171,7 +3053,10 @@ export function Board({
                               : undefined
                           }
                           rankKey={ranking ? rankKey : undefined}
-                          onRankDragStart={rankDragLifecycle}
+                          onRankDragStart={(id) => {
+                            draggingCellRef.current = id === null ? null : cell.laneId;
+                            rankDragLifecycle(id);
+                          }}
                         />
                         </div>
                         {/* The shimmer rides both sweeps: the ghost's
@@ -3381,7 +3266,7 @@ export function Board({
                               if (droppedId === null || droppedId === "") return;
                               if (!canJoinGroup(droppedId, runItem.box.groupId, groupBoxOf ?? EMPTY_GROUP_BOXES, boxedUnitIds.has(droppedId))) return;
                               if (memberEl !== null) {
-                                if (!isLaneDrag(event.dataTransfer.types, rankKey)) return;
+                                if (!isCellDrag(event.dataTransfer.types)) return;
                                 const memberZone = dropZoneFor(
                                   event,
                                   droppedId,
@@ -3429,7 +3314,7 @@ export function Board({
                                   memberEl,
                                 );
                                 if (
-                                  !isLaneDrag(event.dataTransfer.types, rankKey) ||
+                                  !isCellDrag(event.dataTransfer.types) ||
                                   memberZone === "onto"
                                 ) {
                                   return;
@@ -3595,7 +3480,10 @@ export function Board({
                                   data-group-box-label={runItem.box.groupId}
                                   title={`Feature group “${runItem.box.name}” — click to rename; drag this label or any member to move the whole box; drop a card on this box to join the group`}
                                   draggable
-                                  onDragStart={(event) => beginBoxLabelDrag(event, runItem.box)}
+                                  onDragStart={(event) => {
+                                    draggingCellRef.current = cell.laneId;
+                                    beginBoxLabelDrag(event, runItem.box);
+                                  }}
                                   onDragEnd={() => rankDragLifecycle(null)}
                                   onClick={() => startLabelRename(runItem.box.groupId)}
                                   className={cn(
@@ -3612,7 +3500,10 @@ export function Board({
                                   data-group-box-label={runItem.box.groupId}
                                   title={`Feature group “${runItem.box.name}” — drag this label or any member to move the whole box; drop a card on this box to join the group`}
                                   draggable
-                                  onDragStart={(event) => beginBoxLabelDrag(event, runItem.box)}
+                                  onDragStart={(event) => {
+                                    draggingCellRef.current = cell.laneId;
+                                    beginBoxLabelDrag(event, runItem.box);
+                                  }}
                                   onDragEnd={() => rankDragLifecycle(null)}
                                   className={cn(
                                     "absolute -top-2 left-3 z-10 rounded-sm bg-muted px-1 text-[10.5px] leading-[14px] text-muted-foreground",
@@ -3668,7 +3559,7 @@ export function Board({
                     </ul>
                   );
                 })()}
-                {column.id === "working" ? (
+                {column.id === "working" && swimlanes === null ? (
                   <button
                     type="button"
                     onClick={onNewTask}
@@ -3683,10 +3574,244 @@ export function Board({
                   </button>
                 ) : null}
               </div>
+              ) : null}
             </section>
           );
-        })}
-        </div>
+  };
+
+  // Swimlane layout: one sticky header row carries the column titles, counts,
+  // and sweep controls for the whole column (a sweep spans every lane); each
+  // lane below is a collapsible row of cells under those headers.
+  const renderSwimlanes = (lanes: readonly Swimlane[]) => (
+    <div className="flex w-max min-w-full flex-col" data-swimlanes="">
+      <div
+        data-swimlane-header-row=""
+        className="sticky top-0 z-20 flex gap-4 bg-background pt-2"
+      >
+        {columns.map((column) =>
+          renderColumn(column, {
+            key: `header::${column.id}`,
+            laneId: null,
+            showHeader: true,
+            showList: false,
+          }),
+        )}
+      </div>
+      {lanes.map((lane) => {
+        const collapsed = collapsedSwimlaneIds?.has(lane.id) ?? false;
+        return (
+          <div
+            key={lane.id}
+            data-swimlane={lane.id}
+            className="border-t border-border/60 pb-2 pt-1"
+          >
+            <button
+              type="button"
+              aria-expanded={!collapsed}
+              onClick={() => onSwimlaneCollapsedChange?.(lane.id, !collapsed)}
+              className="sticky left-0 mb-1 inline-flex max-w-[24rem] items-center gap-1.5 rounded px-1 py-0.5 text-xs font-medium text-foreground transition-colors hover:bg-accent/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              <Icon
+                name={collapsed ? "ChevronRight" : "ChevronDown"}
+                className="size-3 shrink-0 text-muted-foreground"
+                aria-hidden
+              />
+              <span className="truncate">{lane.label}</span>
+              <span className="text-[11px] tabular-nums text-muted-foreground/60">
+                {lane.count}
+              </span>
+            </button>
+            {collapsed ? null : (
+              <div className="flex items-start gap-4">
+                {lane.columns.map((column) =>
+                  renderColumn(column, {
+                    key: `${lane.id}::${column.id}`,
+                    laneId: lane.id,
+                    showHeader: false,
+                    showList: true,
+                  }),
+                )}
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+
+  return (
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+      {/* The banner row lives above the horizontal scroll surface: a banner
+          inside the overflow-x-auto container rides the same scrollable
+          coordinate space as the columns, so once the column row overflows
+          and the operator scrolls, the banner — its message and dismiss
+          control included — is carried off the viewport's left edge (observed
+          2026-10-10). */}
+      <div data-banner-row className="shrink-0">
+        {/* Every banner here paints a full-strength surface, never a
+            translucent tint: the banner row sits over the board's wallpaper
+            when one is active, and a 10%-alpha tint under the banner's text
+            turns the message illegible on a photographic wallpaper (issue
+            #233) — the same lesson the context menu's popover learned (the
+            menu moved to a full-strength surface, PR #221). Text carries its
+            contrast; the tinted border keeps the surface's tone. */}
+        {rankError !== null ? (
+          <div
+            role="status"
+            data-testid="rank-error-banner"
+            className="mx-3 mb-1 flex items-center justify-between gap-2 rounded border border-destructive/40 bg-red-50 dark:bg-red-950 px-2 py-1 text-[11px] text-destructive dark:text-red-400"
+          >
+            <p className="min-w-0">{rankError}</p>
+            <button
+              type="button"
+              onClick={() => setRankError(null)}
+              aria-label="Dismiss error"
+              title="Dismiss"
+              className="shrink-0 rounded p-0.5 text-destructive/70 dark:text-red-400/70 transition-colors hover:bg-destructive/10 hover:text-destructive dark:hover:text-red-400 focus-visible:outline focus-visible:outline-1 focus-visible:outline-destructive"
+            >
+              <Icon name="X" className="size-3" aria-hidden />
+            </button>
+          </div>
+        ) : null}
+        {sweepNotice !== null ? (
+          <div
+            role="status"
+            data-testid="sweep-notice"
+            className="mx-3 mb-1 flex items-center justify-between gap-2 rounded border border-amber-500/40 bg-amber-50 dark:bg-amber-950 px-2 py-1 text-[11px] text-amber-700 dark:text-amber-400"
+          >
+            <p className="min-w-0">{sweepNotice.message}</p>
+            <span className="flex shrink-0 items-center gap-0.5">
+              {sweepNotice.undo !== undefined && sweepNotice.undo.ids.length > 0 ? (
+                <button
+                  type="button"
+                  data-sweep-undo=""
+                  onClick={() => {
+                    const undo = sweepNotice.undo;
+                    if (undo !== undefined) onSweepUndo?.(undo.ids, undo.destination);
+                  }}
+                  aria-label={
+                    sweepNotice.undo.destination === "done"
+                      ? `Undo the sweep: mark ${sweepNotice.undo.ids.length} threads not Done again`
+                      : `Undo the sweep: restore ${sweepNotice.undo.ids.length} archived threads`
+                  }
+                  className="rounded px-1.5 py-0.5 font-medium underline decoration-dotted underline-offset-2 transition-colors hover:bg-amber-500/10 hover:text-amber-700 focus-visible:outline focus-visible:outline-1 focus-visible:outline-amber-600 dark:hover:text-amber-400"
+                >
+                  Undo
+                </button>
+              ) : null}
+              <button
+                type="button"
+                onClick={() => onDismissSweepNotice?.()}
+                aria-label="Dismiss sweep notice"
+                title="Dismiss"
+                className="rounded p-0.5 text-amber-700/70 transition-colors hover:bg-amber-500/10 hover:text-amber-700 focus-visible:outline focus-visible:outline-1 focus-visible:outline-amber-600 dark:text-amber-400/70 dark:hover:text-amber-400"
+              >
+                <Icon name="X" className="size-3" aria-hidden />
+              </button>
+            </span>
+          </div>
+        ) : null}
+        {browserNotice !== null ? (
+          <div
+            role="status"
+            data-testid="browser-reveal-notice"
+            className="mx-3 mb-1 flex items-center justify-between gap-2 rounded border border-amber-500/40 bg-amber-50 dark:bg-amber-950 px-2 py-1 text-[11px] text-amber-700 dark:text-amber-400"
+          >
+            <p className="min-w-0">{browserNotice.message}</p>
+            <button
+              type="button"
+              onClick={() => onDismissBrowserNotice?.()}
+              aria-label="Dismiss browser notice"
+              title="Dismiss"
+              className="rounded p-0.5 text-amber-700/70 transition-colors hover:bg-amber-500/10 hover:text-amber-700 focus-visible:outline focus-visible:outline-1 focus-visible:outline-amber-600 dark:text-amber-400/70 dark:hover:text-amber-400"
+            >
+              <Icon name="X" className="size-3" aria-hidden />
+            </button>
+          </div>
+        ) : null}
+        {hideLaneReport !== null ? (
+          <div
+            role="status"
+            data-testid="lane-hide-notice"
+            className="mx-3 mb-1 flex items-center justify-between gap-2 rounded border border-amber-500/40 bg-amber-50 dark:bg-amber-950 px-2 py-1 text-[11px] text-amber-700 dark:text-amber-400"
+          >
+            <p className="min-w-0">{hideLaneReport.message}</p>
+            <button
+              type="button"
+              onClick={() => setHideLaneReport(null)}
+              aria-label="Dismiss lane notice"
+              title="Dismiss"
+              className="rounded p-0.5 text-amber-700/70 transition-colors hover:bg-amber-500/10 hover:text-amber-700 focus-visible:outline focus-visible:outline-1 focus-visible:outline-amber-600 dark:text-amber-400/70 dark:hover:text-amber-400"
+            >
+              <Icon name="X" className="size-3" aria-hidden />
+            </button>
+          </div>
+        ) : null}
+        {nestNotice !== null ? (
+          <div
+            role="status"
+            data-testid="nest-notice"
+            className="mx-3 mb-1 flex items-center justify-between gap-2 rounded border border-amber-500/40 bg-amber-50 dark:bg-amber-950 px-2 py-1 text-[11px] text-amber-700 dark:text-amber-400"
+          >
+            {/* A nested child's card keeps its own slot, so the family's
+                single render says little about the write: the receipt names
+                the new parent and the undo. */}
+            <p className="min-w-0">{nestNotice.message}</p>
+            <button
+              type="button"
+              onClick={() => setNestNotice(null)}
+              aria-label="Dismiss nest notice"
+              title="Dismiss"
+              className="rounded p-0.5 text-amber-700/70 transition-colors hover:bg-amber-500/10 hover:text-amber-700 focus-visible:outline focus-visible:outline-1 focus-visible:outline-amber-600 dark:text-amber-400/70 dark:hover:text-amber-400"
+            >
+              <Icon name="X" className="size-3" aria-hidden />
+            </button>
+          </div>
+        ) : null}
+        {sweepRefusal !== null ? (
+          <div
+            role="status"
+            data-testid="sweep-refusal"
+            className="mx-3 mb-1 flex items-center justify-between gap-2 rounded border border-destructive/40 bg-red-50 dark:bg-red-950 px-2 py-1 text-[11px] text-destructive dark:text-red-400"
+          >
+            <p className="min-w-0">{sweepRefusal}</p>
+            <button
+              type="button"
+              onClick={() => setSweepRefusal(null)}
+              aria-label="Dismiss sweep refusal"
+              title="Dismiss"
+              className="shrink-0 rounded p-0.5 text-destructive/70 dark:text-red-400/70 transition-colors hover:bg-destructive/10 hover:text-destructive dark:hover:text-red-400 focus-visible:outline focus-visible:outline-1 focus-visible:outline-destructive"
+            >
+              <Icon name="X" className="size-3" aria-hidden />
+            </button>
+          </div>
+        ) : null}
+      </div>
+      <div
+        ref={scrollRef}
+        onClick={handleBackgroundClick}
+        data-columns-board
+        className={cn(
+          "min-h-0 flex-1 px-3 pb-3",
+          // Swimlanes stack vertically, so the board itself scrolls both ways
+          // (the shared header row sticks); the flat board scrolls per column.
+          swimlanes === null ? "overflow-x-auto overflow-y-hidden pt-2" : "overflow-auto",
+        )}
+      >
+        {/* The insertion line is the only visual feedback a reorder gives, so
+            a screen reader gets the same information in words. */}
+        <p aria-live="polite" className="sr-only">
+          {announcement}
+        </p>
+        {swimlanes === null ? (
+          <div className="flex h-full min-h-0 items-stretch gap-4">
+            {columns.map((column) =>
+              renderColumn(column, { key: column.id, laneId: null, showHeader: true, showList: true }),
+            )}
+          </div>
+        ) : (
+          renderSwimlanes(swimlanes)
+        )}
       </div>
       {groupMenu !== null ? (
         <MenuPopover
