@@ -147,9 +147,9 @@ describe("BoardToolbar layout", () => {
     renderToolbar();
     const view = document.querySelector('button[aria-label="View"]');
     if (view === null) throw new Error("View trigger not found");
-    expect(view.textContent).toContain("Attention");
-    // The filter anatomy ("View: Attention") is what made the mode read
-    // like just another dropdown; the chip drops the colon prefix entirely.
+    expect(view.textContent).toContain("Focus");
+    // The chip names the view; the filter anatomy ("View: Attention" and the
+    // colon prefix) is what made the mode read like just another dropdown.
     expect(screen.queryByText(/View:/)).toBeNull();
   });
 

@@ -34,6 +34,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **The View dropdown shows a kanban board in place of its sliders icon.** It switches the board's group-by layout, so the icon now pictures the columns it produces.
 - **The View dropdown stays out of the Filters palette while the collapsed toolbar row has room for it.** A header that borrows the mobile ribbon keeps the View button on its row, left of the Filters toggle, until the band drops to about 560px, where the search field needs all the space the row frees up.
 
+#### Board views
+
+- **The default board view is named Focus.** The View chip, the View dropdown, and every label that named the status grouping used to say "Attention", the same word that names the thread state a card reports; they say "Focus" now. Nothing re-lanes and stored settings keep working, so the rename is the whole change.
+
 ### Fixed
 
 #### Context menus
@@ -59,7 +63,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 #### Groups and family boxes
 
-- **Choosing Zoom to group lands the board on the Group view.** The group box's context-menu entry used to set only the group filter, so the board stayed on the Attention view and the zoom read as a silent chip write. It now switches the view to the Group board with the group restrict set to exactly that group; clearing the chip restores the full board.
+- **Choosing Zoom to group lands the board on the Group view.** The group box's context-menu entry used to set only the group filter, so the board stayed on the view it started on and the zoom read as a silent chip write. It now switches the view to the Group board with the group restrict set to exactly that group; clearing the chip restores the full board.
 
 #### Cards and chips
 

@@ -454,12 +454,12 @@ describe("columnFor", () => {
 });
 
 describe("GROUP_BY_OPTIONS", () => {
-  it("labels the attention-priority grouping Attention, not State", () => {
-    // The grouping orders by claim on your attention; "State" is the filter's
-    // word for what a thread is. The persisted value stays "status".
-    expect(GROUP_BY_OPTIONS.find((option) => option.value === "status")?.label).toBe(
-      "Attention",
-    );
+  it("labels the attention-priority grouping Focus, not Attention or State", () => {
+    // The stored value stays "status": the grouping orders by claim on your
+    // attention as before. "Focus" is the board's name now (the operator's
+    // rename); "Attention" keeps its job naming the thread state, and "State"
+    // stays the filter's word for what a thread is.
+    expect(GROUP_BY_OPTIONS.find((option) => option.value === "status")?.label).toBe("Focus");
   });
 
   it("labels the feature-group grouping Group", () => {
