@@ -1,0 +1,64 @@
+{
+  "errors": [],
+  "violations": [
+    "[duplicate-key] Encountered two children with the same key, `%s`. Keys should be unique so that components maintain their identity across updates. Non-unique keys may cause children to be duplicated and/or omitted — ",
+    "[duplicate-key] Encountered two children with the same key, `%s`. Keys should be unique so that components maintain their identity across updates. Non-unique keys may cause children to be duplicated and/or omitted — ",
+    "[dup] 3 hover in the pane's lane: duplicated cards thr_demo_work_c0, thr_demo_work_c1, thr_demo_work_c2, thr_demo_work_c3",
+    "[dup] 3 hover in the pane's lane: card count 38 → 42"
+  ],
+  "results": [
+    {
+      "label": "1 pane-open rest",
+      "board": {
+        "right": 1920,
+        "scrollWidth": 5192,
+        "clientWidth": 1920
+      },
+      "cardCount": 38,
+      "dupIds": [],
+      "gutterEls": [],
+      "stuckTransforms": []
+    },
+    {
+      "label": "2 pane-open rest",
+      "board": {
+        "right": 1440,
+        "scrollWidth": 4175,
+        "clientWidth": 1440
+      },
+      "cardCount": 38,
+      "dupIds": [],
+      "gutterEls": [],
+      "stuckTransforms": []
+    },
+    {
+      "label": "3 hover in the pane's lane",
+      "board": {
+        "right": 1440,
+        "scrollWidth": 4335,
+        "clientWidth": 1440
+      },
+      "cardCount": 42,
+      "dupIds": [
+        "thr_demo_work_c0",
+        "thr_demo_work_c1",
+        "thr_demo_work_c2",
+        "thr_demo_work_c3"
+      ],
+      "gutterEls": [],
+      "stuckTransforms": []
+    },
+    {
+      "label": "4 mouse parked away",
+      "board": {
+        "right": 1440,
+        "scrollWidth": 4175,
+        "clientWidth": 1440
+      },
+      "cardCount": 38,
+      "dupIds": [],
+      "gutterEls": [],
+      "stuckTransforms": []
+    }
+  ]
+}

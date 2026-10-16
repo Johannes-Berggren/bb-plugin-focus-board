@@ -1,0 +1,54 @@
+{
+  "errors": [],
+  "violations": [],
+  "results": [
+    {
+      "label": "1 pane-open rest",
+      "board": {
+        "right": 1920,
+        "scrollWidth": 5192,
+        "clientWidth": 1920
+      },
+      "cardCount": 38,
+      "dupIds": [],
+      "gutterEls": [],
+      "stuckTransforms": []
+    },
+    {
+      "label": "2 pane-open rest",
+      "board": {
+        "right": 1440,
+        "scrollWidth": 4004,
+        "clientWidth": 1440
+      },
+      "cardCount": 38,
+      "dupIds": [],
+      "gutterEls": [],
+      "stuckTransforms": []
+    },
+    {
+      "label": "3 hover in the pane's lane",
+      "board": {
+        "right": 1440,
+        "scrollWidth": 4004,
+        "clientWidth": 1440
+      },
+      "cardCount": 38,
+      "dupIds": [],
+      "gutterEls": [],
+      "stuckTransforms": []
+    },
+    {
+      "label": "4 mouse parked away",
+      "board": {
+        "right": 1440,
+        "scrollWidth": 4004,
+        "clientWidth": 1440
+      },
+      "cardCount": 38,
+      "dupIds": [],
+      "gutterEls": [],
+      "stuckTransforms": []
+    }
+  ]
+}
