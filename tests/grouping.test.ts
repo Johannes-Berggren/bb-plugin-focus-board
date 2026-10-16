@@ -170,8 +170,9 @@ describe("filterThreads", () => {
 });
 
 describe("STATE_FILTER_OPTIONS", () => {
-  it("splits Idle into one checkbox per idle lane, board lane labels included", () => {
+  it("splits Idle into one checkbox per idle lane, board lane labels included, Pinned leading", () => {
     expect(STATE_FILTER_OPTIONS.map((option) => option.label)).toEqual([
+      "Pinned",
       "Working",
       "Needs you",
       "Unread",
@@ -186,6 +187,48 @@ describe("STATE_FILTER_OPTIONS", () => {
     const values = STATE_FILTER_OPTIONS.map((option) => option.value);
     for (const value of values) expect(isStateFilterValue(value)).toBe(true);
     expect(parseStoredStateFilter(values)).toEqual(values);
+  });
+});
+
+describe("state filter: Pinned", () => {
+  const empty = () => new Set<string>();
+  const threads = [
+    thread({ id: "pinned-idle", isPinned: true, updatedAt: NOW - 2 * HOUR }),
+    thread({ id: "idle", updatedAt: NOW - 2 * HOUR }),
+    thread({ id: "pinned-working", isPinned: true, status: "active" }),
+    thread({ id: "working", status: "active" }),
+  ];
+
+  it("passes a pinned thread whatever its state when Pinned is checked", () => {
+    const kept = filterThreads(
+      threads,
+      {
+        projects: empty(),
+        providers: empty(),
+        states: new Set(["pinned"]),
+      },
+      undefined,
+      NOW,
+    );
+    expect(kept.map((keptThread) => keptThread.id)).toEqual(["pinned-idle", "pinned-working"]);
+  });
+
+  it("misses unpinned threads when Pinned is the only checked value", () => {
+    const kept = filterThreads(
+      threads,
+      {
+        projects: empty(),
+        providers: empty(),
+        states: new Set(["pinned", "idle-today"]),
+      },
+      undefined,
+      NOW,
+    );
+    expect(kept.map((keptThread) => keptThread.id)).toEqual([
+      "pinned-idle",
+      "idle",
+      "pinned-working",
+    ]);
   });
 });
 

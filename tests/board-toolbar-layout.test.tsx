@@ -247,6 +247,7 @@ describe("BoardToolbar State filter: idle buckets", () => {
       (row) => row.textContent,
     );
     expect(rows).toEqual([
+      "Pinned",
       "Working",
       "Needs you",
       "Unread",

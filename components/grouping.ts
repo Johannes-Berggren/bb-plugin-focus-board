@@ -31,9 +31,11 @@ export const GROUP_BY_OPTIONS: readonly { value: GroupBy; label: string }[] = [
 
 export type ThreadState = "working" | "attention" | "unread" | "idle";
 
-/** A state-filter value: a plain thread state, or one specific idle lane
- *  ("idle-today"…) — Idle is no longer a single bundled checkbox. */
-export type StateFilterValue = ThreadState | IdleBucketState;
+/** A state-filter value: a plain thread state, a specific idle lane
+ *  ("idle-today"…), or the "pinned" pseudo-state — pin state is orthogonal
+ *  to thread states (a pinned card can be working or idle), so the arm
+ *  matches `isPinned` directly, matching the board's far-left Pinned lane. */
+export type StateFilterValue = ThreadState | IdleBucketState | "pinned";
 
 export type FilterState = {
   /** Empty set means all projects; a non-empty set restricts to those ids. */
@@ -174,15 +176,17 @@ export const IDLE_BUCKETS: readonly {
 }));
 
 /**
- * The State filter's checkbox list: the three live states, then Idle split
- * one checkbox per idle lane — the same buckets, labels, and newest-first
- * order the Attention board lays its idle columns out in, so a checked box
- * is exactly one lane.
+ * The State filter's checkbox list: the Pinned pseudo-state (every state a
+ * pinned card can carry, the far-left Pinned lane the board reads first),
+ * then the three live states, then Idle split one checkbox per idle lane —
+ * the same buckets, labels, and newest-first order the Attention board lays
+ * its idle columns out in, so a checked box is exactly one lane.
  */
 export const STATE_FILTER_OPTIONS: readonly {
   value: StateFilterValue;
   label: string;
 }[] = [
+  { value: "pinned", label: "Pinned" },
   { value: "working", label: THREAD_STATE_LABELS.working },
   { value: "attention", label: THREAD_STATE_LABELS.attention },
   { value: "unread", label: THREAD_STATE_LABELS.unread },
@@ -290,10 +294,11 @@ export function matchesFilter(
 /**
  * The state-filter half of a thread's pass check, shared by every filter
  * entry point (filterThreads, nesting's threadPassesFilter): an EMPTY
- * selection shows every state; a plain state
- * value matches that state; an idle-bucket value matches an idle thread
- * whose updatedAt falls in that age bucket — the same bucketing the
- * Attention board's idle lanes use, so a checked box is exactly one lane.
+ * selection shows every state; the "pinned" value matches a pinned thread
+ * whatever its state (pin state is orthogonal, unlike every other value);
+ * a plain state value matches that state; an idle-bucket value matches an
+ * idle thread whose updatedAt falls in that age bucket — the same bucketing
+ * the Attention board's idle lanes use, so a checked box is exactly one lane.
  * The legacy bare "idle" value still matches every idle thread.
  */
 export function stateFilterPasses(
@@ -303,6 +308,7 @@ export function stateFilterPasses(
   errorAcks?: ReadonlySet<string>,
 ): boolean {
   if (selected.size === 0) return true;
+  if (selected.has("pinned") && thread.isPinned) return true;
   const state = threadState(thread, errorAcks);
   if (selected.has(state)) return true;
   if (state !== "idle") return false;
