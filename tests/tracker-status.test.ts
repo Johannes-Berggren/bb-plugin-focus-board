@@ -3,7 +3,7 @@ import { existsSync, mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import Database from "better-sqlite3";
-import { readGitHubStatuses, OPEN_CONFIRM_MS, PROBE_AFTER_MS } from "../lib/tracker-status";
+import { readGitHubStatuses, OPEN_CONFIRM_MS } from "../lib/tracker-status";
 
 const ISO_T = "2026-01-01T00:00:00Z";
 const ISO_T_MS = Date.parse(ISO_T);
@@ -97,10 +97,5 @@ describe("readGitHubStatuses", () => {
 describe("status freshness thresholds", () => {
   it("an open chip's verdict may age one hour before the board stops painting it", () => {
     expect(OPEN_CONFIRM_MS).toBe(60 * 60 * 1000);
-  });
-
-  it("the gh probe rechecks a stale-open chip far sooner than that", () => {
-    expect(PROBE_AFTER_MS).toBe(5 * 60 * 1000);
-    expect(PROBE_AFTER_MS).toBeLessThan(OPEN_CONFIRM_MS);
   });
 });

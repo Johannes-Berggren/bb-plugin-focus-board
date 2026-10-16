@@ -529,7 +529,7 @@ describe("per-line unseen tracking for the dev [Unreleased] amber", () => {
     const entry = whatsNewEntriesFor(APP_VERSION, false, null).find(
       (e) => e.unreleased === true,
     );
-    if (UNRELEASED_ITEMS.length === 0) return; // an empty dev tree carries nothing
+    if (entry === undefined) return; // a stable build feeds no [Unreleased] entry; the amber per-line tracking lives on prerelease lines alone (the finalized-unprepped window, issue #236's landing)
     const feedLeads = (entry?.items ?? []).flatMap((item) => [
       item.lead,
       ...(item.children ?? []),

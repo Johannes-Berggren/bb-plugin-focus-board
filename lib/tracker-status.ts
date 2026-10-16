@@ -30,18 +30,14 @@ export interface GitHubItemStatus {
 
 /**
  * How long an OPEN verdict may be painted from its last evidence (the cache
- * row's update time, or a probe verification) before the board stops
- * asserting it and renders the chip unsure. Terminal states (CLOSED,
- * MERGED) never age — there is no lie direction behind them.
+ * row's update time) before the board stops asserting it and renders the
+ * chip unsure. Terminal states (CLOSED, MERGED) never age — there is no lie
+ * direction behind them. No re-check ahead of this demote exists anymore:
+ * the gh CLI probe was removed with issue #236 (no process execution in the
+ * shipped runtime), so "stale open" means the dot degrades to unsure and
+ * waits for bb's own cache to catch up.
  */
 export const OPEN_CONFIRM_MS = 60 * 60 * 1000;
-
-/**
- * How stale an OPEN verdict may be before the opt-in probe re-checks the
- * item through gh — far inside the confirm window, so on a machine with gh
- * the dot re-verifies itself instead of ever reaching the demote point.
- */
-export const PROBE_AFTER_MS = 5 * 60 * 1000;
 
 /**
  * Look up statuses for `numbers` in `repo` from a GitHub-plugin-shaped

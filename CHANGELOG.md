@@ -9,6 +9,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+#### Cards and chips
+
+- **Chip dots age honestly instead of re-checking GitHub through a spawned process.** The plugin runtime no longer runs the gh CLI to re-check stale open chips, and an open dot is trusted only inside its one-hour confirm window, so a stale chip falls to unsure-plain until bb's own GitHub cache catches up. A closed or merged chip keeps its verdict whatever its age.
+
 ### Fixed
 
 ## [1.5.0] - 2026-10-16
