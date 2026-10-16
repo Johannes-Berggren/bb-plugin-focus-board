@@ -47,11 +47,18 @@ export function MenuPopover({
       <div
         role="menu"
         aria-label={label}
-        className="fixed z-50 min-w-44 rounded-md border border-border bg-popover p-1 shadow-md"
+        // Raised above the card surface: cards draw `bg-card` at half-
+        // strength borders, the menu draws the popover surface at full-
+        // strength under the elevated shadow, and its header rule bounds
+        // the menu as a menu rather than one more card.
+        className="fixed z-50 min-w-44 rounded-md border border-border bg-popover p-1 shadow-lg"
         style={{
           left: open.x,
           top: open.y,
-          maxHeight: 320,
+          // Whatever height the window leaves (minus its edges), not a
+          // fixed pixel cap: a tall window shows a long menu whole, a
+          // short one scrolls (the ref clamp below keeps it on screen).
+          maxHeight: window.innerHeight - 16,
           overflowY: "auto",
         }}
         ref={(node) => {
@@ -65,7 +72,7 @@ export function MenuPopover({
       >
         <div
           aria-hidden
-          className="max-w-64 truncate px-2 pb-1 pt-1.5 text-[11px] font-medium text-muted-foreground"
+          className="max-w-64 truncate border-b border-border px-2 pb-1.5 pt-1.5 text-[11px] font-medium text-muted-foreground"
         >
           {title}
         </div>
