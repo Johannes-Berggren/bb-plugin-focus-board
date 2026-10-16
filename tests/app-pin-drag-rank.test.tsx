@@ -395,7 +395,15 @@ describe("pinned cards dragged over other pinned cards", () => {
       // The rejection reached the host: the rpc went out, and the failure
       // is the banner, not a silent revert.
       expect(fakeRpcCalls().map((call) => call.method)).toContain("rank_move");
-      expect(document.querySelector('[data-testid="rank-save-error"]')).not.toBeNull();
+      // The banner paints the full-strength destructive pair (the #234
+      // contract), never the translucent tint.
+      const banner = document.querySelector('[data-testid="rank-save-error"]');
+      expect(banner).not.toBeNull();
+      const tokens = (banner as HTMLElement).className.split(" ");
+      for (const token of ["bg-red-50", "dark:bg-red-950", "dark:text-red-400"]) {
+        expect(tokens).toContain(token);
+      }
+      expect(tokens).not.toContain("bg-destructive/10");
     } finally {
       stubRankMoveFailure(null);
     }

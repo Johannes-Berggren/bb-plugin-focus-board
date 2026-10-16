@@ -1921,7 +1921,7 @@ export function Board({
           <div
             role="status"
             data-testid="rank-save-error"
-            className="mx-3 mb-1 flex items-center justify-between gap-2 rounded border border-destructive/40 bg-destructive/10 px-2 py-1 text-[11px] text-destructive"
+            className="mx-3 mb-1 flex items-center justify-between gap-2 rounded border border-destructive/40 bg-red-50 dark:bg-red-950 px-2 py-1 text-[11px] text-destructive dark:text-red-400"
           >
             {/* A write the host rejected: the board keeps the stored order —
                 this banner is the only word about it. */}
@@ -1931,7 +1931,7 @@ export function Board({
               onClick={() => onDismissRankSaveError?.()}
               aria-label="Dismiss save error"
               title="Dismiss"
-              className="shrink-0 rounded p-0.5 text-destructive/70 transition-colors hover:bg-destructive/10 hover:text-destructive focus-visible:outline focus-visible:outline-1 focus-visible:outline-destructive"
+              className="shrink-0 rounded p-0.5 text-destructive/70 dark:text-red-400/70 transition-colors hover:bg-destructive/10 hover:text-destructive dark:hover:text-red-400 focus-visible:outline focus-visible:outline-1 focus-visible:outline-destructive"
             >
               <Icon name="X" className="size-3" aria-hidden />
             </button>

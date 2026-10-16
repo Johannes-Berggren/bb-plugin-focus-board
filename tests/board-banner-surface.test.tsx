@@ -220,6 +220,18 @@ describe("every alert banner carries an opaque surface in both themes", () => {
     expectOpaque("rank-error-banner", "destructive");
   });
 
+  it("the rank save error paints an opaque surface (no translucent tint)", () => {
+    // The host-rejected write's banner (issue #232): it renders from the
+    // app-owned rankSaveError state, so the contract drives the prop the
+    // failing write arms. The app-level rejection test drives the same
+    // banner live through the failing-rank write (stubRankMoveFailure).
+    renderBoard([thread({ id: "thr_a", updatedAt: NOW - HOUR })], {
+      rankSaveError: "rpc input validation failed",
+      onDismissRankSaveError: () => {},
+    });
+    expectOpaque("rank-save-error", "destructive");
+  });
+
   it("the sweep refusal paints an opaque surface (no translucent tint)", () => {
     // The Done column's family projection card refuses a sweep toggle: not a
     // done thread (done-projection suite's shape).
