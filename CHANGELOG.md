@@ -43,6 +43,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 #### Board cards
 
+- **Dragging a card up its lane lands it where the pointer promised.** A drop on the card directly above used to write a no-op anchored at the dragged card itself, and a middle-third drop there could silently re-parent a newly pinned family whose pinned placement hides the write; both drops rank the card now, and nests stay offered only where they visibly nest.
+
 - **Hovering a card in light mode no longer mutes it.** The hover surface darkened a near-white card into mid-gray on the light theme, which reads as muting. The light hover keeps the card surface and the ring plus the other cards' recede carry the emphasis; the dark theme keeps its darkening.
 
 #### Thread pane

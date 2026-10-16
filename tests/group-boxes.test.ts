@@ -629,8 +629,12 @@ describe("columnRunInfo and unitMoveTarget", () => {
       beforeId: "thr_b",
       toEnd: false,
     });
+    // Hovering the box's LAST member with the solo dragged card right below
+    // it used to anchor past the run at the dragged card itself — a write
+    // applyMove no-ops on. moveTargetFor's convention holds: the card lands
+    // directly under the run it was aimed at (reported 2026-10-15).
     expect(unitMoveTarget(order, "thr_c", "after", "thr_x", info)).toEqual({
-      beforeId: "thr_x",
+      beforeId: "thr_c",
       toEnd: false,
     });
   });
@@ -646,6 +650,16 @@ describe("columnRunInfo and unitMoveTarget", () => {
     // "x" — reinserting there reproduces the current order (no move).
     expect(unitMoveTarget(order, "thr_a", "after", "thr_b", info)).toEqual({
       beforeId: "thr_x",
+      toEnd: false,
+    });
+  });
+
+  it("the same convention holds when the hover is a box's last member", () => {
+    // Hover box run (b,c) while a solo dragged card sits right below it:
+    // the anchor is the run's LAST member, so the solo card lands directly
+    // under the run it was aimed at — never at itself.
+    expect(unitMoveTarget(order, "thr_b", "after", "thr_x", info)).toEqual({
+      beforeId: "thr_c",
       toEnd: false,
     });
   });

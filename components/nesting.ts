@@ -471,6 +471,62 @@ function childPlacement(
   return "nest"; // status (R4: the family moves as one unit) / recency / none
 }
 
+/**
+ * Would a drop-to-nest of `child` under `parent` change anything the
+ * operator can see?
+ *
+ * The board offers the middle-third nest zone over every pair the loop and
+ * already-child guards allow — but a pair whose `childPlacement` comes back
+ * "flat" renders that write invisible: a pinned child stands alone in its
+ * own slot (step 2), an attention child surfaces as its own card (step 2), a
+ * live child of a Done root keeps its own lane (step 3), and a cross-space
+ * child stays outside the family's column (step 4's data keys). Over such a
+ * target the drop fires the re-parent RPC, nothing visibly moves, and the
+ * reorder the pointer's position promised never happens — the board's
+ * success path says nothing on screen (the announcement is an sr-only live
+ * region), which is exactly the silent no-op the refusal machinery exists
+ * to prevent. Reported 2026-10-15: a newly pinned family parent dragged to
+ * the top of the Pinned lane released on the top card's middle third; the
+ * re-parent wrote, the slot never moved, and only a reload restored a drop
+ * that reordered.
+ *
+ * The board must refuse the zone wherever it can answer this question (the
+ * edges reorder instead); the "group" view's assignment buckets are host
+ * data the board's own groupBoxOf plan prunes (pinned/done members drop
+ * out of the plan), so that one grouping reads as nestable here and rides
+ * the loop/already-child guards as before.
+ */
+export function nestRendersFlat(
+  child: PluginSidebarThread,
+  parent: PluginSidebarThread,
+  groupBy: GroupBy,
+  doneIds: ReadonlySet<string>,
+  errorAcks: ReadonlySet<string> = new Set<string>(),
+): boolean {
+  // Step 1: a done child paints in the Done space under the family's Done
+  // presence either way ("done" under a live root, "nest" under a done one).
+  if (doneIds.has(child.id)) return false;
+  // Step 2: operator-intent cards stand alone — the write hides exactly.
+  if (child.isPinned) return true;
+  // Step 2 again, attention: the child surfaces as its own card. The
+  // attention freeze's stayNested exemption is host to the assembly, not
+  // the board, so this answer is conservative: a row the operator is
+  // attending keeps its slot today, and the zone refuses anyway — the
+  // edges reorder, which is what the drop at that position always did.
+  if (threadState(child, errorAcks) === "attention") return true;
+  // Step 3: a Done root shares its space with no live child.
+  if (doneIds.has(parent.id)) return true;
+  // Step 4's data keys: a cross-space child nests for the family index but
+  // renders in its own lane — the write hides.
+  if (groupBy === "project") return child.projectId !== parent.projectId;
+  if (groupBy === "provider") return child.providerId !== parent.providerId;
+  if (groupBy === "machine") {
+    return (child.host?.id ?? "none") !== (parent.host?.id ?? "none");
+  }
+  // "group" view: not board-visible (see the docstring); never refused here.
+  return false;
+}
+
 function stateRank(state: ThreadState): number {
   const index = STATUS_COLUMN_ORDER.indexOf(state);
   return index === -1 ? Number.MAX_SAFE_INTEGER : index;
