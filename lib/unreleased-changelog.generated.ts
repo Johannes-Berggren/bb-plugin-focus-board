@@ -36,6 +36,16 @@ export const UNRELEASED_ITEMS: readonly { text: string; children: string[]; grou
     "group": "Board toolbar"
   },
   {
+    "text": "**The right-click menu uses the room the window gives it.** The menu was pinned to a fixed 320-pixel cap, so entries scrolled behind an inner scrollbar even on a tall screen (issue #222). The shell now grows to the window height minus a small margin, and a short window still scrolls.",
+    "children": [],
+    "group": "Context menus"
+  },
+  {
+    "text": "**The right-click menu reads as a menu, not a card.** The popover sat on the same surface color at the same hairline weight as the cards beneath it, so the two were hard to tell apart at a glance (issue #221). The shell now draws the full-strength border under an elevated shadow, with a boundary rule under its header line.",
+    "children": [],
+    "group": "Context menus"
+  },
+  {
     "text": "**A nested child row shows its child's ticket chips.** A child thread that ties to a tracker item used to chip only as a standalone card, so the family view hid the tie. Its row carries the same chips now, a step smaller and inert: the row itself is one link.",
     "children": [],
     "group": "Child threads"
