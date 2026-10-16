@@ -14,7 +14,7 @@ import {
   type TicketChipRow,
 } from "@/lib/ticket-chips";
 
-import { DRAG_ID_KEY, childRankKey, rankDragType } from "../lib/rank";
+import { DRAG_ID_KEY, DOT_DRAG_TYPE, childRankKey, rankDragType } from "../lib/rank";
 import { cardTicketRefs, type ThreadLink } from "../lib/link-metadata";
 import { describeWakeAt } from "../lib/snooze";
 import { usePortalScopeProps } from "../lib/portal-scope";
@@ -129,6 +129,27 @@ interface ThreadCardProps {
     onDragLeave: (event: DragEvent) => void;
     /** The row currently carrying the insertion line, and its half. */
     line?: { childId: string; zone: "before" | "after" };
+  };
+  /**
+   * The dot-strip reorder gesture of the same family (issue #249, goals 3
+   * and 4): a collapsed strip's dot drags to reorder its own tier of the
+   * family, and the preview bubble naming the dragged member stays open for
+   * the whole gesture — mid-drag hovers never steal the tooltip. The board
+   * owns every decision (tier match, guards, the write), exactly as it does
+   * for the row reorder above; the dot is the drag SOURCE and the same-tier
+   * dots are its only targets. A dot drag never leaves the hierarchy: the
+   * strip authorises nothing outside it (un-parenting is the explicit morph
+   * gesture of a later cut). Wired only where reordering is real — ranking
+   * on, the write available, and more than one member on the strip. Absent →
+   * the dots stay the click-preview controls they have always been.
+   */
+  childDotDrag?: {
+    onDragStart: (memberId: string) => void;
+    onDragOver: (hoverMemberId: string, event: DragEvent) => void;
+    onDrop: (hoverMemberId: string, event: DragEvent) => void;
+    onDragEnd: () => void;
+    /** The dot currently carrying the insertion line, and its half. */
+    line?: { memberId: string; zone: "before" | "after" };
   };
   /**
    * The child-count chip's number: ALL visible children of this parent
@@ -759,6 +780,7 @@ export function ThreadCard({
   onOpenThread,
   childMenuActions,
   childRankDrag,
+  childDotDrag,
   isCollapsed,
   onCollapsedChange,
   hideIdleChildren,
@@ -926,6 +948,12 @@ export function ThreadCard({
     centerX: number;
     topY: number;
   } | null>(null);
+  // While one of the strip's dots is being dragged, its preview bubble is
+  // pinned for the whole gesture (goal 4): the tooltip keeps naming the
+  // dragged member, hovers over other dots must not steal it, and the
+  // gesture's end closes it. Cleared at dragend with the bubble — the strip
+  // must never outlive its drag wearing a stale tooltip.
+  const [dotDragMemberId, setDotDragMemberId] = useState<string | null>(null);
   /** The open preview's content lookup: the state names the child, the
    * portal below resolves it from the current children list. A sub-dot of
    * the flattened strip resolves from the sub-tier the same way. */
@@ -950,6 +978,16 @@ export function ThreadCard({
   const stripDot = (member: PluginSidebarThread, isSub: boolean) => {
     const state = threadState(member, errorAckIds);
     const isMemberActive = member.id === activeThreadId;
+    // The dot-drag gesture (issue #249): a snoozed member refuses drag —
+    // the same one rule as the cards and the rows — and the preview bubble
+    // is pinned from dragstart so the tooltip names the dragged member for
+    // the whole gesture.
+    const memberSnoozed = (snoozeFor?.(member.id) ?? null) !== null;
+    const dotDragWired = childDotDrag !== undefined;
+    const dotLine =
+      childDotDrag?.line?.memberId === member.id
+        ? childDotDrag.line?.zone
+        : undefined;
     return (
       <button
         key={member.id}
@@ -958,7 +996,49 @@ export function ThreadCard({
         data-child-dot-active={isMemberActive ? "" : undefined}
         aria-label={`${isSub ? "Open sub-thread" : "Open child thread"}: ${member.displayTitle}`}
         aria-current={isMemberActive ? "true" : undefined}
+        draggable={dotDragWired && !memberSnoozed}
+        onDragStart={(event) => {
+          if (memberSnoozed) {
+            event.preventDefault();
+            return;
+          }
+          if (childDotDrag === undefined) return;
+          // Dot drags never leave the hierarchy: the payload carries the
+          // member id plus the DOT mark, and no surface outside this strip
+          // authorises the drop — the drag-out morph gesture of a later cut
+          // will be the one thing that does (goal 5). The preview bubble
+          // opens here, from the dot's own viewport rect.
+          event.dataTransfer.setData(DRAG_ID_KEY, member.id);
+          event.dataTransfer.setData(DOT_DRAG_TYPE, "");
+          event.dataTransfer.effectAllowed = "move";
+          const rect = event.currentTarget.getBoundingClientRect();
+          setPreviewDot({
+            id: member.id,
+            centerX: rect.left + rect.width / 2,
+            topY: rect.top,
+          });
+          setDotDragMemberId(member.id);
+          childDotDrag.onDragStart(member.id);
+        }}
+        onDragEnd={() => {
+          setPreviewDot(null);
+          setDotDragMemberId(null);
+          childDotDrag?.onDragEnd();
+        }}
+        onDragOver={
+          childDotDrag === undefined
+            ? undefined
+            : (event) => childDotDrag.onDragOver(member.id, event)
+        }
+        onDrop={
+          childDotDrag === undefined
+            ? undefined
+            : (event) => childDotDrag.onDrop(member.id, event)
+        }
         onMouseEnter={(event) => {
+          // A hover behind an active dot drag cannot steal the pinned
+          // tooltip: it stays naming the dragged member (goal 4).
+          if (dotDragMemberId !== null) return;
           const rect = event.currentTarget.getBoundingClientRect();
           setPreviewDot({
             id: member.id,
@@ -974,7 +1054,11 @@ export function ThreadCard({
             topY: rect.top,
           });
         }}
-        onMouseLeave={() => setPreviewDot(null)}
+        onMouseLeave={() => {
+          // The pinned dragged-dot tooltip ignores leave — it dies at
+          // dragend, not on a hover boundary the drag's pointer crossed.
+          if (dotDragMemberId === null) setPreviewDot(null);
+        }}
         onBlur={() => setPreviewDot(null)}
         onClick={(event) => {
           // The dot's click belongs to the dot alone: it opens its
@@ -1002,6 +1086,14 @@ export function ThreadCard({
           "hover:bg-amber-500/20 focus-visible:bg-amber-500/20",
           "focus:outline-none focus-visible:ring-2 focus-visible:ring-ring",
           isMemberActive && "bg-accent/70 ring-2 ring-ring",
+          // The strip's vertical insertion line (the dot-drag promise): a
+          // full-height half-dot-wide bar on the hovered dot's outer half —
+          // the rows' horizontal pair turned on its side, since the strip
+          // flows left to right.
+          dotLine === "before" &&
+            "before:absolute before:inset-y-0 before:-left-0.5 before:w-0.5 before:rounded-full before:bg-ring",
+          dotLine === "after" &&
+            "after:absolute after:inset-y-0 after:-right-0.5 after:w-0.5 after:rounded-full after:bg-ring",
         )}
       >
         <span
