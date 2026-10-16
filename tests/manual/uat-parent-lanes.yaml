@@ -203,7 +203,7 @@ steps:
       - text_hidden: "Standalone"
 
   - id: group-switch-back-to-attention
-    title: Switching back to Attention grouping renders normal columns
+    title: Switching back to Focus grouping renders normal columns
     goto: "?groupBy=status"
     assert:
       - column: unread

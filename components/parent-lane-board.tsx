@@ -697,7 +697,7 @@ export function ParentLaneBoard({
     return (
       <div className="flex min-h-0 flex-1 items-center justify-center p-4">
         <EmptyState>
-          No thread families to show yet. Loose (unparented) threads stay in the Attention
+          No thread families to show yet. Loose (unparented) threads stay in the Focus
           view — set a parent on a thread to start a lane here.
         </EmptyState>
       </div>

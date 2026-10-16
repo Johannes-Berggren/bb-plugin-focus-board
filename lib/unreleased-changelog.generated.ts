@@ -36,6 +36,11 @@ export const UNRELEASED_ITEMS: readonly { text: string; children: string[]; grou
     "group": "Board toolbar"
   },
   {
+    "text": "**The default board view is named Focus.** The View chip, the View dropdown, and every label that named the status grouping used to say \"Attention\", the same word that names the thread state a card reports; they say \"Focus\" now. Nothing re-lanes and stored settings keep working, so the rename is the whole change.",
+    "children": [],
+    "group": "Board views"
+  },
+  {
     "text": "**The right-click menu uses the room the window gives it.** The menu was pinned to a fixed 320-pixel cap, so entries scrolled behind an inner scrollbar even on a tall screen (issue #222). The shell now grows to the window height minus a small margin, and a short window still scrolls.",
     "children": [],
     "group": "Context menus"
@@ -76,7 +81,7 @@ export const UNRELEASED_ITEMS: readonly { text: string; children: string[]; grou
     "group": "Thread pane"
   },
   {
-    "text": "**Choosing Zoom to group lands the board on the Group view.** The group box's context-menu entry used to set only the group filter, so the board stayed on the Attention view and the zoom read as a silent chip write. It now switches the view to the Group board with the group restrict set to exactly that group; clearing the chip restores the full board.",
+    "text": "**Choosing Zoom to group lands the board on the Group view.** The group box's context-menu entry used to set only the group filter, so the board stayed on the view it started on and the zoom read as a silent chip write. It now switches the view to the Group board with the group restrict set to exactly that group; clearing the chip restores the full board.",
     "children": [],
     "group": "Groups and family boxes"
   },

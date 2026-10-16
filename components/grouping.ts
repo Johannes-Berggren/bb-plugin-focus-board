@@ -19,7 +19,7 @@ export type GroupBy =
   | "group";
 
 export const GROUP_BY_OPTIONS: readonly { value: GroupBy; label: string }[] = [
-  { value: "status", label: "Attention" },
+  { value: "status", label: "Focus" },
   { value: "parent", label: "Parent thread" },
   { value: "group", label: "Group" },
   { value: "recency", label: "Last activity" },
