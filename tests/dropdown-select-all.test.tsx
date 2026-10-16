@@ -210,6 +210,7 @@ describe("select-all beside the dropdown search bar", () => {
       projects: new Set(),
       providers: new Set(),
       states: new Set([
+        "pinned",
         "working",
         "attention",
         "unread",
