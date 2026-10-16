@@ -109,5 +109,10 @@ export const UNRELEASED_ITEMS: readonly { text: string; children: string[]; grou
     "text": "**Hovering a card in the open pane's lane no longer ghosts a duplicate family lane.** The pane's capture and the hover capture both pinned that lane, so the Parent view rendered a clipped copy of the whole family beside it (issue #227). One pin per lane holds now, the freshest capture winning the slot.",
     "children": [],
     "group": "Board layout"
+  },
+  {
+    "text": "**Board alert banners paint a full-strength surface.** The refusal, receipt, report, and notice banners used to sit on a 10%-alpha tint, so with a wallpaper behind the board the message sank into the photo (issue #233). They draw an opaque surface in both themes now, and the dark theme raises the error banners' text a step so it reads on red.",
+    "children": [],
+    "group": "Board layout"
   }
 ];
