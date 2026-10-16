@@ -54,7 +54,6 @@ const measure = () =>
       const r = el.getBoundingClientRect();
       return { x: Math.round(r.x), y: Math.round(r.y), w: Math.round(r.width), h: Math.round(r.height), right: Math.round(r.right), bottom: Math.round(r.bottom) };
     };
-    const cardBox = null;
     const cr = card.getBoundingClientRect();
     const out = { card: { x: Math.round(cr.x), y: Math.round(cr.y), w: Math.round(cr.width), h: Math.round(cr.height), right: Math.round(cr.right), bottom: Math.round(cr.bottom) } };
     const section = card.querySelector("[data-child-thread-section]");
@@ -155,6 +154,8 @@ const bad = results.widths.some((w) => Object.values(w).some((v) => v && typeof 
 console.log(bad ? "OFFENDER FOUND" : "no right-edge offender");
 const restOk = restProbe.slicedTop === false && restProbe.scrollTopAt9 % 1 === 0 && restProbe.scrollTopAt9 < 5;
 console.log(restOk ? "REST ALIGNED" : "REST SLICED");
-process.exitCode = restOk ? 0 : 1;
+// The whole probe's verdict: every geometry must sit inside the card and
+// the rest must land snapped on a row boundary.
+process.exitCode = restOk && !bad ? 0 : 1;
 await browser.close();
-process.exit(0);
+process.exit(process.exitCode);

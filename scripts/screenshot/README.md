@@ -86,7 +86,8 @@ host app involved.
   ten-child demo family `thr_demo_big`, measures the card's child-thread
   section geometry at four panel widths, then gives the capped rows list a
   9px wheel-sized scroll and reads the rest position. Exits non-zero unless
-  the rest lands snapped on a row boundary (pre-fix code rests at 9px and
+  the rest lands snapped on a row boundary and no measured surface sits past
+  the card's edges (pre-fix code rests at 9px and
   slices the first row mid-glyph at the cap's edge). Artifacts land in
   `docs/screenshots/repro-clipped-selector/` (card clips per width plus
   `evidence.json`; the pre-fix run is preserved in
