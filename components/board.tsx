@@ -40,6 +40,7 @@ import {
   displayAfterMove,
   DRAG_ID_KEY,
   isLaneDrag,
+  isDotDrag,
   moveTargetFor,
   rankDragType,
   type RankStore,
@@ -772,6 +773,20 @@ export function Board({
   function clearChildDrop(): void {
     setChildDrop(null);
   }
+
+  /**
+   * The collapsed strip's dot carrying the vertical insertion line of a
+   * dot-drag reorder (issue #249): `familyId` is the strip's own parent
+   * thread (the card the strip belongs to), so two strips never show each
+   * other's promise; `memberId` is the hovered dot, `zone` its outer half.
+   * Cleared at dragstart, dragleave, after a commit, and at dragend — the
+   * same promises-are-promises lifecycle as `childDrop`.
+   */
+  const [childDotLine, setChildDotLine] = useState<{
+    familyId: string;
+    memberId: string;
+    zone: Half;
+  } | null>(null);
 
   // The shift-click anchor: the last card clicked without Shift in the armed
   // column. Shift extends the selection from it (it stays put — standard
@@ -1580,6 +1595,20 @@ export function Board({
   // card under the cursor.
   const draggingIdRef = useRef<string | null>(null);
 
+  // ── The dot-drag lifecycle (issue #249, goals 3 and 4) ─────────────────
+  // The collapsed strip's dot being dragged. A dot drag is deliberately NOT
+  // a card drag: it never enters `draggingIdRef`, because every floor,
+  // header, and card drop path reads that ref, and a dot drag must be inert
+  // on all of them — a member's drag-out is the explicit morph gesture of a
+  // later cut, never a release side effect. Only the home strip's own
+  // dot handlers read this ref.
+  const dotDraggingRef = useRef<string | null>(null);
+  // Whether the in-flight dot gesture resolved (a family write, a named
+  // refusal, or a claimed out-of-strip refusal). Dragend reports the
+  // strip-honesty refusal only for a gesture that never resolved anywhere,
+  // so one release raises exactly one banner, never two.
+  const dotDragResolvedRef = useRef(true);
+
   function clearRankDrop(): void {
     setRankDrop(null);
   }
@@ -1646,6 +1675,46 @@ export function Board({
     if (alive !== null) return;
     rankDragLifecycle(null);
   });
+
+  // The dot drag in flight with no live source has the same safety: a live
+  // refetch can reassemble the strip out from under a dragged dot, and then
+  // no dragend or drop ever fires — its tooltip pin and line would idle
+  // forever. A dot still marked in flight with no matching dot button on the
+  // board is a dead drag: end it exactly as dragend would have (quietly —
+  // the gesture never resolved, and an unmounted source is chaos, not an
+  // operator release).
+  useLayoutEffect(() => {
+    const id = dotDraggingRef.current;
+    if (id === null) return;
+    const safe = id.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+    const alive = document.querySelector(`button[data-child-dot="${safe}"]`);
+    if (alive !== null) return;
+    dotDraggingRef.current = null;
+    dotDragResolvedRef.current = true;
+    setChildDotLine(null);
+  });
+
+  /**
+   * The dot-drag lifecycle, mirroring `rankDragLifecycle`'s shape: the
+   * dragged member id and the resolution flag reset at start, and dragend
+   * clears the promise — reporting the strip-honesty refusal only when the
+   * gesture never resolved somewhere else (a release that lands anywhere but
+   * the home strip refuses loudly and writes nothing, #231's law made
+   * honest by naming where the dot has to land).
+   */
+  const childDotDragStart = (memberId: string): void => {
+    dotDraggingRef.current = memberId;
+    dotDragResolvedRef.current = false;
+  };
+  const childDotDragEnd = (): void => {
+    const draggedId = dotDraggingRef.current;
+    const resolved = dotDragResolvedRef.current;
+    dotDraggingRef.current = null;
+    dotDragResolvedRef.current = true;
+    setChildDotLine(null);
+    if (draggedId === null || draggedId === "" || resolved) return;
+    reportRefusal("the dot release never landed on its family's strip, so nothing moved.");
+  };
 
   /**
    * Report a reorder that cannot complete, naming the reason.
@@ -2276,6 +2345,155 @@ export function Board({
               `Moved to position ${after.indexOf(droppedId) + 1} of ${after.length} within ${parent.displayTitle}.`,
             );
           };
+          /**
+           * The dot-strip reorder gesture (issue #249, goals 3 and 4), a
+           * sibling of the row gestures above with the same scope decision:
+           * only a dot of THIS family's strip is a target, only a same-tier
+           * sibling reorders, and the write rides the existing
+           * `child:<tierParentId>` rank key — the same machinery the rows
+           * write, so no new store shape exists. The dot's own tier is the
+           * dragged dot's live parent: a child dot ranks the family's row
+           * order (`child:<parentId>`), a sub-dot ranks that child's subs
+           * (`child:<childId>`), so dots and rows always agree.
+           *
+           * Everything else stays inert: a dot drag carries its own drag
+           * type, so a card drag hovering a dot claims nothing (the
+           * click-preview strip keeps every gesture it already had), and a
+           * release outside the strip resolves as the dragend refusal.
+           */
+          const dotTierParentOf = (
+            parent: PluginSidebarThread,
+            memberId: string,
+          ): string | null => {
+            const tierParent = liveParentOf(memberId);
+            if (tierParent === null) return null;
+            if (tierParent === parent.id) return tierParent;
+            return childRowsOf(parent.id).some((child) => child.id === tierParent)
+              ? tierParent
+              : null;
+          };
+          const dotTierName = (parent: PluginSidebarThread, tierParentId: string): string =>
+            tierParentId === parent.id
+              ? parent.displayTitle
+              : (childRowsOf(parent.id).find((child) => child.id === tierParentId)
+                  ?.displayTitle ?? parent.displayTitle);
+          const childDotDragOver = (
+            parent: PluginSidebarThread,
+            hoverMemberId: string,
+            event: React.DragEvent,
+          ): void => {
+            if (!isDotDrag(event.dataTransfer.types)) return;
+            if (!ranking) return;
+            const draggedId = dotDraggingRef.current;
+            if (draggedId === null || draggedId === "" || draggedId === hoverMemberId) {
+              // The dragged dot's own slot: claimed with no line — the drop
+              // still lands here and refuses loudly, exactly like a same-family
+              // row release that resolves to no move.
+              event.preventDefault();
+              event.stopPropagation();
+              setChildDotLine(null);
+              return;
+            }
+            const draggedTier = dotTierParentOf(parent, draggedId);
+            if (draggedTier === null) {
+              // A dot of ANOTHER family (or a payload that names no family
+              // member): this strip is not its surface. Unclaimed — the
+              // source's own strip handlers, and its dragend refusal, own
+              // the gesture.
+              return;
+            }
+            event.preventDefault();
+            event.stopPropagation();
+            event.dataTransfer.dropEffect = "move";
+            if (draggedTier !== dotTierParentOf(parent, hoverMemberId)) {
+              // Hovering another tier's dot: claimed with no promise — dots
+              // reorder within their tier, never across tiers of the family
+              // (goal 3: dot drags stay inside the hierarchy), so the
+              // release refuses instead of pretending.
+              setChildDotLine(null);
+              return;
+            }
+            const memberIds = childRowsOf(draggedTier).map((member) => member.id);
+            const rect = event.currentTarget.getBoundingClientRect();
+            const zone: Half = event.clientX - rect.left < rect.width / 2 ? "before" : "after";
+            const target = moveTargetFor(memberIds, hoverMemberId, zone, draggedId);
+            if (target === null) {
+              // The adjacency refusals hold mid-hover too: the dot's own
+              // neighbourhood promises nothing.
+              setChildDotLine(null);
+              return;
+            }
+            setChildDotLine((current) =>
+              current?.familyId === parent.id &&
+              current?.memberId === hoverMemberId &&
+              current?.zone === zone
+                ? current
+                : { familyId: parent.id, memberId: hoverMemberId, zone },
+            );
+          };
+          const childDotDrop = (
+            parent: PluginSidebarThread,
+            hoverMemberId: string,
+            event: React.DragEvent,
+          ): void => {
+            if (!isDotDrag(event.dataTransfer.types)) return;
+            if (!ranking) return;
+            // The payload is authoritative at drop; the ref is the fallback
+            // (draggedIdFor's contract).
+            const droppedId = draggedIdFor(event, dotDraggingRef.current);
+            if (droppedId === "") {
+              event.preventDefault();
+              event.stopPropagation();
+              setChildDotLine(null);
+              dotDragResolvedRef.current = true;
+              reportRefusal("the drop could not identify the dragged dot.");
+              return;
+            }
+            // Guards re-run on the payload's id: the dragover's ref can name
+            // a dot the drop contradicts.
+            const draggedTier = dotTierParentOf(parent, droppedId);
+            const hoverTier = dotTierParentOf(parent, hoverMemberId);
+            event.preventDefault();
+            event.stopPropagation();
+            setChildDotLine(null);
+            // The surface is now resolved: the dragend's safety refusal stays
+            // silent behind whatever this drop reports.
+            dotDragResolvedRef.current = true;
+            if (draggedTier === null) {
+              reportRefusal("the dragged dot does not belong to this family's strip.");
+              return;
+            }
+            if (droppedId === hoverMemberId) {
+              reportRefusal(
+                `the drop position within ${dotTierName(parent, draggedTier)} resolved to no move.`,
+              );
+              return;
+            }
+            if (draggedTier !== hoverTier) {
+              reportRefusal(
+                "a dot stays within its own tier of the family; drag it onto a dot of that tier.",
+              );
+              return;
+            }
+            const memberIds = childRowsOf(draggedTier).map((member) => member.id);
+            const rect = event.currentTarget.getBoundingClientRect();
+            const zone: Half = event.clientX - rect.left < rect.width / 2 ? "before" : "after";
+            const target = moveTargetFor(memberIds, hoverMemberId, zone, droppedId);
+            if (target === null) {
+              reportRefusal(
+                `the drop position within ${dotTierName(parent, draggedTier)} resolved to no move.`,
+              );
+              return;
+            }
+            setRankError(null);
+            // The existing child-rank write: the same onRankMove the rows
+            // call, with the tier's member ids as the visible order.
+            onRankMove?.(childRankKey(draggedTier), droppedId, target.beforeId, target.toEnd, memberIds);
+            const after = displayAfterMove(memberIds, droppedId, target.beforeId, target.toEnd);
+            setAnnouncement(
+              `Moved to position ${after.indexOf(droppedId) + 1} of ${after.length} within ${dotTierName(parent, draggedTier)}.`,
+            );
+          };
           return (
             <section
               key={column.id}
@@ -2283,6 +2501,12 @@ export function Board({
               data-column-ordered={isOrdered}
               aria-label={`${column.label}, ${column.threads.length} threads`}
               onDragOver={(event) => {
+                // A dot drag (issue #249) authorises nowhere but its home
+                // strip: the floor never promises it, so a release over a
+                // column resolves as the refused dragend, and a member can
+                // never detach by side effect — its drag-out is the explicit
+                // morph gesture of a later cut.
+                if (isDotDrag(event.dataTransfer.types)) return;
                 // A nested child dragged over THIS floor is a detach hover: the
                 // family write rides any column, state gate or not — the same
                 // rule the card nest zone follows in non-state lanes.
@@ -2330,6 +2554,18 @@ export function Board({
                   // header drop bubbles into this very handler).
                   setFamilyHeaderColumn(null);
                 };
+                if (isDotDrag(event.dataTransfer.types)) {
+                  // A dot drag that reaches the floor anyway (a stale
+                  // dragover's authorization, or a synthetic event) refuses
+                  // loudly and writes nothing: the strip is the whole dot
+                  // surface of this cut (issue #249).
+                  event.preventDefault();
+                  releaseFloor();
+                  dotDraggingRef.current = null;
+                  dotDragResolvedRef.current = true;
+                  reportRefusal("a dot reorder never leaves its family's strip.");
+                  return;
+                }
                 if (ranking && isLaneDrag(event.dataTransfer.types, rankKey)) {
                   // Released over the lane's empty space below the last card:
                   // append. A drop ON a card was already claimed by that
@@ -2425,6 +2661,19 @@ export function Board({
                     setFamilyFloorColumn(null);
                     setFamilyHeaderColumn(null);
                   };
+                  if (isDotDrag(event.dataTransfer.types)) {
+                    // Same law as the floor below: a dot drag that lands on
+                    // the title anyway refuses loudly and writes nothing
+                    // (issue #249) — un-nesting is never a release side
+                    // effect, the strip is the dot surface of this cut.
+                    event.preventDefault();
+                    event.stopPropagation();
+                    releaseFloor();
+                    dotDraggingRef.current = null;
+                    dotDragResolvedRef.current = true;
+                    reportRefusal("a dot reorder never leaves its family's strip.");
+                    return;
+                  }
                   event.preventDefault();
                   event.stopPropagation();
                   releaseFloor();
@@ -2692,6 +2941,14 @@ export function Board({
                         onDragOver={
                           (event) => {
                             if (!ranking) return;
+                            if (isDotDrag(event.dataTransfer.types)) {
+                              // Dot drags promise nothing on a card (issue
+                              // #249): no nest zone, no edges — their surface
+                              // is the family strip alone. Unclaimed, so the
+                              // drop never fires here; the dragend refusal
+                              // names the miss.
+                              return;
+                            }
                             if (!isLaneDrag(event.dataTransfer.types, rankKey)) {
                               // A drag from ANOTHER lane. A lane that takes
                               // state-change drops accepts it positioned:
@@ -2819,6 +3076,20 @@ export function Board({
                         }
                         onDrop={
                           (event) => {
+                            if (isDotDrag(event.dataTransfer.types)) {
+                              // A dot drag that reaches a card surface anyway
+                              // (a stale dragover's authorization, or a
+                              // synthetic event) refuses and nests nothing:
+                              // childing a member is the childing morphology
+                              // of a later cut, never a release side effect
+                              // (issue #249).
+                              event.preventDefault();
+                              event.stopPropagation();
+                              dotDraggingRef.current = null;
+                              dotDragResolvedRef.current = true;
+                              reportRefusal("a dot reorder never leaves its family's strip.");
+                              return;
+                            }
                             if (!ranking) return;
                             // The payload is readable only here; zone math
                             // re-reads the live position (the last dragover
@@ -3197,6 +3468,36 @@ export function Board({
                                   line:
                                     childDrop !== null && childDrop.parentId === thread.id
                                       ? { childId: childDrop.childId, zone: childDrop.zone }
+                                      : undefined,
+                                }
+                              : undefined
+                          }
+                          childDotDrag={
+                            ranking &&
+                            onRankMove !== undefined &&
+                            // The same Done rule as the rows above: the
+                            // projection's strip keeps its recency story.
+                            column.id !== "done" &&
+                            // The strip reorders when it can: more than one
+                            // member painted (the card renders the family's
+                            // rows plus their sub-rows — the same lists the
+                            // dots agree with, per the #248 invariant).
+                            childRowsOf(thread.id).length +
+                              childRowsOf(thread.id).reduce(
+                                (count, child) => count + childRowsOf(child.id).length,
+                                0,
+                              ) >
+                              1
+                              ? {
+                                  onDragStart: (memberId) => childDotDragStart(memberId),
+                                  onDragOver: (hoverMemberId, event) =>
+                                    childDotDragOver(thread, hoverMemberId, event),
+                                  onDrop: (hoverMemberId, event) =>
+                                    childDotDrop(thread, hoverMemberId, event),
+                                  onDragEnd: () => childDotDragEnd(),
+                                  line:
+                                    childDotLine !== null && childDotLine.familyId === thread.id
+                                      ? { memberId: childDotLine.memberId, zone: childDotLine.zone }
                                       : undefined,
                                 }
                               : undefined

@@ -130,6 +130,30 @@ export const RANK_DRAG_TYPE_PREFIX = "application/x-focus-board-rank:";
 /** Drag payload key for the moved card's id; readable at drop time. */
 export const DRAG_ID_KEY = "text/focus-board-id";
 
+/**
+ * The drag type that marks a drag started on the collapsed strip's dots
+ * (issue #249, goals 3 and 4).
+ *
+ * A dot drag is not a lane drag: it reorders one tier of ONE family and must
+ * never reach the floor, header, or card drop paths — un-parenting a member
+ * is the explicit morph gesture of a later cut, never a side effect of
+ * releasing over a column. The mark rides the drag TYPES the same way the
+ * lane marker does (readable mid-drag), and every non-strip drop surface
+ * refuses any drag that carries it. Never prefixed with a key: the mark is
+ * not routable, it only says "I am a dot drag".
+ *
+ * Lowercased because browsers lowercase custom drag type names.
+ */
+export const DOT_DRAG_TYPE = "application/x-focus-board-dot";
+
+/** Does this drag carry the dot-drag mark? Safe mid-drag. */
+export function isDotDrag(types: ArrayLike<string>): boolean {
+  for (let i = 0; i < types.length; i++) {
+    if (types[i] === DOT_DRAG_TYPE) return true;
+  }
+  return false;
+}
+
 export const rankDragType = (rankKey: string): string =>
   `${RANK_DRAG_TYPE_PREFIX}${rankKey.toLowerCase()}`;
 

@@ -7,6 +7,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+#### Cards and chips
+
+- **A collapsed strip's dot drags to reorder its tier of the family.** Dragging a dot across its siblings reorders them through the same child-rank write the nested rows use, and the tooltip names the dragged member for the whole gesture. A release anywhere but the strip refuses loudly and writes nothing, since dot drags never leave the hierarchy.
+
 ### Changed
 
 #### Cards and chips
