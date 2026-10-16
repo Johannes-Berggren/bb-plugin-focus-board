@@ -66,7 +66,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 #### Board layout
 
-- **Lane drags resolve their slot loudly, and nests of pinned cards land with a receipt.** A drag whose insertion slot already holds the card refuses with a banner now, writing nothing. A nest the placement rules cannot render (a pinned child keeps its own card) posts a visible receipt naming "Make Top-Level" as the undo, and a write the host rejects surfaces its rejection in the banner row instead of reverting the landing silently.
+- **Lane drags resolve their slot loudly, and nests of pinned cards land with a receipt.** A drag whose insertion slot already holds the card refuses with a banner now, writing nothing. A nest the placement rules cannot render (a pinned child keeps its own card) posts a visible receipt naming "Make Top-Level" as the undo, and a write the host rejects surfaces its rejection in the banner row instead of reverting the landing silently. Solo drags save again: the outgoing payload omits the `unitIds` member whose literal `undefined` the host's JSON walk rejected (issue #240).
 - **Hovering a card in the open pane's lane no longer ghosts a duplicate family lane.** The pane's capture and the hover capture both pinned that lane, so the Parent view rendered a clipped copy of the whole family beside it (issue #227). One pin per lane holds now, the freshest capture winning the slot.
 - **Board alert banners paint a full-strength surface.** The refusal, receipt, report, and notice banners used to sit on a 10%-alpha tint, so with a wallpaper behind the board the message sank into the photo (issue #233). They draw an opaque surface in both themes now, and the dark theme raises the error banners' text a step so it reads on red.
 
