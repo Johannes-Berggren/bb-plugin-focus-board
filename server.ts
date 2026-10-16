@@ -88,7 +88,7 @@ import {
 } from "./lib/sweep-cli";
 import { readGitHubStatuses } from "./lib/tracker-status";
 import { appendComposeProbeEvent } from "./lib/compose-probe";
-import { createTrackerVerifier } from "./lib/tracker-refresh";
+import { createTrackerFreshnessJudge } from "./lib/tracker-refresh";
 import { resolveRepoSlug } from "./lib/tickets";
 import { validateTrackerUrls } from "./lib/tracker-validate";
 import { resolveWithinRoot } from "./lib/workspace-paths";
@@ -692,10 +692,10 @@ const DONE_INDEX_KV_KEY = "done-index";
 // see lib/tracker-status.ts).
 const GITHUB_CACHE_DB = ".bb/plugins/github/data.db";
 
-// The freshness layer over that cache (issue #187): the server process keeps
-// its own verified verdicts and probes stale open ones through gh. Created
-// once per server lifetime, so the verdict store outlives individual polls.
-const trackerVerifier = createTrackerVerifier();
+// The freshness layer over that cache (issue #187, reshaped by issue
+// #236): a stateless trust-window judge that answers only what the cache
+// can honestly vouch for — no probe, no server-side verdict store.
+const trackerFreshness = createTrackerFreshnessJudge();
 
 type KeepStore = Record<string, true>;
 
@@ -2201,15 +2201,14 @@ export default async function plugin(bb: BbPluginApi) {
       const home = process.env.HOME ?? "";
       if (home === "") return { statuses: {} };
       const cached = readGitHubStatuses(`${home}/${GITHUB_CACHE_DB}`, repo, numbers, bb.log);
-      // The freshness layer (issue #187): paint only trustworthy verdicts,
-      // and let the probe re-check stale open ones on its own clock — the
-      // fire-and-forget verdicts land on the next poll, never in this reply.
-      // The verifier reads the clock itself, so no now argument crosses here.
-      const decision = trackerVerifier.decide(repo, numbers, cached);
-      void trackerVerifier.verify(repo, decision.candidates);
+      // The freshness layer (issue #187, issue #236): paint only trustworthy
+      // verdicts. A stale OPEN row is simply absent — the chip renders
+      // unsure-plain — and nothing behind this reply re-checks it, so the
+      // handler stays a pure read over bb's own cache.
+      const decisions = trackerFreshness.decide(numbers, cached);
       return {
         statuses: Object.fromEntries(
-          Object.entries(decision.statuses).map(([number, status]) => [
+          Object.entries(decisions.statuses).map(([number, status]) => [
             number,
             { kind: status.kind, state: status.state },
           ]),
