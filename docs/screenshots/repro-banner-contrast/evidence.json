@@ -1,0 +1,95 @@
+{
+  "errors": [],
+  "violations": [],
+  "wallpaperPainted": true,
+  "results": [
+    {
+      "banner": "rank-error-banner",
+      "theme": "dark",
+      "rect": {
+        "top": 49,
+        "left": 12,
+        "w": 1896,
+        "h": 28
+      },
+      "backgroundColor": "oklch(0.258 0.092 26.042)",
+      "color": "oklch(0.704 0.191 22.216)",
+      "wallpaperAvg": [
+        133.34589,
+        134.19937,
+        129.28118
+      ],
+      "scrimColor": "oklch(0.195 0 0)",
+      "scrimAlpha": 0.25,
+      "alpha": 1,
+      "contrast": 5.63,
+      "composited": "rgba(70, 8, 21, 1.00) over rgba(105, 106, 102, 1)"
+    },
+    {
+      "banner": "rank-error-banner",
+      "theme": "light",
+      "rect": {
+        "top": 49,
+        "left": 12,
+        "w": 1896,
+        "h": 28
+      },
+      "backgroundColor": "oklch(0.971 0.013 17.38)",
+      "color": "oklch(0.56 0.19 22.1703)",
+      "wallpaperAvg": [
+        133.34589,
+        134.19937,
+        129.28118
+      ],
+      "scrimColor": "oklch(0.985 0 0)",
+      "scrimAlpha": 0.25,
+      "alpha": 1,
+      "contrast": 4.63,
+      "composited": "rgba(254, 242, 243, 1.00) over rgba(163, 163, 159, 1)"
+    },
+    {
+      "banner": "nest-notice",
+      "theme": "dark",
+      "rect": {
+        "top": 49,
+        "left": 12,
+        "w": 1896,
+        "h": 28
+      },
+      "backgroundColor": "oklch(0.279 0.077 45.635)",
+      "color": "oklch(0.828 0.189 84.429)",
+      "wallpaperAvg": [
+        133.34589,
+        134.19937,
+        129.28118
+      ],
+      "scrimColor": "oklch(0.195 0 0)",
+      "scrimAlpha": 0.25,
+      "alpha": 1,
+      "contrast": 8.85,
+      "composited": "rgba(70, 25, 22, 1.00) over rgba(105, 106, 102, 1)"
+    },
+    {
+      "banner": "nest-notice",
+      "theme": "light",
+      "rect": {
+        "top": 49,
+        "left": 12,
+        "w": 1896,
+        "h": 28
+      },
+      "backgroundColor": "oklch(0.987 0.022 95.277)",
+      "color": "oklch(0.555 0.163 48.998)",
+      "wallpaperAvg": [
+        133.34589,
+        134.19937,
+        129.28118
+      ],
+      "scrimColor": "oklch(0.985 0 0)",
+      "scrimAlpha": 0.25,
+      "alpha": 1,
+      "contrast": 4.8,
+      "composited": "rgba(255, 251, 241, 1.00) over rgba(163, 163, 159, 1)"
+    }
+  ]
+}
