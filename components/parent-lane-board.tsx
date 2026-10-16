@@ -10,6 +10,7 @@ import type { PluginSidebarThread } from "@get-bb/plugin-sdk/app";
 import { Icon } from "@/components/ui/icon";
 import { cn } from "@/lib/utils";
 import { ThreadCard } from "./thread-card";
+import { ThreadCardMenu } from "./thread-card-menu";
 import { useCardSpotlightStyles } from "./card-spotlight";
 import type { ThreadLink } from "../lib/link-metadata";
 import type { CardMenuAction } from "./thread-card-menu";
@@ -132,6 +133,9 @@ function LaneHeader({
   sectionLabel,
   onOpenThread,
   onLock,
+  menuActions,
+  onAttentionEnter,
+  onAttentionLeave,
 }: {
   lane: ParentLane;
   locked: boolean;
@@ -140,10 +144,21 @@ function LaneHeader({
   sectionLabel: string | null;
   onOpenThread: (threadId: string) => void;
   onLock: () => void;
+  /** Right-click menu actions for the lane parent (issue #226): the header
+   *  is the parent's card, so it carries the card menu's surface. */
+  menuActions?: readonly CardMenuAction[];
+  /**
+   * Attention reporting for the menu itself (components/attention-freeze):
+   * the open/close reports pin and release the lane, the same contract the
+   * cards' menus ride. The header reports no hover pin of its own — only
+   * the menu's life.
+   */
+  onAttentionEnter?: (threadId: string) => void;
+  onAttentionLeave?: (threadId: string) => void;
 }) {
   const parent = lane.parent;
   const isDone = doneIds.has(parent.id);
-  return (
+  const header = (
     <button
       type="button"
       onClick={() => {
@@ -179,6 +194,19 @@ function LaneHeader({
         {lane.label}
       </span>
     </button>
+  );
+  if (menuActions === undefined) return header;
+  return (
+    <ThreadCardMenu
+      anchor={header}
+      actions={menuActions}
+      href={parent.href}
+      onOpen={() => onOpenThread(parent.id)}
+      title={parent.displayTitle}
+      onOpenChange={(open) =>
+        open ? onAttentionEnter?.(parent.id) : onAttentionLeave?.(parent.id)
+      }
+    />
   );
 }
 
@@ -840,6 +868,9 @@ export function ParentLaneBoard({
                   sectionLabel={entry.sectionLabel}
                   onOpenThread={onOpenThread}
                   onLock={() => lockToRef.current(laneIndex)}
+                  menuActions={menuActionsFor(lane.parent)}
+                  onAttentionEnter={onAttentionEnter}
+                  onAttentionLeave={onAttentionLeave}
                 />
               </div>
               {lane.rows.map((row, rowIndex) => {

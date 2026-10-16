@@ -41,6 +41,11 @@ export const UNRELEASED_ITEMS: readonly { text: string; children: string[]; grou
     "group": "Board views"
   },
   {
+    "text": "**Right-clicking a Parent view lane header now opens the thread menu.** The header at the top of a family lane was the one thread surface with no menu wired, so the browser's own menu appeared instead (issue #226). It carries the same entries a lane card's menu does, and holding the menu open pins the lane against re-sorting.",
+    "children": [],
+    "group": "Context menus"
+  },
+  {
     "text": "**The right-click menu uses the room the window gives it.** The menu was pinned to a fixed 320-pixel cap, so entries scrolled behind an inner scrollbar even on a tall screen (issue #222). The shell now grows to the window height minus a small margin, and a short window still scrolls.",
     "children": [],
     "group": "Context menus"
