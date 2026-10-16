@@ -23,6 +23,7 @@ import {
   fakeRankOrders,
   fakeRpcCalls,
   resetFakeRpcCalls,
+  stubRankMoveFailure,
   landWrites,
 } from "./helpers/app-fake-sdk";
 
@@ -197,6 +198,53 @@ function dragFamilyOnto(targetId: string, clientY: number): void {
   fireEvent.dragEnd(familyAnchor, { dataTransfer: transfer });
 }
 
+/** The attention the pointer carries: mouseEnter on the card's container. */
+function hoverCard(threadId: string): void {
+  const card = document.querySelector(`[data-thread-card="${threadId}"]`);
+  if (card === null) throw new Error(`missing card ${threadId} to hover`);
+  fireEvent.mouseEnter(card as HTMLElement);
+}
+
+/** The board must rest at this order across renders, not just one. */
+async function expectStays(expected: readonly string[]): Promise<void> {
+  for (const wait of [30, 120, 250]) {
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, wait));
+    });
+    const now = columnCardIds("pinned");
+    console.log(
+      `STAYS@${wait}ms pinned=${JSON.stringify(now)} ranks=${JSON.stringify(fakeRankOrders())} rpc=${JSON.stringify(
+        fakeRpcCalls().filter((c) => c.method === "rank_move" || c.method === "thread_reparent").map((c) => `${c.method} ${JSON.stringify(c.args ?? {})}`),
+      )}`,
+    );
+    expect(now).toEqual([...expected]);
+  }
+}
+
+/**
+ * The whole drag of `fromId`'s card onto `targetId`'s slot at `clientY` on
+ * the stubbed 300px box (any card, not just the family).
+ */
+function dragCardOnto(fromId: string, targetId: string, clientY: number): { dropAllowed: boolean; over: boolean } {
+  const sourceAnchor = rankAnchor(fromId);
+  const slot = document.querySelector(`li[data-rank-slot="${targetId}"]`);
+  if (!(slot instanceof HTMLElement)) throw new Error(`missing slot ${targetId}`);
+  const { transfer, read, write } = protectedTransfer();
+  read();
+  fireEvent.dragStart(sourceAnchor, { dataTransfer: transfer });
+  expect([...transfer.types].some((type) => type.includes("focus-board-rank"))).toBe(true);
+  write();
+  const over = createEvent.dragOver(slot, { dataTransfer: transfer });
+  Object.defineProperty(over, "clientY", { value: clientY });
+  fireEvent(slot, over);
+  read();
+  const drop = createEvent.drop(slot, { dataTransfer: transfer });
+  Object.defineProperty(drop, "clientY", { value: clientY });
+  fireEvent(slot, drop);
+  fireEvent.dragEnd(sourceAnchor, { dataTransfer: transfer });
+  return { dropAllowed: drop.defaultPrevented, over: over.defaultPrevented };
+}
+
 describe("pinned cards dragged over other pinned cards", () => {
   it("a release on the card directly above's bottom third refuses loudly (own slot)", async () => {
     // The report's exact shape: T14 sits directly below Overview; every
@@ -211,7 +259,7 @@ describe("pinned cards dragged over other pinned cards", () => {
     await pinTheFamilyParent();
     expect(columnCardIds("pinned")).toEqual(["thr_pin_new", "thr_family", "thr_pin_old"]);
 
-    dragFamilyOnto("thr_pin_new", 250);
+    const drag2 = dragFamilyOnto("thr_pin_new", 250);
 
     await vi.waitFor(() => {
       expect(document.body.textContent).toMatch(/resolved to no move/);
@@ -292,5 +340,72 @@ describe("pinned cards dragged over other pinned cards", () => {
     if (Component === undefined) throw new Error("app-fake-sdk: no nav panel registered");
     render(<Component subPath="" />);
     await waitFor(() => expect(columnCardIds("pinned")).toEqual(["thr_pin_old", "thr_pin_new"]));
+  });
+  it("a card the pointer hovers drags, lands, and a second card beneath it lands without snapping back", async () => {
+    // Issue #232, the live report's order: a first drag to the top lands and
+    // sticks; the next card under it is dragged the same way and, on the
+    // operator's board, showed the landing briefly then fell back. The
+    // pointer rests on each card before and after the drop (the hover the
+    // attention freeze captures), so this drives the freeze and the rank
+    // write in the same turn.
+    const Component = registeredNavPanel.component;
+    if (Component === undefined) throw new Error("app-fake-sdk: no nav panel registered");
+    render(<Component subPath="" />);
+    await waitFor(() => expect(columnCardIds("pinned")).toContain("thr_pin_new"));
+    await pinTheFamilyParent();
+    await expectStays(["thr_pin_new", "thr_family", "thr_pin_old"]);
+
+    // First drag: the family (the middle card) onto the lane head's top
+    // half — it takes the top slot and must stick.
+    hoverCard("thr_family");
+    dragCardOnto("thr_family", "thr_pin_new", 60);
+    await waitFor(() => expect(columnCardIds("pinned").indexOf("thr_family")).toBe(0));
+    await expectStays(["thr_family", "thr_pin_new", "thr_pin_old"]);
+
+    // Second drag: the next card under the first (thr_pin_new) onto the
+    // first card's face top half — its landing is the lane head.
+    hoverCard("thr_pin_new");
+    dragCardOnto("thr_pin_new", "thr_family", 60);
+    await waitFor(() => expect(columnCardIds("pinned").indexOf("thr_pin_new")).toBe(0));
+    await expectStays(["thr_pin_new", "thr_family", "thr_pin_old"]);
+  });
+
+  it("a rejected rank_move surfaces the rejection instead of silently reverting", async () => {
+    // Issue #232: the operator's host served rank RPCs from a foreign
+    // plugin instance whose server rejected rank_move ("rpc input
+    // validation failed", logged twice at the operator's drags). The
+    // board's failure path `.catch(() => refetchRanks())` reverted the
+    // optimistic landing with NO message — the card showed its landing
+    // briefly, then fell back, and the operator could not tell a write was
+    // lost. The rejection must surface.
+    const Component = registeredNavPanel.component;
+    if (Component === undefined) throw new Error("app-fake-sdk: no nav panel registered");
+    render(<Component subPath="" />);
+    await waitFor(() => expect(columnCardIds("pinned")).toContain("thr_pin_new"));
+    await pinTheFamilyParent();
+    stubRankMoveFailure("rpc input validation failed");
+    resetFakeRpcCalls();
+    try {
+      hoverCard("thr_pin_old");
+      dragCardOnto("thr_pin_old", "thr_pin_new", 60);
+
+      await vi.waitFor(() => {
+        expect(document.body.textContent).toMatch(/rpc input validation failed/);
+      });
+      // The rejection reached the host: the rpc went out, and the failure
+      // is the banner, not a silent revert.
+      expect(fakeRpcCalls().map((call) => call.method)).toContain("rank_move");
+      // The banner paints the full-strength destructive pair (the #234
+      // contract), never the translucent tint.
+      const banner = document.querySelector('[data-testid="rank-save-error"]');
+      expect(banner).not.toBeNull();
+      const tokens = (banner as HTMLElement).className.split(" ");
+      for (const token of ["bg-red-50", "dark:bg-red-950", "dark:text-red-400"]) {
+        expect(tokens).toContain(token);
+      }
+      expect(tokens).not.toContain("bg-destructive/10");
+    } finally {
+      stubRankMoveFailure(null);
+    }
   });
 });

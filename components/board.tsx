@@ -485,6 +485,15 @@ interface BoardProps {
   sweepNotice?: SweepNotice | null;
   onDismissSweepNotice?: () => void;
   /**
+   * A rank write the host rejected (issue #232: the failure path refetched
+   * the stored order silently, so the operator watched a landing fall back
+   * with no word); null hides the banner. The caller owns the state — the
+   * board's own rankError covers refusals it refuses itself, and a rejected
+   * write happens beyond it, on the rpc the caller runs.
+   */
+  rankSaveError?: string | null;
+  onDismissRankSaveError?: () => void;
+  /**
    * The browser-reveal gesture's honest outcome on the operator's board
    * surface (a thread with no controlled tab, a stuck-hidden tab, or a
    * listing failure); null hides the banner.
@@ -705,6 +714,8 @@ export function Board({
   sweepRun = null,
   sweepNotice = null,
   onDismissSweepNotice,
+  rankSaveError = null,
+  onDismissRankSaveError,
   browserNotice = null,
   onDismissBrowserNotice,
   onSweepUndo,
@@ -1899,6 +1910,26 @@ export function Board({
               type="button"
               onClick={() => setRankError(null)}
               aria-label="Dismiss error"
+              title="Dismiss"
+              className="shrink-0 rounded p-0.5 text-destructive/70 dark:text-red-400/70 transition-colors hover:bg-destructive/10 hover:text-destructive dark:hover:text-red-400 focus-visible:outline focus-visible:outline-1 focus-visible:outline-destructive"
+            >
+              <Icon name="X" className="size-3" aria-hidden />
+            </button>
+          </div>
+        ) : null}
+        {rankSaveError !== null ? (
+          <div
+            role="status"
+            data-testid="rank-save-error"
+            className="mx-3 mb-1 flex items-center justify-between gap-2 rounded border border-destructive/40 bg-red-50 dark:bg-red-950 px-2 py-1 text-[11px] text-destructive dark:text-red-400"
+          >
+            {/* A write the host rejected: the board keeps the stored order —
+                this banner is the only word about it. */}
+            <p className="min-w-0">The reorder didn't save: {rankSaveError}</p>
+            <button
+              type="button"
+              onClick={() => onDismissRankSaveError?.()}
+              aria-label="Dismiss save error"
               title="Dismiss"
               className="shrink-0 rounded p-0.5 text-destructive/70 dark:text-red-400/70 transition-colors hover:bg-destructive/10 hover:text-destructive dark:hover:text-red-400 focus-visible:outline focus-visible:outline-1 focus-visible:outline-destructive"
             >
