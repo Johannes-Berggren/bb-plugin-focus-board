@@ -3268,7 +3268,16 @@ function BoardPage({ subPath }: { subPath: string }) {
                   beforeId,
                   toEnd,
                   visibleIds: [...visibleIds],
-                  unitIds: unitIds !== undefined && unitIds.length > 1 ? [...unitIds] : undefined,
+                  // Omit the member entirely when there is no unit: a literal
+                  // member set to `undefined` is an own property whose value
+                  // JSON has no equivalent, and the host's input validation
+                  // walks it as a JSON value and rejects — every solo drag
+                  // was refused at the bridge with "$input.unitIds is not a
+                  // JSON value" (issue #240). A spread writes nothing when
+                  // the unit is absent.
+                  ...(unitIds !== undefined && unitIds.length > 1
+                    ? { unitIds: [...unitIds] }
+                    : {}),
                 })
                 .catch((error: unknown) => {
                   // Fail loud (issue #232): a rejected write used to revert

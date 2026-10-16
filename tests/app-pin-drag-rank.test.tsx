@@ -330,6 +330,37 @@ describe("pinned cards dragged over other pinned cards", () => {
     });
   });
 
+  it("a solo drag's rank_move payload is plain JSON: no unitIds member at all", async () => {
+    // Issue #240: onRankMove built the args with
+    // `unitIds: ... ? [...unitIds] : undefined` — an object literal member
+    // SET to undefined, which is an own property whose value JSON has no
+    // equivalent. The host's input validation walks it as a JSON value and
+    // rejects: "rpc input at $input.unitIds is not a JSON value" — so every
+    // SOLO drag was rejected at the bridge while boxed drags (real arrays)
+    // passed. The payload must omit the member entirely when there is no
+    // unit.
+    const Component = registeredNavPanel.component;
+    if (Component === undefined) throw new Error("app-fake-sdk: no nav panel registered");
+    render(<Component subPath="" />);
+    await waitFor(() => expect(columnCardIds("pinned")).toContain("thr_pin_new"));
+    await pinTheFamilyParent();
+    resetFakeRpcCalls();
+
+    // The family is a solo card in the pinned lane (pinned members never
+    // box); its drag to the head's top half is an ordinary solo rank_move.
+    hoverCard("thr_family");
+    dragCardOnto("thr_family", "thr_pin_new", 60);
+
+    await waitFor(() => expect(columnCardIds("pinned").indexOf("thr_family")).toBe(0));
+    const moves = fakeRpcCalls().filter((call) => call.method === "rank_move");
+    expect(moves.length).toBe(1);
+    const args = moves[0]!.args as Record<string, unknown>;
+    expect(Object.keys(args)).not.toContain("unitIds");
+    // And the write is JSON through and through (the host's walk).
+    expect(JSON.parse(JSON.stringify(args))).toEqual(args);
+    expect(document.querySelector('[data-testid="rank-save-error"]')).toBeNull();
+  });
+
   it("the fake host serves seeded rank orders through rank_list", async () => {
     // The fixture's contract: rank_list returns the seeded store, exactly
     // what a real host refetch returns. A duplicate `case "rank_list"` label
