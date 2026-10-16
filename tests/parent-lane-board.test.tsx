@@ -422,3 +422,81 @@ describe("active-card re-lock vs lane assembly refresh (issue #124)", () => {
     expect(board.scrollTop).not.toBe(60);
   });
 });
+
+describe("LaneHeader context menu (issue #226)", () => {
+  /** The lane header's button: fire the menu gesture at the header itself. */
+  function headerButton(container: HTMLElement, title: string): HTMLElement {
+    const header = [...container.querySelectorAll("[data-lane-header] button")].find(
+      (button) => button.textContent?.includes(title),
+    );
+    expect(header).toBeTruthy();
+    return header as HTMLElement;
+  }
+
+  it("right-clicking a lane header opens the thread context menu with the seeded actions", () => {
+    const parent = thread({ id: "p", displayTitle: "Parent epic" });
+    const child = thread({ id: "c", parentThreadId: "p" });
+    const run = vi.fn();
+    const { openThread, container } = renderBoard([parent, child], {
+      menuActionsFor: () => [{ id: "pin", label: "Pin", icon: "Pin", run }],
+    });
+    // Red contract: nothing was wired, so the contextmenu gesture rendered
+    // no menu at all.
+    fireEvent.contextMenu(headerButton(container, "Parent epic"));
+    const menu = screen.getByRole("menu", { name: "Thread actions" });
+    expect(menu).toBeTruthy();
+    expect(menu.textContent ?? "").toContain("Parent epic");
+    // The built-ins and the board-seeded actions share the one surface,
+    // exactly the card menu's shape.
+    expect(screen.getByRole("menuitem", { name: "Open thread" })).toBeTruthy();
+    expect(screen.getByRole("menuitem", { name: "Copy link to thread" })).toBeTruthy();
+    // The action's run writes and closes; the entry never opens the pane
+    // as a side effect.
+    fireEvent.click(screen.getByRole("menuitem", { name: "Pin" }));
+    expect(run).toHaveBeenCalledTimes(1);
+    expect(openThread).not.toHaveBeenCalled();
+    expect(screen.queryByRole("menu")).toBeNull();
+  });
+
+  it("the header menu's Open thread entry opens the parent pane", () => {
+    const parent = thread({ id: "p", displayTitle: "Parent epic" });
+    const child = thread({ id: "c", parentThreadId: "p" });
+    const { openThread, container } = renderBoard([parent, child], {
+      menuActionsFor: () => [],
+    });
+    fireEvent.contextMenu(headerButton(container, "Parent epic"));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Open thread" }));
+    expect(openThread).toHaveBeenCalledWith("p");
+    expect(screen.queryByRole("menu")).toBeNull();
+  });
+
+  it("right-clicking a done lane's header opens the same menu", () => {
+    const parent = thread({ id: "p", displayTitle: "Parent epic" });
+    const child = thread({ id: "c", parentThreadId: "p" });
+    const { container } = renderBoard([parent, child], {
+      doneIds: new Set(["p"]),
+      menuActionsFor: () => [{ id: "pin", label: "Pin", icon: "Pin", run: vi.fn() }],
+    });
+    // The header dims for a done parent, but the menu keeps working.
+    fireEvent.contextMenu(headerButton(container, "Parent epic"));
+    expect(screen.getByRole("menu", { name: "Thread actions" })).toBeTruthy();
+  });
+
+  it("opening and closing the header menu reports the lane parent's attention", () => {
+    const parent = thread({ id: "p", displayTitle: "Parent epic" });
+    const child = thread({ id: "c", parentThreadId: "p" });
+    const onAttentionEnter = vi.fn();
+    const onAttentionLeave = vi.fn();
+    const { container } = renderBoard([parent, child], {
+      menuActionsFor: () => [],
+      onAttentionEnter,
+      onAttentionLeave,
+    });
+    // The freeze origin "menu": the popover is a portal outside the
+    // header's DOM, so its open/close reports pin and release the lane.
+    fireEvent.contextMenu(headerButton(container, "Parent epic"));
+    expect(onAttentionEnter).toHaveBeenCalledWith("p");
+    fireEvent.click(screen.getByRole("menuitem", { name: "Open thread" }));
+    expect(onAttentionLeave).toHaveBeenCalledWith("p");
+  });
+});

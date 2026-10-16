@@ -42,6 +42,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 #### Context menus
 
+- **Right-clicking a Parent view lane header now opens the thread menu.** The header at the top of a family lane was the one thread surface with no menu wired, so the browser's own menu appeared instead (issue #226). It carries the same entries a lane card's menu does, and holding the menu open pins the lane against re-sorting.
 - **The right-click menu uses the room the window gives it.** The menu was pinned to a fixed 320-pixel cap, so entries scrolled behind an inner scrollbar even on a tall screen (issue #222). The shell now grows to the window height minus a small margin, and a short window still scrolls.
 - **The right-click menu reads as a menu, not a card.** The popover sat on the same surface color at the same hairline weight as the cards beneath it, so the two were hard to tell apart at a glance (issue #221). The shell now draws the full-strength border under an elevated shadow, with a boundary rule under its header line.
 
