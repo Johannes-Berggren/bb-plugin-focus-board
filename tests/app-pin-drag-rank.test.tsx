@@ -238,4 +238,16 @@ describe("a newly pinned family parent dragged to the top of the Pinned lane", (
     await waitFor(() => expect(columnCardIds("pinned").indexOf("thr_family")).toBe(0));
     expect(fakeRankOrders()["pinned"]).toContain("thr_family");
   });
+
+  it("the fake host serves seeded rank orders through rank_list", async () => {
+    // The fixture's contract: rank_list returns the seeded store, exactly
+    // what a real host refetch returns. A duplicate `case "rank_list"` label
+    // made the seeded branch unreachable and the app render recency order
+    // instead; a seeded order deviating from recency fails on that copy.
+    seedFakeRanks({ pinned: ["thr_pin_old", "thr_pin_new"] });
+    const Component = registeredNavPanel.component;
+    if (Component === undefined) throw new Error("app-fake-sdk: no nav panel registered");
+    render(<Component subPath="" />);
+    await waitFor(() => expect(columnCardIds("pinned")).toEqual(["thr_pin_old", "thr_pin_new"]));
+  });
 });

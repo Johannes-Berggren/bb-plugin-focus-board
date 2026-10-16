@@ -36,16 +36,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
-#### Card drags
-
-- **Dragging a card up its lane lands it where the pointer promised.** A drop on the card directly above used to write a no-op anchored at the dragged card itself, and a middle-third drop there could silently re-parent a newly pinned family whose pinned placement hides the write; both drops rank the card now, and nests stay offered only where they visibly nest.
-
 #### Child threads
 
 - **A nested child row shows its child's ticket chips.** A child thread that ties to a tracker item used to chip only as a standalone card, so the family view hid the tie. Its row carries the same chips now, a step smaller and inert: the row itself is one link.
 - **A family card's nested rows keep the card's right gutter.** Child and grandchild rows used to run flush against the card's right edge while the left kept its 12px indent. The child-thread section mirrors its left margin on the right now.
 
 #### Board cards
+
+- **Dragging a card up its lane lands it where the pointer promised.** A drop on the card directly above used to write a no-op anchored at the dragged card itself, and a middle-third drop there could silently re-parent a newly pinned family whose pinned placement hides the write; both drops rank the card now, and nests stay offered only where they visibly nest.
 
 - **Hovering a card in light mode no longer mutes it.** The hover surface darkened a near-white card into mid-gray on the light theme, which reads as muting. The light hover keeps the card surface and the ring plus the other cards' recede carry the emphasis; the dark theme keeps its darkening.
 

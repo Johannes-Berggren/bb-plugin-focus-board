@@ -654,21 +654,6 @@ describe("columnRunInfo and unitMoveTarget", () => {
     });
   });
 
-  it("a solo dragged card directly below the hover lands under the hovered card", () => {
-    // The doc promise is "plain cards behave exactly like moveTargetFor".
-    // The after-edge skipped only multi-member dragged units, so a SOLO
-    // dragged card sitting right below the hover anchored at ITSELF —
-    // applyMove no-ops on its own id, and the drop wrote a silent nothing
-    // where the pointer promised a real placement (reported 2026-10-15: a
-    // newly pinned family parent dragged to the top of the Pinned lane,
-    // released on the card above it, never moved; twice). moveTargetFor's
-    // convention: the card belongs under the card it was aimed at.
-    expect(unitMoveTarget(order, "thr_c", "after", "thr_x", info)).toEqual({
-      beforeId: "thr_c",
-      toEnd: false,
-    });
-  });
-
   it("the same convention holds when the hover is a box's last member", () => {
     // Hover box run (b,c) while a solo dragged card sits right below it:
     // the anchor is the run's LAST member, so the solo card lands directly

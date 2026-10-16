@@ -1686,8 +1686,8 @@ export function Board({
 
   /**
    * Id → thread for the nest-zone visibility guard. The dragged card or the
-   * hovered target may be a column card or a nested/done row; all four sets
-   * feed one lookup.
+   * hovered target may be a column card or a nested/done row; every set
+   * feeds one lookup.
    */
   const nestThreadById = useMemo(() => {
     const map = new Map<string, PluginSidebarThread>();

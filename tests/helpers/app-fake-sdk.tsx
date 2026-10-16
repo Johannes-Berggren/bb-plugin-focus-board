@@ -252,8 +252,6 @@ const rpcCall = async (method: string, args?: unknown): Promise<unknown> => {
     case "snooze_list":
       return { snoozes: {} };
     case "rank_list":
-      return { orders: {} };
-    case "rank_list":
       return { orders: structuredClone(fakeRanks) };
     case "rank_move": {
       const { columnKey, threadId, beforeId, toEnd, visibleIds } = args as {
