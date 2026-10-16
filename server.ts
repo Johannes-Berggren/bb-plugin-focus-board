@@ -87,6 +87,7 @@ import {
   type SweepFact,
 } from "./lib/sweep-cli";
 import { readGitHubStatuses } from "./lib/tracker-status";
+import { appendComposeProbeEvent } from "./lib/compose-probe";
 import { createTrackerVerifier } from "./lib/tracker-refresh";
 import { resolveRepoSlug } from "./lib/tickets";
 import { validateTrackerUrls } from "./lib/tracker-validate";
@@ -180,6 +181,33 @@ export const rpcContract = defineRpcContract({
   done_set: {
     input: z.object({ threadId: z.string().min(1), done: z.boolean() }),
     output: z.object({ done: z.boolean() }),
+  },
+  /**
+   * Temporary composer-probe diagnosis (thread pane, components/pane-context-row).
+   * The pane's probe writes each verdict flip with the matched host elements'
+   * paint state; server appends to `<dataDir>/focus-board-debug/`.
+   */
+  compose_probe_capture: {
+    input: z.object({
+      threadId: z.string().min(1),
+      at: z.number().finite(),
+      missing: z.boolean(),
+      composerFound: z.boolean(),
+      footerFound: z.boolean(),
+      footerHtml: z.string().max(8000).nullable(),
+      matches: z
+        .array(
+          z.object({
+            signature: z.enum(["context-chip", "thread-details-button", "checkout-chip"]),
+            display: z.string().max(40),
+            width: z.number(),
+            height: z.number(),
+            snippet: z.string().max(600),
+          }),
+        )
+        .max(24),
+    }),
+    output: z.object({ written: z.boolean() }),
   },
   /**
    * Board-linked GitHub items (issue #13): per-thread plugin metadata key
@@ -1965,6 +1993,9 @@ export default async function plugin(bb: BbPluginApi) {
       await writeDoneRecord(threadId, done);
       bb.realtime.publish(DONE_CHANGED, { threadId, done });
       return { done };
+    },
+    compose_probe_capture: async (event) => {
+      return { written: appendComposeProbeEvent(bb.server.experimental_dataDir, event) };
     },
     link_list: async () => {
       // The live list only, like pin_parks_list: a link on an archived

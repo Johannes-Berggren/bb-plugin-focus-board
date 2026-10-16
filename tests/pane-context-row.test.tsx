@@ -20,7 +20,10 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { createElement, type ReactNode } from "react";
 import { cleanup, render, waitFor } from "@testing-library/react";
 import { ThreadPane } from "../components/thread-pane";
-import { composerContextVisible } from "../components/pane-context-row";
+import {
+  composerContextMatches,
+  composerContextVisible,
+} from "../components/pane-context-row";
 import { CompactViewportOverrideProvider } from "../components/ui/hooks/use-compact-viewport";
 
 const chatHolder = vi.hoisted(() => ({ content: null as ReactNode }));
@@ -70,7 +73,10 @@ const worktreeContext = {
   branchLabel: "feat/pane-context",
 };
 
-function renderPane(thread: ReturnType<typeof paneThread>) {
+function renderPane(
+  thread: ReturnType<typeof paneThread>,
+  onProbeCapture?: (event: unknown) => void,
+) {
   return render(
     createElement(
       CompactViewportOverrideProvider,
@@ -85,6 +91,7 @@ function renderPane(thread: ReturnType<typeof paneThread>) {
         onRename: async () => {},
         onMaximize: noop,
         onClose: noop,
+        onProbeCapture,
       }),
     ),
   );
@@ -96,6 +103,13 @@ const settle = () =>
 /** Host-shaped fixture HTML: a chip exactly as the promptbox paints it. */
 function hostChipHtml(label: string, value: string) {
   return `<div data-option-display><span class="sr-only">${label}: </span><span data-promptbox-full-label>${value}</span></div>`;
+}
+
+function chatWith(html: string) {
+  chatHolder.content = createElement("div", {
+    "data-testid": "mock-chat",
+    dangerouslySetInnerHTML: { __html: html },
+  });
 }
 
 function rooted(html: string) {
@@ -140,14 +154,28 @@ describe("composerContextVisible probe", () => {
   });
 });
 
-describe("thread pane composer-context fallback row", () => {
-  function chatWith(html: string) {
-    chatHolder.content = createElement("div", {
-      "data-testid": "mock-chat",
-      dangerouslySetInnerHTML: { __html: html },
-    });
-  }
+describe("composerContextMatches detail", () => {
+  it("reports each matching element with its signature and paint state", () => {
+    const root = rooted(
+      hostChipHtml("Project", "Focus Board plugin") +
+        `<button aria-label="Thread details: feat/x">feat/x</button>`,
+    );
+    const matches = composerContextMatches(root);
+    expect(matches).toHaveLength(2);
+    expect(matches[0].signature).toBe("thread-details-button");
+    expect(matches[1].signature).toBe("context-chip");
+    expect(matches[1].display).toBe("block");
+    expect(typeof matches[1].width).toBe("number");
+    expect(matches[1].snippet).toContain("data-option-display");
+  });
 
+  it("carries empty detail when nothing matches", () => {
+    expect(composerContextMatches(null)).toEqual([]);
+    expect(composerContextMatches(document.createElement("div"))).toEqual([]);
+  });
+});
+
+describe("thread pane composer-context fallback row", () => {
   it("stays hidden while the host paints its own context chips", async () => {
     chatWith(hostChipHtml("Project", "Focus Board plugin"));
     const { queryByTestId } = renderPane(paneThread(worktreeContext));
@@ -218,5 +246,54 @@ describe("thread pane composer-context fallback row", () => {
     expect(getByTestId("pane-context-row").textContent).toContain(
       "Project checkout",
     );
+  });
+});
+
+describe("thread pane probe capture", () => {
+  it("captures the settle and the flip with match detail", async () => {
+    chatWith("");
+    const events: unknown[] = [];
+    const { rerender } = renderPane(paneThread(worktreeContext), (event) => {
+      events.push(event);
+    });
+    await waitFor(() => expect(events.length).toBeGreaterThanOrEqual(1));
+    const settleEvent = events[0] as {
+      missing: boolean;
+      matches: unknown[];
+    };
+    expect(settleEvent.missing).toBe(true);
+    expect(settleEvent.matches).toEqual([]);
+    expect((settleEvent as { footerFound: boolean }).footerFound).toBe(false);
+
+    chatWith(hostChipHtml("Project", "Focus Board plugin"));
+    rerender(
+      createElement(
+        CompactViewportOverrideProvider,
+        { isCompactViewport: false },
+        createElement(ThreadPane, {
+          thread: paneThread(worktreeContext),
+          isArchived: false,
+          isDone: false,
+          onToggleDone: noop,
+          onToggleArchived: noop,
+          onToggleUnread: noop,
+          onRename: async () => {},
+          onMaximize: noop,
+          onClose: noop,
+          onProbeCapture: (event: unknown) => {
+            events.push(event);
+          },
+        }),
+      ),
+    );
+    await waitFor(() => {
+      const flip = events[events.length - 1] as { missing: boolean };
+      expect(flip.missing).toBe(false);
+    });
+    const flip = events[events.length - 1] as {
+      missing: boolean;
+      matches: { signature: string }[];
+    };
+    expect(flip.matches[0].signature).toBe("context-chip");
   });
 });
