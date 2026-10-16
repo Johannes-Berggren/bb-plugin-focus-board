@@ -26,6 +26,11 @@ export const UNRELEASED_ITEMS: readonly { text: string; children: string[]; grou
     "group": "Cards and chips"
   },
   {
+    "text": "**The State filter menu lists Pinned.** Pin state sits outside Working, Needs you, and Unread, so a checked Pinned shows every pinned card whatever its state; it combines with the other rows, a match on either.",
+    "children": [],
+    "group": "Board toolbar"
+  },
+  {
     "text": "**The View dropdown shows a kanban board in place of its sliders icon.** It switches the board's group-by layout, so the icon now pictures the columns it produces.",
     "children": [],
     "group": "Board toolbar"
