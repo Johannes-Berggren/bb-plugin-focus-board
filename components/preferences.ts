@@ -1,4 +1,4 @@
-import type { GroupBy } from "./grouping";
+import type { GroupBy, SwimlaneBy } from "./grouping";
 import type { CSSProperties } from "react";
 import {
   ARCHIVE_UNITS,
@@ -755,3 +755,32 @@ export function wallpaperStoredValue(settings: WallpaperSettings): string {
   const layer = parseWallpaperLayer(settings.global) ?? null;
   return JSON.stringify({ version: 1, global: layer });
 }
+
+/** The Swimlanes dropdown's localStorage persistence. */
+export const SWIMLANE_BY_KEY = "focus-board:swimlaneBy";
+
+const ALLOWED_SWIMLANE_BY: readonly SwimlaneBy[] = [
+  "none",
+  "status",
+  "recency",
+  "project",
+  "group",
+  "provider",
+  "machine",
+];
+
+/** Validate a stored swimlane value; anything stale or unknown falls back to no lanes. */
+export function parseSwimlaneStored(raw: string | null): SwimlaneBy {
+  return (ALLOWED_SWIMLANE_BY as readonly string[]).includes(raw ?? "")
+    ? (raw as SwimlaneBy)
+    : "none";
+}
+
+/**
+ * Collapsed swimlanes, keyed `<swimlaneBy>:<laneId>` so folding a project
+ * lane does not also fold a provider lane that happens to share an id. Same
+ * tolerant parse as the collapsed families list.
+ */
+export const COLLAPSED_SWIMLANES_KEY = "focus-board:collapsedSwimlanes";
+export const parseCollapsedSwimlanesStored = parseCollapsedFamiliesStored;
+export const collapsedSwimlanesStoredValue = collapsedFamiliesStoredValue;

@@ -7,6 +7,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **Swimlanes.** A new Lanes control beside the View menu splits the column board into rows by Project, Group, Provider, Machine, Focus, or Last activity, under one sticky column-header row. Lanes fold from their title, and folds are remembered per lane type.
+
 ### Changed
 
 ### Fixed
