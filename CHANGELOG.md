@@ -73,6 +73,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - **Ticket-chip dots stay truthful about the tracker cache's age.** A chip's open dot used to mirror the GitHub plugin's cache row forever, even hours after the item merged or closed in the forge and nothing ever re-fetched the row. An open dot now only paints while the state was confirmed inside the last hour, and where the gh CLI exists the board quietly re-checks flagged items (batched and throttled), so a merge reaches the card within a poll or two.
 
+#### Board layout
+
+- **Hovering a card in the open pane's lane no longer ghosts a duplicate family lane.** The pane's capture and the hover capture both pinned that lane, so the Parent view rendered a clipped copy of the whole family beside it (issue #227). One pin per lane holds now, the freshest capture winning the slot.
+
 ## [1.4.0] - 2026-10-15
 
 ### Added

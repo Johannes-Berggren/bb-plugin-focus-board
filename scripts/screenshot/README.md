@@ -95,6 +95,18 @@ host app involved.
   vite harness first; honors the same `CHROME_PATH`, `HARNESS_URL`, and
   `OUT_DIR` overrides.
 
+- `repro-ghost-gutter-strip.mjs` — one-shot headless repro/verification for
+  the parent view's ghost duplicate card strip (#227): loads the parent board
+  (`?groupBy=parent&demo=1`), opens a lane pane, hovers that lane's first
+  card with real mouse moves, and exits non-zero unless no card ids duplicate,
+  the card count never grows, nothing renders in the gutter band (board right
+  edge → pane left edge), and no cell keeps a stuck FLIP transform. Artifacts
+  land in `docs/screenshots/repro-ghost-gutter-strip/` (a pane-open rest
+  shot, a hover shot, plus `evidence.json`; the pre-fix run is preserved in
+  `docs/screenshots/repro-ghost-gutter-strip-prefix/` via `OUT_DIR`). Run the
+  vite harness first (same as above); honors the same `CHROME_PATH`,
+  `HARNESS_URL`, and `OUT_DIR` overrides.
+
 Regenerate the screenshots:
 
 ```sh

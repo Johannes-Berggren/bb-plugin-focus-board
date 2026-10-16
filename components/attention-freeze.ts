@@ -370,7 +370,20 @@ export function applyLaneFreezes(
   captures: readonly LaneCapture[],
 ): ParentLane[] {
   if (captures.length === 0) return [...lanes];
-  const frozen = [...captures].sort((a, b) => a.laneIndex - b.laneIndex);
+  // One pin per lane: the open pane and a hovered card in the SAME lane both
+  // capture that lane (origins selection + hover), and pinning it once per
+  // capture spliced the entire lane into the board twice — a ghost copy of
+  // the lane rendered beside (or past) the real one (issue #227's duplicated
+  // card strip). Keep only the freshest capture of each lane, the same
+  // "freshest capture wins a conflict" rule compileAttentionFreezes uses.
+  const freshest = new Map<string, LaneCapture>();
+  for (const capture of captures) {
+    const current = freshest.get(capture.laneId);
+    if (current === undefined || capture.capturedAt > current.capturedAt) {
+      freshest.set(capture.laneId, capture);
+    }
+  }
+  const frozen = [...freshest.values()].sort((a, b) => a.laneIndex - b.laneIndex);
   const pinnedIds = new Set(frozen.map((capture) => capture.laneId));
   const rest = lanes.filter((lane) => !pinnedIds.has(lane.id));
   const out = [...rest];

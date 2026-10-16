@@ -116,4 +116,57 @@ describe("parent lane attention freeze", () => {
     );
     expect(applyLaneFreezes(lanes, [])).toEqual(lanes);
   });
+
+  it("keeps one copy of a lane both the open pane and a hover captured (#227)", () => {
+    // Family p1 leads p2. The pane is open on p1's parent (a selection
+    // capture) and the operator hovers a card in the SAME lane (a hover
+    // capture): two captures of one lane. The pin must splice that lane in
+    // once — a capture per LANE, not per capture — or the board renders a
+    // ghost copy of it (issue #227's duplicated strip).
+    const before = [
+      thread({ id: "p1", updatedAt: 5000 }),
+      thread({ id: "p1c", parentThreadId: "p1", updatedAt: 4000 }),
+      thread({ id: "p2", updatedAt: 3000 }),
+      thread({ id: "p2c", parentThreadId: "p2", updatedAt: 2000 }),
+    ];
+    const lanes = buildParentLanes(before, new Set<string>(), NOW, new Map());
+    const paneCapture = laneCaptureOf(lanes, "p1", { origin: "selection", capturedAt: 1000 }) as LaneCapture;
+    const hoverCapture = laneCaptureOf(lanes, "p1c", { origin: "hover", capturedAt: 2000 }) as LaneCapture;
+    expect(paneCapture.laneId).toBe("p1");
+    expect(hoverCapture.laneId).toBe("p1");
+
+    const pinned = applyLaneFreezes(lanes, [paneCapture, hoverCapture]);
+    expect(pinned.map((lane) => lane.id)).toEqual(["p1", "p2"]);
+  });
+
+  it("picks the freshest capture's slot for a lane the pane and a hover both captured (#227)", () => {
+    // The pane's capture is older and stale: after the churn, family p2
+    // leads and p1's lane sits at index 1, which the fresher hover capture
+    // holds. The stale pane capture must not resurrect p1 at its old slot,
+    // and one copy of it must render — not the duplicated pair #227 showed.
+    const before = [
+      thread({ id: "p1", updatedAt: 5000 }),
+      thread({ id: "p1c", parentThreadId: "p1", updatedAt: 4000 }),
+      thread({ id: "p2", updatedAt: 3000 }),
+      thread({ id: "p2c", parentThreadId: "p2", updatedAt: 2000 }),
+    ];
+    const lanes = buildParentLanes(before, new Set<string>(), NOW, new Map());
+    const paneCapture = laneCaptureOf(lanes, "p1", { origin: "selection", capturedAt: 1000 }) as LaneCapture;
+    expect(paneCapture.laneIndex).toBe(0);
+
+    const after = [
+      thread({ id: "p2", updatedAt: 9000 }),
+      thread({ id: "p2c", parentThreadId: "p2", updatedAt: 8000 }),
+      thread({ id: "p1", updatedAt: 5000 }),
+      thread({ id: "p1c", parentThreadId: "p1", updatedAt: 4000 }),
+    ];
+    const churned = buildParentLanes(after, new Set<string>(), NOW, new Map());
+    expect(churned.map((lane) => lane.id)).toEqual(["p2", "p1"]);
+    const hoverCapture = laneCaptureOf(churned, "p1c", { origin: "hover", capturedAt: 2000 }) as LaneCapture;
+    expect(hoverCapture.laneId).toBe("p1");
+    expect(hoverCapture.laneIndex).toBe(1);
+
+    const pinned = applyLaneFreezes(churned, [paneCapture, hoverCapture]);
+    expect(pinned.map((lane) => lane.id)).toEqual(["p2", "p1"]);
+  });
 });
