@@ -45,6 +45,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - **A nested child row shows its child's ticket chips.** A child thread that ties to a tracker item used to chip only as a standalone card, so the family view hid the tie. Its row carries the same chips now, a step smaller and inert: the row itself is one link.
 - **A family card's nested rows keep the card's right gutter.** Child and grandchild rows used to run flush against the card's right edge while the left kept its 12px indent. The child-thread section mirrors its left margin on the right now.
+- **A family's child-row list can no longer rest sliced between rows.** Scrolling inside a big family's capped rows list stopped wherever the wheel stopped, cutting the first visible child mid-glyph at the list's edge with no scrollbar to explain the cut. The capped list and its sub-row tier now snap their rest to whole rows, so a stopped scroll always shows a whole row at the boundary.
 
 #### Board cards
 

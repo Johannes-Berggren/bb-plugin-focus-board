@@ -1,0 +1,282 @@
+{
+  "pageErrors": [],
+  "widths": [
+    {
+      "card": {
+        "x": 188,
+        "y": 258,
+        "w": 244,
+        "h": 375,
+        "right": 432,
+        "bottom": 633
+      },
+      "section": {
+        "x": 200,
+        "y": 339,
+        "w": 220,
+        "h": 282,
+        "right": 420,
+        "bottom": 621,
+        "pastCardRight": false,
+        "pastCardBottom": false
+      },
+      "toggle": {
+        "x": 200,
+        "y": 342,
+        "w": 114,
+        "h": 17,
+        "right": 314,
+        "bottom": 359,
+        "pastCardRight": false,
+        "pastCardBottom": false
+      },
+      "eye": {
+        "x": 316,
+        "y": 339,
+        "w": 16,
+        "h": 22,
+        "right": 332,
+        "bottom": 361,
+        "pastCardRight": false,
+        "pastCardBottom": false
+      },
+      "nestedRows": {
+        "x": 200,
+        "y": 365,
+        "w": 220,
+        "h": 256,
+        "right": 420,
+        "bottom": 621,
+        "pastCardRight": false,
+        "pastCardBottom": false
+      },
+      "lastRow": {
+        "x": 209,
+        "y": 950,
+        "w": 211,
+        "h": 61,
+        "right": 420,
+        "bottom": 1011,
+        "pastCardRight": false,
+        "pastCardBottom": true
+      },
+      "chips": null,
+      "nestedRowsScroll": {
+        "scrollHeight": 646,
+        "clientHeight": 256,
+        "scrollTop": 0
+      },
+      "rightOffenders": [],
+      "panelWidth": 900
+    },
+    {
+      "card": {
+        "x": -21,
+        "y": 258,
+        "w": 244,
+        "h": 375,
+        "right": 223,
+        "bottom": 633
+      },
+      "section": {
+        "x": -9,
+        "y": 339,
+        "w": 220,
+        "h": 282,
+        "right": 211,
+        "bottom": 621,
+        "pastCardRight": false,
+        "pastCardBottom": false
+      },
+      "toggle": {
+        "x": -9,
+        "y": 342,
+        "w": 114,
+        "h": 17,
+        "right": 105,
+        "bottom": 359,
+        "pastCardRight": false,
+        "pastCardBottom": false
+      },
+      "eye": {
+        "x": 107,
+        "y": 339,
+        "w": 16,
+        "h": 22,
+        "right": 123,
+        "bottom": 361,
+        "pastCardRight": false,
+        "pastCardBottom": false
+      },
+      "nestedRows": {
+        "x": -9,
+        "y": 365,
+        "w": 220,
+        "h": 256,
+        "right": 211,
+        "bottom": 621,
+        "pastCardRight": false,
+        "pastCardBottom": false
+      },
+      "lastRow": {
+        "x": 0,
+        "y": 950,
+        "w": 211,
+        "h": 61,
+        "right": 211,
+        "bottom": 1011,
+        "pastCardRight": false,
+        "pastCardBottom": true
+      },
+      "chips": null,
+      "nestedRowsScroll": {
+        "scrollHeight": 646,
+        "clientHeight": 256,
+        "scrollTop": 0
+      },
+      "rightOffenders": [],
+      "panelWidth": 560
+    },
+    {
+      "card": {
+        "x": -21,
+        "y": 258,
+        "w": 244,
+        "h": 375,
+        "right": 223,
+        "bottom": 633
+      },
+      "section": {
+        "x": -9,
+        "y": 339,
+        "w": 220,
+        "h": 282,
+        "right": 211,
+        "bottom": 621,
+        "pastCardRight": false,
+        "pastCardBottom": false
+      },
+      "toggle": {
+        "x": -9,
+        "y": 342,
+        "w": 114,
+        "h": 17,
+        "right": 105,
+        "bottom": 359,
+        "pastCardRight": false,
+        "pastCardBottom": false
+      },
+      "eye": {
+        "x": 107,
+        "y": 339,
+        "w": 16,
+        "h": 22,
+        "right": 123,
+        "bottom": 361,
+        "pastCardRight": false,
+        "pastCardBottom": false
+      },
+      "nestedRows": {
+        "x": -9,
+        "y": 365,
+        "w": 220,
+        "h": 256,
+        "right": 211,
+        "bottom": 621,
+        "pastCardRight": false,
+        "pastCardBottom": false
+      },
+      "lastRow": {
+        "x": 0,
+        "y": 950,
+        "w": 211,
+        "h": 61,
+        "right": 211,
+        "bottom": 1011,
+        "pastCardRight": false,
+        "pastCardBottom": true
+      },
+      "chips": null,
+      "nestedRowsScroll": {
+        "scrollHeight": 646,
+        "clientHeight": 256,
+        "scrollTop": 0
+      },
+      "rightOffenders": [],
+      "panelWidth": 420
+    },
+    {
+      "card": {
+        "x": -21,
+        "y": 258,
+        "w": 244,
+        "h": 375,
+        "right": 223,
+        "bottom": 633
+      },
+      "section": {
+        "x": -9,
+        "y": 339,
+        "w": 220,
+        "h": 282,
+        "right": 211,
+        "bottom": 621,
+        "pastCardRight": false,
+        "pastCardBottom": false
+      },
+      "toggle": {
+        "x": -9,
+        "y": 342,
+        "w": 114,
+        "h": 17,
+        "right": 105,
+        "bottom": 359,
+        "pastCardRight": false,
+        "pastCardBottom": false
+      },
+      "eye": {
+        "x": 107,
+        "y": 339,
+        "w": 16,
+        "h": 22,
+        "right": 123,
+        "bottom": 361,
+        "pastCardRight": false,
+        "pastCardBottom": false
+      },
+      "nestedRows": {
+        "x": -9,
+        "y": 365,
+        "w": 220,
+        "h": 256,
+        "right": 211,
+        "bottom": 621,
+        "pastCardRight": false,
+        "pastCardBottom": false
+      },
+      "lastRow": {
+        "x": 0,
+        "y": 950,
+        "w": 211,
+        "h": 61,
+        "right": 211,
+        "bottom": 1011,
+        "pastCardRight": false,
+        "pastCardBottom": true
+      },
+      "chips": null,
+      "nestedRowsScroll": {
+        "scrollHeight": 646,
+        "clientHeight": 256,
+        "scrollTop": 0
+      },
+      "rightOffenders": [],
+      "panelWidth": 331
+    }
+  ],
+  "restProbe": {
+    "rowHeight": 65,
+    "scrollTopAt9": 0,
+    "slicedTop": false
+  }
+}

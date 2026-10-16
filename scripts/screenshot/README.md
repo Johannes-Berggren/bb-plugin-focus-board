@@ -81,6 +81,19 @@ host app involved.
   (same as above); honors the same `CHROME_PATH`, `HARNESS_URL`, and
   `OUT_DIR` overrides.
 
+- `repro-clipped-selector.mjs` — one-shot headless probe for the family card's
+  child-row list rest state (the "Fix clipped selector" report): loads the
+  ten-child demo family `thr_demo_big`, measures the card's child-thread
+  section geometry at four panel widths, then gives the capped rows list a
+  9px wheel-sized scroll and reads the rest position. Exits non-zero unless
+  the rest lands snapped on a row boundary (pre-fix code rests at 9px and
+  slices the first row mid-glyph at the cap's edge). Artifacts land in
+  `docs/screenshots/repro-clipped-selector/` (card clips per width plus
+  `evidence.json`; the pre-fix run is preserved in
+  `docs/screenshots/repro-clipped-selector-prefix/` via `OUT_DIR`). Run the
+  vite harness first; honors the same `CHROME_PATH`, `HARNESS_URL`, and
+  `OUT_DIR` overrides.
+
 Regenerate the screenshots:
 
 ```sh
