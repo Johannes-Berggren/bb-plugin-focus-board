@@ -398,10 +398,6 @@ export function unitMoveTarget(
   }
   if (cursor === undefined) return { beforeId: null, toEnd: true };
   if (cursor === draggedId) {
-    // A solo dragged card directly below the hover: the anchored slot is its
-    // own. Refuse — anchoring at the hover's id would jump the card ABOVE
-    // the hover (the flip-flop a repeated release in this region never
-    // escaped, reported 2026-10-15).
     return null;
   }
   // A boxed unit anchored directly after its own span re-inserts at its own

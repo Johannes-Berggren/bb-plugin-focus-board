@@ -201,6 +201,16 @@ function publishThreadChanged(): void {
 // re-spelled copy), so app-level rank races are testable end to end.
 let fakeRanks: Record<string, string[]> = {};
 const rpcCalls: { method: string; args?: unknown }[] = [];
+// A host rejection stub (issue #232: the operator's host served rank RPCs
+// from a foreign plugin instance that rejected rank_move with an input
+// validation failure — the drags fell back silently). When armed, every
+// rank_move rejects with this message, exactly like the live logs showed.
+let rankMoveFailure: string | null = null;
+
+/** Reject every rank_move with `message` until cleared (null = serve). */
+export function stubRankMoveFailure(message: string | null): void {
+  rankMoveFailure = message;
+}
 
 /** Every rpc method the app under test called, in order (test introspection). */
 export function fakeRpcCalls(): { method: string; args?: unknown }[] {
@@ -254,6 +264,7 @@ const rpcCall = async (method: string, args?: unknown): Promise<unknown> => {
     case "rank_list":
       return { orders: structuredClone(fakeRanks) };
     case "rank_move": {
+      if (rankMoveFailure !== null) throw new Error(rankMoveFailure);
       const { columnKey, threadId, beforeId, toEnd, visibleIds } = args as {
         columnKey: string;
         threadId: string;

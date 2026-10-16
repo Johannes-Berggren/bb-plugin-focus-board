@@ -592,6 +592,12 @@ function BoardPage({ subPath }: { subPath: string }) {
   // order stays in the derived order and shows no drag affordance, so the
   // board never implies a reorder it will silently drop.
   const [ranks, setRanks] = useState<RankStore>({});
+  // A rank write the host rejected (issue #232: the failure path used to
+  // refetch the stored order silently, so an optimistic landing fell back
+  // with no word — the operator's rank writes never reached the KV and the
+  // card fell back on every drag against the rejecting host). The next
+  // gesture clears it.
+  const [rankSaveError, setRankSaveError] = useState<string | null>(null);
   const refetchRanks = useCallback(() => {
     rpc.call("rank_list").then(
       // Guarded, not trusted: the zod contract says `orders` is there, but a
@@ -3146,6 +3152,8 @@ function BoardPage({ subPath }: { subPath: string }) {
             sweepRun={sweepRun}
             sweepNotice={sweepNotice}
             onDismissSweepNotice={clearSweepNotice}
+            rankSaveError={rankSaveError}
+            onDismissRankSaveError={() => setRankSaveError(null)}
             browserNotice={browserNotice}
             onDismissBrowserNotice={clearBrowserNotice}
             onSweepUndo={undoSweepFor}
@@ -3229,6 +3237,7 @@ function BoardPage({ subPath }: { subPath: string }) {
               // first, so the gesture's snap lands and the recapture pass
               // re-pins the settled order.
               releaseAttentionFor(new Set(visibleIds));
+              setRankSaveError(null);
               // Optimistic: the card (or whole box, unitIds) snaps to its
               // slot immediately, and the rank-changed refetch confirms. A
               // rejected write settles back to the stored order on the next
@@ -3261,7 +3270,14 @@ function BoardPage({ subPath }: { subPath: string }) {
                   visibleIds: [...visibleIds],
                   unitIds: unitIds !== undefined && unitIds.length > 1 ? [...unitIds] : undefined,
                 })
-                .catch(() => refetchRanks());
+                .catch((error: unknown) => {
+                  // Fail loud (issue #232): a rejected write used to revert
+                  // the landing silently.
+                  setRankSaveError(
+                    error instanceof Error ? error.message : "the host rejected the reorder.",
+                  );
+                  refetchRanks();
+                });
             }}
             menuActionsFor={menuActionsFor}
             reveal={revealRequest}
