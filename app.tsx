@@ -71,6 +71,7 @@ import { planGroupBoxes } from "./components/group-boxes";
 import { applyUnitMoveVisible } from "./lib/rank-unit-move";
 import { doneAtToEpochMs } from "./lib/done-metadata";
 import { projectDisplayName } from "./lib/project-name";
+import { paneContextInfo } from "./lib/pane-context";
 import type { ReferenceMentions } from "./components/decorate-reference-mentions";
 import {
   newThreadDerivedProjectId,
@@ -2079,6 +2080,7 @@ function BoardPage({ subPath }: { subPath: string }) {
     openThreadActive === null && openThreadId !== null
       ? (archivedThreads.find((thread) => thread.id === openThreadId) ?? null)
       : null;
+  const personalProjectId = projects.find((project) => project.isPersonal)?.id;
   const openThread: ThreadPaneThread | null =
     openThreadActive !== null
       ? {
@@ -2088,6 +2090,10 @@ function BoardPage({ subPath }: { subPath: string }) {
           isUnread: openThreadActive.isUnread,
           isPinned: openThreadActive.isPinned,
           href: openThreadActive.href,
+          context: paneContextInfo(openThreadActive, {
+            personalProjectId,
+            projects,
+          }),
         }
       : openThreadArchived !== null
         ? {
