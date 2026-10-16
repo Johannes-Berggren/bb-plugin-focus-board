@@ -134,6 +134,7 @@ import {
   type SweepRunView,
 } from "./lib/sweep";
 import { useSweepClickAway } from "./components/board";
+import { useCrossWindowStorage } from "./components/preferences-sync";
 import {
   COLLAPSED_FAMILIES_KEY,
   HIDE_IDLE_CHILDREN_KEY,
@@ -141,6 +142,9 @@ import {
   NEST_CHILDREN_KEY,
   PARENT_LANE_ORDER_KEY,
   collapsedFamiliesStoredValue,
+  applyStoredSetDelta,
+  toggleStoredSetId,
+  repairStoredList,
   escStopsRunningFromSetting,
   hideIdleChildrenStoredValue,
   nestStoredValue,
@@ -886,6 +890,40 @@ function BoardPage({ subPath }: { subPath: string }) {
     setMotionFollow(follow);
     setMotionPacing(pacing);
   }, []);
+  // Cross-window propagation (the storage listener): a second bb window's
+  // panel is a second document over the same localStorage, and its writes
+  // fire a `storage` event reaching every document but its own. The three
+  // field-losing-prone keys hydrate here — the two deliberately-toggled
+  // sets through set-delta application (a remote fold joins the local set,
+  // a remote expansion drops out, and the local set's own ids are never
+  // touched) and the wallpaper document wholesale through its normal
+  // parser. Scalar keys (groupBy, search, paneWidth, motion, card transport,
+  // the per-dimension filter keys) are last-write-wins by design: each
+  // write owns its whole key, so no hydration is needed and none runs.
+  const hydrateCollapsedFamilies = useCallback(
+    (oldRaw: string | null, newRaw: string | null) => {
+      setCollapsedFamilies((current) =>
+        applyStoredSetDelta(current, oldRaw, newRaw, parseCollapsedFamiliesStored),
+      );
+    },
+    [],
+  );
+  const hydrateHideIdleFamilies = useCallback(
+    (oldRaw: string | null, newRaw: string | null) => {
+      setHideIdleFamilies((current) =>
+        applyStoredSetDelta(current, oldRaw, newRaw, parseHideIdleChildrenStored),
+      );
+    },
+    [],
+  );
+  const hydrateWallpaper = useCallback((_oldRaw: string | null, newRaw: string | null) => {
+    setWallpaper(parseWallpaperStored(newRaw ?? ""));
+  }, []);
+  useCrossWindowStorage([
+    { key: COLLAPSED_FAMILIES_KEY, onRemoteChange: hydrateCollapsedFamilies },
+    { key: HIDE_IDLE_CHILDREN_KEY, onRemoteChange: hydrateHideIdleFamilies },
+    { key: WALLPAPER_KEY, onRemoteChange: hydrateWallpaper },
+  ]);
   // Scheme read for the wallpaper's dark variant: the hook lives with the
   // media-query hooks and flips live (a change listener, no reload).
   const darkScheme = usePrefersDarkScheme();
@@ -1229,12 +1267,17 @@ function BoardPage({ subPath }: { subPath: string }) {
     setParentLaneOrder(value);
     writeStored(PARENT_LANE_ORDER_KEY, value);
   }, []);
-  // Single writer for the collapsed set: every mutation lands in state, this
-  // effect serializes it. The mount run writes the parsed value back — a
-  // harmless round-trip that also repairs a corrupt stored list.
+  // Deliberate-toggle sets: state is the UI's source of truth, the mount
+  // run repairs a corrupt stored list once (repairStoredList), and every
+  // local mutation writes at its call site — a one-id delta against the
+  // stored list as it stands at that instant (toggleStoredSetId). There is
+  // deliberately NO state-driven whole-set write-back effect anymore: one
+  // built from possibly stale state is exactly what erased another bb
+  // window's fold (issue #245) the moment this window toggled its own.
   useEffect(() => {
-    writeStored(COLLAPSED_FAMILIES_KEY, collapsedFamiliesStoredValue(collapsedFamilies));
-  }, [collapsedFamilies]);
+    repairStoredList(COLLAPSED_FAMILIES_KEY, parseCollapsedFamiliesStored, collapsedFamiliesStoredValue);
+    repairStoredList(HIDE_IDLE_CHILDREN_KEY, parseHideIdleChildrenStored, hideIdleChildrenStoredValue);
+  }, []);
   const setFamilyCollapsed = useCallback((parentId: string, collapsed: boolean) => {
     setCollapsedFamilies((current) => {
       const next = new Set(current);
@@ -1242,13 +1285,16 @@ function BoardPage({ subPath }: { subPath: string }) {
       else next.delete(parentId);
       return next;
     });
+    toggleStoredSetId(
+      COLLAPSED_FAMILIES_KEY,
+      parentId,
+      collapsed,
+      parseCollapsedFamiliesStored,
+      collapsedFamiliesStoredValue,
+    );
   }, []);
-  // Single writer for the hide-idle set, same serialization as the fold:
-  // state is the only mutation surface, the effect serializes, and the mount
-  // run repairs a corrupt stored list.
-  useEffect(() => {
-    writeStored(HIDE_IDLE_CHILDREN_KEY, hideIdleChildrenStoredValue(hideIdleFamilies));
-  }, [hideIdleFamilies]);
+  // Hide-idle set, same write discipline as the fold: the mount run's
+  // one-shot repair, and the id delta written at the mutation site.
   const setFamilyHideIdle = useCallback((parentId: string, hide: boolean) => {
     setHideIdleFamilies((current) => {
       const next = new Set(current);
@@ -1256,6 +1302,13 @@ function BoardPage({ subPath }: { subPath: string }) {
       else next.delete(parentId);
       return next;
     });
+    toggleStoredSetId(
+      HIDE_IDLE_CHILDREN_KEY,
+      parentId,
+      hide,
+      parseHideIdleChildrenStored,
+      hideIdleChildrenStoredValue,
+    );
   }, []);
 
   // The sidebar view pushes fresh thread data continuously; this signal

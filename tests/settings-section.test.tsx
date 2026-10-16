@@ -4,7 +4,7 @@
 // their own state and writing the same localStorage keys the modal writes —
 // a presentational mirror, never a second store.
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import {
   CARD_TRANSPORT_KEY,
   MOTION_PACING_KEY,
@@ -107,5 +107,30 @@ describe("configuration-page Appearance section", () => {
     });
     render(<AppearanceSettingsSection />);
     expect(screen.queryByRole("textbox", { name: "Wallpaper image url" })).not.toBeNull();
+  });
+
+  it("a board or other window's wallpaper write hydrates the mirror live (the storage listener)", () => {
+    seeded({});
+    render(<AppearanceSettingsSection />);
+    // Nothing active: the Remove row (rendered only while a wallpaper is
+    // active) is absent.
+    expect(screen.queryByRole("button", { name: "Remove wallpaper" })).toBeNull();
+    // Another document writes the wallpaper document; the mirror hydrates
+    // through the same cross-window listener the app hangs, so the edit
+    // shows with no remount and a mirror-side edit cannot erase it.
+    act(() => {
+      window.dispatchEvent(
+        new StorageEvent("storage", {
+          key: WALLPAPER_KEY,
+          oldValue: null,
+          newValue: JSON.stringify({
+            version: 1,
+            global: { url: "https://example.com/w.png", dim: 0.4 },
+          }),
+          storageArea: window.localStorage,
+        }),
+      );
+    });
+    expect(screen.getByRole("button", { name: "Remove wallpaper" })).not.toBeNull();
   });
 });

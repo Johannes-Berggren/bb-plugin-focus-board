@@ -133,6 +133,85 @@ export function hideIdleChildrenStoredValue(ids: ReadonlySet<string>): string {
 }
 
 /**
+ * Applies one REMOTE storage write to a locally-owned deliberate-toggle set
+ * (the collapsed-families and hide-idle-children keys). The event carries
+ * what the other document replaced (`oldRaw`) and what it left (`newRaw`),
+ * so set algebra recovers the writer's intent exactly, removals included:
+ * additions (in the new list, absent from the old) join the local set and
+ * removals drop out, while the local set's own ids are never touched. This
+ * is what keeps a hydration from turning around and erasing a field the
+ * remote writer did not change: hydrating a remote fold merges it into the
+ * local set instead of replacing the set wholesale. Returns `current`
+ * unchanged (same reference) when the delta is empty so a no-op write never
+ * re-renders.
+ */
+export function applyStoredSetDelta(
+  current: ReadonlySet<string>,
+  oldRaw: string | null,
+  newRaw: string | null,
+  parse: (raw: string | null) => ReadonlySet<string>,
+): ReadonlySet<string> {
+  const before = parse(oldRaw);
+  const after = parse(newRaw);
+  const next = new Set(current);
+  let changed = false;
+  for (const id of after) {
+    if (!before.has(id) && !next.has(id)) {
+      next.add(id);
+      changed = true;
+    }
+  }
+  for (const id of before) {
+    if (!after.has(id) && next.has(id)) {
+      next.delete(id);
+      changed = true;
+    }
+  }
+  return changed ? next : current;
+}
+
+/**
+ * The write path behind a local deliberate toggle (one id added or removed
+ * from a stored set key, mutation-site not effect-driven): the caller's
+ * single id merges with whatever the stored list holds at that instant, so a
+ * concurrent document's unrelated fold survives this write by construction —
+ * a whole-set write-back from possibly stale local state is never built.
+ * A no-op round-trip (the id was already absent/present) writes nothing.
+ */
+export function toggleStoredSetId(
+  key: string,
+  id: string,
+  on: boolean,
+  parse: (raw: string | null) => ReadonlySet<string>,
+  serialize: (ids: ReadonlySet<string>) => string,
+): void {
+  const raw = readStoredText(key, "");
+  const next = new Set(parse(raw));
+  if (on) next.add(id);
+  else next.delete(id);
+  const value = serialize(next);
+  if (value !== raw) writeStored(key, value);
+}
+
+/**
+ * The mount run's one-shot repair of a stored deliberate-toggle list: the
+ * raw stored text re-serializes through the tolerant parser, so a corrupt
+ * list (non-JSON, non-array, non-string entries) lands in the canonical
+ * sorted form. Healthy values round-trip byte-identically and write
+ * nothing — the repair never clobbers a concurrent document's write, and
+ * unlike a state-driven whole-set effect it only ever runs once per mount.
+ */
+export function repairStoredList(
+  key: string,
+  parse: (raw: string | null) => ReadonlySet<string>,
+  serialize: (ids: ReadonlySet<string>) => string,
+): void {
+  const raw = readStoredText(key, "");
+  const value = serialize(parse(raw));
+  if (value !== raw) writeStored(key, value);
+}
+
+/**
  * The localStorage access the board preferences share: every stored value
  * parses through its own tolerant reader above, and these three wrap the
  * raw window access (it can throw in embedded contexts) so callers keep one

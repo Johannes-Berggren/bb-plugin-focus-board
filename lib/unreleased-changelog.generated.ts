@@ -11,8 +11,18 @@ export const UNRELEASED_ITEMS: readonly { text: string; children: string[]; grou
     "group": "Cards and chips"
   },
   {
+    "text": "**A family folded in one bb window stays folded when the other window folds one.** The fold and hide-idle sets were written whole from each window's own state, so the second window's write erased the first window's choice. Both sets now propagate live between windows through a storage event, and each toggle merges with the stored list instead of overwriting it (issue #245).",
+    "children": [],
+    "group": "Groups and family boxes"
+  },
+  {
     "text": "**A group created in one board window survives a simultaneous change in another.** Group creates, renames, deletes, and the member-scan prune each rewrite the whole registry row; serialized, a create in window A is no longer wiped from the registry by a create or assign in window B (issue #242).",
     "children": [],
     "group": "Groups and family boxes"
+  },
+  {
+    "text": "**A wallpaper chosen in one bb window survives the second window's dim change.** The wallpaper document was written whole from each window's state, so a settings edit on a stale window dropped the other window's image. The board panel and the configuration page's Appearance mirror now re-read the document whenever another window writes it (issue #245).",
+    "children": [],
+    "group": "Settings"
   }
 ];
