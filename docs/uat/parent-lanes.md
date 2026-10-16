@@ -1,10 +1,10 @@
 # UAT report
 
-_Generated 2026-10-16T03:37:02.041Z by `npm run uat`._
+_Generated 2026-10-16T04:05:27.876Z by `npm run uat`._
 
 ## parent-lanes
 
-Source: `/Users/cristos/.bb/plugins/environment-git-worktree/host-data/worktrees/thr_pczkebjtyr-1/bb-plugin-focus-board/tests/manual/uat-parent-lanes.yaml` · theme dark
+Source: `/Users/cristos/.bb/plugins/environment-git-worktree/host-data/worktrees/thr_wetacbcm6r-1/bb-plugin-focus-board/tests/manual/uat-parent-lanes.yaml` · theme dark
 
 | Step | Result | Detail |
 | --- | --- | --- |
@@ -28,4 +28,4 @@ Source: `/Users/cristos/.bb/plugins/environment-git-worktree/host-data/worktrees
 | Switching lane order to By project groups family lanes under their project | pass | ✓ text visible: "By project"; ✓ text visible: "Parent thread lane fixture" |
 | Toggling lane order to By project then back to Recency keeps the board usable | pass | ✓ text visible: "By project"; ✓ text visible: "Parent thread lane fixture" |
 | Returning to Recency order removes project sections | pass | ✓ text visible: "Parent thread lane fixture"; ✓ text hidden: "Standalone" |
-| Switching back to Attention grouping renders normal columns | pass | ✓ unread order |
+| Switching back to Focus grouping renders normal columns | pass | ✓ unread order |
