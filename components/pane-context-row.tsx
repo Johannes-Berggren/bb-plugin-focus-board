@@ -32,7 +32,7 @@ export interface PaneProbeMatch {
   snippet: string;
   /** Up to six ancestor elements (tag + rect), outermost innermost last —
    *  present only on the first match of the event. */
-  ancestors?: PaneProbeRect[][];
+  ancestors?: [string, PaneProbeRect][];
 }
 
 export interface PaneProbeRect {
@@ -81,7 +81,7 @@ function matchOf(
       .slice(0, 300),
   };
   if (withAncestors) {
-    const chain: PaneProbeRect[][] = [];
+    const chain: [string, PaneProbeRect][] = [];
     let current: HTMLElement | null = el;
     for (let i = 0; i < 6 && current !== null; i += 1) {
       chain.push([current.tagName.toLowerCase(), rectOf(current)]);
