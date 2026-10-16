@@ -1881,11 +1881,18 @@ export function Board({
           control included — is carried off the viewport's left edge (observed
           2026-10-10). */}
       <div data-banner-row className="shrink-0">
+        {/* Every banner here paints a full-strength surface, never a
+            translucent tint: the banner row sits over the board's wallpaper
+            when one is active, and a 10%-alpha tint under the banner's text
+            turns the message illegible on a photographic wallpaper (issue
+            #233) — the same lesson the context menu's popover learned (the
+            menu moved to a full-strength surface, PR #221). Text carries its
+            contrast; the tinted border keeps the surface's tone. */}
         {rankError !== null ? (
           <div
             role="status"
             data-testid="rank-error-banner"
-            className="mx-3 mb-1 flex items-center justify-between gap-2 rounded border border-destructive/40 bg-destructive/10 px-2 py-1 text-[11px] text-destructive"
+            className="mx-3 mb-1 flex items-center justify-between gap-2 rounded border border-destructive/40 bg-red-50 dark:bg-red-950 px-2 py-1 text-[11px] text-destructive dark:text-red-400"
           >
             <p className="min-w-0">{rankError}</p>
             <button
@@ -1893,7 +1900,7 @@ export function Board({
               onClick={() => setRankError(null)}
               aria-label="Dismiss error"
               title="Dismiss"
-              className="shrink-0 rounded p-0.5 text-destructive/70 transition-colors hover:bg-destructive/10 hover:text-destructive focus-visible:outline focus-visible:outline-1 focus-visible:outline-destructive"
+              className="shrink-0 rounded p-0.5 text-destructive/70 dark:text-red-400/70 transition-colors hover:bg-destructive/10 hover:text-destructive dark:hover:text-red-400 focus-visible:outline focus-visible:outline-1 focus-visible:outline-destructive"
             >
               <Icon name="X" className="size-3" aria-hidden />
             </button>
@@ -1903,7 +1910,7 @@ export function Board({
           <div
             role="status"
             data-testid="sweep-notice"
-            className="mx-3 mb-1 flex items-center justify-between gap-2 rounded border border-amber-500/40 bg-amber-500/10 px-2 py-1 text-[11px] text-amber-700 dark:text-amber-400"
+            className="mx-3 mb-1 flex items-center justify-between gap-2 rounded border border-amber-500/40 bg-amber-50 dark:bg-amber-950 px-2 py-1 text-[11px] text-amber-700 dark:text-amber-400"
           >
             <p className="min-w-0">{sweepNotice.message}</p>
             <span className="flex shrink-0 items-center gap-0.5">
@@ -1941,7 +1948,7 @@ export function Board({
           <div
             role="status"
             data-testid="browser-reveal-notice"
-            className="mx-3 mb-1 flex items-center justify-between gap-2 rounded border border-amber-500/40 bg-amber-500/10 px-2 py-1 text-[11px] text-amber-700 dark:text-amber-400"
+            className="mx-3 mb-1 flex items-center justify-between gap-2 rounded border border-amber-500/40 bg-amber-50 dark:bg-amber-950 px-2 py-1 text-[11px] text-amber-700 dark:text-amber-400"
           >
             <p className="min-w-0">{browserNotice.message}</p>
             <button
@@ -1959,7 +1966,7 @@ export function Board({
           <div
             role="status"
             data-testid="lane-hide-notice"
-            className="mx-3 mb-1 flex items-center justify-between gap-2 rounded border border-amber-500/40 bg-amber-500/10 px-2 py-1 text-[11px] text-amber-700 dark:text-amber-400"
+            className="mx-3 mb-1 flex items-center justify-between gap-2 rounded border border-amber-500/40 bg-amber-50 dark:bg-amber-950 px-2 py-1 text-[11px] text-amber-700 dark:text-amber-400"
           >
             <p className="min-w-0">{hideLaneReport.message}</p>
             <button
@@ -1977,7 +1984,7 @@ export function Board({
           <div
             role="status"
             data-testid="nest-notice"
-            className="mx-3 mb-1 flex items-center justify-between gap-2 rounded border border-amber-500/40 bg-amber-500/10 px-2 py-1 text-[11px] text-amber-700 dark:text-amber-400"
+            className="mx-3 mb-1 flex items-center justify-between gap-2 rounded border border-amber-500/40 bg-amber-50 dark:bg-amber-950 px-2 py-1 text-[11px] text-amber-700 dark:text-amber-400"
           >
             {/* A nested child's card keeps its own slot, so the family's
                 single render says little about the write: the receipt names
@@ -1998,7 +2005,7 @@ export function Board({
           <div
             role="status"
             data-testid="sweep-refusal"
-            className="mx-3 mb-1 flex items-center justify-between gap-2 rounded border border-destructive/40 bg-destructive/10 px-2 py-1 text-[11px] text-destructive"
+            className="mx-3 mb-1 flex items-center justify-between gap-2 rounded border border-destructive/40 bg-red-50 dark:bg-red-950 px-2 py-1 text-[11px] text-destructive dark:text-red-400"
           >
             <p className="min-w-0">{sweepRefusal}</p>
             <button
@@ -2006,7 +2013,7 @@ export function Board({
               onClick={() => setSweepRefusal(null)}
               aria-label="Dismiss sweep refusal"
               title="Dismiss"
-              className="shrink-0 rounded p-0.5 text-destructive/70 transition-colors hover:bg-destructive/10 hover:text-destructive focus-visible:outline focus-visible:outline-1 focus-visible:outline-destructive"
+              className="shrink-0 rounded p-0.5 text-destructive/70 dark:text-red-400/70 transition-colors hover:bg-destructive/10 hover:text-destructive dark:hover:text-red-400 focus-visible:outline focus-visible:outline-1 focus-visible:outline-destructive"
             >
               <Icon name="X" className="size-3" aria-hidden />
             </button>

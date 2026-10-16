@@ -1,0 +1,104 @@
+{
+  "errors": [],
+  "violations": [
+    "[rank refusal] dark: background alpha 0.1 < 1 — the banner surface is translucent, the wallpaper shows through under the text",
+    "[rank refusal] dark: text contrast 1.11 < 4.5 over the wallpaper-composited background (rgba(204, 50, 84, 0.10) over rgba(105, 106, 102, 1))",
+    "[rank refusal] light: background alpha 0.1 < 1 — the banner surface is translucent, the wallpaper shows through under the text",
+    "[rank refusal] light: text contrast 1.82 < 4.5 over the wallpaper-composited background (rgba(204, 50, 84, 0.10) over rgba(163, 163, 159, 1))",
+    "[nest receipt] dark: background alpha 0.1 < 1 — the banner surface is translucent, the wallpaper shows through under the text",
+    "[nest receipt] dark: text contrast 2.94 < 4.5 over the wallpaper-composited background (rgba(254, 154, 105, 0.10) over rgba(105, 106, 102, 1))",
+    "[nest receipt] light: background alpha 0.1 < 1 — the banner surface is translucent, the wallpaper shows through under the text",
+    "[nest receipt] light: text contrast 1.98 < 4.5 over the wallpaper-composited background (rgba(254, 154, 105, 0.10) over rgba(163, 163, 159, 1))"
+  ],
+  "wallpaperPainted": true,
+  "results": [
+    {
+      "banner": "rank-error-banner",
+      "theme": "dark",
+      "rect": {
+        "top": 49,
+        "left": 12,
+        "w": 1896,
+        "h": 28
+      },
+      "backgroundColor": "oklab(0.56 0.175953 0.0716986 / 0.1)",
+      "color": "oklch(0.56 0.19 22.1703)",
+      "wallpaperAvg": [
+        133.34589,
+        134.19937,
+        129.28118
+      ],
+      "scrimColor": "oklch(0.195 0 0)",
+      "scrimAlpha": 0.25,
+      "alpha": 0.1,
+      "contrast": 1.11,
+      "composited": "rgba(204, 50, 84, 0.10) over rgba(105, 106, 102, 1)"
+    },
+    {
+      "banner": "rank-error-banner",
+      "theme": "light",
+      "rect": {
+        "top": 49,
+        "left": 12,
+        "w": 1896,
+        "h": 28
+      },
+      "backgroundColor": "oklab(0.56 0.175953 0.0716986 / 0.1)",
+      "color": "oklch(0.56 0.19 22.1703)",
+      "wallpaperAvg": [
+        133.34589,
+        134.19937,
+        129.28118
+      ],
+      "scrimColor": "oklch(0.985 0 0)",
+      "scrimAlpha": 0.25,
+      "alpha": 0.1,
+      "contrast": 1.82,
+      "composited": "rgba(204, 50, 84, 0.10) over rgba(163, 163, 159, 1)"
+    },
+    {
+      "banner": "nest-notice",
+      "theme": "dark",
+      "rect": {
+        "top": 49,
+        "left": 12,
+        "w": 1896,
+        "h": 28
+      },
+      "backgroundColor": "oklab(0.769 0.0640531 0.176752 / 0.1)",
+      "color": "oklch(0.828 0.189 84.429)",
+      "wallpaperAvg": [
+        133.34589,
+        134.19937,
+        129.28118
+      ],
+      "scrimColor": "oklch(0.195 0 0)",
+      "scrimAlpha": 0.25,
+      "alpha": 0.1,
+      "contrast": 2.94,
+      "composited": "rgba(254, 154, 105, 0.10) over rgba(105, 106, 102, 1)"
+    },
+    {
+      "banner": "nest-notice",
+      "theme": "light",
+      "rect": {
+        "top": 49,
+        "left": 12,
+        "w": 1896,
+        "h": 28
+      },
+      "backgroundColor": "oklab(0.769 0.0640531 0.176752 / 0.1)",
+      "color": "oklch(0.555 0.163 48.998)",
+      "wallpaperAvg": [
+        133.34589,
+        134.19937,
+        129.28118
+      ],
+      "scrimColor": "oklch(0.985 0 0)",
+      "scrimAlpha": 0.25,
+      "alpha": 0.1,
+      "contrast": 1.98,
+      "composited": "rgba(254, 154, 105, 0.10) over rgba(163, 163, 159, 1)"
+    }
+  ]
+}

@@ -107,6 +107,20 @@ host app involved.
   vite harness first (same as above); honors the same `CHROME_PATH`,
   `HARNESS_URL`, and `OUT_DIR` overrides.
 
+- `repro-banner-contrast.mjs` — one-shot headless repro/verification for the
+  alert banners' translucent surfaces (#233): seeds a busy, photographic
+  wallpaper, triggers the rank refusal banner (a drop that resolves to no
+  move) and the pinned nest receipt (a nest whose child keeps its own slot)
+  with real drag gestures, and exits non-zero unless every banner, in both
+  themes, paints an opaque background whose text keeps WCAG AA contrast
+  (4.5) against the wallpaper-composited backdrop. Artifacts land in
+  `docs/screenshots/repro-banner-contrast/` (a wallpaper rest shot, a full
+  board shot per banner, per-theme banner clips, plus `evidence.json`; the
+  pre-fix run is preserved in
+  `docs/screenshots/repro-banner-contrast-prefix/` via `OUT_DIR`). Run the
+  vite harness first (same as above); honors the same `CHROME_PATH`,
+  `HARNESS_URL`, and `OUT_DIR` overrides.
+
 Regenerate the screenshots:
 
 ```sh
