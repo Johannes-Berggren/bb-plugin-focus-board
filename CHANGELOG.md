@@ -7,20 +7,22 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
-#### Thread pane
+### Changed
+
+### Fixed
+
+## [1.5.0] - 2026-10-16
+
+### Added
+
+#### Board layout
 
 - **The thread pane's composer names the project it writes into again.** bb's embedded chat stopped showing the project and checkout line on a pane-sized surface, so the pane now checks the chat's DOM for it and draws its own "project · worktree · branch" line under the transcript when the host paints none. The probe stays quiet whenever bb shows its own context again, so the line never doubles up.
 
 #### Groups and family boxes
 
 - **A collapsed family's child dot previews its child and opens it.** Hovering a dot shows that child's title and state; clicking a dot opens it in the thread pane without expanding the rows. The family's open child lists itself below the strip while the rest stay dots, and the strip's background still expands the family.
-
-#### Zoom to family
-
 - **A card menu action zooms the board to one family.** Right-clicking a card that nests child threads, or a nested row of one, gains "Zoom to family": the Parent view opens showing that family alone. The scoping rides the filter row as a Family chip that clears it, and it persists across reloads like the other filters.
-
-#### Child threads
-
 - **A family's child section can hide its idle children.** A small eye button beside the "N child threads" toggle filters idle children out of both the expanded rows and the collapsed dot strip, the count enumerates what is hidden ("1 active, 15 idle child threads") while the filter is hiding something, and the choice persists per family.
 
 ### Changed
@@ -29,14 +31,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - **Chip statuses refetch at the operator's moments.** Opening or closing the thread pane, a card changing lanes, and a re-sort or rank move each bump the chip snapshot, so the dots you are looking at are the freshly settled ones (issue #205); the batched design stays, one snapshot per event and never a per-card call.
 
-#### Board toolbar
+#### Board layout
 
 - **The State filter menu lists Pinned.** Pin state sits outside Working, Needs you, and Unread, so a checked Pinned shows every pinned card whatever its state; it combines with the other rows, a match on either.
 - **The View dropdown shows a kanban board in place of its sliders icon.** It switches the board's group-by layout, so the icon now pictures the columns it produces.
 - **The View dropdown stays out of the Filters palette while the collapsed toolbar row has room for it.** A header that borrows the mobile ribbon keeps the View button on its row, left of the Filters toggle, until the band drops to about 560px, where the search field needs all the space the row frees up.
-
-#### Board views
-
 - **The default board view is named Focus.** The View chip, the View dropdown, and every label that named the status grouping used to say "Attention", the same word that names the thread state a card reports; they say "Focus" now. Nothing re-lanes and stored settings keep working, so the rename is the whole change.
 
 ### Fixed
@@ -47,34 +46,23 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **The right-click menu uses the room the window gives it.** The menu was pinned to a fixed 320-pixel cap, so entries scrolled behind an inner scrollbar even on a tall screen (issue #222). The shell now grows to the window height minus a small margin, and a short window still scrolls.
 - **The right-click menu reads as a menu, not a card.** The popover sat on the same surface color at the same hairline weight as the cards beneath it, so the two were hard to tell apart at a glance (issue #221). The shell now draws the full-strength border under an elevated shadow, with a boundary rule under its header line.
 
-#### Child threads
+#### Groups and family boxes
 
 - **A nested child row shows its child's ticket chips.** A child thread that ties to a tracker item used to chip only as a standalone card, so the family view hid the tie. Its row carries the same chips now, a step smaller and inert: the row itself is one link.
 - **A family card's nested rows keep the card's right gutter.** Child and grandchild rows used to run flush against the card's right edge while the left kept its 12px indent. The child-thread section mirrors its left margin on the right now.
 - **A family's child-row list can no longer rest sliced between rows.** Scrolling inside a big family's capped rows list stopped wherever the wheel stopped, cutting the first visible child mid-glyph at the list's edge with no scrollbar to explain the cut. The capped list and its sub-row tier now snap their rest to whole rows, so a stopped scroll always shows a whole row at the boundary.
-
-#### Board cards
-
-- **Lane drags resolve their slot loudly, and nests of pinned cards land with a receipt.** A release whose insertion slot already holds the dragged card used to write a silent no-op (on a repeat drag, the card jumped above the hover); it refuses with a banner now, writing nothing. The middle third still nests every legal pair — a pinned family onto another included — and a nest the placement rules cannot render (a pinned child keeps its own card) posts a visible receipt naming "Make Top-Level" as the undo.
-
-- **Hovering a card in light mode no longer mutes it.** The hover surface darkened a near-white card into mid-gray on the light theme, which reads as muting. The light hover keeps the card surface and the ring plus the other cards' recede carry the emphasis; the dark theme keeps its darkening.
-
-#### Thread pane
-
-- **Bare reference ids in pane messages become chips too.** Agents often drop the kind prefix and write `@proj_…` or `@thr_…` straight, and those tokens stayed dead text. The pane paints them like the full forms now, and a trailing `#msg=N` fragment is swallowed the same way.
-
-#### Groups and family boxes
-
 - **Choosing Zoom to group lands the board on the Group view.** The group box's context-menu entry used to set only the group filter, so the board stayed on the view it started on and the zoom read as a silent chip write. It now switches the view to the Group board with the group restrict set to exactly that group; clearing the chip restores the full board.
 
 #### Cards and chips
 
+- **Hovering a card in light mode no longer mutes it.** The hover surface darkened a near-white card into mid-gray on the light theme, which reads as muting. The light hover keeps the card surface and the ring plus the other cards' recede carry the emphasis; the dark theme keeps its darkening.
+- **Bare reference ids in pane messages become chips too.** Agents often drop the kind prefix and write `@proj_…` or `@thr_…` straight, and those tokens stayed dead text. The pane paints them like the full forms now, and a trailing `#msg=N` fragment is swallowed the same way.
 - **A hung chip-status call can no longer freeze the snapshot forever.** A `tracker_status` request that the transport never answered used to park the fetch guard, so every later poll, focus, and operator-moment bump skipped and the chips froze at a pre-event snapshot. Each call now races an 8-second timeout whose wall degrades it to "no status known", and the batch settles as soon as every call is resolved, rejected, or timed out, so one hung repo cannot mask its siblings' fresh statuses.
-
 - **Ticket-chip dots stay truthful about the tracker cache's age.** A chip's open dot used to mirror the GitHub plugin's cache row forever, even hours after the item merged or closed in the forge and nothing ever re-fetched the row. An open dot now only paints while the state was confirmed inside the last hour, and where the gh CLI exists the board quietly re-checks flagged items (batched and throttled), so a merge reaches the card within a poll or two.
 
 #### Board layout
 
+- **Lane drags resolve their slot loudly, and nests of pinned cards land with a receipt.** A drag whose insertion slot already holds the card refuses with a banner now, writing nothing. A nest the placement rules cannot render (a pinned child keeps its own card) posts a visible receipt naming "Make Top-Level" as the undo.
 - **Hovering a card in the open pane's lane no longer ghosts a duplicate family lane.** The pane's capture and the hover capture both pinned that lane, so the Parent view rendered a clipped copy of the whole family beside it (issue #227). One pin per lane holds now, the freshest capture winning the slot.
 - **Board alert banners paint a full-strength surface.** The refusal, receipt, report, and notice banners used to sit on a 10%-alpha tint, so with a wallpaper behind the board the message sank into the photo (issue #233). They draw an opaque surface in both themes now, and the dark theme raises the error banners' text a step so it reads on red.
 
