@@ -56,6 +56,11 @@ export const UNRELEASED_ITEMS: readonly { text: string; children: string[]; grou
     "group": "Child threads"
   },
   {
+    "text": "**A family's child-row list can no longer rest sliced between rows.** Scrolling inside a big family's capped rows list stopped wherever the wheel stopped, cutting the first visible child mid-glyph at the list's edge with no scrollbar to explain the cut. The capped list and its sub-row tier now snap their rest to whole rows, so a stopped scroll always shows a whole row at the boundary.",
+    "children": [],
+    "group": "Child threads"
+  },
+  {
     "text": "**Dragging a card up its lane lands it where the pointer promised.** A drop on the card directly above used to write a no-op anchored at the dragged card itself, and a middle-third drop there could silently re-parent a newly pinned family whose pinned placement hides the write; both drops rank the card now, and nests stay offered only where they visibly nest.",
     "children": [],
     "group": "Board cards"

@@ -1450,7 +1450,12 @@ export function ThreadCard({
                 "mt-1 border-l border-border/70 pl-2",
                 // A big family scrolls its rows inside the card; a small one
                 // renders at natural height.
-                visibleChildren.length > NESTED_ROWS_SCROLL_THRESHOLD && "max-h-64 overflow-y-auto",
+                visibleChildren.length > NESTED_ROWS_SCROLL_THRESHOLD &&
+                // The snap keeps the rest on whole rows: a trackpad or wheel
+                // stop between rows left the first visible child sliced at
+                // the cap's edge, reading as clipped content with no
+                // scrollbar to explain the cut (operator report).
+                "max-h-64 overflow-y-auto snap-y snap-mandatory",
               )}
             >
               <ul className="flex flex-col gap-1">
@@ -1469,7 +1474,7 @@ export function ThreadCard({
                     : subRowsRaw;
                   const subRankKey = childRankKey(child.id);
                   return (
-                    <li key={child.id}>
+                    <li key={child.id} className="snap-start">
                       <ChildRow
                         child={child}
                         dimmed={isDone || childDone}
@@ -1496,11 +1501,12 @@ export function ThreadCard({
                             // own rows list, so the tier reads as depth.
                             "mt-1 flex flex-col gap-1 border-l border-border/50 pl-2 ml-1",
                             subRows.length > NESTED_ROWS_SCROLL_THRESHOLD &&
-                              "max-h-64 overflow-y-auto",
+                              // Same whole-row rest as the row tier's cap.
+                              "max-h-64 overflow-y-auto snap-y snap-mandatory",
                           )}
                         >
                           {subRows.map((sub) => (
-                            <li key={sub.id}>
+                            <li key={sub.id} className="snap-start">
                               <ChildRow
                                 child={sub}
                                 dimmed={isDone || childDone || doneIds?.has(sub.id) === true}

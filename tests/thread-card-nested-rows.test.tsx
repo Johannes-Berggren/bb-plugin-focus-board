@@ -53,6 +53,58 @@ describe("the family card's nested child list", () => {
     expect(container.className).toContain("overflow-y-auto");
     expect(container.className).toContain("max-h-");
   });
+
+  // The cap's inner scroll can rest between rows (a trackpad or wheel stop
+  // lands mid-glyph), and when it does the first visible row reads sliced at
+  // the container's top edge with no scrollbar to explain the cut (operator
+  // report: "the selector still gets clipped"). Mandatory vertical snapping
+  // pins every rest to a row's top, so the capped list never shows a cut row
+  // where it rests. jsdom does no layout; the contract is again the classes.
+  it("snaps its capped scroll to whole rows so the rest never slices a row", () => {
+    renderCard(NESTED_ROWS_SCROLL_THRESHOLD + 1);
+    expect(rowsContainer().className).toContain("snap-y");
+    expect(rowsContainer().className).toContain("snap-mandatory");
+    for (const li of rowsContainer().querySelectorAll(":scope > ul > li")) {
+      expect(li.className).toContain("snap-start");
+    }
+    // The cap must stay the only rest constraint: a small family renders
+    // natural height with no snap machinery at all.
+    cleanup();
+    renderCard(NESTED_ROWS_SCROLL_THRESHOLD);
+    expect(rowsContainer().className).not.toContain("snap-y");
+  });
+
+  it("the capped sub-row tier snaps to whole rows the same way", () => {
+    // (threshold + 1) grandchildren under one child = the sub-row tier caps.
+    const child = thread({ id: "c", parentThreadId: "p", displayTitle: "The child" });
+    const grandkids = children(NESTED_ROWS_SCROLL_THRESHOLD + 1).map((g) =>
+      thread({
+        id: `g-${g.id}`,
+        parentThreadId: "c",
+        displayTitle: `Grandchild ${g.id}`,
+      }),
+    );
+    render(
+      <ThreadCard
+        thread={parent}
+        stateDot={null}
+        isActive={false}
+        isDone={false}
+        childThreads={[child]}
+        grandchildThreadsByParent={new Map([["c", grandkids]])}
+        onOpen={() => {}}
+        onOpenThread={() => {}}
+      />,
+    );
+    const subRows = document.querySelector("[data-child-sub-rows]");
+    if (!(subRows instanceof HTMLElement)) throw new Error("missing sub-row container");
+    expect(subRows.className).toContain("overflow-y-auto");
+    expect(subRows.className).toContain("snap-y");
+    expect(subRows.className).toContain("snap-mandatory");
+    for (const li of subRows.querySelectorAll(":scope > li")) {
+      expect(li.className).toContain("snap-start");
+    }
+  });
 });
 
 describe("the child rows' sub-row tier (issue #120)", () => {

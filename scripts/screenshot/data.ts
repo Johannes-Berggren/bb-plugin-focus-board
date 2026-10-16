@@ -561,6 +561,34 @@ export const SIM_DEMO_THREADS: readonly SimThread[] = [
     environment: boardEnv("release/1.0.0"),
   }),
 
+  // Family E — a big family (thread thr_pczkebjtyr, "Fix clipped selector"):
+  // ten children with the family's open child mid-list, so the expanded rows
+  // cross NESTED_ROWS_SCROLL_THRESHOLD and the card clips or scrolls where
+  // the operator's screenshot showed the sliced rows. Demo-only (`?demo=1`).
+  thread({
+    id: "thr_demo_big",
+    displayTitle: "Focus Board Orchestrator Overview",
+    updatedAt: SIM_NOW - 3 * MINUTE,
+    lastReadAt: SIM_NOW - 3 * MINUTE,
+    environment: boardEnv("dev"),
+  }),
+  ...["c0", "c1", "c2", "c3", "c4", "c5", "c6", "c7", "c8", "c9"].map((suffix, index) =>
+    thread({
+      id: `thr_demo_big_${suffix}`,
+      displayTitle: `Big-family child ${index} · seed the repro rows`,
+      parentThreadId: "thr_demo_big",
+      ...(index === 2
+        ? {
+            status: "active" as const,
+            runtimeStatus: "active" as const,
+            updatedAt: SIM_NOW - 40 * 1000,
+          }
+        : {}),
+      updatedAt: SIM_NOW - (index + 4) * MINUTE,
+      environment: boardEnv("dev"),
+    }),
+  ),
+
   // Family B — Needs you (lifted by the parent's own pending interaction),
   // collapsed in the shots: a "3 child threads" fold over a status dot strip
   // whose dots span working, unread, and idle colors.
