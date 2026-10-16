@@ -855,20 +855,18 @@ export function ThreadCard({
   const visibleChildren = hideIdle
     ? children.filter((child) => !isIdleChild(child))
     : children;
+  // The sub-tier's one rendering rule, shared by every consumer: the rows
+  // list these members, the strip paints them, and the fold's count names
+  // them — so count, rows, and dots agree by construction.
+  const visibleSubsFor = (parentId: string): readonly PluginSidebarThread[] => {
+    const subs = grandchildThreadsByParent?.get(parentId) ?? [];
+    return hideIdle ? subs.filter((sub) => !isIdleChild(sub)) : subs;
+  };
   // A hidden child's sub-rows go with it; a visible child's own idle
   // sub-rows filter out too, so the fold's count names what the section
   // shows, not what the family stores.
   const visibleSubRowCount = hideIdle
-    ? visibleChildren.reduce(
-        (count, child) =>
-          count +
-          (grandchildThreadsByParent === undefined
-            ? 0
-            : (grandchildThreadsByParent.get(child.id) ?? []).filter(
-                (sub) => !isIdleChild(sub),
-              ).length),
-        0,
-      )
+    ? visibleChildren.reduce((count, child) => count + visibleSubsFor(child.id).length, 0)
     : grandchildRowCount;
   const visibleRowCount = visibleChildren.length + visibleSubRowCount;
 
@@ -929,9 +927,98 @@ export function ThreadCard({
     topY: number;
   } | null>(null);
   /** The open preview's content lookup: the state names the child, the
-   * portal below resolves it from the current children list. */
+   * portal below resolves it from the current children list. A sub-dot of
+   * the flattened strip resolves from the sub-tier the same way. */
   const previewChild =
-    previewDot === null ? undefined : children.find((child) => child.id === previewDot.id);
+    previewDot === null
+      ? undefined
+      : (children.find((child) => child.id === previewDot.id) ??
+        children
+          .flatMap((child) => grandchildThreadsByParent?.get(child.id) ?? [])
+          .find((sub) => sub.id === previewDot.id));
+  // A previewed direct child that carries sub-rows names them: its dot sits
+  // beside its sub-dots in the flattened strip (the 2026-10-16 musing). A
+  // sub-dot's own id yields no map entry, so the line stays off.
+  const previewSubCount =
+    previewDot === null || previewChild === undefined
+      ? 0
+      : visibleSubsFor(previewDot.id).length;
+  /** One dot button in the collapsed strip: a direct child (full-size
+   * glyph) or a sub-child (one size step down, family-ordered after its
+   * parent's dot). The control contract is identical at both depths:
+   * hover or focus previews, click opens that thread's pane. */
+  const stripDot = (member: PluginSidebarThread, isSub: boolean) => {
+    const state = threadState(member, errorAckIds);
+    const isMemberActive = member.id === activeThreadId;
+    return (
+      <button
+        key={member.id}
+        type="button"
+        data-child-dot={member.id}
+        data-child-dot-active={isMemberActive ? "" : undefined}
+        aria-label={`${isSub ? "Open sub-thread" : "Open child thread"}: ${member.displayTitle}`}
+        aria-current={isMemberActive ? "true" : undefined}
+        onMouseEnter={(event) => {
+          const rect = event.currentTarget.getBoundingClientRect();
+          setPreviewDot({
+            id: member.id,
+            centerX: rect.left + rect.width / 2,
+            topY: rect.top,
+          });
+        }}
+        onFocus={(event) => {
+          const rect = event.currentTarget.getBoundingClientRect();
+          setPreviewDot({
+            id: member.id,
+            centerX: rect.left + rect.width / 2,
+            topY: rect.top,
+          });
+        }}
+        onMouseLeave={() => setPreviewDot(null)}
+        onBlur={() => setPreviewDot(null)}
+        onClick={(event) => {
+          // The dot's click belongs to the dot alone: it opens its
+          // thread and never reaches the strip's expand surface
+          // beneath it.
+          event.preventDefault();
+          event.stopPropagation();
+          if (onOpenThread === undefined) {
+            toggleCollapsed();
+            return;
+          }
+          onOpenThread(member.id);
+        }}
+        className={cn(
+          "group/dot relative flex size-4 items-center justify-center rounded-full",
+          // The hovered (or keyboard-focused) dot lights an
+          // amber wash behind its glyph — the preview pair and
+          // the attention signals read one language, and the
+          // grey accent wash was too subtle at this size
+          // (operator). Plain hover/focus variants: the
+          // group-hover form cannot style a button from its own
+          // group marker (:is(.group:hover *) matches only
+          // descendants, and the halo's target IS the group
+          // element).
+          "hover:bg-amber-500/20 focus-visible:bg-amber-500/20",
+          "focus:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+          isMemberActive && "bg-accent/70 ring-2 ring-ring",
+        )}
+      >
+        <span
+          aria-hidden
+          data-child-dot-glyph=""
+          className={cn(
+            // The generation cue: a sub-dot draws one size step down
+            // from its parent's dot (the musing's size rule).
+            isSub ? "size-1" : "size-1.5",
+            "rounded-full",
+            DOT_CLASS[state] ?? "bg-muted-foreground/30",
+            state === "attention" && "motion-safe:animate-pulse",
+          )}
+        />
+      </button>
+    );
+  };
   const showDoneCheckbox = onMarkDone !== undefined && !isSweepSelecting;
   const doneLabel = isDone ? "Mark Not Done" : "Mark Done";
   const doneDotSlot = showDoneCheckbox ? (
@@ -1312,16 +1399,21 @@ export function ThreadCard({
             </button>
           </div>
           {collapsed && visibleChildren.length > 0 ? (
-            // The collapsed rows, immediately below their label: one dot
-            // PER CHILD now, each its own control (issue #174), and the
-            // idle-children filter (issue #172) hides an idle child's dot
-            // with its row. Hovering a dot previews that child — its title
-            // plus what the SDK exposes of it (state label, last-activity
-            // age, indicator label; the SDK does not expose a thread's
-            // messages). Clicking a dot opens that child's pane and leaves
-            // the rows folded. The strip's background keeps the strip's
-            // expand role, and the section toggle above stays the keyboard
-            // path.
+            // The collapsed rows, immediately below their label: one dot per
+            // rendered family member, family-ordered (the 2026-10-16 musing,
+            // extending issue #174's per-child strip). A child's dot leads
+            // its own smaller sub-dots, so the strip's dots agree with the
+            // count above (rows plus sub-rows) member for member; the old
+            // "19 child threads over nine dots" reading cannot recur. The
+            // idle-children filter (issue #172) hides an idle member's dot
+            // with its row, at either depth. Hovering a dot previews that
+            // thread (its title plus what the SDK exposes: state label,
+            // last-activity age, indicator label; the SDK does not expose a
+            // thread's messages; a parent dot's preview names its
+            // sub-threads). Clicking a dot opens that thread's pane and
+            // leaves the rows folded. The strip's background keeps the
+            // strip's expand role, and the section toggle above stays the
+            // keyboard path.
             <div
               data-child-thread-dots=""
               title="Show the nested child threads"
@@ -1336,85 +1428,23 @@ export function ThreadCard({
                 // 16px button land the 6px dot's left edge at 17px, the
                 // same x the expanded and active rows' dots start at (1px
                 // border + 8px padding + the row anchor's 8px). The strip,
-                // the grid it wraps into, and the rows read one grid.
-                "ml-3 flex max-w-full flex-wrap items-center gap-1.5 rounded-sm py-0.5 pr-1",
+                // the grid it wraps into, and the rows read one grid. The
+                // wide gap sets the between-family spacing; a group's
+                // inside gap is tighter, so a family reads as one cluster.
+                "ml-3 flex max-w-full flex-wrap items-center gap-2.5 rounded-sm py-0.5 pr-1",
                 "transition-colors hover:bg-accent/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring",
               )}
             >
-              {visibleChildren.map((child) => {
-                const state = threadState(child, errorAckIds);
-                // The child open in the pane reads selected on its dot
-                // (the follow-up to #174): a quiet accent background plus
-                // the app's active ring, so its dot answers which dot is
-                // the thread whose pane is open — the same selection its
-                // listed row below carries.
-                const isChildActive = child.id === activeThreadId;
-                return (
-                  <button
-                    key={child.id}
-                    type="button"
-                    data-child-dot={child.id}
-                    data-child-dot-active={isChildActive ? "" : undefined}
-                    aria-label={`Open child thread: ${child.displayTitle}`}
-                    aria-current={isChildActive ? "true" : undefined}
-                    onMouseEnter={(event) => {
-                      const rect = event.currentTarget.getBoundingClientRect();
-                      setPreviewDot({
-                        id: child.id,
-                        centerX: rect.left + rect.width / 2,
-                        topY: rect.top,
-                      });
-                    }}
-                    onFocus={(event) => {
-                      const rect = event.currentTarget.getBoundingClientRect();
-                      setPreviewDot({
-                        id: child.id,
-                        centerX: rect.left + rect.width / 2,
-                        topY: rect.top,
-                      });
-                    }}
-                    onMouseLeave={() => setPreviewDot(null)}
-                    onBlur={() => setPreviewDot(null)}
-                    onClick={(event) => {
-                      // The dot's click belongs to the dot alone: it opens
-                      // its child and never reaches the strip's expand
-                      // surface beneath it.
-                      event.preventDefault();
-                      event.stopPropagation();
-                      if (onOpenThread === undefined) {
-                        toggleCollapsed();
-                        return;
-                      }
-                      onOpenThread(child.id);
-                    }}
-                    className={cn(
-                      "group/dot relative flex size-4 items-center justify-center rounded-full",
-                      // The hovered (or keyboard-focused) dot lights an
-                      // amber wash behind its glyph — the preview pair and
-                      // the attention signals read one language, and the
-                      // grey accent wash was too subtle at this size
-                      // (operator). Plain hover/focus variants: the
-                      // group-hover form cannot style a button from its own
-                      // group marker (:is(.group:hover *) matches only
-                      // descendants, and the halo's target IS the group
-                      // element).
-                      "hover:bg-amber-500/20 focus-visible:bg-amber-500/20",
-                      "focus:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                      isChildActive && "bg-accent/70 ring-2 ring-ring",
-                    )}
-                  >
-                    <span
-                      aria-hidden
-                      data-child-dot-glyph=""
-                      className={cn(
-                        "size-1.5 rounded-full",
-                        DOT_CLASS[state] ?? "bg-muted-foreground/30",
-                        state === "attention" && "motion-safe:animate-pulse",
-                      )}
-                    />
-                  </button>
-                );
-              })}
+              {visibleChildren.map((child) => (
+                <span
+                  key={child.id}
+                  data-child-dot-group={child.id}
+                  className="flex flex-nowrap items-center gap-1"
+                >
+                  {stripDot(child, false)}
+                  {visibleSubsFor(child.id).map((sub) => stripDot(sub, true))}
+                </span>
+              ))}
             </div>
           ) : null}
           {activeCollapsedChild !== null && onOpenThread !== undefined ? (
@@ -1465,13 +1495,11 @@ export function ThreadCard({
                   // children, indenting one tier under its indented list.
                   // Rows' rows render childless themselves — the display
                   // index caps every display chain at two row levels, so no
-                  // deeper tier ever arrives here.
-                  const subRowsRaw = grandchildThreadsByParent?.get(child.id) ?? [];
-                  // The idle filter treats the sub-row tier like the row
-                  // tier: a visible child's own idle sub-rows hide too.
-                  const subRows = hideIdle
-                    ? subRowsRaw.filter((sub) => !isIdleChild(sub))
-                    : subRowsRaw;
+                  // deeper tier ever arrives here. The idle filter treats
+                  // the sub-row tier like the row tier: a visible child's
+                  // own idle sub-rows hide too (the shared visibleSubsFor
+                  // rule the count and the strip read as well).
+                  const subRows = visibleSubsFor(child.id);
                   const subRankKey = childRankKey(child.id);
                   return (
                     <li key={child.id} className="snap-start">
@@ -1577,6 +1605,11 @@ export function ThreadCard({
                 · {relativeTime(previewChild.updatedAt, now)}
                 {previewChild.indicatorLabel === null ? null : ` · ${previewChild.indicatorLabel}`}
               </span>
+              {previewSubCount > 0 ? (
+                <span className="mt-0.5 block text-[10px] leading-tight text-popover-foreground/70">
+                  {previewSubCount} {previewSubCount === 1 ? "sub-thread" : "sub-threads"}
+                </span>
+              ) : null}
             </span>,
             document.body,
           )}

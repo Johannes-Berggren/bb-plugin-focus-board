@@ -103,10 +103,16 @@ describe("the idle-children filter, collapsed to dots", () => {
     renderCard();
     fireEvent.click(sectionToggle(false));
     fireEvent.click(idleToggle(false));
-    expect(dots().children.length).toBe(3);
+    // Dots read in line order (the flattened strip wraps each family in a
+    // group span, so the dots are descendants, not the container's
+    // children).
+    const dotButtons = Array.from(
+      dots().querySelectorAll("button[data-child-dot]"),
+    );
+    expect(dotButtons.length).toBe(3);
     // The per-dot control names the child in its aria-label (issue #174);
     // the first dot in line is now the second child, its idle sibling gone.
-    expect(dots().children[0]?.getAttribute("aria-label")).toContain("Child two");
+    expect(dotButtons[0]?.getAttribute("aria-label")).toContain("Child two");
     expect(row("thr_c1")).toBeNull();
     expect(sectionToggle(true).textContent).toContain("3 active, 1 idle child threads");
   });

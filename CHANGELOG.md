@@ -11,6 +11,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 #### Cards and chips
 
+- **The collapsed child-dot strip paints the whole family, grandchildren in family order.** A child's dot now leads its own smaller sub-dots and a parent dot's hover preview names its sub-threads, so the strip always paints every thread the "N child threads" count reads (the 19-over-9 mismatch cannot recur). An idle sub-thread's dot hides with its row under the eye filter, at either depth.
 - **Chip dots age honestly instead of re-checking GitHub through a spawned process.** The plugin runtime no longer runs the gh CLI to re-check stale open chips, and an open dot is trusted only inside its one-hour confirm window, so a stale chip falls to unsure-plain until bb's own GitHub cache catches up. A closed or merged chip keeps its verdict whatever its age.
 
 ### Fixed

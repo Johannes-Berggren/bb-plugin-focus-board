@@ -339,6 +339,176 @@ describe("the dot grid and the child rows share one dot column", () => {
   });
 });
 
+describe("the strip flattens the family, a child's sub-dots following its dot", () => {
+  // The 2026-10-16 musing (docs/musings/2026-10-16-child-dot-strip-grandchildren.md):
+  // the count names the fold tier (rows plus sub-rows, issue #120) while the
+  // strip painted one dot per direct child (issue #174), so an orchestrator
+  // card read "19 child threads" over nine dots (operator report,
+  // 2026-10-16). The strip now paints every rendered member, family-ordered:
+  // a child's dot leads its own smaller sub-dots, so the dots and the count
+  // agree member for member.
+
+  function grandFamily() {
+    const childOne = thread({
+      id: "thr_c1",
+      parentThreadId: "thr_parent",
+      displayTitle: "Child one",
+      status: "active",
+      updatedAt: 4000,
+    });
+    const subOne = thread({
+      id: "thr_c1_s1",
+      parentThreadId: "thr_c1",
+      displayTitle: "Sub one",
+      status: "idle",
+      updatedAt: 3900,
+    });
+    const subTwo = thread({
+      id: "thr_c1_s2",
+      parentThreadId: "thr_c1",
+      displayTitle: "Sub two",
+      status: "idle",
+      isUnread: true,
+      updatedAt: 3800,
+    });
+    const childTwo = thread({
+      id: "thr_c2",
+      parentThreadId: "thr_parent",
+      displayTitle: "Child two",
+      status: "active",
+      updatedAt: 3700,
+    });
+    return {
+      children: [childOne, childTwo],
+      subsByParent: new Map([["thr_c1", [subOne, subTwo]]]),
+    };
+  }
+
+  function renderGrandCard(overrides: Partial<CardProps> = {}) {
+    const { children, subsByParent } = grandFamily();
+    const props = {
+      thread: thread({ id: "thr_parent", displayTitle: "Parent", updatedAt: 5000 }),
+      stateDot: null,
+      isActive: false,
+      isDone: false,
+      projectName: "One",
+      onOpen: vi.fn(),
+      onOpenThread: vi.fn(),
+      childThreads: children,
+      grandchildThreadsByParent: subsByParent,
+      ...overrides,
+    } as unknown as CardProps;
+    return render(<ThreadCard {...props} />);
+  }
+
+  function dotIds(): string[] {
+    return Array.from(
+      document.querySelectorAll("[data-child-thread-dots] button[data-child-dot]"),
+    ).map((button) => button.getAttribute("data-child-dot") ?? "");
+  }
+
+  function glyphClasses(id: string): string[] {
+    const glyph = dot(id).querySelector("[data-child-dot-glyph]");
+    if (glyph === null) throw new Error(`missing glyph for ${id}`);
+    return glyph.className.split(" ");
+  }
+
+  it("a child's dot leads its sub-dots in family order, never appended at the end", () => {
+    renderGrandCard({ isCollapsed: true });
+    expect(dotIds()).toEqual(["thr_c1", "thr_c1_s1", "thr_c1_s2", "thr_c2"]);
+  });
+
+  it("sub-dots draw one size step smaller than their parent's dot", () => {
+    renderGrandCard({ isCollapsed: true });
+    expect(glyphClasses("thr_c1")).toContain("size-1.5");
+    expect(glyphClasses("thr_c1_s1")).toContain("size-1");
+    expect(glyphClasses("thr_c1_s1")).not.toContain("size-1.5");
+  });
+
+  it("a family wraps as a unit: the group span never splits across lines", () => {
+    renderGrandCard({ isCollapsed: true });
+    const group = document.querySelector('[data-child-dot-group="thr_c1"]');
+    if (!(group instanceof HTMLElement)) throw new Error("missing child dot group");
+    expect(group.className).toContain("flex-nowrap");
+  });
+
+  it("clicking a sub-dot opens the sub-thread's pane", () => {
+    const onOpenThread = vi.fn();
+    renderGrandCard({ isCollapsed: true, onCollapsedChange: vi.fn(), onOpenThread });
+    fireEvent.click(dot("thr_c1_s1"));
+    expect(onOpenThread).toHaveBeenCalledTimes(1);
+    expect(onOpenThread).toHaveBeenCalledWith("thr_c1_s1");
+  });
+
+  it("a sub-dot previews like a child dot: title plus the state the SDK exposes", () => {
+    renderGrandCard({ isCollapsed: true });
+    expect(openPreview("thr_c1_s2").textContent).toContain("Sub two");
+    expect(openPreview("thr_c1_s2").textContent).toContain("Unread");
+  });
+
+  it("a parent dot's preview names its sub-threads; a childless dot's does not", () => {
+    renderGrandCard({ isCollapsed: true });
+    expect(openPreview("thr_c1").textContent).toContain("2 sub-threads");
+    expect(openPreview("thr_c2").textContent).not.toContain("sub-thread");
+  });
+
+  it("the open sub-thread reads selected on its dot", () => {
+    renderGrandCard({ isCollapsed: true, onCollapsedChange: vi.fn(), activeThreadId: "thr_c1_s1" });
+    expect(dot("thr_c1_s1").hasAttribute("data-child-dot-active")).toBe(true);
+    expect(dot("thr_c2").hasAttribute("data-child-dot-active")).toBe(false);
+  });
+
+  it("the idle filter hides an idle sub-dot with its row", () => {
+    renderGrandCard({ isCollapsed: true, hideIdleChildren: true });
+    // Sub one is idle and hides; sub two (unread) and both working children stay.
+    expect(dotIds()).toEqual(["thr_c1", "thr_c1_s2", "thr_c2"]);
+  });
+
+  it("the dots agree with the count: the operator's 19-over-9 reading cannot recur", () => {
+    // Nine children, the first five carrying two sub-threads each: both the
+    // toggle's count and the strip's dots read 19 (the AssetCALC report's
+    // numbers, now consistent by construction).
+    const children = Array.from({ length: 9 }, (_, index) =>
+      thread({
+        id: `thr_c${index + 1}`,
+        parentThreadId: "thr_parent",
+        displayTitle: `Child ${index + 1}`,
+        updatedAt: 5000 - index,
+      }),
+    );
+    const subsByParent = new Map<string, PluginSidebarThread[]>();
+    for (let parentIndex = 0; parentIndex < 5; parentIndex += 1) {
+      subsByParent.set(
+        `thr_c${parentIndex + 1}`,
+        [1, 2].map((sub) =>
+          thread({
+            id: `thr_c${parentIndex + 1}_s${sub}`,
+            parentThreadId: `thr_c${parentIndex + 1}`,
+            displayTitle: `Sub ${parentIndex + 1}.${sub}`,
+            updatedAt: 3000,
+          }),
+        ),
+      );
+    }
+    const props = {
+      thread: thread({ id: "thr_parent", displayTitle: "Parent", updatedAt: 6000 }),
+      stateDot: null,
+      isActive: false,
+      isDone: false,
+      projectName: "One",
+      onOpen: vi.fn(),
+      onOpenThread: vi.fn(),
+      childThreads: children,
+      grandchildThreadsByParent: subsByParent,
+      isCollapsed: true,
+    } as unknown as CardProps;
+    render(<ThreadCard {...props} />);
+    const label = document.querySelector("button[data-child-threads-toggle]");
+    expect(label?.textContent).toContain("19 child threads");
+    expect(dotIds()).toHaveLength(19);
+  });
+});
+
 function threadCardWithActive(activeThreadId: string) {
   const { parent, children } = family();
   const props = {
