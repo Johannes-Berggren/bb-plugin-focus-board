@@ -195,14 +195,43 @@ export const rpcContract = defineRpcContract({
       composerFound: z.boolean(),
       footerFound: z.boolean(),
       footerHtml: z.string().max(8000).nullable(),
+      rootRect: z.object({
+        x: z.number(),
+        y: z.number(),
+        width: z.number(),
+        height: z.number(),
+      }),
+      composerRect: z
+        .object({
+          x: z.number(),
+          y: z.number(),
+          width: z.number(),
+          height: z.number(),
+        })
+        .nullable(),
       matches: z
         .array(
           z.object({
             signature: z.enum(["context-chip", "thread-details-button", "checkout-chip"]),
             display: z.string().max(40),
-            width: z.number(),
-            height: z.number(),
+            rect: z.object({
+              x: z.number(),
+              y: z.number(),
+              width: z.number(),
+              height: z.number(),
+            }),
             snippet: z.string().max(600),
+            ancestors: z
+              .array(
+                z.tuple([z.string().max(20), z.object({
+                  x: z.number(),
+                  y: z.number(),
+                  width: z.number(),
+                  height: z.number(),
+                })]),
+              )
+              .max(6)
+              .optional(),
           }),
         )
         .max(24),

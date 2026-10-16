@@ -21,12 +21,17 @@ export interface ComposeProbeEvent {
   footerFound: boolean;
   /** The host footer's outerHTML, compressed to one line and capped. */
   footerHtml: string | null;
+  /** Viewport rect of the probe root (the pane's chat body). */
+  rootRect: { x: number; y: number; width: number; height: number };
+  /** Viewport rect of the host composer wrapper, when present. */
+  composerRect: { x: number; y: number; width: number; height: number } | null;
   matches: {
     signature: string;
     display: string;
-    width: number;
-    height: number;
+    rect: { x: number; y: number; width: number; height: number };
     snippet: string;
+    /** Up to six ancestor rects (tag, rect), first match only. */
+    ancestors?: [string, { x: number; y: number; width: number; height: number }][];
   }[];
 }
 
