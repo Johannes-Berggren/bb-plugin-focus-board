@@ -11,20 +11,24 @@ afterEach(() => {
   // Each test brings its own temp data dir; nothing to restore.
 });
 
+const rect = { x: 10, y: 20, width: 30, height: 24 };
+
 const event = {
   threadId: "thr_probe",
   at: 1792094638754,
   missing: false,
   composerFound: true,
+  composerRect: rect,
+  rootRect: rect,
   footerFound: true,
   footerHtml: '<div data-follow-up-composer-footer>…</div>',
   matches: [
     {
       signature: "checkout-chip",
       display: "none",
-      width: 0,
-      height: 0,
+      rect,
       snippet: '<span data-promptbox-hide-branch-compact="">feat/x</span>',
+      ancestors: [["div", rect]],
     },
   ],
 };

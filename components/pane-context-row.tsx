@@ -11,20 +11,35 @@ import { cn } from "@/lib/utils";
 // pane's compose area shows nothing where the main view shows the project
 // + checkout context. Until bb closes that gap, the pane detects the host
 // row inside the chat DOM and paints its own line when it is not there.
+//
+// Capture caveat from the first instrument round (58 events, bb 0.46.1):
+// the host DOES paint Project/Environment/branch chips in the pane's
+// footer once its queries settle — the open question is WHERE they paint
+// (the operator's screenshot shows none), which is why the events carry
+// viewport rects and ancestor chains now.
 
 /** One matched host-context element, with enough paint state to tell a
- *  visible chip from a hidden one (the checkout chip is display:none inside
- *  the promptbox shell by CSS, always, in bb 0.46.1). */
+ *  visible chip from a hidden one: viewport rects (the pane clips at its
+ *  bottom edge) plus the ancestor chain for the first match, which settles
+ *  clipped-vs-overlapped-vs-painted in one capture. */
 export interface PaneProbeMatch {
   /** Which probe signature matched. */
   signature: "context-chip" | "thread-details-button" | "checkout-chip";
   /** Computed css display of the element. */
   display: string;
-  /** Bounding rect (0 when the element paints nothing). */
-  width: number;
-  height: number;
+  rect: PaneProbeRect;
   /** First bytes of the element's HTML, one line. */
   snippet: string;
+  /** Up to six ancestor elements (tag + rect), outermost innermost last —
+   *  present only on the first match of the event. */
+  ancestors?: PaneProbeRect[][];
+}
+
+export interface PaneProbeRect {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
 }
 
 export interface PaneProbeEvent {
@@ -34,21 +49,47 @@ export interface PaneProbeEvent {
   composerFound: boolean;
   footerFound: boolean;
   footerHtml: string | null;
+  /** Viewport rect of the probe root (the pane's chat body). */
+  rootRect: PaneProbeRect;
+  /** Viewport rect of the host composer wrapper, when present. */
+  composerRect: PaneProbeRect | null;
   matches: PaneProbeMatch[];
 }
 
-function matchOf(element: Element, signature: PaneProbeMatch["signature"]): PaneProbeMatch {
-  const el = element instanceof HTMLElement ? element : null;
-  const rect = el !== null ? el.getBoundingClientRect() : { width: 0, height: 0 };
+function rectOf(el: Element): PaneProbeRect {
+  const rect = el.getBoundingClientRect();
   return {
+    x: Math.round(rect.x),
+    y: Math.round(rect.y),
+    width: Math.round(rect.width),
+    height: Math.round(rect.height),
+  };
+}
+
+function matchOf(
+  element: Element,
+  signature: PaneProbeMatch["signature"],
+  withAncestors: boolean,
+): PaneProbeMatch {
+  const el = element instanceof HTMLElement ? element : null;
+  const match: PaneProbeMatch = {
     signature,
     display: el !== null ? getComputedStyle(el).display : "unknown",
-    width: rect.width,
-    height: rect.height,
+    rect: rectOf(element),
     snippet: (el !== null ? el.outerHTML : (element as Node).textContent ?? "")
       .replace(/\s+/g, " ")
       .slice(0, 300),
   };
+  if (withAncestors) {
+    const chain: PaneProbeRect[][] = [];
+    let current: HTMLElement | null = el;
+    for (let i = 0; i < 6 && current !== null; i += 1) {
+      chain.push([current.tagName.toLowerCase(), rectOf(current)]);
+      current = current.parentElement;
+    }
+    match.ancestors = chain;
+  }
+  return match;
 }
 
 /** Every host-context element inside this DOM root, with paint state — the
@@ -57,14 +98,14 @@ export function composerContextMatches(root: HTMLElement | null): PaneProbeMatch
   if (root === null) return [];
   const matches: PaneProbeMatch[] = [];
   const details = root.querySelector(`button[aria-label^="Thread details:"]`);
-  if (details !== null) matches.push(matchOf(details, "thread-details-button"));
+  if (details !== null) matches.push(matchOf(details, "thread-details-button", matches.length === 0));
   for (const chip of Array.from(root.querySelectorAll("[data-promptbox-hide-branch-compact]"))) {
-    matches.push(matchOf(chip, "checkout-chip"));
+    matches.push(matchOf(chip, "checkout-chip", matches.length === 0));
   }
   for (const chip of Array.from(root.querySelectorAll("[data-option-display]"))) {
     const text = (chip.textContent ?? "").trim();
     if (text.startsWith("Project:") || text.startsWith("Environment:")) {
-      matches.push(matchOf(chip, "context-chip"));
+      matches.push(matchOf(chip, "context-chip", matches.length === 0));
     }
   }
   return matches;
@@ -93,7 +134,7 @@ export function composerContextVisible(root: HTMLElement | null): boolean {
 }
 
 function buildProbeEvent(root: HTMLElement, missing: boolean, threadId: string): PaneProbeEvent {
-  const composer = root.querySelector("[data-follow-up-composer]");
+  const composerEl = root.querySelector("[data-follow-up-composer]");
   const footer = root.querySelector("[data-follow-up-composer-footer]");
   let footerHtml: string | null = null;
   if (footer instanceof HTMLElement) {
@@ -103,7 +144,9 @@ function buildProbeEvent(root: HTMLElement, missing: boolean, threadId: string):
     threadId,
     at: Date.now(),
     missing,
-    composerFound: composer !== null,
+    composerFound: composerEl !== null,
+    composerRect: composerEl !== null ? rectOf(composerEl) : null,
+    rootRect: rectOf(root),
     footerFound: footer !== null,
     footerHtml,
     matches: composerContextMatches(root),

@@ -58,6 +58,8 @@ const validInputs: Record<Method, unknown> = {
     at: 1792094638754,
     missing: true,
     composerFound: false,
+    composerRect: null,
+    rootRect: { x: 0, y: 0, width: 480, height: 800 },
     footerFound: false,
     footerHtml: null,
     matches: [],

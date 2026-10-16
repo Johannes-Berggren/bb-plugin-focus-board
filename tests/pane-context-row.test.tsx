@@ -165,7 +165,10 @@ describe("composerContextMatches detail", () => {
     expect(matches[0].signature).toBe("thread-details-button");
     expect(matches[1].signature).toBe("context-chip");
     expect(matches[1].display).toBe("block");
-    expect(typeof matches[1].width).toBe("number");
+    expect(matches[1].rect.width).toBe(0);
+    // Only the first match carries the ancestor chain (clip diagnosis).
+    expect(matches[0].ancestors?.[0]).toEqual(["button", { x: 0, y: 0, width: 0, height: 0 }]);
+    expect(matches[1].ancestors).toBeUndefined();
     expect(matches[1].snippet).toContain("data-option-display");
   });
 
