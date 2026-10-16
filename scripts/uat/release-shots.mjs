@@ -8,6 +8,8 @@
  *     (groupBy=group);
  *   - the compact filter ribbon open on phone (below the 767px compact
  *     breakpoint the palette collapses into a header toggle);
+ *   - the empty-workspace board a first-run operator sees (`?empty=1`) in
+ *     dark at desktop and phone;
  *   - a light-theme board; and
  *   - the three toolbar modals: settings (Behavior tab), new thread, and
  *     What's new (seeded unseen via ?lastSeenVersion).
@@ -134,6 +136,8 @@ const SHOTS = [
   { name: "board-phone", viewport: "phone" },
   { name: "pane-phone", viewport: "phone", pane: true },
   { name: "palette-phone", viewport: "phone", palette: true },
+  { name: "empty-desktop", viewport: "desktop", url: "empty=1", wait: 'div[role="status"]' },
+  { name: "empty-phone", viewport: "phone", url: "empty=1", wait: 'div[role="status"]' },
   { name: "board-desktop-light", viewport: "desktop", theme: "light" },
   { name: "lanes-desktop", viewport: "desktop", url: LANES_PARAMS },
   { name: "lanes-phone", viewport: "phone", url: LANES_PARAMS },
@@ -170,7 +174,12 @@ try {
       ]);
       const url = `${harness.base}?${shot.url ?? BASE_PARAMS}`;
       await page.goto(url, { waitUntil: "domcontentloaded", timeout: 60_000 });
-      await page.waitForSelector("section[aria-label]", { timeout: 30_000 });
+      // The board mounts as per-column sections; the empty-workspace board
+      // renders the EmptyState copy instead of any column, so its shots wait
+      // on that role="status" region (empty-state.tsx) rather than a section.
+      await page.waitForSelector(shot.wait ?? "section[aria-label]", {
+        timeout: 30_000,
+      });
       await page.evaluate((mode) => {
         document.documentElement.classList.toggle("dark", mode === "dark");
       }, theme);
