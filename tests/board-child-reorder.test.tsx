@@ -58,6 +58,11 @@ interface ChildBoardResult {
 
 function renderFamilyBoard(overrides: Partial<BoardProps> = {}): ChildBoardResult {
   const parent = thread({ id: "p", status: "active", updatedAt: NOW - 1000 });
+  const childC = thread({
+    id: "c0",
+    parentThreadId: "p",
+    updatedAt: NOW - 1500,
+  });
   const childA = thread({
     id: "c1",
     parentThreadId: "p",
@@ -74,23 +79,24 @@ function renderFamilyBoard(overrides: Partial<BoardProps> = {}): ChildBoardResul
     parentThreadId: "q",
     updatedAt: NOW - 5000,
   });
-  const threads = [parent, childA, childB, foreignParent, foreignChild];
+  const threads = [parent, childC, childA, childB, foreignParent, foreignChild];
   const props = {
     groupBy: "status" as const,
     columns: buildColumns(threads, "status", context, new Map(), new Set<string>(), NOW, {}),
     activeThreadId: null,
     doneIds: new Set<string>(),
     nestedChildrenByParent: new Map([
-      ["p", [childA, childB]],
+      ["p", [childC, childA, childB]],
       ["q", [foreignChild]],
     ]),
     doneChildrenByParent: new Map(),
     childCountByParent: new Map([
-      ["p", 2],
+      ["p", 3],
       ["q", 1],
     ]),
     dimmedIds: new Set<string>(),
     rawParentOf: new Map([
+      ["c0", "p"],
       ["c1", "p"],
       ["c2", "p"],
       ["f1", "q"],
@@ -134,19 +140,37 @@ function dragRowOnto(fromId: string, targetId: string, clientY: number) {
 describe("the reorder-nested-children gesture", () => {
   it("a row dropped on a sibling's edge writes the family's own child order", () => {
     const { onRankMove, onReparent } = renderFamilyBoard();
-    const { dropAllowed } = dragRowOnto("c1", "c2", 10); // c1 onto c2's top half
+    // c0 (the rows' first row... three rows: [c0, c1, c2]) dropped onto c2's
+    // top half: c0 lands directly above c2, past c1 — a real move, with the
+    // middle row between the pair.
+    const { dropAllowed } = dragRowOnto("c0", "c2", 10);
     expect(dropAllowed).toBe(true);
     expect(onRankMove).toHaveBeenCalledTimes(1);
     expect(onRankMove).toHaveBeenCalledWith(
       "child:p",
-      "c1",
+      "c0",
       "c2",
       false,
-      ["c1", "c2"],
+      ["c0", "c1", "c2"],
     );
     // The gesture never rides the parent card's handlers: no nest, no
     // column-order write for the reorder itself.
     expect(onReparent).not.toHaveBeenCalled();
+  });
+
+  it("a release whose row slot already holds the dragged row says so, writing nothing", async () => {
+    // c1 dropped on c2's top half: "before c2" is c1's own slot (they are
+    // adjacent). The row's handlers claim the gesture (so the surface never
+    // falls through to the parent card, which would rank the ROW in the
+    // lane's column order — a card the lane never holds), promise no line,
+    // and the drop refuses loudly while writing nothing.
+    const { onRankMove } = renderFamilyBoard();
+    const { dropAllowed } = dragRowOnto("c1", "c2", 10);
+    expect(dropAllowed).toBe(true);
+    await vi.waitFor(() => {
+      expect(onRankMove).not.toHaveBeenCalled();
+      expect(document.body.textContent).toMatch(/resolved to no move/);
+    });
   });
 
   it("a row dropped below its following sibling anchors past it (one slot further)", () => {
@@ -157,7 +181,7 @@ describe("the reorder-nested-children gesture", () => {
       "c1",
       null,
       true,
-      ["c1", "c2"],
+      ["c0", "c1", "c2"],
     );
   });
 

@@ -630,13 +630,10 @@ describe("columnRunInfo and unitMoveTarget", () => {
       toEnd: false,
     });
     // Hovering the box's LAST member with the solo dragged card right below
-    // it used to anchor past the run at the dragged card itself — a write
-    // applyMove no-ops on. moveTargetFor's convention holds: the card lands
-    // directly under the run it was aimed at (reported 2026-10-15).
-    expect(unitMoveTarget(order, "thr_c", "after", "thr_x", info)).toEqual({
-      beforeId: "thr_c",
-      toEnd: false,
-    });
+    // it: the cursor lands on the dragged card — its own slot — so the
+    // target refuses (anchoring at the run would jump the solo card above
+    // the run, the flip-flop reported 2026-10-15).
+    expect(unitMoveTarget(order, "thr_c", "after", "thr_x", info)).toBeNull();
   });
 
   it("hovering the dragged card's own run is a no-op", () => {
@@ -644,24 +641,31 @@ describe("columnRunInfo and unitMoveTarget", () => {
     expect(unitMoveTarget(order, "thr_c", "after", "thr_b", info)).toBeNull();
   });
 
-  it("an after-hover directly above the dragged box anchors past its own span (a visual no-op)", () => {
+  it("an after-hover directly above the dragged box anchors past its own span — its own slot refuses", () => {
     // Drag the box (b,c); hover plain "a" above it, bottom half: below a
     // are the box's own members, so the anchor lands past its own span on
-    // "x" — reinserting there reproduces the current order (no move).
-    expect(unitMoveTarget(order, "thr_a", "after", "thr_b", info)).toEqual({
-      beforeId: "thr_x",
-      toEnd: false,
-    });
+    // "x" — reinserting there reproduces the current order, which is the
+    // dragged unit's own slot. That no-op write also ranked unrelated cards
+    // above (the fresh-install rule firing for a move that changes
+    // nothing), so the target refuses: the drop says "no move" instead.
+    expect(unitMoveTarget(order, "thr_a", "after", "thr_b", info)).toBeNull();
   });
 
-  it("the same convention holds when the hover is a box's last member", () => {
-    // Hover box run (b,c) while a solo dragged card sits right below it:
-    // the anchor is the run's LAST member, so the solo card lands directly
-    // under the run it was aimed at — never at itself.
-    expect(unitMoveTarget(order, "thr_b", "after", "thr_x", info)).toEqual({
-      beforeId: "thr_c",
-      toEnd: false,
-    });
+  it("a solo dragged card directly below the hover refuses its own slot", () => {
+    // The after-edge skipped only multi-member dragged units, so a SOLO
+    // dragged card sitting right below the hover anchored at ITSELF —
+    // applyMove no-ops on its own id, and the drop wrote a silent nothing
+    // where the pointer promised a placement (reported 2026-10-15: a newly
+    // pinned family parent dragged to the top of the Pinned lane, released
+    // on the card above it, never moved; twice).
+    expect(unitMoveTarget(order, "thr_c", "after", "thr_x", info)).toBeNull();
+  });
+
+  it("the hover being a box's last member refuses the dragged solo's own slot too", () => {
+    // Hover box run (b,c) with the solo dragged card right below it: the
+    // cursor lands on the dragged card — its own slot — so the target
+    // refuses (anchoring at the run would jump the solo card above the run).
+    expect(unitMoveTarget(order, "thr_b", "after", "thr_x", info)).toBeNull();
   });
 });
 

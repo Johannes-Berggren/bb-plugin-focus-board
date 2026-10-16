@@ -256,8 +256,19 @@ export type MoveTarget =
  * card there is no card below, so that becomes an append.
  *
  * Returns null when the drop would change nothing: hovering the dragged
- * card itself, or an unknown hover id. Callers drop the event in that case
- * rather than writing a no-op move.
+ * card itself, or a release whose insertion slot already holds the dragged
+ * card — the slot directly above the hovered card, when the dragged card is
+ * that hover's direct upper neighbour, and the slot directly below it, when
+ * the dragged card is its direct lower neighbour. The pointer promised the
+ * card's own position, so the move is a no-op; the anchor an earlier version
+ * produced here (the hovered card's id) INSERTED the dragged card ABOVE the
+ * hover — a jump the release never promised, and the flip-flop a repeated
+ * drop in the same region then never escaped (reported 2026-10-15: a pinned
+ * family parent that could not be landed below its neighbour no matter how
+ * the release aimed). Callers drop the event in that case rather than
+ * writing a no-op move — the spurious ranks the "rank everything above the
+ * drop point" rule would write for a gesture that changes nothing visible
+ * are exactly the corruption a no-op must not produce.
  */
 export function moveTargetFor(
   visibleIds: readonly string[],
@@ -267,15 +278,14 @@ export function moveTargetFor(
 ): MoveTarget | null {
   const at = visibleIds.indexOf(hoverId);
   if (at === -1 || hoverId === draggingId) return null;
-  if (edge === "before") return { beforeId: hoverId, toEnd: false };
+  if (edge === "before") {
+    if (at > 0 && visibleIds[at - 1] === draggingId) return null;
+    return { beforeId: hoverId, toEnd: false };
+  }
   const below = visibleIds[at + 1];
   // Past the last card: nothing below to anchor on.
   if (below === undefined) return { beforeId: null, toEnd: true };
-  if (below === draggingId) {
-    // Anchoring on the dragged card is a no-op, so the card belongs directly
-    // under the card it was aimed at instead.
-    return { beforeId: hoverId, toEnd: false };
-  }
+  if (below === draggingId) return null;
   return { beforeId: below, toEnd: false };
 }
 

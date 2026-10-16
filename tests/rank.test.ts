@@ -217,11 +217,12 @@ describe("appendTo", () => {
 describe("turning a drop position into a move", () => {
   const ids = ["thr_a", "thr_b", "thr_c"];
 
-  it("the top half of a card anchors on that card", () => {
-    expect(moveTargetFor(ids, "thr_b", "before", "thr_a")).toEqual({
-      beforeId: "thr_b",
-      toEnd: false,
-    });
+  it("refuses a top-half release whose slot above the hover holds the dragged card", () => {
+    // thr_a sits directly above thr_b, so "before thr_b" is thr_a's own
+    // slot: the pointer promised the card's own position. The anchored
+    // target an earlier version produced (thr_b) wrote the above-ranks a
+    // no-move must never write, with nothing to show for it.
+    expect(moveTargetFor(ids, "thr_b", "before", "thr_a")).toBeNull();
   });
 
   it("the bottom half anchors on the card below, so the card lands past it", () => {
@@ -251,13 +252,20 @@ describe("turning a drop position into a move", () => {
     expect(moveTargetFor(ids, "thr_b", "after", "thr_b")).toBeNull();
   });
 
-  it("lands directly under the hovered card when that is the dragged one", () => {
-    // Hovering the card below the dragged card: anchoring on it would be a
-    // no-op, so the dragged card belongs under the hovered one.
-    expect(moveTargetFor(ids, "thr_b", "after", "thr_c")).toEqual({
-      beforeId: "thr_b",
-      toEnd: false,
-    });
+  it("refuses a release whose slot already holds the dragged card", () => {
+    // thr_c dropped on thr_b's bottom half: "after thr_b" is thr_c's own
+    // slot. The pointer promised the card's own position, so the move is a
+    // no-op — the anchor an earlier version produced here (thr_b) inserted
+    // the card ABOVE the hover, a jump the release never promised, and the
+    // flip-flop a repeated drop in that band then never escaped (reported
+    // 2026-10-15: a pinned family parent that could not be landed below its
+    // neighbour no matter how the release aimed). The refusal also keeps the
+    // "rank everything above the drop point" rule off a gesture that moves
+    // nothing: a no-op drop must not write unrelated ranks.
+    expect(moveTargetFor(ids, "thr_b", "after", "thr_c")).toBeNull();
+    // The mirrored top-half case: thr_b on thr_c's top half is "before
+    // thr_c" — thr_b's own slot when it sits directly above.
+    expect(moveTargetFor(ids, "thr_c", "before", "thr_b")).toBeNull();
   });
 
   it("refuses a hover id that is not in the column", () => {
