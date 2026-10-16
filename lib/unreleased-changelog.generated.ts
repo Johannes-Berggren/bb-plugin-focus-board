@@ -4,5 +4,15 @@ export const UNRELEASED_ITEMS: readonly { text: string; children: string[]; grou
     "text": "**Chip dots age honestly instead of re-checking GitHub through a spawned process.** The plugin runtime no longer runs the gh CLI to re-check stale open chips, and an open dot is trusted only inside its one-hour confirm window, so a stale chip falls to unsure-plain until bb's own GitHub cache catches up. A closed or merged chip keeps its verdict whatever its age.",
     "children": [],
     "group": "Cards and chips"
+  },
+  {
+    "text": "**Two boards stop erasing each other's Done and sweep-keep marks.** Marking thread `t2` Done in one bb window while window B marks `t3` one instant later used to overwrite the shared row from a stale snapshot, so one mark vanished. These writes now serialize on the same queue every rank move already runs, and the done index plus the sweep-keep flags land both changes (issue #242).",
+    "children": [],
+    "group": "Cards and chips"
+  },
+  {
+    "text": "**A group created in one board window survives a simultaneous change in another.** Group creates, renames, deletes, and the member-scan prune each rewrite the whole registry row; serialized, a create in window A is no longer wiped from the registry by a create or assign in window B (issue #242).",
+    "children": [],
+    "group": "Groups and family boxes"
   }
 ];

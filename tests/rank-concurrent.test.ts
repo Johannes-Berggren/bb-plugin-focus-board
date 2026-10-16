@@ -4,7 +4,7 @@
 // cycle over one KV row had an interleaving window, and a gated interleave
 // made writer A's stale spread revert writer B's column entirely (the pinned
 // write came back undone). The fix serializes every rank write through an
-// in-process queue (withRankWriteLock in server.ts); these tests pin what
+// in-process queue (withKvWriteLock in server.ts); these tests pin what
 // that serialization guarantees.
 import { describe, expect, it } from "vitest";
 import { createFakePluginHost } from "@get-bb/plugin-sdk/testing";

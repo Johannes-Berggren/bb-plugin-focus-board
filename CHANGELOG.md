@@ -15,6 +15,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+#### Cards and chips
+
+- **Two boards stop erasing each other's Done and sweep-keep marks.** Marking thread `t2` Done in one bb window while window B marks `t3` one instant later used to overwrite the shared row from a stale snapshot, so one mark vanished. These writes now serialize on the same queue every rank move already runs, and the done index plus the sweep-keep flags land both changes (issue #242).
+
+#### Groups and family boxes
+
+- **A group created in one board window survives a simultaneous change in another.** Group creates, renames, deletes, and the member-scan prune each rewrite the whole registry row; serialized, a create in window A is no longer wiped from the registry by a create or assign in window B (issue #242).
+
 ## [1.5.0] - 2026-10-16
 
 ### Added

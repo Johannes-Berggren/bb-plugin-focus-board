@@ -560,7 +560,7 @@ export const rpcContract = defineRpcContract({
    * A single move, not a whole-column write: two boards open on the same
    * column each lose only their own move, instead of the second write
    * clobbering every rank the first one established. Concurrent moves are
-   * serialized server-side (withRankWriteLock), so an interleave can never
+   * serialized server-side (withKvWriteLock), so an interleave can never
    * revert the other writer's column.
    */
   rank_move: {
@@ -853,19 +853,26 @@ export default async function plugin(bb: BbPluginApi) {
   }
 
   async function addToDoneIndex(threadId: string): Promise<void> {
-    const ids = new Set(await readDoneIndex());
-    if (ids.has(threadId)) return;
-    ids.add(threadId);
-    await bb.storage.kv.set(DONE_INDEX_KV_KEY, [...ids]);
+    // One KV row read-merged per mark, so a mark on another thread (another
+    // window, or the CLI) is erased by a stale-snapshot write unless the
+    // cycle serializes — same rule as every other whole-row store.
+    await withKvWriteLock(async () => {
+      const ids = new Set(await readDoneIndex());
+      if (ids.has(threadId)) return;
+      ids.add(threadId);
+      await bb.storage.kv.set(DONE_INDEX_KV_KEY, [...ids]);
+    });
   }
 
   async function removeFromDoneIndex(threadId: string): Promise<void> {
-    const ids = await readDoneIndex();
-    if (!ids.includes(threadId)) return;
-    await bb.storage.kv.set(
-      DONE_INDEX_KV_KEY,
-      ids.filter((id) => id !== threadId),
-    );
+    await withKvWriteLock(async () => {
+      const ids = await readDoneIndex();
+      if (!ids.includes(threadId)) return;
+      await bb.storage.kv.set(
+        DONE_INDEX_KV_KEY,
+        ids.filter((id) => id !== threadId),
+      );
+    });
   }
 
   async function writeDoneRecord(threadId: string, done: boolean) {    const now = new Date();
@@ -1006,11 +1013,16 @@ export default async function plugin(bb: BbPluginApi) {
   }
 
   async function pruneGroupsToMembers(): Promise<void> {
-    const store = await readGroupsStore();
-    const counts = await countAllGroupMembers();
-    const pruned = pruneEmptyGroups(store, counts);
-    if (Object.keys(pruned).length === Object.keys(store).length) return;
-    await writeGroupsStore(pruned);
+    // The registry is one KV row rewritten whole: the prune runs under the
+    // KV write lock so a group created (or renamed) by another writer during
+    // the member scan survives the write-back.
+    await withKvWriteLock(async () => {
+      const store = await readGroupsStore();
+      const counts = await countAllGroupMembers();
+      const pruned = pruneEmptyGroups(store, counts);
+      if (Object.keys(pruned).length === Object.keys(store).length) return;
+      await writeGroupsStore(pruned);
+    });
   }
 
   function unknownGroupError(groupId: string): PluginCliError {
@@ -1079,39 +1091,46 @@ export default async function plugin(bb: BbPluginApi) {
         { code: "invalid_value" },
       );
     }
-    const store = await readGroupsStore();
-    const matches = Object.entries(store)
-      .filter(([, record]) => record.name === settled)
-      .sort(([idA, recA], [idB, recB]) =>
-        recA.createdAt === recB.createdAt
-          ? idA.localeCompare(idB)
-          : recA.createdAt.localeCompare(recB.createdAt),
-      );
-    if (matches.length > 0) {
-      const [id, record] = matches[0] as [string, GroupRecord];
-      return { id, record, created: false };
-    }
-    const id = crypto.randomUUID();
-    const record = createGroupRecord(settled, new Date());
-    await writeGroupsStore({ ...store, [id]: record });
-    bb.realtime.publish(GROUP_CHANGED, { threadId: null });
-    return { id, record, created: true };
+    return withKvWriteLock(async () => {
+      const store = await readGroupsStore();
+      const matches = Object.entries(store)
+        .filter(([, record]) => record.name === settled)
+        .sort(([idA, recA], [idB, recB]) =>
+          recA.createdAt === recB.createdAt
+            ? idA.localeCompare(idB)
+            : recA.createdAt.localeCompare(recB.createdAt),
+        );
+      if (matches.length > 0) {
+        const [id, record] = matches[0] as [string, GroupRecord];
+        return { id, record, created: false };
+      }
+      const id = crypto.randomUUID();
+      const record = createGroupRecord(settled, new Date());
+      await writeGroupsStore({ ...store, [id]: record });
+      bb.realtime.publish(GROUP_CHANGED, { threadId: null });
+      return { id, record, created: true };
+    });
   }
 
   async function renameGroupById(groupId: string, name: string): Promise<GroupRecord> {
-    const store = await readGroupsStore();
-    if (store[groupId] === undefined) throw unknownGroupError(groupId);
-    const settled = normalizeGroupName(name);
-    if (settled === null) {
-      throw new PluginCliError(
-        `group name must be 1-80 non-blank characters, got ${JSON.stringify(name)}`,
-        { code: "invalid_value" },
-      );
-    }
-    const record = { ...store[groupId], name: settled };
-    await writeGroupsStore({ ...store, [groupId]: record });
-    bb.realtime.publish(GROUP_CHANGED, { threadId: null });
-    return record;
+    // The registry is one KV row rewritten whole: the read-merge write runs
+    // under the KV write lock so another writer's concurrent create or
+    // rename is not erased by this write's stale snapshot.
+    return withKvWriteLock(async () => {
+      const store = await readGroupsStore();
+      if (store[groupId] === undefined) throw unknownGroupError(groupId);
+      const settled = normalizeGroupName(name);
+      if (settled === null) {
+        throw new PluginCliError(
+          `group name must be 1-80 non-blank characters, got ${JSON.stringify(name)}`,
+          { code: "invalid_value" },
+        );
+      }
+      const record = { ...store[groupId], name: settled };
+      await writeGroupsStore({ ...store, [groupId]: record });
+      bb.realtime.publish(GROUP_CHANGED, { threadId: null });
+      return record;
+    });
   }
 
   /**
@@ -1163,23 +1182,28 @@ export default async function plugin(bb: BbPluginApi) {
   async function deleteGroup(
     groupId: string,
   ): Promise<{ groupId: string; cleared: string[] }> {
-    const store = await readGroupsStore();
-    if (store[groupId] === undefined) throw unknownGroupError(groupId);
-    const [liveRows, archivedRows] = await Promise.all([
-      bb.sdk.threads.list({}),
-      bb.sdk.threads.list({ archived: true, limit: 200 }),
-    ]);
-    const cleared: string[] = [];
-    for (const row of [...liveRows, ...archivedRows]) {
-      const record = await readGroupAssignment(row.id);
-      if (record?.groupId !== groupId) continue;
-      await writeGroupAssignment(row.id, null);
-      cleared.push(row.id);
-    }
-    const { [groupId]: _removed, ...rest } = store;
-    await writeGroupsStore(rest);
-    bb.realtime.publish(GROUP_CHANGED, { threadId: cleared[cleared.length - 1] ?? null });
-    return { groupId, cleared };
+    // The registry is one KV row rewritten whole: the whole delete — the
+    // store read, the member scan, the write-back — runs under the KV write
+    // lock so another writer's concurrent create or rename is not erased.
+    return withKvWriteLock(async () => {
+      const store = await readGroupsStore();
+      if (store[groupId] === undefined) throw unknownGroupError(groupId);
+      const [liveRows, archivedRows] = await Promise.all([
+        bb.sdk.threads.list({}),
+        bb.sdk.threads.list({ archived: true, limit: 200 }),
+      ]);
+      const cleared: string[] = [];
+      for (const row of [...liveRows, ...archivedRows]) {
+        const record = await readGroupAssignment(row.id);
+        if (record?.groupId !== groupId) continue;
+        await writeGroupAssignment(row.id, null);
+        cleared.push(row.id);
+      }
+      const { [groupId]: _removed, ...rest } = store;
+      await writeGroupsStore(rest);
+      bb.realtime.publish(GROUP_CHANGED, { threadId: cleared[cleared.length - 1] ?? null });
+      return { groupId, cleared };
+    });
   }
 
   // Linked GitHub items (issue #13): the chip feed that works when neither
@@ -1361,20 +1385,23 @@ export default async function plugin(bb: BbPluginApi) {
   }
 
   /**
-   * Rank writes are read-merge-write cycles over one KV row, and the SDK's
-   * KV has no compare-and-swap: two moves interleaving between a read and
-   * its write let the stale spread revert the other writer's column (a
-   * pinned write came back undone under a gated interleave — proven red by
-   * tests/rank-concurrent.test.ts before the lock existed). Every cycle
-   * therefore runs serialized on this in-process queue: all rank writers
-   * are board RPCs in this one server process, and the CLI never writes
-   * ranks. The queue never rejects, so one failed move cannot wedge the
-   * writers behind it.
+   * Every whole-row KV store the plugin owns (rank orders, the done index,
+   * the sweep keep flags, the groups registry) is a read-merge-write cycle
+   * over one KV row, and the SDK's KV has no compare-and-swap: two writers
+   * interleaving between one writer's read and its write let the later
+   * write — computed from the ORIGINAL row — silently erase the first
+   * writer's change (a pinned write came back undone under a gated
+   * interleave — proven red by tests/rank-concurrent.test.ts before the
+   * lock existed; tests/board-kv-concurrent.test.ts pins the same
+   * guarantee for the other three rows). Every cycle therefore runs
+   * serialized on this in-process queue: all writers are board RPCs and CLI
+   * commands in this one server process. The queue never rejects, so one
+   * failed write cannot wedge the writers behind it.
    */
-  let rankWriteChain: Promise<unknown> = Promise.resolve();
-  function withRankWriteLock<T>(task: () => Promise<T>): Promise<T> {
-    const run = rankWriteChain.then(task, task);
-    rankWriteChain = run.then(
+  let kvWriteChain: Promise<unknown> = Promise.resolve();
+  function withKvWriteLock<T>(task: () => Promise<T>): Promise<T> {
+    const run = kvWriteChain.then(task, task);
+    kvWriteChain = run.then(
       () => undefined,
       () => undefined,
     );
@@ -2333,16 +2360,24 @@ export default async function plugin(bb: BbPluginApi) {
     sweep_keep_set: async ({ threadId, keep }) => {
       // The keep flag applies to BOTH sweep arms (Done and long-idle), so it
       // is stored independently of Done marks: a long-idle thread that was
-      // never marked Done can be protected too.
-      const kept = await readKept();
-      if (keep) {
-        if (kept[threadId] === true) return { threadId, keep };
-        await writeKept({ ...kept, [threadId]: true });
-      } else {
-        if (kept[threadId] !== true) return { threadId, keep };
-        const { [threadId]: _removed, ...rest } = kept;
-        await writeKept(rest);
-      }
+      // never marked Done can be protected too. The whole-row read-merge
+      // write runs under the KV write lock: a concurrent keep on another
+      // thread must not be erased by this write's stale snapshot.
+      let changed = false;
+      await withKvWriteLock(async () => {
+        const kept = await readKept();
+        if (keep) {
+          if (kept[threadId] === true) return;
+          await writeKept({ ...kept, [threadId]: true });
+        } else {
+          if (kept[threadId] !== true) return;
+          const { [threadId]: _removed, ...rest } = kept;
+          await writeKept(rest);
+        }
+        changed = true;
+      });
+      // An idempotent toggle writes nothing and signals nothing, like before.
+      if (!changed) return { threadId, keep };
       // Keep changes feed the same refetch signal the board already
       // subscribes to; payload consumers refetch, so done:false is a dummy.
       bb.realtime.publish(DONE_CHANGED, { threadId, done: false });
@@ -2370,7 +2405,7 @@ export default async function plugin(bb: BbPluginApi) {
       return { threadId, parentThreadId };
     },
     rank_move: ({ columnKey, threadId, beforeId, toEnd, visibleIds, unitIds }) =>
-      withRankWriteLock(async () => {
+      withKvWriteLock(async () => {
         const store = await readRanks();
         const current = orderForColumn(store, columnKey);
         // A unit move (family box): the whole box lands contiguously at the
