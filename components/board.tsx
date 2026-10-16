@@ -45,7 +45,7 @@ import {
   type RankStore,
 } from "../lib/rank";
 import { reparentRefusalFromParents } from "../lib/reparent";
-import { nestRendersFlat } from "./nesting";
+import { flatNestReason } from "./nesting";
 import {
   canJoinGroup,
   columnRunInfo,
@@ -1405,6 +1405,13 @@ export function Board({
   // without). One lane armed at a time: the first click arms Hide, the
   // second confirms.
   const [hideLaneReport, setHideLaneReport] = useState<{ message: string } | null>(null);
+  // The nest's receipt for a write the placement rules cannot show: a
+  // pinned child (or an attention one, or a cross-space child) keeps its own
+  // card in its own slot after nesting, so the board says what landed and
+  // names the way back — the write must never read as the board eating the
+  // gesture (reported 2026-10-15/16: re-parents and refusals both looked
+  // like silent no-ops).
+  const [nestNotice, setNestNotice] = useState<{ message: string } | null>(null);
   const [hideArmColumn, setHideArmColumn] = useState<string | null>(null);
   // Bumped on every refusal so the auto-dismiss timer restarts even when the
   // new message is identical to the old one — React would otherwise bail out
@@ -1451,6 +1458,14 @@ export function Board({
     const timer = setTimeout(() => setHideLaneReport(null), RANK_ERROR_AUTO_DISMISS_MS);
     return () => clearTimeout(timer);
   }, [hideLaneReport]);
+
+  // The nest's receipt expires the same way: a dead banner would squat on
+  // the board pretending to matter.
+  useEffect(() => {
+    if (nestNotice === null) return;
+    const timer = setTimeout(() => setNestNotice(null), RANK_ERROR_AUTO_DISMISS_MS);
+    return () => clearTimeout(timer);
+  }, [nestNotice]);
 
   // While a lane's hide is armed, the arm must not outlive its context:
   // Escape, or a pointer press outside the armed button, disarms. The
@@ -1707,11 +1722,19 @@ export function Board({
    * are the insertion edges the board always had; the middle third nests the
    * dragged card UNDER this card — offered only when a re-parent write is
    * wired and the guard permits this pair (never onto itself, never closing
-   * a family loop, and never when the write would render invisibly — a
-   * pinned child stands alone in its own slot, so the drop the pointer
-   * promised as a reorder must not be eaten by a family write the board
-   * cannot show; see nestRendersFlat), so a refused nest falls back to the
-   * edge split instead of advertising a drop that would refuse.
+   * a family loop — the loop and already-child refusals fall back to the
+   * edge split instead of advertising a drop that would refuse). The thirds
+   * measure the whole slot on purpose: a family card's nested rows are part
+   * of its surface, so the nest zone (the ring) stays reachable on a tall
+   * expanded card, and the slot's lower third still reads "below this card".
+   *
+   * When a legal nest's placement result would render invisibly (the
+   * placement rules keep the child's card standing alone — a pinned child,
+   * an attention child, a live child of a Done root, a cross-space child;
+   * `flatNestReason` answers), the drop still nests but the success path
+   * says so in a visible notice (`nestNotice`), not just the sr-only live
+   * region — an invisible write reads as the board eating the gesture
+   * (reported 2026-10-15/16).
    *
    * `childId` is the dragged card: the live ref mid-drag (the payload is
    * write-only until the drop), the payload at drop time.
@@ -1736,17 +1759,6 @@ export function Board({
       childId === "" ||
       childId === targetId ||
       reparentRefusalFromParents(rawParentOf ?? EMPTY_PARENT_OF, childId, targetId) !== null
-    ) {
-      return edge;
-    }
-    // A nest the board cannot show must not be offered: the edges reorder
-    // instead, so the drop's write always changes what the operator sees.
-    const nestChild = nestThreadById.get(childId);
-    const nestParent = nestThreadById.get(targetId);
-    if (
-      nestChild !== undefined &&
-      nestParent !== undefined &&
-      nestRendersFlat(nestChild, nestParent, groupBy, doneIds, errorAckIds)
     ) {
       return edge;
     }
@@ -1800,7 +1812,24 @@ export function Board({
     const write = onReparent;
     if (write === undefined) return;
     void write(childId, target.id).then(
-      () => setAnnouncement(`Nested as a child of "${target.displayTitle}".`),
+      () => {
+        const child = nestThreadById.get(childId);
+        const reason =
+          child === undefined
+            ? null
+            : flatNestReason(child, target, groupBy, doneIds, errorAckIds);
+        setAnnouncement(
+          `Nested as a child of "${target.displayTitle}".` +
+            (reason === null
+              ? ""
+              : ` Its card keeps its own slot (${reason}); Make Top-Level in its card menu undoes this.`),
+        );
+        if (reason !== null) {
+          setNestNotice({
+            message: `Nested as a child of "${target.displayTitle}"; the card's own placement does not change (${reason}). Undo: "Make Top-Level" in the card menu.`,
+          });
+        }
+      },
       (error: unknown) =>
         reportRefusal(
           error instanceof Error ? error.message : "the re-parent write failed.",
@@ -1937,6 +1966,27 @@ export function Board({
               type="button"
               onClick={() => setHideLaneReport(null)}
               aria-label="Dismiss lane notice"
+              title="Dismiss"
+              className="rounded p-0.5 text-amber-700/70 transition-colors hover:bg-amber-500/10 hover:text-amber-700 focus-visible:outline focus-visible:outline-1 focus-visible:outline-amber-600 dark:text-amber-400/70 dark:hover:text-amber-400"
+            >
+              <Icon name="X" className="size-3" aria-hidden />
+            </button>
+          </div>
+        ) : null}
+        {nestNotice !== null ? (
+          <div
+            role="status"
+            data-testid="nest-notice"
+            className="mx-3 mb-1 flex items-center justify-between gap-2 rounded border border-amber-500/40 bg-amber-500/10 px-2 py-1 text-[11px] text-amber-700 dark:text-amber-400"
+          >
+            {/* A nested child's card keeps its own slot, so the family's
+                single render says little about the write: the receipt names
+                the new parent and the undo. */}
+            <p className="min-w-0">{nestNotice.message}</p>
+            <button
+              type="button"
+              onClick={() => setNestNotice(null)}
+              aria-label="Dismiss nest notice"
               title="Dismiss"
               className="rounded p-0.5 text-amber-700/70 transition-colors hover:bg-amber-500/10 hover:text-amber-700 focus-visible:outline focus-visible:outline-1 focus-visible:outline-amber-600 dark:text-amber-400/70 dark:hover:text-amber-400"
             >
@@ -2121,7 +2171,22 @@ export function Board({
             // Only a same-family lane drag reorders; anything else leaves the
             // row's handlers unclaimed so the parent card's gestures run.
             const target = childRowTarget(parent, hoverChildId, draggedId, event);
-            if (target === null) return;
+            if (target === null) {
+              // A same-family release that resolves to no move (the row's own
+              // slot: the adjacency refusals moveTargetFor and unitMoveTarget
+              // hold) claims the row surface and promises no line — unclaimed,
+              // the gesture would fall through to the parent card and rank the
+              // ROW in the lane's column order, a card the lane never holds. A
+              // foreign row (another family's, or an unrelated card's) keeps
+              // falling through untouched: those carry the parent card's own
+              // gestures (nest, edges).
+              if (liveParentOf(draggedId) === parent.id) {
+                event.preventDefault();
+                event.stopPropagation();
+                clearChildDrop();
+              }
+              return;
+            }
             event.preventDefault();
             event.stopPropagation();
             event.dataTransfer.dropEffect = "move";
@@ -2146,7 +2211,22 @@ export function Board({
             // Guards re-run on the payload's id: the dragover's ref can name
             // a card the drop contradicts.
             const target = childRowTarget(parent, hoverChildId, droppedId, event);
-            if (target === null) return;
+            if (target === null) {
+              // The same-family no-move: the event is claimed and refused
+              // loudly, exactly like a card drop that lands in the dragged
+              // card's own slot — nothing to reorder, but the operator hears
+              // why. A foreign row stays unclaimed (the card's gestures ride
+              // it).
+              if (liveParentOf(droppedId) === parent.id) {
+                event.preventDefault();
+                event.stopPropagation();
+                setChildDrop(null);
+                reportRefusal(
+                  `the drop position within ${parent.displayTitle} resolved to no move.`,
+                );
+              }
+              return;
+            }
             event.preventDefault();
             event.stopPropagation();
             setChildDrop(null);
@@ -2671,6 +2751,25 @@ export function Board({
                               return;
                             }
                             const rep = rankRepFor(thread.id, zone);
+                            // The line is the drop's promise: a release that
+                            // resolves to the dragged card's own slot (the
+                            // adjacency refusals moveTargetFor and
+                            // unitMoveTarget hold) must not promise one. The
+                            // drop still lands and refuses loudly instead.
+                            const hoverTarget =
+                              rep.zone === "onto"
+                                ? { beforeId: null, toEnd: false }
+                                : unitMoveTarget(
+                                    shownThreads.map((candidate) => candidate.id),
+                                    rep.threadId,
+                                    rep.zone,
+                                    draggingIdRef.current as string,
+                                    runInfo,
+                                  );
+                            if (hoverTarget === null) {
+                              clearRankDrop();
+                              return;
+                            }
                             setRankDrop((current) =>
                               current?.columnId === column.id &&
                               current?.threadId === rep.threadId &&

@@ -123,7 +123,7 @@ describe("applyMoveVisible laws", () => {
 });
 
 describe("displayAfterMove / moveTargetFor coherence", () => {
-  it("a target moveTargetFor produces equals appending past the hovered card", () => {
+  it("a target moveTargetFor produces equals appending past the hovered card; the dragged card's own slot refuses", () => {
     fc.assert(
       fc.property(
         fc.uniqueArray(fc.string({ minLength: 1 }), { minLength: 2, maxLength: 8 }),
@@ -136,10 +136,32 @@ describe("displayAfterMove / moveTargetFor coherence", () => {
           if (below === undefined) {
             expect(target).toEqual({ beforeId: null, toEnd: true });
           } else if (below === draggingId) {
-            expect(target).toEqual({ beforeId: hoverId, toEnd: false });
+            // The slot below the hover already holds the dragged card: the
+            // pointer promised its own position, so the move is a no-op and
+            // the target refuses (a drop that changes nothing must not
+            // jump the card above the hover or write the above-ranks).
+            expect(target).toBeNull();
           } else {
             expect(target).toEqual({ beforeId: below, toEnd: false });
           }
+        },
+      ),
+    );
+  });
+
+  it("a before-edge release whose slot above the hover holds the dragged card refuses", () => {
+    fc.assert(
+      fc.property(
+        fc.uniqueArray(fc.string({ minLength: 1 }), { minLength: 2, maxLength: 8 }),
+        fc.string({ minLength: 1 }),
+        (visibleIds, draggingId) => {
+          const at = visibleIds.indexOf(draggingId);
+          if (at === -1 || at === visibleIds.length - 1) return;
+          const hoverId = visibleIds[at + 1];
+          const target = moveTargetFor(visibleIds, hoverId, "before", draggingId);
+          // The dragged card sits directly above the hover, so the anchored
+          // slot ("before hover") is its own position: a no-op refusal.
+          expect(target).toBeNull();
         },
       ),
     );

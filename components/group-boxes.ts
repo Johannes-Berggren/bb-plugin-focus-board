@@ -336,8 +336,12 @@ export function columnRunInfo(
  * are box runs: the anchor moves to the run's EDGE (before its first
  * member, or after its last) so a box never splices into the middle of
  * another box. Same-run hovers return null (a box cannot land inside
- * itself); plain cards behave exactly like `moveTargetFor`. Callers then
- * hand the anchor — plus the dragged card's unit — to the unit-move write.
+ * itself); plain cards behave exactly like `moveTargetFor`, its own-slot
+ * refusals included: a release whose insertion slot already holds the
+ * dragged unit refuses, so the drop says "no move" instead of jumping the
+ * unit above the hover or writing the above-ranks a no-move must never
+ * write. Callers then hand the anchor — plus the dragged card's unit — to
+ * the unit-move write.
  */
 export function unitMoveTarget(
   visibleIds: readonly string[],
@@ -364,6 +368,17 @@ export function unitMoveTarget(
     if (draggedRun !== undefined && draggedRun.role !== "solo" && draggedRun.memberIds.includes(anchorId)) {
       return null; // anchor inside the dragged unit: it cannot land into itself
     }
+    // The anchored slot already holds the dragged unit when the unit ends
+    // directly above the anchor — the slot above the hover is its own. A
+    // move there is a no-op the release never promised (a jump above the
+    // hover); refuse so the call can say so and write nothing. A dragged id
+    // the lane does not hold (a cross-lane join's positioning pass) skips
+    // the own-slot checks entirely.
+    const unitEnd =
+      draggedRun !== undefined && draggedRun.role !== "solo"
+        ? visibleIds.indexOf(draggedRun.memberIds[draggedRun.memberIds.length - 1])
+        : visibleIds.indexOf(draggedId);
+    if (unitEnd !== -1 && visibleIds.indexOf(anchorId) === unitEnd + 1) return null;
     return { beforeId: anchorId, toEnd: false };
   }
   // edge === "after": the anchor is the card BELOW the hover — skipping the
@@ -383,23 +398,19 @@ export function unitMoveTarget(
   }
   if (cursor === undefined) return { beforeId: null, toEnd: true };
   if (cursor === draggedId) {
-    // The drop resolved to the dragged card's own slot: the dragged card is
-    // SOLO (only a solo card can resolve here; a boxed dragged unit's
-    // members are skipped by the loop above, so the cursor lands past the
-    // unit) and sits directly below the hover. moveTargetFor's convention —
-    // "plain cards behave exactly like moveTargetFor" — puts the card under
-    // the card it was aimed at, because an anchor at the dragged card's own
-    // id is a write applyMove cannot change: a silent nothing where the
-    // pointer promised a placement (reported 2026-10-15, a newly pinned
-    // parent dragged to the top of the Pinned lane that never moved,
-    // twice).
-    return {
-      beforeId:
-        hoverRun !== undefined && hoverRun.role !== "solo"
-          ? hoverRun.memberIds[hoverRun.memberIds.length - 1]
-          : hoverId,
-      toEnd: false,
-    };
+    // A solo dragged card directly below the hover: the anchored slot is its
+    // own. Refuse — anchoring at the hover's id would jump the card ABOVE
+    // the hover (the flip-flop a repeated release in this region never
+    // escaped, reported 2026-10-15).
+    return null;
+  }
+  // A boxed unit anchored directly after its own span re-inserts at its own
+  // position: the write changes nothing visible (it also ranks unrelated
+  // cards above, the fresh-install rule firing for a gesture that moves
+  // nothing). Refuse so the drop says so.
+  if (draggedRun !== undefined && draggedRun.role !== "solo") {
+    const spanEnd = visibleIds.indexOf(draggedRun.memberIds[draggedRun.memberIds.length - 1]);
+    if (spanEnd !== -1 && visibleIds.indexOf(cursor) === spanEnd + 1) return null;
   }
   return { beforeId: cursor, toEnd: false };
 }

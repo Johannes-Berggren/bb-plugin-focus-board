@@ -124,6 +124,17 @@ function twoCardFixture(): PluginSidebarThread[] {
   ];
 }
 
+/** Newest first: thr_x, thr_b, thr_a — every pair non-adjacent is false; the
+ *  point is three cards so a drag between the end cards has a middle card
+ *  between them. */
+function threeCardFixture(): PluginSidebarThread[] {
+  return [
+    thread({ id: "thr_a", isUnread: true, updatedAt: NOW - 9000 }),
+    thread({ id: "thr_b", isUnread: true, updatedAt: NOW - 5000 }),
+    thread({ id: "thr_x", isUnread: true, updatedAt: NOW - 1000 }),
+  ];
+}
+
 describe("drop onto a card to nest it", () => {
   it("the middle third nests the dropped card under the target", () => {
     const onReparent = vi.fn().mockResolvedValue(undefined);
@@ -141,26 +152,51 @@ describe("drop onto a card to nest it", () => {
   });
 
   it("the top third keeps the insertion-line reorder", () => {
+    // Three cards so the drag is non-adjacent: thr_x (the top card) dropped
+    // on thr_a's top half lands above thr_a — "before thr_a" is not its own
+    // slot (thr_x is two slots up).
     const onReparent = vi.fn().mockResolvedValue(undefined);
-    const { props } = renderBoard(twoCardFixture(), {
+    const { props } = renderBoard(threeCardFixture(), {
       onReparent,
       rawParentOf: new Map(),
     });
-    const { dropAllowed } = dragOnto("thr_a", "thr_b", 10);
+    const { dropAllowed } = dragOnto("thr_x", "thr_a", 10);
     expect(dropAllowed).toBe(true);
     expect(onReparent).not.toHaveBeenCalled();
     expect(props.onRankMove).toHaveBeenCalled();
   });
 
   it("the bottom third keeps the insertion-line reorder", () => {
+    // Non-adjacent: thr_x (the top card) on thr_a's bottom half appends
+    // below the lane's last card — the slot below thr_a holds nothing.
+    const onReparent = vi.fn().mockResolvedValue(undefined);
+    const { props } = renderBoard(threeCardFixture(), {
+      onReparent,
+      rawParentOf: new Map(),
+    });
+    dragOnto("thr_x", "thr_a", 290);
+    expect(onReparent).not.toHaveBeenCalled();
+    expect(props.onRankMove).toHaveBeenCalled();
+  });
+
+  it("a release whose insertion slot already holds the dragged card refuses loudly", () => {
+    // thr_a sits directly below thr_b; dropping it on thr_b's bottom half
+    // resolves to its own slot. The earlier conventions shipped both wrong
+    // behaviors here: the card jumped ABOVE the hover (the anchor at the
+    // hover's id), or — the shipped product — wrote a self-anchored
+    // rank_move that changed nothing, silently (reported 2026-10-15: a
+    // pinned family parent that could not be landed below its neighbour no
+    // matter how the release aimed).
     const onReparent = vi.fn().mockResolvedValue(undefined);
     const { props } = renderBoard(twoCardFixture(), {
       onReparent,
       rawParentOf: new Map(),
     });
-    dragOnto("thr_a", "thr_b", 290);
+    const { dropAllowed } = dragOnto("thr_a", "thr_b", 290);
+    expect(dropAllowed).toBe(true);
     expect(onReparent).not.toHaveBeenCalled();
-    expect(props.onRankMove).toHaveBeenCalled();
+    expect(props.onRankMove).not.toHaveBeenCalled();
+    expect(document.body.textContent).toMatch(/resolved to no move/);
   });
 
   it("hovering the nest zone rings the card amber, not the lane color", () => {
@@ -184,15 +220,16 @@ describe("drop onto a card to nest it", () => {
 
   it("dropping a card onto its own child falls back to a reorder", () => {
     const onReparent = vi.fn().mockResolvedValue(undefined);
-    const { props } = renderBoard(twoCardFixture(), {
+    const { props } = renderBoard(threeCardFixture(), {
       onReparent,
       rawParentOf: new Map([["thr_b", "thr_a"]]),
     });
     // thr_a dropped onto thr_b (its own child) would close a loop. The nest
     // is never offered — the drop reads as the edge reorder the cursor's
     // position implies, so indicator and action agree and nothing eats
-    // silently.
-    const { dropAllowed } = dragOnto("thr_a", "thr_b", 150);
+    // silently. thr_a is the bottom card and thr_b the middle one, so the
+    // top-half release ("before thr_b") is a real move, not its own slot.
+    const { dropAllowed } = dragOnto("thr_a", "thr_b", 10);
     expect(dropAllowed).toBe(true);
     expect(onReparent).not.toHaveBeenCalled();
     expect(props.onRankMove).toHaveBeenCalled();
@@ -200,7 +237,7 @@ describe("drop onto a card to nest it", () => {
 
   it("hovering a refused nest target falls back to the edge zones", () => {
     const onReparent = vi.fn().mockResolvedValue(undefined);
-    renderBoard(twoCardFixture(), {
+    renderBoard(threeCardFixture(), {
       onReparent,
       rawParentOf: new Map([["thr_b", "thr_a"]]),
     });
@@ -209,7 +246,7 @@ describe("drop onto a card to nest it", () => {
     const slot = cardSlot("thr_b");
     withRect(slot);
     const over = createEvent.dragOver(slot, { dataTransfer: dt });
-    Object.defineProperty(over, "clientY", { value: 150 });
+    Object.defineProperty(over, "clientY", { value: 10 });
     fireEvent(slot, over);
     expect(slot.className).toMatch(/after:absolute|before:absolute/);
     expect(slot.className).not.toMatch(/after:ring-2/);
@@ -242,45 +279,53 @@ describe("drop onto a card to nest it", () => {
     expect(props.onRankMove).not.toHaveBeenCalled();
   });
 
-  it("a pinned card's middle-third drop reorders — the nest would render invisibly", () => {
-    // The reported failure (2026-10-15): a newly pinned family parent dragged
-    // to the top of the Pinned lane released on the top card's middle third —
-    // the nest zone — and the drop wrote a thread_reparent the board cannot
-    // show: a pinned child stands alone (childPlacement step 2), so the card
-    // stays in its exact slot and no rank moves. The reorder the operator
-    // asked for never happens, with no refusal banner on the success path.
-    // The zone must read as the edge split, like any pair the guards refuse.
+  it("a pinned card's middle-third drop nests and posts its receipt: the render keeps the card alone", async () => {
+    // The reported gesture (2026-10-15): dropping a pinned card on another
+    // pinned card's face nests it — writes `thread_reparent` — but the
+    // placement rules keep a pinned child on its own card (a row never
+    // carries the pin, and a folded family must never hide one), so the
+    // board renders nothing. The nest itself is wanted (the operator nests
+    // pinned cards deliberately, 2026-10-16); the write's receipt says what
+    // landed and names the undo, so the gesture never reads as a silent
+    // no-op again.
     const onReparent = vi.fn().mockResolvedValue(undefined);
     const threads = [
       thread({ id: "thr_pin_a", isPinned: true, updatedAt: NOW - 5000 }),
       thread({ id: "thr_pin_b", isPinned: true, updatedAt: NOW - 1000 }),
     ];
-    const { props } = renderBoard(threads, { onReparent, rawParentOf: new Map() });
+    renderBoard(threads, { onReparent, rawParentOf: new Map() });
     const { dropAllowed } = dragOnto("thr_pin_a", "thr_pin_b", 150);
     expect(dropAllowed).toBe(true);
-    expect(onReparent).not.toHaveBeenCalled();
-    expect(props.onRankMove).toHaveBeenCalled();
+    expect(onReparent).toHaveBeenCalledWith("thr_pin_a", "thr_pin_b");
+    await vi.waitFor(() => {
+      const notice = document.querySelector('[data-testid="nest-notice"]');
+      expect(notice).not.toBeNull();
+      expect(notice!.textContent).toMatch(/pinned card/);
+      expect(notice!.textContent).toMatch(/Make Top-Level/);
+    });
   });
 
-  it("an attention card's middle-third drop reorders too (it surfaces as its own card)", () => {
-    // Same invisibility class: an attention child un-nests (childPlacement
+  it("an attention card's middle-third drop nests too, receipt naming why it surfaces alone", async () => {
+    // The same invisibility class: an attention child un-nests (childPlacement
     // step 2 — it surfaces as its own actionable card), so the nest write
-    // changes no render. The drop keeps the reorder. Both cards sit in the
-    // Needs-you lane: a same-lane hover, the gesture the operator actually
-    // makes over a target card.
+    // changes no render. The drop still nests; the receipt explains.
     const onReparent = vi.fn().mockResolvedValue(undefined);
     const threads = [
       thread({ id: "thr_attn", hasPendingInteraction: true, updatedAt: NOW - 5000 }),
       thread({ id: "thr_attn2", hasPendingInteraction: true, updatedAt: NOW - 1000 }),
     ];
-    const { props } = renderBoard(threads, { onReparent, rawParentOf: new Map() });
+    renderBoard(threads, { onReparent, rawParentOf: new Map() });
     const { dropAllowed } = dragOnto("thr_attn", "thr_attn2", 150);
     expect(dropAllowed).toBe(true);
-    expect(onReparent).not.toHaveBeenCalled();
-    expect(props.onRankMove).toHaveBeenCalled();
+    expect(onReparent).toHaveBeenCalledWith("thr_attn", "thr_attn2");
+    await vi.waitFor(() => {
+      const notice = document.querySelector('[data-testid="nest-notice"]');
+      expect(notice).not.toBeNull();
+      expect(notice!.textContent).toMatch(/attention/);
+    });
   });
 
-  it("a live card's middle-third drop onto a Done parent reorders (Done hosts no live rows)", () => {
+  it("a live card's middle-third drop onto a Done parent nests, receipt saying Done hosts no live rows", async () => {
     // childPlacement step 3: a Done root shares its space with no live child,
     // so nesting a live card under a done one writes nothing visible either.
     const onReparent = vi.fn().mockResolvedValue(undefined);
@@ -288,15 +333,19 @@ describe("drop onto a card to nest it", () => {
       thread({ id: "thr_live", isUnread: true, updatedAt: NOW - 5000 }),
       thread({ id: "thr_done", updatedAt: NOW - 1000 }),
     ];
-    const { props } = renderBoard(threads, {
+    renderBoard(threads, {
       onReparent,
       rawParentOf: new Map(),
       doneIds: new Set(["thr_done"]),
     });
     const { dropAllowed } = dragOnto("thr_live", "thr_done", 150);
     expect(dropAllowed).toBe(true);
-    expect(onReparent).not.toHaveBeenCalled();
-    expect(props.onRankMove).toHaveBeenCalled();
+    expect(onReparent).toHaveBeenCalledWith("thr_live", "thr_done");
+    await vi.waitFor(() => {
+      const notice = document.querySelector('[data-testid="nest-notice"]');
+      expect(notice).not.toBeNull();
+      expect(notice!.textContent).toMatch(/Done card/);
+    });
   });
 
   it("a rejected re-parent write reports the error", async () => {
@@ -312,8 +361,12 @@ describe("drop onto a card to nest it", () => {
   });
 
   it("without onReparent the middle stays an edge (the board before nesting)", () => {
-    const { props } = renderBoard(twoCardFixture());
-    const { dropAllowed } = dragOnto("thr_a", "thr_b", 150);
+    const { props } = renderBoard(threeCardFixture());
+    // thr_x (the top card) on thr_a's (the bottom card's) middle: the nest
+    // zone needs a re-parent write; with one unwired the pair stays an edge,
+    // and the after-edge ("below thr_a") appends — a real move, because the
+    // slot below thr_a holds nothing.
+    const { dropAllowed } = dragOnto("thr_x", "thr_a", 150);
     expect(dropAllowed).toBe(true);
     expect(props.onRankMove).toHaveBeenCalled();
   });

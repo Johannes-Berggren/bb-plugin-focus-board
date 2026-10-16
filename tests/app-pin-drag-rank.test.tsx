@@ -1,16 +1,17 @@
 // @vitest-environment jsdom
-// The reported gesture (2026-10-15): a family parent is PINNED (the card
-// menu's Pin), it lands in the Pinned lane, the operator then drags it to the
-// TOP of that lane — and the drop appears to do nothing until the board is
-// reloaded. The defect this pins: a release on the top card's MIDDLE third is
-// the nest zone, and for the newly pinned card the nest write renders
-// invisibly (a pinned child stands alone) — the reorder never happens and no
-// refusal announces, while the write re-parents the card silently. The full
-// app runs here (real app.tsx against the fake host), so the menu-pin's
-// deferred write, the attention machinery, and the drop's RPC all pass
-// through the production paths.
+// The reported gestures (issues #219, 2026-10-15/16): pinned cards dragged
+// over other pinned cards behaved incoherently — a self-anchored no-op here,
+// an invisible re-parent there, a jump on a third release. The full app runs
+// here (real app.tsx against the fake host), so the menu-pin's deferred
+// write, the attention machinery, and the drop's RPC all pass through the
+// production paths. jsdom does not apply `clientY` to drag events, so each
+// event's Y is forced onto its own object (the board-reparent suite's
+// pattern), and the slots get stubbed 300px rects so the zone thirds are
+// real: top third reorders above, middle third nests (with a receipt when
+// the placement rules keep the child's card on its own), bottom third
+// reorders below.
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { act, cleanup, fireEvent, render, waitFor } from "@testing-library/react";
+import { act, cleanup, createEvent, fireEvent, render, waitFor } from "@testing-library/react";
 
 vi.mock("@get-bb/plugin-sdk/app", async () => await import("./helpers/app-fake-sdk"));
 
@@ -76,7 +77,7 @@ interface DataTransferLike {
   dropEffect: string;
 }
 
-/** 300px slot boxes so the zone thirds (top/middle/bottom) are real. */
+/** jsdom rects are 0×0; give the slot a 300px-tall box so thirds are real. */
 function stubSlotRects(): void {
   for (const slot of document.querySelectorAll("li[data-rank-slot]")) {
     if (!(slot instanceof HTMLElement)) continue;
@@ -109,9 +110,10 @@ function fixtureThreads() {
     ...patch,
   });
   return [
-    // Pre-pinned lane members: one older, one newer (recency order = new first).
+    // Pinned lane members: pin_new (newest, the lane's head), then the
+    // family parent, then pin_old.
     t("thr_pin_new", "Pinned newest", { isPinned: true, updatedAt: now - 1 * HOUR }),
-    t("thr_pin_old", "Pinned older", { isPinned: true, updatedAt: now - 5 * HOUR }),
+    t("thr_pin_old", "Pinned older", { isPinned: true, updatedAt: now - 6 * HOUR }),
     // The family parent the operator pins mid-session, and its live children.
     t("thr_family", "Family parent", { updatedAt: now - 3 * HOUR }),
     t("thr_family_c1", "Family child one", { parentThreadId: "thr_family", updatedAt: now - 3 * HOUR }),
@@ -149,10 +151,7 @@ function rankAnchor(threadId: string): HTMLElement {
   return anchor as HTMLElement;
 }
 
-/**
- * Pin thr_family from its card menu (the deferred host write), land the
- * write, and return the pinned lane's order.
- */
+/** Pin thr_family via its card menu (the deferred write), land it, stub rects. */
 async function pinTheFamilyParent(): Promise<string[]> {
   const familyCard = document.querySelector('[data-thread-card="thr_family"]');
   if (familyCard === null) throw new Error("family parent card not found");
@@ -173,70 +172,114 @@ async function pinTheFamilyParent(): Promise<string[]> {
   return columnCardIds("pinned");
 }
 
-/** The whole drag onto `targetId`'s slot at `clientY` (rects are stubbed). */
+/**
+ * The whole drag of thr_family onto `targetId`'s slot at `clientY` on the
+ * stubbed 300px box: top third = above it, middle = nest zone, bottom third
+ * = below it. jsdom ignores clientY on drag events; force it.
+ */
 function dragFamilyOnto(targetId: string, clientY: number): void {
   const familyAnchor = rankAnchor("thr_family");
+  const slot = document.querySelector(`li[data-rank-slot="${targetId}"]`);
+  if (!(slot instanceof HTMLElement)) throw new Error(`missing slot ${targetId}`);
   const { transfer, read, write } = protectedTransfer();
   // dragstart may read back what it wrote; mid-flight the payload is dark.
   read();
   fireEvent.dragStart(familyAnchor, { dataTransfer: transfer });
   expect([...transfer.types].some((type) => type.includes("focus-board-rank"))).toBe(true);
   write();
-  const slot = document.querySelector(`li[data-rank-slot="${targetId}"]`);
-  if (!(slot instanceof HTMLElement)) throw new Error(`missing slot ${targetId}`);
-  slot.getBoundingClientRect = () =>
-    ({ top: 0, left: 0, right: 300, bottom: 300, width: 300, height: 300 }) as DOMRect;
-  const point = {
-    bubbles: true,
-    cancelable: true,
-    dataTransfer: transfer,
-    clientX: 50,
-    clientY,
-  };
-  fireEvent.dragOver(slot, point);
+  const over = createEvent.dragOver(slot, { dataTransfer: transfer });
+  Object.defineProperty(over, "clientY", { value: clientY });
+  fireEvent(slot, over);
   read();
-  fireEvent.drop(slot, point);
+  const drop = createEvent.drop(slot, { dataTransfer: transfer });
+  Object.defineProperty(drop, "clientY", { value: clientY });
+  fireEvent(slot, drop);
   fireEvent.dragEnd(familyAnchor, { dataTransfer: transfer });
 }
 
-describe("a newly pinned family parent dragged to the top of the Pinned lane", () => {
-  it("a drop on the top card's middle third reorders instead of a silent nest", async () => {
+describe("pinned cards dragged over other pinned cards", () => {
+  it("a release on the card directly above's bottom third refuses loudly (own slot)", async () => {
+    // The report's exact shape: T14 sits directly below Overview; every
+    // release on Overview's lower band resolves to the card's own slot. The
+    // shipped product wrote a self-anchored rank_move here (nothing moved,
+    // nothing said); the shipped convention that replaced it jumped the card
+    // ABOVE the hover — the flip-flop. The band refuses with a banner now.
     const Component = registeredNavPanel.component;
     if (Component === undefined) throw new Error("app-fake-sdk: no nav panel registered");
     render(<Component subPath="" />);
     await waitFor(() => expect(columnCardIds("pinned")).toContain("thr_pin_new"));
-    const before = await pinTheFamilyParent();
-    const topCardId = before.find((id) => id !== "thr_family");
-    expect(topCardId).toBeDefined();
+    await pinTheFamilyParent();
+    expect(columnCardIds("pinned")).toEqual(["thr_pin_new", "thr_family", "thr_pin_old"]);
 
-    // y=150 of a 300px box: the middle third — the nest zone. For a card
-    // whose nest renders invisibly (a pinned child stands alone), this drop
-    // must rank, not re-parent.
-    dragFamilyOnto(topCardId as string, 150);
+    dragFamilyOnto("thr_pin_new", 250);
 
-    // The drop must rank, never re-parent: the pinned child's nest renders
-    // invisibly, so the zone reads as the edge split and the reorder lands.
-    await waitFor(() => expect(columnCardIds("pinned").indexOf("thr_family")).toBe(0));
-    expect(fakeRankOrders()["pinned"]).toContain("thr_family");
-    expect(
-      fakeRpcCalls()
-        .filter((call) => call.method === "rank_move" || call.method === "thread_reparent")
-        .map((call) => call.method),
-    ).toEqual(["rank_move"]);
+    await vi.waitFor(() => {
+      expect(document.body.textContent).toMatch(/resolved to no move/);
+    });
+    expect(columnCardIds("pinned")).toEqual(["thr_pin_new", "thr_family", "thr_pin_old"]);
+    expect(fakeRankOrders()["pinned"]).toBeUndefined();
+    // No write of any kind: the gesture resolved to no move.
+    expect(fakeRpcCalls().map((call) => call.method)).not.toContain("rank_move");
+    expect(fakeRpcCalls().map((call) => call.method)).not.toContain("thread_reparent");
   });
 
-  it("a drop on the top card's top third writes the rank and leads the lane", async () => {
+  it("a release on the card directly above's top third takes its slot (to the top)", async () => {
     const Component = registeredNavPanel.component;
     if (Component === undefined) throw new Error("app-fake-sdk: no nav panel registered");
     render(<Component subPath="" />);
     await waitFor(() => expect(columnCardIds("pinned")).toContain("thr_pin_new"));
-    const before = await pinTheFamilyParent();
-    const topCardId = before.find((id) => id !== "thr_family");
+    await pinTheFamilyParent();
 
-    dragFamilyOnto(topCardId as string, 60);
+    dragFamilyOnto("thr_pin_new", 60);
 
+    // The family parent leads the Pinned lane (the report's "top position").
     await waitFor(() => expect(columnCardIds("pinned").indexOf("thr_family")).toBe(0));
     expect(fakeRankOrders()["pinned"]).toContain("thr_family");
+    expect(fakeRpcCalls().map((call) => call.method)).toContain("rank_move");
+  });
+
+  it("a release on the card directly below's bottom third lands below it (the down card lands)", async () => {
+    // The report's other shape: T14 ABOVE Overview, dragged DOWN. The
+    // release on Overview's bottom band anchors on the card below Overview —
+    // or, when Overview is the lane's tail, appends — and the card lands
+    // directly below Overview.
+    const Component = registeredNavPanel.component;
+    if (Component === undefined) throw new Error("app-fake-sdk: no nav panel registered");
+    render(<Component subPath="" />);
+    await waitFor(() => expect(columnCardIds("pinned")).toContain("thr_pin_new"));
+    await pinTheFamilyParent();
+
+    dragFamilyOnto("thr_pin_old", 250);
+
+    await waitFor(() => expect(columnCardIds("pinned").indexOf("thr_family")).toBe(2));
+    expect(fakeRankOrders()["pinned"]).toEqual(["thr_pin_new", "thr_pin_old", "thr_family"]);
+    expect(fakeRpcCalls().map((call) => call.method)).toContain("rank_move");
+  });
+
+  it("a middle-third drop of a pinned card onto a pinned card nests, with a receipt", async () => {
+    // The follow-up report: the operator nests pinned families deliberately
+    // (dropping the card on the hovered card's face). The nest zone stays
+    // offered for every legal pair — and the placement rules keep the
+    // pinned child's card on its own card, so the write's receipt posts
+    // visibly and names the undo.
+    const Component = registeredNavPanel.component;
+    if (Component === undefined) throw new Error("app-fake-sdk: no nav panel registered");
+    render(<Component subPath="" />);
+    await waitFor(() => expect(columnCardIds("pinned")).toContain("thr_pin_new"));
+    await pinTheFamilyParent();
+
+    dragFamilyOnto("thr_pin_new", 150);
+
+    await waitFor(() =>
+      expect(fakeRpcCalls().map((call) => call.method)).toContain("thread_reparent"),
+    );
+    expect(fakeRpcCalls().map((call) => call.method)).not.toContain("rank_move");
+    await vi.waitFor(() => {
+      const notice = document.querySelector('[data-testid="nest-notice"]');
+      expect(notice).not.toBeNull();
+      expect(notice!.textContent).toMatch(/pinned card/);
+      expect(notice!.textContent).toMatch(/Make Top-Level/);
+    });
   });
 
   it("the fake host serves seeded rank orders through rank_list", async () => {

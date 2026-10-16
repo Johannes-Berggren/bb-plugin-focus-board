@@ -312,8 +312,12 @@ const rpcCall = async (method: string, args?: unknown): Promise<unknown> => {
       }
       return { groupId };
     }
-    case "thread_reparent":
-      throw new Error("thread_reparent should never be needed by this fixture");
+    case "thread_reparent": {
+      const { threadId, parentThreadId } = args as { threadId: string; parentThreadId: string | null };
+      mutateThread(threadId, (thread) => ({ ...thread, parentThreadId }));
+      publishThreadChanged();
+      return { threadId, parentThreadId };
+    }
     case "tracker_validate":
       return { results: {} };
     default:

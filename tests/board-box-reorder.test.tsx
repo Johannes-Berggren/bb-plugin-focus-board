@@ -156,14 +156,17 @@ describe("the reorder-inside-a-family-box gesture", () => {
 
   it("the box keeps moving as a unit for every hover outside it", () => {
     const props = renderBoxedBoard();
-    const { dropAllowed } = dragOnto("thr_b", "thr_a", 290); // b onto a's bottom half
+    // thr_x's bottom half: below thr_x holds nothing, so the box appends
+    // below it — the slot above thr_x is the box's own, and its earlier
+    // self-anchored write reproduced the order unchanged.
+    const { dropAllowed } = dragOnto("thr_b", "thr_x", 290);
     expect(dropAllowed).toBe(true);
     expect(props.onRankMove).toHaveBeenCalledTimes(1);
     expect(props.onRankMove).toHaveBeenCalledWith(
       "status:working",
       "thr_b",
-      "thr_x",
-      false,
+      null,
+      true,
       ["thr_a", "thr_b", "thr_c", "thr_x"],
       ["thr_b", "thr_c"],
     );
@@ -173,13 +176,15 @@ describe("the reorder-inside-a-family-box gesture", () => {
 describe("dragging a family box by its LABEL", () => {
   it("the label drags the whole box: a drop at a plain card's edge moves the unit", () => {
     const props = renderBoxedBoard();
-    const { dropAllowed } = labelDragOnto("grp_auth", "thr_x", 10); // box before thr_x
+    // The box onto the lane's top card's top half: "before thr_a" is the
+    // lane's head, not the box's own slot (the box sits second).
+    const { dropAllowed } = labelDragOnto("grp_auth", "thr_a", 10);
     expect(dropAllowed).toBe(true);
     expect(props.onRankMove).toHaveBeenCalledTimes(1);
     expect(props.onRankMove).toHaveBeenCalledWith(
       "status:working",
       "thr_b",
-      "thr_x",
+      "thr_a",
       false,
       ["thr_a", "thr_b", "thr_c", "thr_x"],
       ["thr_b", "thr_c"],

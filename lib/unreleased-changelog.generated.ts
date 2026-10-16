@@ -76,7 +76,7 @@ export const UNRELEASED_ITEMS: readonly { text: string; children: string[]; grou
     "group": "Child threads"
   },
   {
-    "text": "**Dragging a card up its lane lands it where the pointer promised.** A drop on the card directly above used to write a no-op anchored at the dragged card itself, and a middle-third drop there could silently re-parent a newly pinned family whose pinned placement hides the write; both drops rank the card now, and nests stay offered only where they visibly nest.",
+    "text": "**Lane drags resolve their slot loudly, and nests of pinned cards land with a receipt.** A release whose insertion slot already holds the dragged card used to write a silent no-op (on a repeat drag, the card jumped above the hover); it refuses with a banner now, writing nothing. The middle third still nests every legal pair — a pinned family onto another included — and a nest the placement rules cannot render (a pinned child keeps its own card) posts a visible receipt naming \"Make Top-Level\" as the undo.",
     "children": [],
     "group": "Board cards"
   },
