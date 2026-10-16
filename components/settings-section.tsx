@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useCallback, useState } from "react";
+import { useCrossWindowStorage } from "@/components/preferences-sync";
 import {
   CardTransportChoice,
   MotionControl,
@@ -31,8 +32,12 @@ import {
  * localStorage truth — the mirror is presentational, never a second store:
  * reads parse through the shared parsers and writes go through the shared
  * serializers and keys. The section reads once at mount; an edit here is
- * what the board applies the next time it mounts (the same-document
- * storage-event gap noted in the sync design).
+ * what the board applies, and a board (or another window's) edit hydrates
+ * this mirror live through the cross-window `storage` listener the app hangs
+ * (useCrossWindowStorage) — the sync design's same-document storage-event
+ * gap closed in place. The wallpaper document is the one whole-document key
+ * here, so it is the one the mirror hydrates; the scalar look prefs are
+ * last-write-wins and ride on untouched.
  */
 export function AppearanceSettingsSection() {
   const [cardTransport, setCardTransport] = useState<CardTransportPref>(
@@ -45,6 +50,10 @@ export function AppearanceSettingsSection() {
   const [wallpaper, setWallpaper] = useState<WallpaperSettings>(
     () => parseWallpaperStored(readStoredText(WALLPAPER_KEY, "")),
   );
+  const hydrateWallpaper = useCallback((_oldRaw: string | null, newRaw: string | null) => {
+    setWallpaper(parseWallpaperStored(newRaw ?? ""));
+  }, []);
+  useCrossWindowStorage([{ key: WALLPAPER_KEY, onRemoteChange: hydrateWallpaper }]);
 
   return (
     <div className="space-y-5">
