@@ -157,10 +157,10 @@ merging into `dev`, releasing, changelog writing, or tagging.
   the failure shape. Write Unreleased bullets under the standing surface
   list, name verbatim: **Card animations**, **Settings**, **Groups and
   family boxes**, **Cards and chips**, **Board layout**, **Search and
-  filters**, **The New thread composer**. The list grows only by deliberate
-  spoke edit, and only when a feature family no standing name covers will
-  carry multiple bullets; until then a bullet takes its nearest standing
-  surface.
+  filters**, **The New thread composer**, **Context menus**. The list grows
+  only by deliberate spoke edit, and only when a feature family no standing
+  name covers will carry multiple bullets; until then a bullet takes its
+  nearest standing surface.
 - **No-singleton rule.** Before a finalize, the section under review must
   hold no one-bullet surface and no untagged bullet (a whole-group-shares-
   one-surface section may skip headings entirely). A bullet whose surface
