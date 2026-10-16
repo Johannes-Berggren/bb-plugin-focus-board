@@ -11,6 +11,7 @@
  * timing, which is exactly when attention-freeze races show themselves.
  */
 import { useSyncExternalStore, type ReactNode } from "react";
+import { applyMoveVisible } from "../../lib/rank";
 
 interface FakeSidebarThread {
   id: string;
@@ -195,6 +196,30 @@ function publishThreadChanged(): void {
   }
 }
 
+// Rank orders: a sparse per-column store the fake host mutates exactly the
+// way the real server's rank_move does (the real applyMoveVisible, not a
+// re-spelled copy), so app-level rank races are testable end to end.
+let fakeRanks: Record<string, string[]> = {};
+const rpcCalls: { method: string; args?: unknown }[] = [];
+
+/** Every rpc method the app under test called, in order (test introspection). */
+export function fakeRpcCalls(): { method: string; args?: unknown }[] {
+  return structuredClone(rpcCalls);
+}
+
+export function resetFakeRpcCalls(): void {
+  rpcCalls.splice(0, rpcCalls.length);
+}
+
+/** Seed the fake rank store (fresh per test). */
+export function seedFakeRanks(orders: Record<string, string[]>): void {
+  fakeRanks = structuredClone(orders);
+}
+
+export function fakeRankOrders(): Record<string, string[]> {
+  return structuredClone(fakeRanks);
+}
+
 // Feature-group fake state: the registry and the assignments the group_*
 // writes mutate directly. `useRealtime` above is a no-op, so — as in a
 // connection window where ephemeral signals cannot deliver — the app under
@@ -214,6 +239,7 @@ export function seedFakeGroups(
 }
 
 const rpcCall = async (method: string, args?: unknown): Promise<unknown> => {
+  rpcCalls.push({ method, args });
   switch (method) {
     case "done_list":
       return { doneIds: [], records: {} };
@@ -227,6 +253,25 @@ const rpcCall = async (method: string, args?: unknown): Promise<unknown> => {
       return { snoozes: {} };
     case "rank_list":
       return { orders: {} };
+    case "rank_list":
+      return { orders: structuredClone(fakeRanks) };
+    case "rank_move": {
+      const { columnKey, threadId, beforeId, toEnd, visibleIds } = args as {
+        columnKey: string;
+        threadId: string;
+        beforeId: string | null;
+        toEnd: boolean;
+        visibleIds: string[];
+      };
+      fakeRanks[columnKey] = applyMoveVisible(
+        fakeRanks[columnKey] ?? [],
+        visibleIds,
+        threadId,
+        beforeId,
+        toEnd,
+      );
+      return { columnKey, order: [...fakeRanks[columnKey]] };
+    }
     case "groups_list":
       return {
         groups: structuredClone(fakeGroups),
@@ -269,6 +314,8 @@ const rpcCall = async (method: string, args?: unknown): Promise<unknown> => {
       }
       return { groupId };
     }
+    case "thread_reparent":
+      throw new Error("thread_reparent should never be needed by this fixture");
     case "tracker_validate":
       return { results: {} };
     default:

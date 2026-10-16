@@ -45,6 +45,7 @@ import {
   type RankStore,
 } from "../lib/rank";
 import { reparentRefusalFromParents } from "../lib/reparent";
+import { nestRendersFlat } from "./nesting";
 import {
   canJoinGroup,
   columnRunInfo,
@@ -1684,12 +1685,33 @@ export function Board({
   }
 
   /**
+   * Id → thread for the nest-zone visibility guard. The dragged card or the
+   * hovered target may be a column card or a nested/done row; all four sets
+   * feed one lookup.
+   */
+  const nestThreadById = useMemo(() => {
+    const map = new Map<string, PluginSidebarThread>();
+    for (const column of columns) {
+      for (const card of column.threads) map.set(card.id, card);
+    }
+    for (const rows of [nestedChildrenByParent, doneChildrenByParent]) {
+      for (const rowList of rows.values()) {
+        for (const row of rowList) if (!map.has(row.id)) map.set(row.id, row);
+      }
+    }
+    return map;
+  }, [columns, nestedChildrenByParent, doneChildrenByParent]);
+
+  /**
    * Where does a hover or drop over this card land? The before/after halves
    * are the insertion edges the board always had; the middle third nests the
    * dragged card UNDER this card — offered only when a re-parent write is
    * wired and the guard permits this pair (never onto itself, never closing
-   * a family loop), so a refused nest falls back to the edge split instead
-   * of advertising a drop that would refuse.
+   * a family loop, and never when the write would render invisibly — a
+   * pinned child stands alone in its own slot, so the drop the pointer
+   * promised as a reorder must not be eaten by a family write the board
+   * cannot show; see nestRendersFlat), so a refused nest falls back to the
+   * edge split instead of advertising a drop that would refuse.
    *
    * `childId` is the dragged card: the live ref mid-drag (the payload is
    * write-only until the drop), the payload at drop time.
@@ -1714,6 +1736,17 @@ export function Board({
       childId === "" ||
       childId === targetId ||
       reparentRefusalFromParents(rawParentOf ?? EMPTY_PARENT_OF, childId, targetId) !== null
+    ) {
+      return edge;
+    }
+    // A nest the board cannot show must not be offered: the edges reorder
+    // instead, so the drop's write always changes what the operator sees.
+    const nestChild = nestThreadById.get(childId);
+    const nestParent = nestThreadById.get(targetId);
+    if (
+      nestChild !== undefined &&
+      nestParent !== undefined &&
+      nestRendersFlat(nestChild, nestParent, groupBy, doneIds, errorAckIds)
     ) {
       return edge;
     }

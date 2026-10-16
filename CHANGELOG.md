@@ -36,6 +36,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+#### Card drags
+
+- **Dragging a card up its lane lands it where the pointer promised.** A drop on the card directly above used to write a no-op anchored at the dragged card itself, and a middle-third drop there could silently re-parent a newly pinned family whose pinned placement hides the write; both drops rank the card now, and nests stay offered only where they visibly nest.
+
 #### Child threads
 
 - **A nested child row shows its child's ticket chips.** A child thread that ties to a tracker item used to chip only as a standalone card, so the family view hid the tie. Its row carries the same chips now, a step smaller and inert: the row itself is one link.

@@ -382,6 +382,23 @@ export function unitMoveTarget(
     cursor = visibleIds[visibleIds.indexOf(cursor) + 1];
   }
   if (cursor === undefined) return { beforeId: null, toEnd: true };
+  if (cursor === draggedId) {
+    // The drop resolved to the dragged card's own slot: the dragged card is
+    // SOLO (a boxed unit's members were just skipped) and sits directly
+    // below the hover. moveTargetFor's convention — "plain cards behave
+    // exactly like moveTargetFor" — puts the card under the card it was
+    // aimed at, because an anchor at the dragged card's own id is a write
+    // applyMove cannot change: a silent nothing where the pointer promised
+    // a placement (reported 2026-10-15, a newly pinned parent dragged to
+    // the top of the Pinned lane that never moved, twice).
+    return {
+      beforeId:
+        hoverRun !== undefined && hoverRun.role !== "solo"
+          ? hoverRun.memberIds[hoverRun.memberIds.length - 1]
+          : hoverId,
+      toEnd: false,
+    };
+  }
   return { beforeId: cursor, toEnd: false };
 }
 

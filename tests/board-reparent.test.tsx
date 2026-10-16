@@ -242,6 +242,63 @@ describe("drop onto a card to nest it", () => {
     expect(props.onRankMove).not.toHaveBeenCalled();
   });
 
+  it("a pinned card's middle-third drop reorders — the nest would render invisibly", () => {
+    // The reported failure (2026-10-15): a newly pinned family parent dragged
+    // to the top of the Pinned lane released on the top card's middle third —
+    // the nest zone — and the drop wrote a thread_reparent the board cannot
+    // show: a pinned child stands alone (childPlacement step 2), so the card
+    // stays in its exact slot and no rank moves. The reorder the operator
+    // asked for never happens, with no refusal banner on the success path.
+    // The zone must read as the edge split, like any pair the guards refuse.
+    const onReparent = vi.fn().mockResolvedValue(undefined);
+    const threads = [
+      thread({ id: "thr_pin_a", isPinned: true, updatedAt: NOW - 5000 }),
+      thread({ id: "thr_pin_b", isPinned: true, updatedAt: NOW - 1000 }),
+    ];
+    const { props } = renderBoard(threads, { onReparent, rawParentOf: new Map() });
+    const { dropAllowed } = dragOnto("thr_pin_a", "thr_pin_b", 150);
+    expect(dropAllowed).toBe(true);
+    expect(onReparent).not.toHaveBeenCalled();
+    expect(props.onRankMove).toHaveBeenCalled();
+  });
+
+  it("an attention card's middle-third drop reorders too (it surfaces as its own card)", () => {
+    // Same invisibility class: an attention child un-nests (childPlacement
+    // step 2 — it surfaces as its own actionable card), so the nest write
+    // changes no render. The drop keeps the reorder. Both cards sit in the
+    // Needs-you lane: a same-lane hover, the gesture the operator actually
+    // makes over a target card.
+    const onReparent = vi.fn().mockResolvedValue(undefined);
+    const threads = [
+      thread({ id: "thr_attn", hasPendingInteraction: true, updatedAt: NOW - 5000 }),
+      thread({ id: "thr_attn2", hasPendingInteraction: true, updatedAt: NOW - 1000 }),
+    ];
+    const { props } = renderBoard(threads, { onReparent, rawParentOf: new Map() });
+    const { dropAllowed } = dragOnto("thr_attn", "thr_attn2", 150);
+    expect(dropAllowed).toBe(true);
+    expect(onReparent).not.toHaveBeenCalled();
+    expect(props.onRankMove).toHaveBeenCalled();
+  });
+
+  it("a live card's middle-third drop onto a Done parent reorders (Done hosts no live rows)", () => {
+    // childPlacement step 3: a Done root shares its space with no live child,
+    // so nesting a live card under a done one writes nothing visible either.
+    const onReparent = vi.fn().mockResolvedValue(undefined);
+    const threads = [
+      thread({ id: "thr_live", isUnread: true, updatedAt: NOW - 5000 }),
+      thread({ id: "thr_done", updatedAt: NOW - 1000 }),
+    ];
+    const { props } = renderBoard(threads, {
+      onReparent,
+      rawParentOf: new Map(),
+      doneIds: new Set(["thr_done"]),
+    });
+    const { dropAllowed } = dragOnto("thr_live", "thr_done", 150);
+    expect(dropAllowed).toBe(true);
+    expect(onReparent).not.toHaveBeenCalled();
+    expect(props.onRankMove).toHaveBeenCalled();
+  });
+
   it("a rejected re-parent write reports the error", async () => {
     const onReparent = vi.fn().mockRejectedValue(new Error("the host refused"));
     renderBoard(twoCardFixture(), {
