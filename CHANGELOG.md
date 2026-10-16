@@ -7,6 +7,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+### Changed
+
+### Fixed
+
+## [1.5.0] - 2026-10-16
+
+### Added
+
 #### Board layout
 
 - **The thread pane's composer names the project it writes into again.** bb's embedded chat stopped showing the project and checkout line on a pane-sized surface, so the pane now checks the chat's DOM for it and draws its own "project · worktree · branch" line under the transcript when the host paints none. The probe stays quiet whenever bb shows its own context again, so the line never doubles up.
