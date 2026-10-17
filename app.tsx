@@ -61,7 +61,6 @@ import {
   compileAttentionFreezes,
   laneCaptureOf,
   stripCapturedIds,
-  EMPTY_ATTENTION_FREEZE,
   type AttentionCapture,
   type AttentionOrigin,
   type LaneCapture,
@@ -1093,12 +1092,36 @@ function BoardPage({ subPath }: { subPath: string }) {
   >(new Map());
   const [paneCapture, setPaneCapture] = useState<AttentionCapture | null>(null);
   const [paneLaneCapture, setPaneLaneCapture] = useState<LaneCapture | null>(null);
-  const [hoverCaptures, setHoverCaptures] = useState<
-    ReadonlyMap<string, AttentionCapture>
-  >(new Map());
-  const [hoverLaneCaptures, setHoverLaneCaptures] = useState<
-    ReadonlyMap<string, LaneCapture>
-  >(new Map());
+  // Hover captures live in refs, never state (issue #186's frontend half). As
+  // state, every pointer landing on a card rebuilt the board: the freeze plan
+  // fed the assembly, `columns` got a fresh identity, and every card
+  // re-rendered — measured 335 ThreadCard renders per hover enter on a
+  // 478-card board, which dropped a phone to 4-13fps while idle held 60fps.
+  // Idle held 60fps, so hovering WAS the whole per-frame cost.
+  //
+  // A hover is not board state: the board's order is a pure function of the
+  // thread data, so a pointer landing on a card changes nothing the board
+  // renders. These refs hold the pin each attended card captured at enter
+  // time, and the board build (below) reads them and applies the pins as a
+  // placement CONSTRAINT — so a data-driven build still keeps the attended
+  // card in its captured slot, while the hover that CREATES the capture
+  // renders zero cards. The pane's captures stay state on purpose: opening a
+  // pane IS a render-worthy change.
+  const hoverCapturesRef = useRef<Map<string, AttentionCapture>>(new Map());
+  const hoverLaneCapturesRef = useRef<Map<string, LaneCapture>>(new Map());
+  // The board build each hovered id last saw: the assembly object (column
+  // board) or the lane list (parent board), read from the latest-value bridge
+  // at enter time. Attention leave compares the recorded build against the
+  // CURRENT one: if the board rebuilt while the pointer rested on the card,
+  // that build applied the pin and the card may now sit at a stale slot, so
+  // the release forces one rebuild to run the live placement rules again. If
+  // the build is unchanged, the pin was never applied to a rendered board (it
+  // equals the live placement), so the release renders nothing — the common
+  // case a hover sweep wants cheap. Comparing the build OBJECT is the pure way
+  // to ask "did the board rebuild": the build memos mint a fresh object
+  // exactly when they recompute, so identity is the rebuild signal.
+  const hoverEnterBuildRef = useRef<Map<string, unknown>>(new Map());
+  const [hoverRebuildEpoch, setHoverRebuildEpoch] = useState(0);
   // The capture's inputs (assembly, parent lanes, family index) arrive later
   // in the render; the ref bridges them to the event-time capture callbacks —
   // the same latest-value pattern the scroll managers run.
@@ -1146,17 +1169,17 @@ function BoardPage({ subPath }: { subPath: string }) {
     setPaneCapture((current) =>
       current === null ? null : stripCapturedIds(current, removedIds),
     );
-    setHoverCaptures((current) => {
-      if (current.size === 0) return current;
-      let changed = false;
+    // The hover pins are stripped in place: the gesture's write lands
+    // unpinned, so the relocated card lands where the placement rules put it
+    // instead of snapping back to the slot it was hovered at.
+    const hover = hoverCapturesRef.current;
+    if (hover.size > 0) {
       const next = new Map<string, AttentionCapture>();
-      for (const [threadId, capture] of current) {
-        const stripped = stripCapturedIds(capture, removedIds);
-        if (stripped !== capture) changed = true;
-        next.set(threadId, stripped);
+      for (const [threadId, capture] of hover) {
+        next.set(threadId, stripCapturedIds(capture, removedIds));
       }
-      return changed ? next : current;
-    });
+      hoverCapturesRef.current = next;
+    }
     setPaneLaneCapture((current) =>
       current === null
         ? null
@@ -1167,20 +1190,17 @@ function BoardPage({ subPath }: { subPath: string }) {
             { ...current, laneId: "", laneIndex: -1, row: null }
           : current,
     );
-    setHoverLaneCaptures((current) => {
-      if (current.size === 0) return current;
-      let changed = false;
+    const hoverLanes = hoverLaneCapturesRef.current;
+    if (hoverLanes.size > 0) {
       const next = new Map<string, LaneCapture>();
-      for (const [threadId, capture] of current) {
-        if (removedIds.has(threadId)) {
-          changed = true;
-          next.set(threadId, { ...capture, laneId: "", laneIndex: -1, row: null });
-          continue;
-        }
-        next.set(threadId, capture);
+      for (const [threadId, capture] of hoverLanes) {
+        next.set(
+          threadId,
+          removedIds.has(threadId) ? { ...capture, laneId: "", laneIndex: -1, row: null } : capture,
+        );
       }
-      return changed ? next : current;
-    });
+      hoverLaneCapturesRef.current = next;
+    }
   }, []);
   // On attention: capture the entered card's rendered placement (its lane
   // and slot; on the parent view, its lane order slot and row). The capture
@@ -1199,33 +1219,34 @@ function BoardPage({ subPath }: { subPath: string }) {
                 capturedAt: Date.now(),
               });
         if (capture === null) return;
-        setHoverLaneCaptures((current) =>
-          current.has(threadId) ? current : new Map(current).set(threadId, capture),
-        );
+        hoverLaneCapturesRef.current.set(threadId, capture);
+        hoverEnterBuildRef.current.set(threadId, input.parentLanes);
         return;
       }
       const capture = captureThreadAttention(threadId, "hover");
       if (capture === null) return;
-      setHoverCaptures((current) =>
-        current.has(threadId) ? current : new Map(current).set(threadId, capture),
-      );
+      hoverCapturesRef.current.set(threadId, capture);
+      hoverEnterBuildRef.current.set(threadId, input.assembly);
     },
     [captureThreadAttention],
   );
-  // Off attention: release that card's pin (the placement rules run again).
+  // Off attention: release that card's pin. If the board rebuilt while the
+  // pointer rested on the card, that build applied the pin and the card may
+  // now sit at a stale slot, so the release forces one rebuild to run the live
+  // placement rules again. If the build object is unchanged, the pin was never
+  // applied to a rendered board, so the release renders nothing — the common
+  // case for a hover sweep, and the one that keeps hovering phone-cheap.
   const attentionLeave = useCallback((threadId: string) => {
-    setHoverCaptures((current) => {
-      if (!current.has(threadId)) return current;
-      const next = new Map(current);
-      next.delete(threadId);
-      return next;
-    });
-    setHoverLaneCaptures((current) => {
-      if (!current.has(threadId)) return current;
-      const next = new Map(current);
-      next.delete(threadId);
-      return next;
-    });
+    hoverCapturesRef.current.delete(threadId);
+    hoverLaneCapturesRef.current.delete(threadId);
+    const enteredBuild = hoverEnterBuildRef.current.get(threadId);
+    hoverEnterBuildRef.current.delete(threadId);
+    const currentBuild = attentionInputRef.current?.parent
+      ? attentionInputRef.current.parentLanes
+      : attentionInputRef.current?.assembly;
+    if (enteredBuild !== undefined && enteredBuild !== currentBuild) {
+      setHoverRebuildEpoch((epoch) => epoch + 1);
+    }
   }, []);
 
   const persistGroupBy = useCallback((value: GroupBy) => {
@@ -1461,14 +1482,14 @@ function BoardPage({ subPath }: { subPath: string }) {
   // lanes run again the moment the attention releases. A capture taken
   // under another grouping is inert here (its lane names a grouping that no
   // longer runs).
-  const attentionFreezePlan = useMemo(() => {
-    const captures: AttentionCapture[] = [];
-    if (paneCapture !== null && paneCapture.view === groupBy) captures.push(paneCapture);
-    for (const capture of hoverCaptures.values()) {
-      if (capture.view === groupBy) captures.push(capture);
-    }
-    return captures.length === 0 ? EMPTY_ATTENTION_FREEZE : compileAttentionFreezes(captures);
-  }, [groupBy, paneCapture, hoverCaptures]);
+  // The attention freeze is compiled INSIDE the board builds below, from the
+  // pane capture (state) plus the hover captures (refs). The pane capture is a
+  // dep of those builds; the hover captures are read from their refs so a
+  // hover alone never rebuilds — the pin lands at the next DATA-driven build,
+  // which is exactly when it has something to hold against. `hoverRebuildEpoch`
+  // is the one exception: a hover RELEASE that follows a build forces a
+  // rebuild so the live placement rules can move the card back.
+  //
   // The grouping context, extended once with the feature-group maps: under
   // the "group" grouping `columnFor` resolves a thread's column from its
   // assignment (so the split group's frames agree with the natural group
@@ -1516,39 +1537,38 @@ function BoardPage({ subPath }: { subPath: string }) {
   // counted per card's own space (live children on a live card; done rows on
   // a Done card). With nesting OFF the board is flat: no rows, no chips.
   const isParentGroupBy = groupBy === "parent";
-  // Lane captures feed the parent view's freezes: the pane's lane capture
-  // plus every hovered lane cell. A capture taken under another grouping is
-  // inert (lane captures only exist under the parent view).
-  const laneFreezes = useMemo(() => {
-    const captures: LaneCapture[] = [];
-    if (paneLaneCapture !== null) captures.push(paneLaneCapture);
-    for (const capture of hoverLaneCaptures.values()) captures.push(capture);
-    return captures;
-  }, [paneLaneCapture, hoverLaneCaptures]);
-  const parentLanes = useMemo(
-    () =>
-      isParentGroupBy
-        ? applyLaneFreezes(buildParentLanes(searched, doneIds, Date.now(), doneTimes, errorAckIds), laneFreezes)
-        : null,
-    [isParentGroupBy, searched, doneIds, doneTimes, errorAckIds, laneFreezes],
-  );
+  const parentLanes = useMemo(() => {
+    if (!isParentGroupBy) return null;
+    // The lane freezes are read HERE, not from a memo keyed on the captures
+    // (issue #186): the pane's lane capture is state, the hovered cells are
+    // refs, and a data-driven rebuild must see the captures as they stand now
+    // — a memo that did not recompute on a hover would hand this build a stale
+    // snapshot and silently drop the hovered lane's pin.
+    const laneFreezes: LaneCapture[] = [];
+    if (paneLaneCapture !== null) laneFreezes.push(paneLaneCapture);
+    for (const capture of hoverLaneCapturesRef.current.values()) laneFreezes.push(capture);
+    return applyLaneFreezes(
+      buildParentLanes(searched, doneIds, Date.now(), doneTimes, errorAckIds),
+      laneFreezes,
+    );
+  }, [isParentGroupBy, searched, doneIds, doneTimes, errorAckIds, paneLaneCapture, hoverRebuildEpoch]);
   const parentLaneChildrenByParent = useMemo(
     () => (isParentGroupBy ? familyIndex.childrenByParent : new Map<string, readonly PluginSidebarThread[]>()),
     [isParentGroupBy, familyIndex],
   );
-  const assembly = useMemo(
-    () =>
-      isParentGroupBy
-        ? null
-        : assembleBoard(searched, groupBy, groupContext, EMPTY_FROZEN_COLUMNS, doneIds, Date.now(), {
-            nestingEnabled: nestChildren,
-            ranks,
-            doneTimes,
-            attentionFreeze: attentionFreezePlan,
-            errorAcks: errorAckIds,
-          }),
-    [isParentGroupBy, searched, groupBy, groupContext, doneIds, nestChildren, ranks, doneTimes, attentionFreezePlan, errorAckIds],
-  );
+  const assembly = useMemo(() => {
+    if (isParentGroupBy) return null;
+    return assembleBoard(searched, groupBy, groupContext, EMPTY_FROZEN_COLUMNS, doneIds, Date.now(), {
+      nestingEnabled: nestChildren,
+      ranks,
+      doneTimes,
+      attentionFreeze: compileAttentionFreezes([
+        ...(paneCapture !== null && paneCapture.view === groupBy ? [paneCapture] : []),
+        ...[...hoverCapturesRef.current.values()].filter((capture) => capture.view === groupBy),
+      ]),
+      errorAcks: errorAckIds,
+    });
+  }, [isParentGroupBy, searched, groupBy, groupContext, doneIds, nestChildren, ranks, doneTimes, paneCapture, errorAckIds, hoverRebuildEpoch]);
   const columns = assembly?.columns ?? [];
   // The map that actually renders as nested rows (nesting rules applied, so a
   // promoted, un-nested, or cross-axis child is absent — expanding the card
@@ -1585,25 +1605,20 @@ function BoardPage({ subPath }: { subPath: string }) {
       const rebuilt = captureThreadAttention(current.focusId, current.origin);
       return capturesEqual(rebuilt, current) ? current : rebuilt;
     });
-    setHoverCaptures((current) => {
-      if (current.size === 0) return current;
-      let changed = false;
-      const next = new Map<string, AttentionCapture>();
-      for (const [threadId, capture] of current) {
-        if (!settled(threadId)) {
-          next.set(threadId, capture);
-          continue;
-        }
-        const rebuilt = captureThreadAttention(threadId, capture.origin);
-        if (rebuilt !== null && capturesEqual(rebuilt, capture)) {
-          next.set(threadId, capture);
-          continue;
-        }
-        changed = true;
-        if (rebuilt !== null) next.set(threadId, rebuilt);
-      }
-      return changed ? next : current;
-    });
+    // The hover captures live in refs (issue #186): re-resolve them in place
+    // and force ONE rebuild only when the settled placement actually moved
+    // (a gesture wrote a new lane). A pass that reproduces every capture is a
+    // no-op, so a data refresh does not re-render the board through this path.
+    let hoverChanged = false;
+    const hover = hoverCapturesRef.current;
+    for (const [threadId, capture] of hover) {
+      if (!settled(threadId)) continue;
+      const rebuilt = captureThreadAttention(threadId, capture.origin);
+      if (rebuilt !== null && capturesEqual(rebuilt, capture)) continue;
+      hoverChanged = true;
+      if (rebuilt !== null) hover.set(threadId, rebuilt);
+      else hover.delete(threadId);
+    }
     setPaneLaneCapture((current) => {
       if (current === null) return current;
       if (!settled(current.focusId)) return current;
@@ -1617,33 +1632,36 @@ function BoardPage({ subPath }: { subPath: string }) {
         ? current
         : rebuilt ?? null;
     });
-    setHoverLaneCaptures((current) => {
-      if (current.size === 0) return current;
-      const input = attentionInputRef.current;
-      if (input === null || !input.parent || input.parentLanes === null) return current;
-      let changed = false;
-      const next = new Map<string, LaneCapture>();
-      for (const [threadId, capture] of current) {
-        if (!settled(threadId)) {
-          next.set(threadId, capture);
-          continue;
-        }
+    let hoverLaneChanged = false;
+    const input = attentionInputRef.current;
+    const hoverLanes = hoverLaneCapturesRef.current;
+    if (input !== null && input.parent && input.parentLanes !== null) {
+      for (const [threadId, capture] of hoverLanes) {
+        if (!settled(threadId)) continue;
         const rebuilt = laneCaptureOf(input.parentLanes, threadId, {
           origin: capture.origin,
           capturedAt: capture.capturedAt,
         });
-        if (rebuilt !== null) {
-          next.set(threadId, rebuilt);
-          if (rebuilt.laneId !== capture.laneId || rebuilt.laneIndex !== capture.laneIndex || rebuilt.row?.id !== capture.row?.id || rebuilt.row?.index !== capture.row?.index) {
-            changed = true;
-          }
+        if (rebuilt === null) {
+          hoverLanes.delete(threadId);
+          hoverLaneChanged = true;
           continue;
         }
-        changed = true;
+        if (
+          rebuilt.laneId !== capture.laneId ||
+          rebuilt.laneIndex !== capture.laneIndex ||
+          rebuilt.row?.id !== capture.row?.id ||
+          rebuilt.row?.index !== capture.row?.index
+        ) {
+          hoverLanes.set(threadId, rebuilt);
+          hoverLaneChanged = true;
+        }
       }
-      return changed ? next : current;
-    });
-  }, [captureThreadAttention, ranks, doneIds, threads, groupBy, paneCapture, hoverCaptures, paneLaneCapture, hoverLaneCaptures]);
+    }
+    if (hoverChanged || hoverLaneChanged) {
+      setHoverRebuildEpoch((epoch) => epoch + 1);
+    }
+  }, [captureThreadAttention, ranks, doneIds, threads, groupBy, paneCapture, paneLaneCapture]);
 
   // The old collapsed-family auto-expand is gone: an attention child now
   // un-nests (nesting.ts `childPlacement`) and surfaces as its own card

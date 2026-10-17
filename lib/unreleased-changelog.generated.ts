@@ -16,6 +16,11 @@ export const UNRELEASED_ITEMS: readonly { text: string; children: string[]; grou
     "group": "Cards and chips"
   },
   {
+    "text": "**Hovering a card no longer re-renders the whole board.** A hover used to run through board state, so one pointer landing on a card rebuilt the board and every card on screen; on a phone that measured 335 card renders per hover and dropped frame rate to single digits against 60 at idle. A hover is now a placement pin held outside render, so it repaints nothing and still keeps a hovered card in place when its data churns.",
+    "children": [],
+    "group": "Board layout"
+  },
+  {
     "text": "**The Parent view's row rail is narrower.** Each row's attribution line now shows just the locked family's task count; the family name stays on the lane header. Phones get the freed 36 pixels for lane content.",
     "children": [],
     "group": "Board layout"

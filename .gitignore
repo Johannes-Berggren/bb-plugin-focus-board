@@ -5,3 +5,4 @@ node_modules/
 prompts/
 docs/release-safety/
 docs/screenshots/repro-mobile-scroll-snap/
+scripts/screenshot/.probe-dist/

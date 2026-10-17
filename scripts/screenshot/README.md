@@ -130,3 +130,40 @@ node scripts/screenshot/shoot.mjs                     # terminal 2
 ```
 
 `CHROME_PATH` and `HARNESS_URL` override the Chrome binary and harness URL.
+
+## Performance probes
+
+The `probe-*.mjs` scripts measure board performance at a phone viewport
+(390x844, the release harness's phone size). `data.ts`'s `SIM_BULK_THREADS` +
+`?scale=N` (mock-sdk) grow the board to a long-lived workspace's size.
+
+**Measure against the production build, not the dev harness.** `vite.config.ts`
+serves React's development build, which is several times slower than the
+plugin's shipped bundle and can rank bottlenecks wrongly. Build and serve the
+production harness for every probe:
+
+```sh
+npx vite build --config scripts/screenshot/vite.probe.config.ts
+npx vite preview --config scripts/screenshot/vite.probe.config.ts --strictPort
+# probes then read HARNESS_URL=http://localhost:5174/
+```
+
+- `probe-mobile-perf.mjs` — the main sweep: load metrics (FCP/LCP/blocking
+  time), then windowed interactions (pan, lane scroll, hover, pane open) with
+  frame rate, dropped frames, and React commit counts per interaction, plus a
+  V8 CPU profile. Reads `PROBE_CPU` (CDP CPU throttle, default 4) and
+  `PROBE_SCALE`.
+- `probe-mobile-ab.mjs` — A/B isolation: runs one gesture under CSS-only fix
+  candidates and reports each variant's timing, with a `progress` value proving
+  the gesture did real work. `GESTURE=pan|lane|hover|open|drag|idle`.
+- `probe-rerenders.mjs` — counts ThreadCard renders per interaction (the number
+  the hover fix moved: 335 renders per hover enter on a 478-card board → 0).
+  The counter rides `probe-instrument-thread-card.tsx`, which the probe config
+  aliases in place of the real component, so the shipped card is untouched.
+- `probe-pulse-cost.mjs` — the cost of N simultaneous `animate-pulse` attention
+  dots (see issue #260): injects copies of the real pulsing glyph and reports
+  idle frame rate per N.
+- `probe-pinned-child.mjs`, `probe-chips.mjs` — the older one-shot DOM probes.
+
+Each honors `CHROME_PATH`, `HARNESS_URL`, `OUT_DIR`, and `PROBE_CPU`; evidence
+lands in `docs/screenshots/probe-*/`.

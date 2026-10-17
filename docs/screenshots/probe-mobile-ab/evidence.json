@@ -1,0 +1,358 @@
+{
+  "machine": {
+    "chrome": "Chrome/155.0.8059.80",
+    "cpuThrottleRate": 4,
+    "viewport": {
+      "width": 390,
+      "height": 844
+    }
+  },
+  "variants": [
+    {
+      "variant": "baseline",
+      "summary": {
+        "wallMs": 2183,
+        "longTaskCount": 25,
+        "longTaskMs": 2030,
+        "longestTaskMs": 135,
+        "frames": 24,
+        "dropped": 23,
+        "fps": 11
+      },
+      "style": [
+        {
+          "name": "UpdateLayoutTree",
+          "ms": 100,
+          "count": 28
+        },
+        {
+          "name": "HitTest",
+          "ms": 48,
+          "count": 19
+        },
+        {
+          "name": "Paint",
+          "ms": 38,
+          "count": 6
+        },
+        {
+          "name": "PrePaint",
+          "ms": 34,
+          "count": 41
+        },
+        {
+          "name": "Commit",
+          "ms": 24,
+          "count": 50
+        },
+        {
+          "name": "Layout",
+          "ms": 10,
+          "count": 3
+        }
+      ]
+    },
+    {
+      "variant": "no-spotlight",
+      "summary": {
+        "wallMs": 2162,
+        "longTaskCount": 24,
+        "longTaskMs": 1902,
+        "longestTaskMs": 87,
+        "frames": 22,
+        "dropped": 21,
+        "fps": 10
+      },
+      "style": [
+        {
+          "name": "UpdateLayoutTree",
+          "ms": 169,
+          "count": 23
+        },
+        {
+          "name": "HitTest",
+          "ms": 35,
+          "count": 16
+        },
+        {
+          "name": "Commit",
+          "ms": 17,
+          "count": 46
+        },
+        {
+          "name": "PrePaint",
+          "ms": 5,
+          "count": 34
+        }
+      ]
+    },
+    {
+      "variant": "pointer-parked",
+      "summary": {
+        "wallMs": 428,
+        "longTaskCount": 4,
+        "longTaskMs": 329,
+        "longestTaskMs": 91,
+        "frames": 5,
+        "dropped": 4,
+        "fps": 12
+      },
+      "style": [
+        {
+          "name": "HitTest",
+          "ms": 9,
+          "count": 3
+        },
+        {
+          "name": "Commit",
+          "ms": 7,
+          "count": 5
+        },
+        {
+          "name": "UpdateLayoutTree",
+          "ms": 4,
+          "count": 6
+        },
+        {
+          "name": "PrePaint",
+          "ms": 0,
+          "count": 6
+        }
+      ]
+    },
+    {
+      "variant": "scroll-only",
+      "summary": {
+        "wallMs": 2979,
+        "longTaskCount": 35,
+        "longTaskMs": 2838,
+        "longestTaskMs": 88,
+        "frames": 35,
+        "dropped": 34,
+        "fps": 12
+      },
+      "style": [
+        {
+          "name": "HitTest",
+          "ms": 47,
+          "count": 22
+        },
+        {
+          "name": "Commit",
+          "ms": 28,
+          "count": 37
+        },
+        {
+          "name": "UpdateLayoutTree",
+          "ms": 25,
+          "count": 37
+        },
+        {
+          "name": "PrePaint",
+          "ms": 8,
+          "count": 53
+        }
+      ]
+    },
+    {
+      "variant": "scroll-only-no-spotlight",
+      "summary": {
+        "wallMs": 3071,
+        "longTaskCount": 35,
+        "longTaskMs": 2930,
+        "longestTaskMs": 234,
+        "frames": 35,
+        "dropped": 34,
+        "fps": 11
+      },
+      "style": [
+        {
+          "name": "UpdateLayoutTree",
+          "ms": 173,
+          "count": 36
+        },
+        {
+          "name": "HitTest",
+          "ms": 48,
+          "count": 22
+        },
+        {
+          "name": "Commit",
+          "ms": 28,
+          "count": 36
+        },
+        {
+          "name": "PrePaint",
+          "ms": 7,
+          "count": 52
+        }
+      ]
+    },
+    {
+      "variant": "cand-contain",
+      "summary": {
+        "wallMs": 2739,
+        "longTaskCount": 36,
+        "longTaskMs": 2605,
+        "longestTaskMs": 78,
+        "frames": 36,
+        "dropped": 35,
+        "fps": 13
+      },
+      "style": [
+        {
+          "name": "HitTest",
+          "ms": 43,
+          "count": 20
+        },
+        {
+          "name": "UpdateLayoutTree",
+          "ms": 25,
+          "count": 38
+        },
+        {
+          "name": "Commit",
+          "ms": 20,
+          "count": 38
+        },
+        {
+          "name": "PrePaint",
+          "ms": 5,
+          "count": 54
+        }
+      ]
+    },
+    {
+      "variant": "cand-content-visibility",
+      "summary": {
+        "wallMs": 845,
+        "longTaskCount": 0,
+        "longTaskMs": 0,
+        "longestTaskMs": 0,
+        "frames": 49,
+        "dropped": 1,
+        "fps": 58
+      },
+      "style": [
+        {
+          "name": "UpdateLayoutTree",
+          "ms": 31,
+          "count": 52
+        },
+        {
+          "name": "HitTest",
+          "ms": 30,
+          "count": 23
+        },
+        {
+          "name": "PrePaint",
+          "ms": 22,
+          "count": 79
+        },
+        {
+          "name": "Paint",
+          "ms": 21,
+          "count": 336
+        },
+        {
+          "name": "Commit",
+          "ms": 17,
+          "count": 51
+        },
+        {
+          "name": "Layout",
+          "ms": 11,
+          "count": 7
+        }
+      ]
+    },
+    {
+      "variant": "cand-board-layer",
+      "summary": {
+        "wallMs": 2833,
+        "longTaskCount": 35,
+        "longTaskMs": 2692,
+        "longestTaskMs": 100,
+        "frames": 35,
+        "dropped": 34,
+        "fps": 12
+      },
+      "style": [
+        {
+          "name": "UpdateLayoutTree",
+          "ms": 35,
+          "count": 37
+        },
+        {
+          "name": "Commit",
+          "ms": 30,
+          "count": 36
+        },
+        {
+          "name": "HitTest",
+          "ms": 21,
+          "count": 23
+        },
+        {
+          "name": "PrePaint",
+          "ms": 18,
+          "count": 53
+        },
+        {
+          "name": "Paint",
+          "ms": 9,
+          "count": 3
+        },
+        {
+          "name": "Layout",
+          "ms": 1,
+          "count": 1
+        }
+      ]
+    },
+    {
+      "variant": "cand-lane-layer",
+      "summary": {
+        "wallMs": 798,
+        "longTaskCount": 0,
+        "longTaskMs": 0,
+        "longestTaskMs": 0,
+        "frames": 48,
+        "dropped": 0,
+        "fps": 60
+      },
+      "style": [
+        {
+          "name": "UpdateLayoutTree",
+          "ms": 37,
+          "count": 50
+        },
+        {
+          "name": "PrePaint",
+          "ms": 14,
+          "count": 65
+        },
+        {
+          "name": "Commit",
+          "ms": 11,
+          "count": 48
+        },
+        {
+          "name": "Paint",
+          "ms": 8,
+          "count": 11
+        },
+        {
+          "name": "HitTest",
+          "ms": 2,
+          "count": 19
+        },
+        {
+          "name": "Layout",
+          "ms": 1,
+          "count": 1
+        }
+      ]
+    }
+  ]
+}

@@ -58,3 +58,17 @@ steps:
       wait_ms: 800
     assert:
       - hover_prominence: { card: thr_rpc_auth, pointer_hover: false }
+
+  - id: hover-pins-placement-and-moves-nothing
+    title: Hovering a card dims the others and leaves every card exactly where it was
+    # Issue #186's frontend half: a hover is a placement pin held outside
+    # render now, so it must dim the siblings (the spotlight) while reordering
+    # nothing. The assertion also names the full lane order the board settles
+    # at, proving the hover caused no shuffle.
+    goto: "?groupBy=status"
+    theme: dark
+    hover_card: { card: thr_uat_queue }
+    assert:
+      - hover_prominence: { card: thr_uat_queue, pointer_hover: true }
+      - column: unread
+        ordered: [thr_rpc_auth, thr_uat_queue, thr_review_pr]

@@ -1,0 +1,1027 @@
+{
+  "machine": {
+    "chrome": "Chrome/155.0.8059.80",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "cpuThrottleRate": 4,
+    "base": "http://localhost:5174/",
+    "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/155.0.0.0 Safari/537.36"
+  },
+  "boards": [
+    {
+      "board": "columns-demo",
+      "query": "?demo=1&scale=300",
+      "load": {
+        "domInteractive": 31,
+        "domContentLoaded": 178,
+        "load": 178,
+        "fcp": 796,
+        "lcp": 796,
+        "boardPaintAt": 401,
+        "totalBlockingTime": 977,
+        "longTaskCount": 10,
+        "commitCount": 6,
+        "nodeCount": 8711,
+        "cardCount": 478,
+        "laneCount": 9,
+        "styleSheets": 3
+      },
+      "interactions": [
+        {
+          "label": "pan-board-horizontal",
+          "wallMs": 1066,
+          "commits": 0,
+          "longTaskCount": 0,
+          "longTaskMs": 0,
+          "longestTaskMs": 0,
+          "frames": 63,
+          "dropped": 1,
+          "fps": 59
+        },
+        {
+          "label": "scroll-busiest-lane-vertical",
+          "wallMs": 1010,
+          "commits": 0,
+          "longTaskCount": 0,
+          "longTaskMs": 0,
+          "longestTaskMs": 0,
+          "frames": 60,
+          "dropped": 0,
+          "fps": 59
+        },
+        {
+          "label": "hover-12-cards",
+          "wallMs": 1862,
+          "commits": 15,
+          "longTaskCount": 11,
+          "longTaskMs": 774,
+          "longestTaskMs": 140,
+          "frames": 66,
+          "dropped": 16,
+          "fps": 35
+        },
+        {
+          "label": "open-thread-pane",
+          "wallMs": 975,
+          "commits": 2,
+          "longTaskCount": 2,
+          "longTaskMs": 140,
+          "longestTaskMs": 70,
+          "frames": 47,
+          "dropped": 4,
+          "fps": 48
+        }
+      ],
+      "boardBox": {
+        "x": 0,
+        "y": 57,
+        "w": 390,
+        "h": 787,
+        "scrollWidth": 2444,
+        "clientWidth": 390
+      },
+      "laneScroll": {
+        "cards": 199,
+        "scrollHeight": 13031,
+        "clientHeight": 748,
+        "x": 571,
+        "y": 458
+      },
+      "hoverProfile": {
+        "label": "hover-12-cards",
+        "totalSamples": 4616,
+        "activeSamples": 1277,
+        "sampleIntervalUs": 100,
+        "top": [
+          {
+            "file": "index-BZtvExK0.js",
+            "line": 6328,
+            "fn": "commitHostUpdate",
+            "selfSamples": 105,
+            "selfPctActive": 8.2,
+            "selfPctTotal": 2.3
+          },
+          {
+            "file": "index-BZtvExK0.js",
+            "line": 9455,
+            "fn": "updateProperties",
+            "selfSamples": 93,
+            "selfPctActive": 7.3,
+            "selfPctTotal": 2
+          },
+          {
+            "file": "index-BZtvExK0.js",
+            "line": 20643,
+            "fn": "ThreadCard",
+            "selfSamples": 61,
+            "selfPctActive": 4.8,
+            "selfPctTotal": 1.3
+          },
+          {
+            "file": "",
+            "line": 0,
+            "fn": "(garbage collector)",
+            "selfSamples": 55,
+            "selfPctActive": 4.3,
+            "selfPctTotal": 1.2
+          },
+          {
+            "file": "index-BZtvExK0.js",
+            "line": 8049,
+            "fn": "workLoopSync",
+            "selfSamples": 45,
+            "selfPctActive": 3.5,
+            "selfPctTotal": 1
+          },
+          {
+            "file": "index-BZtvExK0.js",
+            "line": 19211,
+            "fn": "Icon",
+            "selfSamples": 45,
+            "selfPctActive": 3.5,
+            "selfPctTotal": 1
+          },
+          {
+            "file": "index-BZtvExK0.js",
+            "line": 24436,
+            "fn": "threadLi",
+            "selfSamples": 37,
+            "selfPctActive": 2.9,
+            "selfPctTotal": 0.8
+          },
+          {
+            "file": "index-BZtvExK0.js",
+            "line": 9062,
+            "fn": "setProp",
+            "selfSamples": 35,
+            "selfPctActive": 2.7,
+            "selfPctTotal": 0.8
+          },
+          {
+            "file": "index-BZtvExK0.js",
+            "line": 3465,
+            "fn": "reconcileChildFibersImpl",
+            "selfSamples": 32,
+            "selfPctActive": 2.5,
+            "selfPctTotal": 0.7
+          },
+          {
+            "file": "index-BZtvExK0.js",
+            "line": 3410,
+            "fn": "reconcileChildrenArray",
+            "selfSamples": 32,
+            "selfPctActive": 2.5,
+            "selfPctTotal": 0.7
+          },
+          {
+            "file": "index-BZtvExK0.js",
+            "line": 5648,
+            "fn": "beginWork",
+            "selfSamples": 30,
+            "selfPctActive": 2.3,
+            "selfPctTotal": 0.6
+          },
+          {
+            "file": "index-BZtvExK0.js",
+            "line": 5226,
+            "fn": "updateFunctionComponent",
+            "selfSamples": 30,
+            "selfPctActive": 2.3,
+            "selfPctTotal": 0.6
+          },
+          {
+            "file": "index-BZtvExK0.js",
+            "line": 13876,
+            "fn": "(anonymous)",
+            "selfSamples": 29,
+            "selfPctActive": 2.3,
+            "selfPctTotal": 0.6
+          },
+          {
+            "file": "index-BZtvExK0.js",
+            "line": 6690,
+            "fn": "commitLayoutEffectOnFiber",
+            "selfSamples": 28,
+            "selfPctActive": 2.2,
+            "selfPctTotal": 0.6
+          },
+          {
+            "file": "index-BZtvExK0.js",
+            "line": 3379,
+            "fn": "updateSlot",
+            "selfSamples": 26,
+            "selfPctActive": 2,
+            "selfPctTotal": 0.6
+          },
+          {
+            "file": "index-BZtvExK0.js",
+            "line": 38891,
+            "fn": "(anonymous)",
+            "selfSamples": 22,
+            "selfPctActive": 1.7,
+            "selfPctTotal": 0.5
+          },
+          {
+            "file": "index-BZtvExK0.js",
+            "line": 7627,
+            "fn": "recursivelyTraversePassiveUnmountEffects",
+            "selfSamples": 21,
+            "selfPctActive": 1.6,
+            "selfPctTotal": 0.5
+          },
+          {
+            "file": "index-BZtvExK0.js",
+            "line": 7484,
+            "fn": "commitPassiveMountOnFiber",
+            "selfSamples": 21,
+            "selfPctActive": 1.6,
+            "selfPctTotal": 0.5
+          },
+          {
+            "file": "index-BZtvExK0.js",
+            "line": 341,
+            "fn": "exports.createElement",
+            "selfSamples": 20,
+            "selfPctActive": 1.6,
+            "selfPctTotal": 0.4
+          },
+          {
+            "file": "index-BZtvExK0.js",
+            "line": 13586,
+            "fn": "scan",
+            "selfSamples": 18,
+            "selfPctActive": 1.4,
+            "selfPctTotal": 0.4
+          },
+          {
+            "file": "index-BZtvExK0.js",
+            "line": 20225,
+            "fn": "ThreadCardMenu",
+            "selfSamples": 18,
+            "selfPctActive": 1.4,
+            "selfPctTotal": 0.4
+          },
+          {
+            "file": "index-BZtvExK0.js",
+            "line": 12742,
+            "fn": "jsxProd",
+            "selfSamples": 17,
+            "selfPctActive": 1.3,
+            "selfPctTotal": 0.4
+          },
+          {
+            "file": "index-BZtvExK0.js",
+            "line": 20271,
+            "fn": "(anonymous)",
+            "selfSamples": 14,
+            "selfPctActive": 1.1,
+            "selfPctTotal": 0.3
+          },
+          {
+            "file": "index-BZtvExK0.js",
+            "line": 13895,
+            "fn": "(anonymous)",
+            "selfSamples": 14,
+            "selfPctActive": 1.1,
+            "selfPctTotal": 0.3
+          },
+          {
+            "file": "index-BZtvExK0.js",
+            "line": 7014,
+            "fn": "commitMutationEffectsOnFiber",
+            "selfSamples": 14,
+            "selfPctActive": 1.1,
+            "selfPctTotal": 0.3
+          },
+          {
+            "file": "index-BZtvExK0.js",
+            "line": 37376,
+            "fn": "BoardPage",
+            "selfSamples": 13,
+            "selfPctActive": 1,
+            "selfPctTotal": 0.3
+          },
+          {
+            "file": "index-BZtvExK0.js",
+            "line": 6195,
+            "fn": "commitHookEffectListUnmount",
+            "selfSamples": 13,
+            "selfPctActive": 1,
+            "selfPctTotal": 0.3
+          },
+          {
+            "file": "index-BZtvExK0.js",
+            "line": 2016,
+            "fn": "getListener",
+            "selfSamples": 12,
+            "selfPctActive": 0.9,
+            "selfPctTotal": 0.3
+          },
+          {
+            "file": "index-BZtvExK0.js",
+            "line": 39009,
+            "fn": "(anonymous)",
+            "selfSamples": 12,
+            "selfPctActive": 0.9,
+            "selfPctTotal": 0.3
+          },
+          {
+            "file": "",
+            "line": 0,
+            "fn": "URL",
+            "selfSamples": 12,
+            "selfPctActive": 0.9,
+            "selfPctTotal": 0.3
+          }
+        ],
+        "files": [
+          {
+            "file": "index-BZtvExK0.js",
+            "selfSamples": 1190,
+            "selfPctActive": 93.2
+          },
+          {
+            "file": "",
+            "selfSamples": 86,
+            "selfPctActive": 6.7
+          },
+          {
+            "file": "pptr",
+            "selfSamples": 1,
+            "selfPctActive": 0.1
+          }
+        ]
+      }
+    },
+    {
+      "board": "columns-base",
+      "query": "?scale=300",
+      "load": {
+        "domInteractive": 30,
+        "domContentLoaded": 123,
+        "load": 127,
+        "fcp": 684,
+        "lcp": 684,
+        "boardPaintAt": 357,
+        "totalBlockingTime": 815,
+        "longTaskCount": 9,
+        "commitCount": 8,
+        "nodeCount": 8139,
+        "cardCount": 446,
+        "laneCount": 9,
+        "styleSheets": 3
+      },
+      "interactions": [
+        {
+          "label": "pan-board-horizontal",
+          "wallMs": 1028,
+          "commits": 0,
+          "longTaskCount": 0,
+          "longTaskMs": 0,
+          "longestTaskMs": 0,
+          "frames": 62,
+          "dropped": 0,
+          "fps": 60
+        },
+        {
+          "label": "scroll-busiest-lane-vertical",
+          "wallMs": 847,
+          "commits": 0,
+          "longTaskCount": 0,
+          "longTaskMs": 0,
+          "longestTaskMs": 0,
+          "frames": 51,
+          "dropped": 0,
+          "fps": 60
+        },
+        {
+          "label": "hover-12-cards",
+          "wallMs": 1801,
+          "commits": 16,
+          "longTaskCount": 7,
+          "longTaskMs": 413,
+          "longestTaskMs": 98,
+          "frames": 76,
+          "dropped": 16,
+          "fps": 42
+        },
+        {
+          "label": "open-thread-pane",
+          "wallMs": 964,
+          "commits": 2,
+          "longTaskCount": 2,
+          "longTaskMs": 124,
+          "longestTaskMs": 65,
+          "frames": 47,
+          "dropped": 6,
+          "fps": 49
+        }
+      ],
+      "boardBox": {
+        "x": 0,
+        "y": 57,
+        "w": 390,
+        "h": 787,
+        "scrollWidth": 2444,
+        "clientWidth": 390
+      },
+      "laneScroll": {
+        "cards": 179,
+        "scrollHeight": 11958,
+        "clientHeight": 748,
+        "x": 559,
+        "y": 458
+      },
+      "hoverProfile": {
+        "label": "hover-12-cards",
+        "totalSamples": 4705,
+        "activeSamples": 1167,
+        "sampleIntervalUs": 100,
+        "top": [
+          {
+            "file": "index-BZtvExK0.js",
+            "line": 6328,
+            "fn": "commitHostUpdate",
+            "selfSamples": 87,
+            "selfPctActive": 7.5,
+            "selfPctTotal": 1.8
+          },
+          {
+            "file": "index-BZtvExK0.js",
+            "line": 9455,
+            "fn": "updateProperties",
+            "selfSamples": 81,
+            "selfPctActive": 6.9,
+            "selfPctTotal": 1.7
+          },
+          {
+            "file": "index-BZtvExK0.js",
+            "line": 20643,
+            "fn": "ThreadCard",
+            "selfSamples": 61,
+            "selfPctActive": 5.2,
+            "selfPctTotal": 1.3
+          },
+          {
+            "file": "",
+            "line": 0,
+            "fn": "(garbage collector)",
+            "selfSamples": 56,
+            "selfPctActive": 4.8,
+            "selfPctTotal": 1.2
+          },
+          {
+            "file": "index-BZtvExK0.js",
+            "line": 24436,
+            "fn": "threadLi",
+            "selfSamples": 46,
+            "selfPctActive": 3.9,
+            "selfPctTotal": 1
+          },
+          {
+            "file": "index-BZtvExK0.js",
+            "line": 19211,
+            "fn": "Icon",
+            "selfSamples": 42,
+            "selfPctActive": 3.6,
+            "selfPctTotal": 0.9
+          },
+          {
+            "file": "index-BZtvExK0.js",
+            "line": 3410,
+            "fn": "reconcileChildrenArray",
+            "selfSamples": 39,
+            "selfPctActive": 3.3,
+            "selfPctTotal": 0.8
+          },
+          {
+            "file": "index-BZtvExK0.js",
+            "line": 8049,
+            "fn": "workLoopSync",
+            "selfSamples": 35,
+            "selfPctActive": 3,
+            "selfPctTotal": 0.7
+          },
+          {
+            "file": "index-BZtvExK0.js",
+            "line": 3379,
+            "fn": "updateSlot",
+            "selfSamples": 35,
+            "selfPctActive": 3,
+            "selfPctTotal": 0.7
+          },
+          {
+            "file": "index-BZtvExK0.js",
+            "line": 13876,
+            "fn": "(anonymous)",
+            "selfSamples": 34,
+            "selfPctActive": 2.9,
+            "selfPctTotal": 0.7
+          },
+          {
+            "file": "index-BZtvExK0.js",
+            "line": 6690,
+            "fn": "commitLayoutEffectOnFiber",
+            "selfSamples": 29,
+            "selfPctActive": 2.5,
+            "selfPctTotal": 0.6
+          },
+          {
+            "file": "index-BZtvExK0.js",
+            "line": 13586,
+            "fn": "scan",
+            "selfSamples": 27,
+            "selfPctActive": 2.3,
+            "selfPctTotal": 0.6
+          },
+          {
+            "file": "index-BZtvExK0.js",
+            "line": 20225,
+            "fn": "ThreadCardMenu",
+            "selfSamples": 26,
+            "selfPctActive": 2.2,
+            "selfPctTotal": 0.6
+          },
+          {
+            "file": "index-BZtvExK0.js",
+            "line": 5648,
+            "fn": "beginWork",
+            "selfSamples": 25,
+            "selfPctActive": 2.1,
+            "selfPctTotal": 0.5
+          },
+          {
+            "file": "index-BZtvExK0.js",
+            "line": 20271,
+            "fn": "(anonymous)",
+            "selfSamples": 25,
+            "selfPctActive": 2.1,
+            "selfPctTotal": 0.5
+          },
+          {
+            "file": "index-BZtvExK0.js",
+            "line": 3465,
+            "fn": "reconcileChildFibersImpl",
+            "selfSamples": 24,
+            "selfPctActive": 2.1,
+            "selfPctTotal": 0.5
+          },
+          {
+            "file": "index-BZtvExK0.js",
+            "line": 7627,
+            "fn": "recursivelyTraversePassiveUnmountEffects",
+            "selfSamples": 22,
+            "selfPctActive": 1.9,
+            "selfPctTotal": 0.5
+          },
+          {
+            "file": "index-BZtvExK0.js",
+            "line": 9062,
+            "fn": "setProp",
+            "selfSamples": 21,
+            "selfPctActive": 1.8,
+            "selfPctTotal": 0.4
+          },
+          {
+            "file": "index-BZtvExK0.js",
+            "line": 38891,
+            "fn": "(anonymous)",
+            "selfSamples": 18,
+            "selfPctActive": 1.5,
+            "selfPctTotal": 0.4
+          },
+          {
+            "file": "index-BZtvExK0.js",
+            "line": 13895,
+            "fn": "(anonymous)",
+            "selfSamples": 15,
+            "selfPctActive": 1.3,
+            "selfPctTotal": 0.3
+          },
+          {
+            "file": "index-BZtvExK0.js",
+            "line": 7014,
+            "fn": "commitMutationEffectsOnFiber",
+            "selfSamples": 15,
+            "selfPctActive": 1.3,
+            "selfPctTotal": 0.3
+          },
+          {
+            "file": "index-BZtvExK0.js",
+            "line": 5226,
+            "fn": "updateFunctionComponent",
+            "selfSamples": 14,
+            "selfPctActive": 1.2,
+            "selfPctTotal": 0.3
+          },
+          {
+            "file": "index-BZtvExK0.js",
+            "line": 341,
+            "fn": "exports.createElement",
+            "selfSamples": 14,
+            "selfPctActive": 1.2,
+            "selfPctTotal": 0.3
+          },
+          {
+            "file": "index-BZtvExK0.js",
+            "line": 7484,
+            "fn": "commitPassiveMountOnFiber",
+            "selfSamples": 14,
+            "selfPctActive": 1.2,
+            "selfPctTotal": 0.3
+          },
+          {
+            "file": "index-BZtvExK0.js",
+            "line": 8817,
+            "fn": "(anonymous)",
+            "selfSamples": 12,
+            "selfPctActive": 1,
+            "selfPctTotal": 0.3
+          },
+          {
+            "file": "index-BZtvExK0.js",
+            "line": 32471,
+            "fn": "cardMenuActions",
+            "selfSamples": 12,
+            "selfPctActive": 1,
+            "selfPctTotal": 0.3
+          },
+          {
+            "file": "",
+            "line": 0,
+            "fn": "URL",
+            "selfSamples": 11,
+            "selfPctActive": 0.9,
+            "selfPctTotal": 0.2
+          },
+          {
+            "file": "index-BZtvExK0.js",
+            "line": 6978,
+            "fn": "recursivelyTraverseMutationEffects",
+            "selfSamples": 10,
+            "selfPctActive": 0.9,
+            "selfPctTotal": 0.2
+          },
+          {
+            "file": "index-BZtvExK0.js",
+            "line": 4368,
+            "fn": "updateEffectImpl",
+            "selfSamples": 9,
+            "selfPctActive": 0.8,
+            "selfPctTotal": 0.2
+          },
+          {
+            "file": "index-BZtvExK0.js",
+            "line": 13,
+            "fn": "(anonymous)",
+            "selfSamples": 9,
+            "selfPctActive": 0.8,
+            "selfPctTotal": 0.2
+          }
+        ],
+        "files": [
+          {
+            "file": "index-BZtvExK0.js",
+            "selfSamples": 1081,
+            "selfPctActive": 92.6
+          },
+          {
+            "file": "",
+            "selfSamples": 86,
+            "selfPctActive": 7.4
+          }
+        ]
+      }
+    },
+    {
+      "board": "parent-lanes-demo",
+      "query": "?groupBy=parent&demo=1&scale=300",
+      "load": {
+        "domInteractive": 29,
+        "domContentLoaded": 121,
+        "load": 121,
+        "fcp": 516,
+        "lcp": 516,
+        "boardPaintAt": 441,
+        "totalBlockingTime": 305,
+        "longTaskCount": 2,
+        "commitCount": 5,
+        "nodeCount": 2961,
+        "cardCount": 119,
+        "laneCount": 60,
+        "styleSheets": 3
+      },
+      "interactions": [
+        {
+          "label": "pan-board-horizontal",
+          "wallMs": 1055,
+          "commits": 1,
+          "longTaskCount": 0,
+          "longTaskMs": 0,
+          "longestTaskMs": 0,
+          "frames": 63,
+          "dropped": 0,
+          "fps": 60
+        },
+        {
+          "label": "hover-12-cards",
+          "wallMs": 1653,
+          "commits": 12,
+          "longTaskCount": 0,
+          "longTaskMs": 0,
+          "longestTaskMs": 0,
+          "frames": 96,
+          "dropped": 3,
+          "fps": 58
+        },
+        {
+          "label": "open-thread-pane",
+          "wallMs": 930,
+          "commits": 2,
+          "longTaskCount": 0,
+          "longTaskMs": 0,
+          "longestTaskMs": 0,
+          "frames": 56,
+          "dropped": 0,
+          "fps": 60
+        }
+      ],
+      "boardBox": {
+        "x": 0,
+        "y": 57,
+        "w": 390,
+        "h": 787,
+        "scrollWidth": 10078,
+        "clientWidth": 390
+      },
+      "laneScroll": null,
+      "hoverProfile": {
+        "label": "hover-12-cards",
+        "totalSamples": 4366,
+        "activeSamples": 391,
+        "sampleIntervalUs": 100,
+        "top": [
+          {
+            "file": "index-BZtvExK0.js",
+            "line": 6328,
+            "fn": "commitHostUpdate",
+            "selfSamples": 26,
+            "selfPctActive": 6.6,
+            "selfPctTotal": 0.6
+          },
+          {
+            "file": "",
+            "line": 0,
+            "fn": "(garbage collector)",
+            "selfSamples": 25,
+            "selfPctActive": 6.4,
+            "selfPctTotal": 0.6
+          },
+          {
+            "file": "index-BZtvExK0.js",
+            "line": 9455,
+            "fn": "updateProperties",
+            "selfSamples": 22,
+            "selfPctActive": 5.6,
+            "selfPctTotal": 0.5
+          },
+          {
+            "file": "index-BZtvExK0.js",
+            "line": 12742,
+            "fn": "jsxProd",
+            "selfSamples": 14,
+            "selfPctActive": 3.6,
+            "selfPctTotal": 0.3
+          },
+          {
+            "file": "index-BZtvExK0.js",
+            "line": 8817,
+            "fn": "(anonymous)",
+            "selfSamples": 10,
+            "selfPctActive": 2.6,
+            "selfPctTotal": 0.2
+          },
+          {
+            "file": "index-BZtvExK0.js",
+            "line": 20643,
+            "fn": "ThreadCard",
+            "selfSamples": 10,
+            "selfPctActive": 2.6,
+            "selfPctTotal": 0.2
+          },
+          {
+            "file": "index-BZtvExK0.js",
+            "line": 20225,
+            "fn": "ThreadCardMenu",
+            "selfSamples": 10,
+            "selfPctActive": 2.6,
+            "selfPctTotal": 0.2
+          },
+          {
+            "file": "index-BZtvExK0.js",
+            "line": 3410,
+            "fn": "reconcileChildrenArray",
+            "selfSamples": 9,
+            "selfPctActive": 2.3,
+            "selfPctTotal": 0.2
+          },
+          {
+            "file": "",
+            "line": 54,
+            "fn": "tick",
+            "selfSamples": 9,
+            "selfPctActive": 2.3,
+            "selfPctTotal": 0.2
+          },
+          {
+            "file": "index-BZtvExK0.js",
+            "line": 13586,
+            "fn": "scan",
+            "selfSamples": 8,
+            "selfPctActive": 2,
+            "selfPctTotal": 0.2
+          },
+          {
+            "file": "index-BZtvExK0.js",
+            "line": 3465,
+            "fn": "reconcileChildFibersImpl",
+            "selfSamples": 8,
+            "selfPctActive": 2,
+            "selfPctTotal": 0.2
+          },
+          {
+            "file": "index-BZtvExK0.js",
+            "line": 2675,
+            "fn": "createWorkInProgress",
+            "selfSamples": 8,
+            "selfPctActive": 2,
+            "selfPctTotal": 0.2
+          },
+          {
+            "file": "index-BZtvExK0.js",
+            "line": 9062,
+            "fn": "setProp",
+            "selfSamples": 8,
+            "selfPctActive": 2,
+            "selfPctTotal": 0.2
+          },
+          {
+            "file": "",
+            "line": 0,
+            "fn": "querySelectorAll",
+            "selfSamples": 7,
+            "selfPctActive": 1.8,
+            "selfPctTotal": 0.2
+          },
+          {
+            "file": "index-BZtvExK0.js",
+            "line": 5648,
+            "fn": "beginWork",
+            "selfSamples": 7,
+            "selfPctActive": 1.8,
+            "selfPctTotal": 0.2
+          },
+          {
+            "file": "index-BZtvExK0.js",
+            "line": 3827,
+            "fn": "renderWithHooks",
+            "selfSamples": 7,
+            "selfPctActive": 1.8,
+            "selfPctTotal": 0.2
+          },
+          {
+            "file": "index-BZtvExK0.js",
+            "line": 33464,
+            "fn": "(anonymous)",
+            "selfSamples": 7,
+            "selfPctActive": 1.8,
+            "selfPctTotal": 0.2
+          },
+          {
+            "file": "index-BZtvExK0.js",
+            "line": 37376,
+            "fn": "BoardPage",
+            "selfSamples": 7,
+            "selfPctActive": 1.8,
+            "selfPctTotal": 0.2
+          },
+          {
+            "file": "index-BZtvExK0.js",
+            "line": 8049,
+            "fn": "workLoopSync",
+            "selfSamples": 6,
+            "selfPctActive": 1.5,
+            "selfPctTotal": 0.1
+          },
+          {
+            "file": "index-BZtvExK0.js",
+            "line": 15706,
+            "fn": "tailwindMerge",
+            "selfSamples": 6,
+            "selfPctActive": 1.5,
+            "selfPctTotal": 0.1
+          },
+          {
+            "file": "index-BZtvExK0.js",
+            "line": 20271,
+            "fn": "(anonymous)",
+            "selfSamples": 6,
+            "selfPctActive": 1.5,
+            "selfPctTotal": 0.1
+          },
+          {
+            "file": "index-BZtvExK0.js",
+            "line": 7014,
+            "fn": "commitMutationEffectsOnFiber",
+            "selfSamples": 6,
+            "selfPctActive": 1.5,
+            "selfPctTotal": 0.1
+          },
+          {
+            "file": "index-BZtvExK0.js",
+            "line": 8791,
+            "fn": "dispatchEventForPluginEventSystem",
+            "selfSamples": 5,
+            "selfPctActive": 1.3,
+            "selfPctTotal": 0.1
+          },
+          {
+            "file": "index-BZtvExK0.js",
+            "line": 21736,
+            "fn": "buildFamilyIndex",
+            "selfSamples": 5,
+            "selfPctActive": 1.3,
+            "selfPctTotal": 0.1
+          },
+          {
+            "file": "index-BZtvExK0.js",
+            "line": 5837,
+            "fn": "completeWork",
+            "selfSamples": 5,
+            "selfPctActive": 1.3,
+            "selfPctTotal": 0.1
+          },
+          {
+            "file": "index-BZtvExK0.js",
+            "line": 2079,
+            "fn": "SyntheticBaseEvent",
+            "selfSamples": 4,
+            "selfPctActive": 1,
+            "selfPctTotal": 0.1
+          },
+          {
+            "file": "index-BZtvExK0.js",
+            "line": 2016,
+            "fn": "getListener",
+            "selfSamples": 4,
+            "selfPctActive": 1,
+            "selfPctTotal": 0.1
+          },
+          {
+            "file": "index-BZtvExK0.js",
+            "line": 11064,
+            "fn": "findInstanceBlockingTarget",
+            "selfSamples": 4,
+            "selfPctActive": 1,
+            "selfPctTotal": 0.1
+          },
+          {
+            "file": "index-BZtvExK0.js",
+            "line": 3395,
+            "fn": "updateFromMap",
+            "selfSamples": 4,
+            "selfPctActive": 1,
+            "selfPctTotal": 0.1
+          },
+          {
+            "file": "index-BZtvExK0.js",
+            "line": 3018,
+            "fn": "propagateParentContextChanges",
+            "selfSamples": 4,
+            "selfPctActive": 1,
+            "selfPctTotal": 0.1
+          }
+        ],
+        "files": [
+          {
+            "file": "index-BZtvExK0.js",
+            "selfSamples": 334,
+            "selfPctActive": 85.4
+          },
+          {
+            "file": "",
+            "selfSamples": 53,
+            "selfPctActive": 13.6
+          },
+          {
+            "file": "pptr",
+            "selfSamples": 4,
+            "selfPctActive": 1
+          }
+        ]
+      }
+    }
+  ]
+}
