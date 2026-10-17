@@ -515,6 +515,139 @@ describe("drag a child off its family: the column floor detaches", () => {
   });
 });
 
+describe("a deep member drags out of the family whole (issue #249, goal 2)", () => {
+  // The Make Top-Level write at ANY depth: a sub-row (a child row's own
+  // row) released on a column floor un-parents ENTIRELY — parentThreadId
+  // null — never re-hanging under its grandparent's family root, because
+  // the gesture is "out of the family" and a partial promotion would be a
+  // different gesture with no affordance naming it.
+  function deepFamily() {
+    const root = thread({ id: "thr_deep_root", isUnread: true, updatedAt: NOW - 1000 });
+    const mid = thread({
+      id: "thr_deep_mid",
+      isUnread: true,
+      parentThreadId: "thr_deep_root",
+      updatedAt: NOW - 5000,
+    });
+    const leaf = thread({
+      id: "thr_deep_leaf",
+      parentThreadId: "thr_deep_mid",
+      updatedAt: NOW - 9000,
+    });
+    return { leaf, root, mid };
+  }
+
+  function renderDeepFamily(onReparent: unknown = vi.fn().mockResolvedValue(undefined)) {
+    const { leaf, root, mid } = deepFamily();
+    const props = {
+      nestedChildrenByParent: new Map<string, readonly PluginSidebarThread[]>([
+        ["thr_deep_root", [mid]],
+        ["thr_deep_mid", [leaf]],
+      ]),
+      rawParentOf: new Map<string, string>([
+        ["thr_deep_mid", "thr_deep_root"],
+        ["thr_deep_leaf", "thr_deep_mid"],
+      ]),
+      onReparent,
+    };
+    return { props, ...renderBoard([root], props) };
+  }
+
+  function deepRowAnchor(leafId: string): HTMLElement {
+    const anchor = document.querySelector(
+      `[data-child-sub-rows] a[data-thread-card="${leafId}"]`,
+    );
+    if (!(anchor instanceof HTMLElement)) throw new Error(`missing deep row ${leafId}`);
+    return anchor;
+  }
+
+  function dragDeepRowToFloor(fromId: string, columnId: string) {
+    const dt = makeDataTransfer();
+    fireEvent.dragStart(deepRowAnchor(fromId), { dataTransfer: dt });
+    const section = document.querySelector(`section[data-column-id="${columnId}"]`);
+    if (!(section instanceof HTMLElement)) throw new Error(`missing column ${columnId}`);
+    const over = createEvent.dragOver(section, { dataTransfer: dt });
+    fireEvent(section, over);
+    const drop = createEvent.drop(section, { dataTransfer: dt });
+    fireEvent(section, drop);
+    return { dropAllowed: over.defaultPrevented };
+  }
+
+  it("the deep row is draggable and carries its own tier's type, not the lane's", () => {
+    renderDeepFamily();
+    const dt = makeDataTransfer();
+    fireEvent.dragStart(deepRowAnchor("thr_deep_leaf"), { dataTransfer: dt });
+    expect(dt.types).toContain("text/focus-board-id");
+    // child:<its own parent> — the dot cut's same key family rides here too.
+    expect(dt.types).toContain("application/x-focus-board-rank:child:thr_deep_mid");
+    expect(dt.types).not.toContain("application/x-focus-board-rank:status:unread");
+  });
+
+  it("releasing the deep row on its lane's floor un-parents it entirely, writing no rank move", () => {
+    const onReparent = vi.fn().mockResolvedValue(undefined);
+    const { props } = renderDeepFamily(onReparent);
+    const { dropAllowed } = dragDeepRowToFloor("thr_deep_leaf", "unread");
+    expect(dropAllowed).toBe(true);
+    // The FULL detach: null parent, three tiers deep or not.
+    expect(onReparent).toHaveBeenCalledWith("thr_deep_leaf", null);
+    expect(onReparent).toHaveBeenCalledTimes(1);
+    expect(props.onRankMove).not.toHaveBeenCalled();
+  });
+
+  it("dropping the deep row on the column title detaches it the same way", () => {
+    const onReparent = vi.fn().mockResolvedValue(undefined);
+    renderDeepFamily(onReparent);
+    const section = document.querySelector('section[data-column-id="unread"] header');
+    if (!(section instanceof HTMLElement)) throw new Error("missing unread header");
+    const dt = makeDataTransfer();
+    fireEvent.dragStart(deepRowAnchor("thr_deep_leaf"), { dataTransfer: dt });
+    const over = createEvent.dragOver(section, { dataTransfer: dt });
+    fireEvent(section, over);
+    const drop = createEvent.drop(section, { dataTransfer: dt });
+    fireEvent(section, drop);
+    expect(onReparent).toHaveBeenCalledWith("thr_deep_leaf", null);
+  });
+
+  it("the floor rings amber for the deep member's hover, the same family affordance", () => {
+    renderDeepFamily();
+    const section = document.querySelector('section[data-column-id="unread"]');
+    if (!(section instanceof HTMLElement)) throw new Error("missing unread column");
+    const dt = makeDataTransfer();
+    fireEvent.dragStart(deepRowAnchor("thr_deep_leaf"), { dataTransfer: dt });
+    fireEvent(section, createEvent.dragOver(section, { dataTransfer: dt }));
+    expect(section.className).toMatch(/ring-amber-500/);
+  });
+
+  it("dropping the deep row on the Done floor detaches and marks done in one gesture", () => {
+    const onReparent = vi.fn().mockResolvedValue(undefined);
+    const doneFiller = thread({ id: "thr_old_done2", updatedAt: NOW - 9000 });
+    const { leaf, root, mid } = deepFamily();
+    const { props } = renderBoard([root, doneFiller], {
+      doneIds: new Set<string>(["thr_old_done2"]),
+      nestedChildrenByParent: new Map<string, readonly PluginSidebarThread[]>([
+        ["thr_deep_root", [mid]],
+        ["thr_deep_mid", [leaf]],
+      ]),
+      rawParentOf: new Map<string, string>([
+        ["thr_deep_mid", "thr_deep_root"],
+        ["thr_deep_leaf", "thr_deep_mid"],
+      ]),
+      onReparent,
+    });
+    const section = document.querySelector('section[data-column-id="done"]');
+    if (!(section instanceof HTMLElement)) throw new Error("missing done column");
+    const dt = makeDataTransfer();
+    fireEvent.dragStart(deepRowAnchor("thr_deep_leaf"), { dataTransfer: dt });
+    const over = createEvent.dragOver(section, { dataTransfer: dt });
+    fireEvent(section, over);
+    const drop = createEvent.drop(section, { dataTransfer: dt });
+    fireEvent(section, drop);
+    expect(over.defaultPrevented).toBe(true);
+    expect(onReparent).toHaveBeenCalledWith("thr_deep_leaf", null);
+    expect(props.onDropDone).toHaveBeenCalledWith("thr_deep_leaf");
+  });
+});
+
 describe("the column header is the closer detach target (family drag)", () => {
   const [childThread, parentThread] = familyFixture();
 

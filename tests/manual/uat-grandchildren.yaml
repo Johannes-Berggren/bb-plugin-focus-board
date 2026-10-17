@@ -74,3 +74,32 @@ steps:
       - sub_row: { id: thr_gutter_family_c0_gc0, under: thr_gutter_family_c0, shown: true }
       - right_gutter: { card: thr_gutter_family }
       - child_chip: { id: thr_gutter_family_c0_gc0, text: "#191", in_sub_rows: true }
+
+  # Issue #249 goal 2 (cut 2): the drag-out un-parent is explicit for DEEP
+  # members — a sub-row released on a column floor (or a column title)
+  # un-parents ENTIRELY (parentThreadId null, the Make Top-Level write), and
+  # the family floor rings amber for it exactly as for a first-tier child.
+  # Each step's goto starts from a fresh board: the mock's reparent write
+  # does not leak across steps.
+  - id: deep-row-floor-detach
+    title: Releasing the grandchild sub-row on a column floor un-parents it entirely
+    goto: "?groupBy=status"
+    gestures:
+      - drag_child_to_floor: { from: thr_gutter_family_c0_gc0, column: idle-awhile }
+    assert:
+      - reparent_called: { threadId: thr_gutter_family_c0_gc0, parentThreadId: null }
+      - sub_row: { id: thr_gutter_family_c0_gc0, under: thr_gutter_family_c0, shown: false }
+
+  - id: deep-row-header-detach
+    title: Releasing the grandchild sub-row on the column title un-parents it too
+    goto: "?groupBy=status"
+    gestures:
+      - drag_child_to_header: { from: thr_gutter_family_c0_gc0, column: idle-awhile }
+    assert:
+      - reparent_called: { threadId: thr_gutter_family_c0_gc0, parentThreadId: null }
+      - sub_row: { id: thr_gutter_family_c0_gc0, under: thr_gutter_family_c0, shown: false }
+
+  - id: deep-row-floor-rings-amber
+    title: Hovering the dragged grandchild over the floor rings the family amber
+    goto: "?groupBy=status"
+    floor_amber: { from: thr_gutter_family_c0_gc0, column: idle-awhile, shown: true }
