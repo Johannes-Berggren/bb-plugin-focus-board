@@ -4,6 +4,12 @@
 // in their previous relative order — the whole point of a box: the members
 // never interleave with foreign cards again.
 //
+// `displayAfterUnitMove` is the shared display math both the client preview
+// and the server's fraction op (lib/rank-fractions.ts) compose.
+// `applyUnitMoveVisible` is the client's OPTIMISTIC PREVIEW of a unit
+// gesture (app.tsx's `onRankMove`), on the window's own fresh view; the
+// stored write is the server's per-card fraction op.
+//
 // Every rule mirrors lib/rank's own move contract so the two paths cannot
 // disagree: sparse orders (gaps preserved below the drop point), the
 // display-order head ranking that makes a first drop into an unranked
@@ -38,14 +44,14 @@ export function displayAfterUnitMove(
 }
 
 /**
- * The stored order write for a unit move, mirroring applyMoveVisible: rank
- * the whole unit plus everything above the drop point, leave the cards
- * below with whatever rank they had, and return an equal order when the
- * move changes nothing. The unit travels as one block ABOVE every unranked
- * card, which is what keeps a first drop into a fresh column honest — and
- * keeps the block contiguous, because every member ranked above the drop
- * point sits in the head together.
- */
+ * The client's optimistic-preview write for a unit move, mirroring
+ * fractionsAfterUnitMove: rank the whole unit plus everything above the
+ * drop point, leave the cards below with whatever rank they had, and return
+ * an equal order when the move changes nothing. The unit travels as one
+ * block ABOVE every unranked card, which is what keeps a first drop into a
+ * fresh column honest — and keeps the block contiguous, because every
+ * member ranked above the drop point sits in the head together.
+*/
 export function applyUnitMoveVisible(
   order: ColumnOrder,
   visibleIds: readonly string[],

@@ -1,12 +1,23 @@
 // Rank-ordering helpers for the board's columns.
 //
-// A column's manual order is stored as a SPARSE, ORDERED list of thread ids
-// (the "order"). Ids absent from the list are unranked and sort below every
-// ranked card, in the board's derived order (newest-first). The list is never
-// re-densified and never renumbered when a card leaves the column: a card that
-// leaves Unread leaves a gap, and re-entering Unread puts it back in that gap.
-// That property is the whole reason the model is a list of ids rather than
-// positions or fractional numbers — see docs/musings/2026-09-25-rank-ordering.md.
+// This module is the WIRE/CLIENT half of the rank model: a column's manual
+// order as a SPARSE, ORDERED list of thread ids (the projection every board
+// surface reads and writes over RPC). Ids absent from the list are unranked
+// and sort below every ranked card, in the board's derived order
+// (newest-first). The list is never re-densified and never renumbered when
+// a card leaves the column: a card that leaves Unread leaves a gap, and
+// re-entering Unread puts it back in that gap.
+//
+// The STORED half is per-card fractional ranks (lib/rank-fractions.ts): the
+// server derives these lists from the fraction map on every read, keeps the
+// RPC wire format identical, and a rank_move writes only the fragments the
+// move must touch — a stale window's `visibleIds` can no longer rewrite
+// ranked cards it never aimed at. This module's move helpers
+// (`applyMove`/`appendTo`/`displayAfterMove`/`displayAfterUnitMove`) are the
+// shared display semantics both the client preview and the server's move op
+// compose; `applyMoveVisible`/`applyUnitMoveVisible` are the client's
+// OPTIMISTIC PREVIEW of a gesture. See docs/musings/2026-09-25-rank-ordering.md
+// and lib/rank-fractions.ts.
 //
 // Pure module: no host, no SDK, no React, so the RPC layer and tests can drive
 // it directly.
@@ -207,9 +218,9 @@ export function applyMove(
 
 /**
  * The column's DISPLAYED order after a move: `visibleIds` rearranged, without
- * touching stored ranks. `applyMoveVisible` derives its write from this, and
- * the board's position announcement reads the card's slot out of it, so both
- * agree with what the operator sees.
+ * touching stored ranks. The server's fraction move op composes this display
+ * math, and the board's position announcement reads the card's slot out of
+ * it, so both agree with what the operator sees.
  */
 export function displayAfterMove(
   visibleIds: readonly string[],
@@ -223,6 +234,15 @@ export function displayAfterMove(
 }
 
 /**
+ * The OPTIMISTIC PREVIEW of a move, client-side (the only remaining
+ * consumer): app.tsx's `onRankMove` derives the projected stored order the
+ * dropping window's own view supports, so the card snaps to its slot
+ * immediately and the rank-changed refetch confirms. The dropped gesture's
+ * stored WRITE is the server's per-card fraction op (lib/rank-fractions.ts);
+ * this helper is the preview of what the move will land as, computed from a
+ * view that is genuinely fresh at gesture time — the server remains the
+ * authority and corrects any race the preview could not know about.
+ *
  * Place `threadId` and rank everything ABOVE the drop point.
  *
  * `visibleIds` is the order the column is currently DISPLAYED in (ranked

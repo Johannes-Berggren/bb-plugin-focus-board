@@ -96,8 +96,12 @@ describe("interleaved rank_move writes", () => {
     await new Promise((resolve) => setTimeout(resolve, 50));
     // While A is held, the store still reads the seeded order — writer A
     // has not landed, and (serialization) nothing else can land either.
-    const held = (await kvGet(RANK_KV_KEY)) as { "status:unread"?: string[] };
-    expect(held["status:unread"]).toEqual(["x2", "x1"]);
+    // Read through the projection: the stored row is per-card FRACTIONS
+    // now; the ordered list is its derived view.
+    const held = (await callRpc("rank_list", null)) as {
+      orders: Record<string, string[]>;
+    };
+    expect(held.orders["status:unread"]).toEqual(["x2", "x1"]);
 
     // Writer B queues behind the lock. Release A; B runs after A.
     const moveB = callRpc("rank_move", {
@@ -112,13 +116,30 @@ describe("interleaved rank_move writes", () => {
     await moveB;
 
     // B ran on A's landed state, so B's intent wins, applied whole — a
-    // permutation of the column, never a partial merge.
-    const stored = (await kvGet(RANK_KV_KEY)) as { "status:unread"?: string[] };
-    expect(stored["status:unread"]).toEqual(["x1", "x3", "x2"]);
+    // permutation of the column, never a partial merge. B's toEnd drop is
+    // anchor-fresh now: it lands at the bottom of the FRESH order, so the
+    // result keeps A's arrangement (x3 above x1) instead of rewriting the
+    // head from B's stale visibleIds (which the old expectation
+    // [x1, x3, x2] had baked in).
+    const stored = (await callRpc("rank_list", null)) as {
+      orders: Record<string, string[]>;
+    };
+    expect(stored.orders["status:unread"]).toEqual(["x3", "x1", "x2"]);
+    // Conscious migration pin (per-card fraction store, issue #246): the
+    // serialized row is a map of card id → fraction, never an ordered list.
+    const row = (await kvGet(RANK_KV_KEY)) as Record<
+      string,
+      Record<string, number>
+    >;
+    for (const fraction of Object.values(row["status:unread"])) {
+      expect(typeof fraction).toBe("number");
+      expect(fraction).toBeGreaterThan(0);
+      expect(fraction).toBeLessThan(1);
+    }
   });
 
   it("a queued move on another column runs after the held one and both columns keep their own content", async () => {
-    const { callRpc, kvGet, gateNextSet } = await setup();
+    const { callRpc, gateNextSet } = await setup();
     // Seed both columns by real moves.
     await callRpc("rank_move", {
       columnKey: "status:unread",
@@ -161,8 +182,10 @@ describe("interleaved rank_move writes", () => {
     // A's unread order landed first, and B — running after it — reordered
     // pinned on the fresh store. Before the lock, A's stale spread reverted
     // B's pinned write entirely (the red run of this suite).
-    const stored = (await kvGet(RANK_KV_KEY)) as Record<string, string[]>;
-    expect(stored["status:unread"]).toEqual(["u2", "u1"]);
-    expect(stored["pinned"]).toEqual(["p2", "p1"]);
+    const stored = (await callRpc("rank_list", null)) as {
+      orders: Record<string, string[]>;
+    };
+    expect(stored.orders["status:unread"]).toEqual(["u2", "u1"]);
+    expect(stored.orders.pinned).toEqual(["p2", "p1"]);
   });
 });

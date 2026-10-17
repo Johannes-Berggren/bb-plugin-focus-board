@@ -33,7 +33,6 @@ import { Icon } from "@/components/ui/icon";
 import { usePrefersReducedMotion } from "@/components/ui/hooks/use-media-query";
 import { cn } from "@/lib/utils";
 import {
-  applyMoveVisible,
   childRankKey,
   columnIsRanked,
   columnRankKey,

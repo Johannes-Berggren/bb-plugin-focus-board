@@ -10,8 +10,12 @@
 import { createRoot } from "react-dom/client";
 import type { ComponentType, ReactNode } from "react";
 import { SIM_DEMO_THREADS, SIM_DONE_IDS, SIM_DONE_RECORDS, SIM_PROJECTS, SIM_PROVIDERS, SIM_SECTIONS, SIM_THREADS, SIM_WORKSPACE_FILES, type SimThread } from "./data";
-import { applyMoveVisible } from "../../lib/rank";
-import { applyUnitMoveVisible } from "../../lib/rank-unit-move";
+import {
+  applyRankMoveFractions,
+  type FractionColumn,
+  mintLegacyColumn,
+  ordersFromFractionStore,
+} from "../../lib/rank-fractions";
 // Pure constants only — lib/sweep would drag components/grouping into the
 // mock, whose SDK-app import this file itself stands in for (cycle).
 import { DAY_MS } from "../../lib/duration";
@@ -462,12 +466,16 @@ export function experimental_NewThreadComposer(props: Record<string, unknown>): 
 
 /**
  * In-memory rank store for the harness, mirroring the server's KV row:
- * columnKey → sparse ordered id list. Seeded from `?ranks=` (a JSON object)
- * so a UAT pass can start from a ranked column, and mutated by rank_move the
- * way the real server mutates it. `__uat` exposes it to the page so a driver
- * can seed and inspect it without going through the app.
+ * columnKey → { threadId → fraction } (the per-card fraction model,
+ * lib/rank-fractions.ts). Seeded from `?ranks=` (a JSON object of ordered
+ * lists) so a UAT pass can start from a ranked column — the lists convert
+ * losslessly, the same migration the server does on its first read — and
+ * mutated by rank_move through the REAL shared move op
+ * (applyRankMoveFractions), not a re-spelled copy. `__uat.ranks()` exposes
+ * the DERIVED ordered-list projection so a driver asserts orders the way
+ * it always has.
  */
-let simRanks: Record<string, string[]> = {};
+let simRanks: Record<string, FractionColumn> = {};
 const uatCalls: { method: string; args?: unknown }[] = [];
 // The simulated declared-settings store the plugins.updateSettings mock
 // merges into and useSettings reads back; `?settings=` (main.tsx) seeds it
@@ -497,9 +505,14 @@ let simGroupAssignments: Record<string, string> = {
 };
 (globalThis as unknown as { __uat?: unknown }).__uat = {
   seedRanks: (orders: Record<string, string[]>) => {
-    simRanks = structuredClone(orders);
+    simRanks = Object.fromEntries(
+      Object.entries(orders).map(([columnKey, order]) => [
+        columnKey,
+        mintLegacyColumn(order),
+      ]),
+    );
   },
-  ranks: () => structuredClone(simRanks),
+  ranks: () => structuredClone(ordersFromFractionStore(simRanks)),
   calls: () => structuredClone(uatCalls),
   sidebarFooterAction: () => {
     const registration = registeredSidebarFooterAction;
@@ -524,7 +537,8 @@ const rpcCall = async (method: string, args?: unknown): Promise<unknown> => {
       idleArchiveMs: 2 * DAY_MS,
     };
   }
-  if (method === "rank_list") return { orders: structuredClone(simRanks) };
+  if (method === "rank_list")
+    return { orders: structuredClone(ordersFromFractionStore(simRanks)) };
   if (method === "pin_parks_list") return { parks: {} };
   if (method === "snooze_list") return { snoozes: {} };
   // The mock previously fell through to `{}` here, and the app's links
@@ -680,10 +694,12 @@ const rpcCall = async (method: string, args?: unknown): Promise<unknown> => {
     return { existence: Object.fromEntries(paths.map((path) => [path, known.has(path)])) };
   }
   if (method === "rank_move") {
-    // The server's move semantics — applyMoveVisible, not a re-spelled copy
-    // of them — so a UAT pass exercises the real state change. The copy this
-    // replaced drifted the first time the move semantics changed (the
-    // rank-everything-above-the-drop-point fix), and the suite caught it.
+    // The server's move semantics via the REAL shared op —
+    // applyRankMoveFractions (lib/rank-fractions.ts), the function the live
+    // server calls, not a re-spelled copy. The list-model copy in this file
+    // drifted the first time the move semantics changed (the
+    // rank-everything-above-the-drop-point fix) and the suite caught it;
+    // importing the shared op removes the copy entirely.
     const { columnKey, threadId, beforeId, toEnd, visibleIds, unitIds } = args as {
       columnKey: string;
       threadId: string;
@@ -692,17 +708,16 @@ const rpcCall = async (method: string, args?: unknown): Promise<unknown> => {
       visibleIds: string[];
       unitIds?: string[];
     };
-    simRanks[columnKey] =
-      unitIds !== undefined && unitIds.length > 0
-        ? applyUnitMoveVisible(simRanks[columnKey] ?? [], visibleIds, unitIds, beforeId, toEnd)
-        : applyMoveVisible(
-            simRanks[columnKey] ?? [],
-            visibleIds,
-            threadId,
-            beforeId,
-            toEnd,
-          );
-    return { columnKey, order: [...simRanks[columnKey]] };
+    const result = applyRankMoveFractions(simRanks, {
+      columnKey,
+      threadId,
+      beforeId,
+      toEnd,
+      visibleIds,
+      unitIds,
+    });
+    simRanks = result.next;
+    return { columnKey, order: result.order };
   }
   return {};
 };

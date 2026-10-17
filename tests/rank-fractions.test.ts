@@ -10,11 +10,13 @@
 // the writes; it cannot save an arrangement computed from a stale view.
 //
 // These tests speak server-level: two `rank_move` calls standing in for two
-// windows, the second one sending the stale `visibleIds`. The fix replaces
-// the head-rewrite write with per-card fractional ranks; these are the
-// behavior pins any implementation must satisfy.
+// windows, the second one sending the stale `visibleIds`. The fix stores
+// per-card fractional ranks and writes only the fragments a move must touch
+// (lib/rank-fractions.ts); the module-level pins live in
+// tests/rank-fraction-model.test.ts.
 import { describe, expect, it } from "vitest";
 import { setup } from "./helpers/done-fake-host";
+import { RANK_KV_KEY } from "../lib/rank";
 
 type Rpc = Awaited<ReturnType<typeof setup>>;
 
@@ -32,6 +34,18 @@ const moveWindow = async (rpc: Rpc, args: Move): Promise<string[]> => {
     ...args,
   })) as { order: string[] };
   return result.order;
+};
+
+/** The stored fraction map of one column, read raw from the KV row. */
+const fractionRowOf = async (rpc: Rpc, columnKey: string): Promise<Record<string, number>> => {
+  const row = (await rpc.kv.get(RANK_KV_KEY)) as Record<
+    string,
+    Record<string, number> | string[]
+  >;
+  const column = row[columnKey];
+  if (column !== undefined && !Array.isArray(column)) return column;
+  expect(column).toBeUndefined(); // a fraction-shaped read must not find lists here
+  return {};
 };
 
 /**
@@ -83,6 +97,7 @@ describe("two windows moving in the same lane, the second with a stale view", ()
       visibleIds: ["a", "b", "c", "d"],
     });
     expect(afterA).toEqual(["a", "c", "b", "d"]);
+    const fractionsA = await fractionRowOf(rpc, "pinned");
     const afterB = await moveWindow(rpc, {
       columnKey: "pinned",
       threadId: "d",
@@ -90,6 +105,14 @@ describe("two windows moving in the same lane, the second with a stale view", ()
       visibleIds: ["a", "b", "c", "d"],
     });
     expect(afterB).toEqual(["a", "c", "d", "b"]);
+    // Fragment-level: B's write may touch only d's rank. Every other card
+    // carries the fraction A's move left it with — each card carries its
+    // own rank, and a move writes only the fragments it must.
+    const fractionsB = await fractionRowOf(rpc, "pinned");
+    for (const id of ["a", "b", "c"]) {
+      expect(fractionsB[id]).toBe(fractionsA[id]);
+    }
+    expect(fractionsB.d).not.toBe(fractionsA.d);
   });
 
   it("a stale window's melt-drop keeps the fresh window's arrangement", async () => {
@@ -137,5 +160,36 @@ describe("two windows moving in the same lane, the second with a stale view", ()
     });
     expect(await listOrders(rpc)).toEqual(before);
     expect(rankChangedCount(rpc)).toBe(signalsBefore);
+  });
+
+  it("a legacy list row survives rank_list as a view and converts only when a write lands", async () => {
+    // The migration story, server-level: the pre-upgrade row is an ordered
+    // list. Reading must not rewrite it (rank_list is read-only); the first
+    // rank write under this build converts the row losslessly to fractions
+    // (order preserved), and the projection never changes across either.
+    const rpc = await setup();
+    await rpc.kvSet(RANK_KV_KEY, {
+      pinned: ["thr_x", "thr_y", "thr_z"],
+      done: ["thr_done_a"],
+    });
+    expect((await listOrders(rpc)).pinned).toEqual(["thr_x", "thr_y", "thr_z"]);
+    // rank_list does not write: the row is still the legacy lists.
+    const raw = (await rpc.kv.get(RANK_KV_KEY)) as Record<string, unknown>;
+    expect(Array.isArray(raw.pinned)).toBe(true);
+    // First write: the row converts; the derived order is preserved.
+    await moveWindow(rpc, {
+      columnKey: "pinned",
+      threadId: "thr_w",
+      beforeId: "thr_y",
+      visibleIds: ["thr_x", "thr_y", "thr_z"],
+    });
+    const converted = (await rpc.kv.get(RANK_KV_KEY)) as Record<string, unknown>;
+    expect(Array.isArray(converted.pinned)).toBe(false);
+    // The whole row converts in one write: the untouched done arm converts
+    // with it, losslessly.
+    expect(Array.isArray(converted.done)).toBe(false);
+    const orders = await listOrders(rpc);
+    expect(orders.pinned).toEqual(["thr_x", "thr_w", "thr_y", "thr_z"]);
+    expect(orders.done).toEqual(["thr_done_a"]);
   });
 });
