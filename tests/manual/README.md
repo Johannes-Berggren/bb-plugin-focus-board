@@ -163,6 +163,14 @@ through `puppeteer-core` (nothing is downloaded), writes a report per suite to
   runner's `hover_card` gesture rests the real pointer on a card's center, and
   one suite covers both schemes via the per-step `theme` (which flips the
   `dark` class and Tailwind's media `dark:` variants together).
+- `uat-attention-pulse.yaml` — the attention pulse's visible-only gate (issue
+  #260): over `?attention=40` at a 390x844 viewport, the on-screen attention
+  overlays animate while the off-screen ones hold still (the `attention_pulse`
+  prober reads computed `animationName` per overlay, and judges visibility by
+  the IntersectionObserver rule — the viewport intersected with each lane's own
+  clipping container), and a `resize` to 1920x1080 re-runs the gate. The
+  assertion demands at least one parked pulse, so the suite fails on a tree
+  without the fix (verified: 0 of 42 parked before, 32 after).
 
 ## Notes
 

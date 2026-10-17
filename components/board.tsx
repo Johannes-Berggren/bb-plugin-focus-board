@@ -23,6 +23,7 @@ import {
 } from "../lib/sweep";
 import { ThreadCard } from "./thread-card";
 import { useCardSpotlightStyles } from "./card-spotlight";
+import { useAttentionPulseGate } from "./attention-pulse-gate";
 import { MenuPopover } from "./menu-popover";
 import type { ThreadLink } from "../lib/link-metadata";
 import { groupBoxMenuActions } from "../lib/group-metadata";
@@ -733,6 +734,7 @@ export function Board({
   // The spotlight rule (components/card-spotlight.ts) is document-global CSS;
   // each board mounts it idempotently, so whichever board renders first wins.
   useCardSpotlightStyles();
+  useAttentionPulseGate();
   const [dragOverColumn, setDragOverColumn] = useState<string | null>(null);
   // The column floor an UNNEST hover lights up (amber). Kept separate from
   // dragOverColumn so the two affordances cannot argue over ring color: the

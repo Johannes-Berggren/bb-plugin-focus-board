@@ -48,6 +48,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 #### Board layout
 
+- **A board crowded with cards that need you no longer crawls.** Every attention card pulsed at once, which dragged a busy board to a few frames per second; the pulse now animates only while it is on screen and holds still off screen, so nothing the operator can see changes (issue #260).
 - **A rank drag in one bb window now survives another window's drop in the same lane.** Every card stores its own fractional rank, so a move writes only the dragged card's rank plus the unranked cards above its landing, and no stale view rewrites the arrangement another window's move just placed (issue #246).
 
 ## [1.5.0] - 2026-10-16

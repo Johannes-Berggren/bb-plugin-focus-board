@@ -1,6 +1,7 @@
 import { type DragEvent, type ReactNode, useState } from "react";
 import { createPortal } from "react-dom";
 import type { PluginSidebarThread } from "@get-bb/plugin-sdk/app";
+import { attentionPulseRef } from "./attention-pulse-gate";
 import { Icon } from "@/components/ui/icon";
 import { cn } from "@/lib/utils";
 import { threadState, THREAD_STATE_LABELS } from "./grouping";
@@ -1215,6 +1216,7 @@ export function ThreadCard({
         )}
       >
         <span
+          ref={state === "attention" ? attentionPulseRef : undefined}
           aria-hidden
           data-child-dot-glyph=""
           className={cn(
@@ -1372,8 +1374,11 @@ export function ThreadCard({
         // A border, not a ring: the ring paints outside the box and this
         // overlay sits inside the card's overflow-hidden — only the border
         // lands on visible pixels. The pulse moves the overlay's opacity, not
-        // the card's, so the title never blinks with it.
+        // the card's, so the title never blinks with it. The ref is the
+        // visible-only gate (components/attention-pulse-gate): off screen the
+        // overlay keeps its amber border and holds still.
         <span
+          ref={attentionPulseRef}
           data-attention-pulse=""
           aria-hidden
           className="pointer-events-none absolute inset-0 rounded-md border-2 border-amber-500 bg-amber-500/5 motion-safe:animate-pulse"

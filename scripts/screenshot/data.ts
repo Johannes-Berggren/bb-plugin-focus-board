@@ -748,3 +748,40 @@ export function SIM_BULK_THREADS(count: number, now: number = SIM_NOW): SimThrea
   }
   return out;
 }
+
+/**
+ * A synthetic ATTENTION-HEAVY population for the pulse probe (#260):
+ * `?attention=N` appends N threads that all carry a pending interaction, so
+ * every one renders the real pulsing attention treatment (the amber overlay
+ * pulse plus the state-dot pulse) instead of an injected clone. This is the
+ * shape a CI-failure burst or a batch of unanswered questions produces, and it
+ * is the input the pulse cliff needs: the probe measures genuine board pulses,
+ * not decorations appended by the probe.
+ *
+ * Deterministic; ids are `thr_pulse_<index>`, all in the Needs-you lane
+ * (hasPendingInteraction), all recent so they lead the lane and sit together.
+ */
+export function SIM_ATTENTION_THREADS(count: number, now: number = SIM_NOW): SimThread[] {
+  const out: SimThread[] = [];
+  const projects = ["proj_board", "proj_api", "proj_web"];
+  const providers = ["pi", "claude-code", "codex"];
+  for (let i = 0; i < count; i += 1) {
+    const updatedAt = now - (i % 30) * MINUTE;
+    out.push(
+      thread({
+        id: `thr_pulse_${i}`,
+        displayTitle: `Needs input ${i}: waiting on the operator`,
+        projectId: projects[i % projects.length]!,
+        providerId: providers[i % providers.length]!,
+        hasPendingInteraction: true,
+        indicatorLabel: "Thread needs user input",
+        latestAttentionAt: updatedAt,
+        updatedAt,
+        lastReadAt: updatedAt,
+        environment: boardEnv(`perf/pulse-${i}`),
+        href: `/projects/board/threads/thr_pulse_${i}`,
+      }),
+    );
+  }
+  return out;
+}

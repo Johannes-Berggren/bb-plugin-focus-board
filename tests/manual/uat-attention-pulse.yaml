@@ -1,0 +1,48 @@
+# Operator-assisted E2E: the attention pulse's visible-only gate (issue #260).
+#
+# Rendered for real: the harness mounts the actual app.tsx against the mocked
+# SDK. The base fixture has only two attention cards (thr_permissions' pending
+# interaction, thr_deploy_fail's unread error), which both fit a phone screen,
+# so a gate has nothing to park — `?attention=40` appends forty all-attention
+# threads (scripts/screenshot/data.ts SIM_ATTENTION_THREADS), the board shape a
+# CI-failure burst or a batch of unanswered questions produces and the shape
+# #260 is about. The prober reads computed `animationName` per overlay, so it
+# checks what the compositor runs, not the class list.
+#
+# The contract: an on-screen attention pulse animates (the operator sees the
+# same treatment as before), and an off-screen one is parked and holds still
+# (the fix — a board full of attention cards no longer animates every card).
+#
+# Run: npm run uat -- tests/manual/uat-attention-pulse.yaml
+# (npm run build first — the harness loads dist/app.css)
+
+suite: attention-pulse
+harness:
+  config: scripts/screenshot/vite.config.ts
+  port: 5173
+defaults:
+  groupBy: status
+  theme: dark
+  # A phone-sized viewport so the forty attention cards overflow the lane and
+  # most of them sit below the fold, where the gate parks them.
+  viewport:
+    width: 390
+    height: 844
+
+steps:
+  - id: on-screen-pulses-animate-and-off-screen-ones-hold-still
+    title: A phone viewport animates the attention pulses it can see and parks the rest
+    goto: "?groupBy=status&attention=40"
+    assert:
+      - attention_pulse: { visible_animate: true, parked_still: true, parked_at_least: 1 }
+
+  - id: the-gate-survives-a-widening-to-desktop
+    title: Widening to desktop re-runs the gate and still parks what it cannot see
+    goto: "?groupBy=status&attention=40"
+    gestures:
+      - resize: { width: 1920, height: 1080 }
+      # A beat after the resize: the IntersectionObserver's callback lands a
+      # frame after the new layout, so the census must read the settled state.
+      - sleep: 900
+    assert:
+      - attention_pulse: { visible_animate: true, parked_still: true, parked_at_least: 1 }
