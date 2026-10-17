@@ -6,6 +6,11 @@ export const UNRELEASED_ITEMS: readonly { text: string; children: string[]; grou
     "group": "Cards and chips"
   },
   {
+    "text": "**The Parent view's row rail is narrower.** Each row's attribution line now shows just the locked family's task count; the family name stays on the lane header. Phones get the freed 36 pixels for lane content.",
+    "children": [],
+    "group": "Board layout"
+  },
+  {
     "text": "**The collapsed child-dot strip paints the whole family, grandchildren in family order.** A child's dot now leads its own smaller sub-dots and a parent dot's hover preview names its sub-threads, so the strip always paints every thread the \"N child threads\" count reads (the 19-over-9 mismatch cannot recur). An idle sub-thread's dot hides with its row under the eye filter, at either depth.",
     "children": [],
     "group": "Cards and chips"
