@@ -276,6 +276,38 @@ const pageDragDotToFloor = ({ from, column }) => {
 };
 
 /**
+ * A CARD dragged INTO a collapsed family's dot field (issue #249, goal 6):
+ * dragstart on the source card's anchor, then dragover + drop dispatched at
+ * the family's own strip. The strip's handlers claim the events
+ * (stopPropagation keeps the card's own nest zone off the dots), the hover
+ * arms tooltip + ghost, and the drop children the card under the family's
+ * root through the existing reparent write.
+ */
+const pageDragCardToStrip = ({ from, strip_of }) => {
+  const anchor =
+    document.querySelector(`li[data-rank-slot="${from}"] a[draggable]`) ??
+    document.querySelector(`a[data-thread-card="${from}"][draggable]`);
+  const strip = document.querySelector(
+    `[data-thread-card="${strip_of}"] [data-child-thread-dots]`,
+  );
+  if (!anchor || !strip) throw new Error(`drag_card_to_strip: missing ${from}=${anchor !== null} or strip ${strip_of}=${strip !== null}`);
+  const dt = new DataTransfer();
+  anchor.dispatchEvent(new DragEvent("dragstart", { bubbles: true, cancelable: true, dataTransfer: dt }));
+  const box = strip.getBoundingClientRect();
+  const point = {
+    bubbles: true,
+    cancelable: true,
+    dataTransfer: dt,
+    clientX: box.left + box.width / 2,
+    clientY: box.top + box.height / 2,
+  };
+  strip.dispatchEvent(new DragEvent("dragover", point));
+  strip.dispatchEvent(new DragEvent("drop", point));
+  anchor.dispatchEvent(new DragEvent("dragend", { bubbles: true, dataTransfer: dt }));
+  return { ok: true };
+};
+
+/**
  * A DOT hover over the floor, mid-gesture: does the GENESIS morph show? The
  * home card's soft amber ring is the dragged member's in-place card reading
  * (`data-dot-escape`), set the instant the dragover reports coordinates
@@ -1283,8 +1315,12 @@ async function check(step, page, gestureResults = []) {
     }
     if (rule.visible_error !== undefined) {
       const text = await page.evaluate(() => {
-        const el = document.querySelector('p[role="status"]');
-        return el?.textContent?.trim() ?? "";
+        // The refusal banners carry role="status" on their wrapper with the
+        // text inside a <p>: read the wrapper's own text, with the failure
+        // banner's testid first so the answer is never an unrelated status.
+        const banner = document.querySelector('[data-testid="rank-error-banner"]');
+        const el = banner ?? document.querySelector('p[role="status"]');
+        return (el instanceof Element ? el.textContent : el?.textContent ?? "")?.trim() ?? "";
       });
       const re =
         rule.visible_error instanceof RegExp
@@ -1867,7 +1903,7 @@ async function runSuite(file, { port, browser }) {
       // is insertion order), not in this runner's historical fixed order — a
       // pane-history step sequences pushes and backs deliberately, and
       // silently reordering them rewrites the history under test.
-      const GESTURE_ORDER = ["drag", "drag_unidentified", "drag_to_column", "drag_child_to_floor", "drag_child_to_header", "drag_dot_to_dot", "drag_dot_to_floor", "hover_header", "hover", "hover_card", "mouse_to", "key", "back", "click", "click_aria", "type", "menu", "scroll", "wheel_pan", "resize", "sleep", "press_escape", "push_url"];
+      const GESTURE_ORDER = ["drag", "drag_unidentified", "drag_to_column", "drag_child_to_floor", "drag_child_to_header", "drag_dot_to_dot", "drag_dot_to_floor", "drag_card_to_strip", "hover_header", "hover", "hover_card", "mouse_to", "key", "back", "click", "click_aria", "type", "menu", "scroll", "wheel_pan", "resize", "sleep", "press_escape", "push_url"];
       let gestureFailed = false;
       // A gesture that cannot even run (its own element is absent — a
       // regression deleted what the step targets) records the step and
@@ -1925,6 +1961,8 @@ async function runSuite(file, { port, browser }) {
             await sleep(200);
           } else if (gesture === "drag_dot_to_floor") {
             await page.evaluate(pageDragDotToFloor, payload);
+          } else if (gesture === "drag_card_to_strip") {
+            await page.evaluate(pageDragCardToStrip, payload);
           } else if (gesture === "hover_header") {
             // Two-stage: hover=false sets the line and keeps the drag alive;
             // hover=true is the pointer's boundary crossing out of the slot
