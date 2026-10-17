@@ -150,3 +150,52 @@ operator did not explicitly order; a `toEnd` drop ranks every visible card,
 because landing below the last card means landing below the unranked ones too.
 Do not simplify this back to `applyMove` — the sparse model is only safe once
 the cards above the drop point are ranked with the moved card.
+
+## Postscript (2026-10-16): the stored write becomes per-card fractional ranks
+
+The head rewrite above carried one flaw the write lock (#243) could not fix:
+the resulting head was derived from the CLIENT's `visibleIds`, so a second bb
+window holding a stale view of the lane rearranged cards it never aimed at.
+Window A's drag landed, then B's later drop wrote B's stale arrangement back —
+the cross-window edition of #232. The fix in
+`docs/plans/2026-10-16-per-card-fractional-ranks-thr_2swwkxd8v5.md` (issue
+#246) changes what is STORED, not what is negotiated:
+
+- **Storage** (`lib/rank-fractions.ts`): `columnKey → { threadId → fraction
+  in (0,1) }`. The ordered id list survives as a DERIVED PROJECTION — the
+  server sorts the fraction map on every `rank_list` / `rank_move` response,
+  so the wire format and the client's `RankStore` never changed. One source
+  of truth (the fractions), one projection (the lists, server-derived on
+  read, never client-written).
+- **The move op** is anchor-fresh: the drop anchor is authoritative; the
+  dropped card's new fraction is computed from its anchor's CURRENT
+  neighborhood on the server, and every ranked card the gesture did not aim
+  at keeps its stored fraction whatever the sending window's `visibleIds`
+  claimed. Two drags in the same lane at two moments now both survive; a
+  stale drop the fresh state already satisfies melts (no write, no
+  `rank-changed` publish).
+- **The densify rule survives, re-expressed**: unranked cards above the drop
+  point still rank together (the first-drop rule above) — as minted
+  fractions in their displayed order, between the bounding ranked anchors.
+  `toEnd` still ranks every visible card. Unit (family) moves still land
+  the box contiguous, re-minting the block in its fresh internal order.
+- **Never-densify survives MORE naturally**: the GAP IS THE VALUE — a card's
+  fraction is untouched by other cards' moves and by its own departure, so
+  leave-and-return restores its exact old neighbors' bounds with no
+  bookkeeping. The old argument (a list of ids rather than positions) is
+  superseded: the reasoning was always about not rewriting the column per
+  move, and per-card fractions finish that job.
+- **Migration**: existing `focus-board:rank-orders` rows (ordered lists)
+  convert losslessly on first read — each id minted `(i+1)/(n+1)`,
+  strictly order-preserving; a rank write persists the fraction shape;
+  `rank_list` never writes (a rank-free install stays rank-free until a
+  real move). This build parses BOTH shape generations forever; an OLDER
+  build reading a fraction-shaped row throws on it, which is the right
+  kind of loud for a one-way storage schema jump; a present-but-malformed
+  row still THROWS, verbatim.
+- **The FP boundary**: midpoints can only exhaust after hundreds of inserts
+  into one gap; the mint detects degeneracy (a value that rounds onto a
+  neighbor) and rebases the column once — every fraction re-spread over
+  (0,1), order-preserving and display-invariant, under the same write lock.
+  Rebase is the safety valve, not a routine: normal drag patterns never
+  reach it.
