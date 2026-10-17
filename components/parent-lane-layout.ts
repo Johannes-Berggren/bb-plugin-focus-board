@@ -23,7 +23,13 @@ export const GAP = 8;
 /** Inner cell padding: the lane body insets cards from the lane edge. */
 export const CELL_PAD = 4;
 export const MIN_BAND_H = 96;
-export const RAIL_W_DEFAULT = 140;
+/** Row-rail width (the Parent view's pinned label column). Narrow on
+ *  purpose: the rail shows row labels and the locked lane's per-row count,
+ *  so phones keep the freed width for lane content. The board derives its
+ *  rail width from this constant, so lane geometry and render never drift.
+ *  104 also keeps the phone snap-block boundary (a 424px scrollport fitting
+ *  fewer than two context mini columns) where the scroll tests pin it. */
+export const RAIL_W_DEFAULT = 104;
 /** Horizontal lane rhythm: rail → first lane and lane → lane. The board
  *  render keeps each section's margin-left at this value, so predictions
  *  match the DOM exactly. */
@@ -87,7 +93,7 @@ export function viewportLockedCols(
  *  it: (1) the viewport cannot fit even the floored locked lane (one ruler
  *  column) past the rail, the rail→lane gap, and chrome — the point where
  *  the width cap bottoms out and a lane still overflows; (2) phone-width
- *  scrollports (roughly 404–467px) fit fewer than two context mini columns,
+ *  scrollports (roughly 368–431px) fit fewer than two context mini columns,
  *  so the lane rhythm (~160px) sits far below the desktop-scale lane widths
  *  the grab math assumes — a partial pan rests inside the previous lane's
  *  grab window and the settle manager yanks it back. Either way the board

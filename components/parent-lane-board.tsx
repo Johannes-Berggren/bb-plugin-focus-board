@@ -24,6 +24,7 @@ import {
 import {
   MINI,
   RAIL_TO_LANE_GAP,
+  RAIL_W_DEFAULT,
   RULER,
   computeParentLaneLayout,
   laneOverflowsViewport,
@@ -76,8 +77,10 @@ interface ParentLaneBoardProps {
   onAttentionLeave?: (threadId: string) => void;
 }
 
-/** Ruler+wrap board chrome measurements (shared with parent-lane-layout.ts). */
-const RAIL_W = 140;
+/** Ruler+wrap board chrome measurements (shared with parent-lane-layout.ts).
+ *  The rail width derives from the layout module's RAIL_W_DEFAULT, so lane
+ *  geometry and render share one source of truth. */
+const RAIL_W = RAIL_W_DEFAULT;
 const HEADER_H = 88;
 
 const DOT_CLASS: Record<string, string> = {
@@ -821,7 +824,7 @@ export function ParentLaneBoard({
                     data-rail-attribution
                     className="truncate text-[10px] tabular-nums text-primary"
                   >
-                    {count} · {lockedLane.label}
+                    {count}
                   </span>
                 )}
               </div>

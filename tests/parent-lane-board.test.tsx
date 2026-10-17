@@ -1,10 +1,10 @@
 // @vitest-environment jsdom
 import { afterEach, beforeAll, afterAll, describe, expect, it, vi } from "vitest";
 import { act } from "react";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { ParentLaneBoard, verticalCardCorrection } from "../components/parent-lane-board";
 import { buildParentLanes } from "../components/parent-lanes";
-import { computeParentLaneLayout } from "../components/parent-lane-layout";
+import { computeParentLaneLayout, RAIL_W_DEFAULT } from "../components/parent-lane-layout";
 import { thread } from "./thread-fixture";
 
 const HOUR = 60 * 60 * 1000;
@@ -89,8 +89,11 @@ describe("ParentLaneBoard rendering", () => {
     const parent = thread({ id: "p" });
     const a = thread({ id: "a", parentThreadId: "p" });
     const b = thread({ id: "b", parentThreadId: "p" });
-    renderBoard([parent, a, b]);
-    expect(screen.getByText("2")).toBeTruthy();
+    const { container } = renderBoard([parent, a, b]);
+    // The count also appears in the rail's per-row attribution, so scope
+    // the chip lookup to the lane header.
+    const header = container.querySelector("[data-lane-header]");
+    expect(within(header as HTMLElement).getByText("2")).toBeTruthy();
   });
 
   it("clicking a family header opens the parent pane", () => {
@@ -152,7 +155,9 @@ describe("ParentLaneBoard rendering", () => {
 });
 
 describe("ruler+wrap board geometry", () => {
-  const RAIL_W = 140;
+  // The board derives its rail width from RAIL_W_DEFAULT, so the fixture
+  // follows the same constant (never a second hardcoded width).
+  const RAIL_W = RAIL_W_DEFAULT;
 
   /** Two families. A: 2 working children, fresh (recency → lane 0, locked).
    *  B: 30 working children, older (lane 1 → context, must overflow+chip). */
@@ -176,7 +181,13 @@ describe("ruler+wrap board geometry", () => {
     const locked = container.querySelectorAll("section[data-locked]");
     expect(locked).toHaveLength(1);
     expect(locked[0].getAttribute("data-lane-id")).toBe("p0");
-    expect(screen.getByText("2 · Family A")).toBeTruthy();
+    // The attribution line carries the count alone: the family's name stays
+    // on the lane header and stops repeating on every rail row, so the rail
+    // can shrink (mobile gives the freed width to the lanes).
+    const attribution = container.querySelector("[data-rail-attribution]");
+    expect(attribution).toBeTruthy();
+    expect(attribution?.textContent).toBe("2");
+    expect(attribution?.textContent ?? "").not.toContain("Family A");
   });
 
   it("renders one band per status row in every lane, in row order", () => {
