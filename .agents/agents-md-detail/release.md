@@ -208,9 +208,11 @@ merging into `dev`, releasing, changelog writing, or tagging.
   suite green on release day.
 - The screenshots get a judgement pass before tagging. A non-vision agent
   asks a vision-capable model per its vision-dispatch spoke
-  (`llm -m kimi-k2.7-code:cloud -f <prompt-file> -a <shots...>`;
-  kimi, synthetic/kimi-k3, is the verified fallback), demanding a
-  SHOT-OK or SHOT-BROKEN verdict with a reason per image. Lanes that
+  (`llm -m synthetic/infinite:small:vision -f <prompt-file> -a <shots...>`,
+  falling back to `llm -m kimi-k2.7-code:cloud` and then `kimi`,
+  synthetic/kimi-k3, as the verified fallbacks when the first dispatch
+  errors), demanding a SHOT-OK or SHOT-BROKEN verdict with a reason per
+  image. Lanes that
   continue past the right edge under horizontal scrolling are normal for
   the board; SHOT-BROKEN is for unreadable or clipped-mid-word text at a
   real width, overlapping elements, missing board sections, collapsed or
