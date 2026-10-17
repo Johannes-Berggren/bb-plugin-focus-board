@@ -15,16 +15,15 @@
  * One-time browser setup: the runner uses the system Chrome, so nothing is
  * downloaded. Set CHROME_PATH if Chrome is not in the default place.
  */
-import { spawn } from "node:child_process";
 import { mkdir, readdir, readFile, writeFile } from "node:fs/promises";
 import { setTimeout as sleep } from "node:timers/promises";
 import { fileURLToPath } from "node:url";
 import puppeteer from "puppeteer-core";
 import { parse } from "yaml";
+import { startHarness } from "./harness.mjs";
 
 const CHROME =
   process.env.CHROME_PATH ?? "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
-const HARNESS_CONFIG = "scripts/screenshot/vite.config.ts";
 // Two levels up from scripts/uat/ is the repo root.
 const REPORT_DIR = fileURLToPath(new URL("../../docs/uat/", import.meta.url));
 
@@ -38,31 +37,6 @@ const suiteFiles =
         .filter((name) => name.endsWith(".yaml"))
         .sort()
         .map((name) => fileURLToPath(new URL(`../../tests/manual/${name}`, import.meta.url)));
-
-/** Start vite and resolve once the harness is serving. */
-async function startHarness(port) {
-  const child = spawn(
-    "npx",
-    ["vite", "--config", HARNESS_CONFIG, "--port", String(port), "--strictPort"],
-    { stdio: ["ignore", "pipe", "pipe"] },
-  );
-  child.stderr.on("data", (chunk) => {
-    const text = String(chunk);
-    if (/error/i.test(text)) process.stderr.write(`  vite: ${text}`);
-  });
-  const base = `http://localhost:${port}/`;
-  for (let attempt = 0; attempt < 100; attempt++) {
-    try {
-      const response = await fetch(base);
-      if (response.ok) return { child, base };
-    } catch {
-      // Not up yet.
-    }
-    await sleep(200);
-  }
-  child.kill();
-  throw new Error(`harness did not come up on ${base}`);
-}
 
 /**
  * A DataTransfer that enforces the browser's protected mode, which a plain

@@ -3,4 +3,5 @@ node_modules/
 .worktrees/
 .subagents/
 prompts/
+docs/release-safety/
 docs/screenshots/repro-mobile-scroll-snap/

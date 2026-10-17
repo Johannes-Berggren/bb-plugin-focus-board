@@ -214,6 +214,13 @@ merging into `dev`, releasing, changelog writing, or tagging.
   is for unreadable or clipped-mid-word text at a real width, overlapping
   elements, missing board sections, collapsed or unrenderable layout, or
   a pane that fails to open. Any SHOT-BROKEN verdict stops the release.
+- Each gate run verifies the harness answering its fixed port belongs to
+  this run before anything is captured: the shared starter
+  (`scripts/uat/harness.mjs`) hands its vite a per-run identity token and
+  only accepts the port once that token is echoed back. A port held by
+  another tree's gate run, or by a stray harness from an earlier session,
+  fails the run loudly instead of producing wrong-tree evidence (issue
+  #116).
 - On any gate failure, keep the artifacts (`docs/uat/` and
   `docs/release-safety/`) for the follow-up, leave the tree clean, and
   notify per the release notification contract naming the gate.
