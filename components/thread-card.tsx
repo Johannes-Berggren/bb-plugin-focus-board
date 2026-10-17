@@ -162,6 +162,27 @@ interface ThreadCardProps {
     escaped?: boolean;
   };
   /**
+   * The strip as a nest target for a CARD drag (issue #249, goal 6): the
+   * collapsed dot field claims the dragover so the card's own edge/nest
+   * promises never fire under the cursor, and the drop write is the
+   * board's (the existing reparent path, guard included). Unclaimed for
+   * dot-marked drags: they keep their home rules on the same surface.
+   */
+  stripNestDrag?: {
+    onDragOver: (event: DragEvent) => void;
+    onDrop: (event: DragEvent) => void;
+    onDragLeave: () => void;
+  };
+  /**
+   * The hover report behind the collapse: the CARD the strip would child,
+   * with the pointer position for the pinned bubble. Non-null only while a
+   * card drag hovers THIS family's strip; the dragged card collapses into
+   * tooltip plus dot (an amber-ringed strip, a trailing ghost dot, and the
+   * full-card bubble at the pointer), and everything clears on leave, drop,
+   * and dragend.
+   */
+  stripNestHover?: { member: PluginSidebarThread; x: number; y: number } | null;
+  /**
    * The child-count chip's number: ALL visible children of this parent
    * (including ones rendering standalone), not just the nested rows.
    */
@@ -267,6 +288,87 @@ const STATUS_ICON_CLASS: Record<string, string> = {
   OPEN: "text-emerald-500",
   CLOSED: "text-muted-foreground/50",
 };
+
+/**
+ * One pinned preview bubble (issue #174's shape): the member's title above
+ * a supporting line under it, FIXED over the anchor from its viewport rect,
+ * portaled to body — the card wrapper is overflow-hidden and the board's
+ * scroller clips too, so an in-card bubble would be constrained to the card
+ * box (operator report). Decorative only (aria-hidden); the anchor's
+ * aria-label carries its name for screen readers. The left is
+ * previewLeftFor's screen-edge clamp; the bottom sits a hair above the
+ * anchor's top edge. Three variants share the shape: a DOT's hover preview
+ * (`dot`, the pre-drag reading), the dot-morph's full-card expansion
+ * (`drag`, issue #249 goal 5: the project and branch line joins), and the
+ * strip-nest collapse (`strip`, goal 6: the hovered CARD's surface read at
+ * the pointer).
+ */
+function DotPreviewBubble({
+  member,
+  projectName,
+  centerX,
+  topY,
+  variety,
+  subCount = 0,
+}: {
+  member: PluginSidebarThread;
+  projectName: string;
+  centerX: number;
+  topY: number;
+  variety: "dot" | "drag" | "strip";
+  subCount?: number;
+}): ReactNode {
+  const now = Date.now();
+  return createPortal(
+    <span
+      aria-hidden
+      data-child-dot-preview=""
+      data-strip-nest={variety === "strip" ? "" : undefined}
+      // The portal leaves the plugin's scoping root, so it carries
+      // the dialog-overlay scope attributes (lib/portal-scope) —
+      // without them the compiled utilities never match the body
+      // child and the bubble renders unstyled.
+      {...usePortalScopeProps()}
+      className="pointer-events-none fixed z-50 mb-0 w-max max-w-64 rounded border border-border bg-popover px-2 py-1 text-left shadow-md"
+      style={{
+        // Border-box explicit: the compiled CSS ships without a
+        // preflight (the host provides it), and a body-level portal
+        // lives where that guarantee need not hold — without this,
+        // the width carried the padding and borders and the clamp's
+        // arithmetic drifted.
+        boxSizing: "border-box",
+        left: previewLeftFor(centerX, window.innerWidth, CHILD_PREVIEW_WIDTH_PX),
+        top: topY - 4,
+        transform: "translateY(-100%)",
+      }}
+    >
+      <span className="block line-clamp-2 text-[11px] font-medium leading-tight text-popover-foreground">
+        {member.displayTitle}
+      </span>
+      <span className="mt-0.5 block text-[10px] leading-tight text-popover-foreground/70">
+        {THREAD_STATE_LABELS[threadState(member)] ?? threadState(member)}{" "}
+        · {relativeTime(member.updatedAt, now)}
+        {member.indicatorLabel === null ? null : ` · ${member.indicatorLabel}`}
+      </span>
+      {variety === "dot" ? null : (
+        // The full-card supporting lines: the goal-5 morph (drag) and the
+        // goal-6 collapse (strip) both read as the member's card surface.
+        <span className="mt-0.5 block truncate text-[10px] leading-tight text-popover-foreground/70">
+          {projectName}
+          {(member.environment?.branchName ?? member.host?.name ?? "") === ""
+            ? null
+            : ` · ${member.environment?.branchName ?? member.host?.name ?? ""}`}
+        </span>
+      )}
+      {subCount > 0 ? (
+        <span className="mt-0.5 block text-[10px] leading-tight text-popover-foreground/70">
+          {subCount} {subCount === 1 ? "sub-thread" : "sub-threads"}
+        </span>
+      ) : null}
+    </span>,
+    document.body,
+  );
+}
 
 /**
  * More nested child rows than this and the list caps its height and scrolls
@@ -791,6 +893,8 @@ export function ThreadCard({
   childMenuActions,
   childRankDrag,
   childDotDrag,
+  stripNestDrag,
+  stripNestHover,
   isCollapsed,
   onCollapsedChange,
   hideIdleChildren,
@@ -1532,6 +1636,21 @@ export function ThreadCard({
             <div
               data-child-thread-dots=""
               title="Show the nested child threads"
+              data-strip-nest-target={stripNestHover !== undefined && stripNestHover !== null ? "" : undefined}
+              onDragOver={stripNestDrag?.onDragOver}
+              onDrop={stripNestDrag?.onDrop}
+              onDragLeave={
+                stripNestDrag === undefined
+                  ? undefined
+                  : (event) => {
+                      // The line of dots is littered with inter-dot gaps:
+                      // leaving one dot for the next must not flicker the
+                      // affordance; only a TRUE exit out of the strip clears.
+                      const into = event.relatedTarget;
+                      if (into instanceof Node && event.currentTarget.contains(into)) return;
+                      stripNestDrag.onDragLeave();
+                    }
+              }
               onClick={(event) => {
                 event.preventDefault();
                 event.stopPropagation();
@@ -1548,6 +1667,12 @@ export function ThreadCard({
                 // inside gap is tighter, so a family reads as one cluster.
                 "ml-3 flex max-w-full flex-wrap items-center gap-2.5 rounded-sm py-0.5 pr-1",
                 "transition-colors hover:bg-accent/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                // The nest-target light (goal 6): a CARD hovers the dot
+                // field, the strip reads as the landing spot — the soft
+                // amber family ring, the same systems the floors use.
+                stripNestHover !== undefined &&
+                  stripNestHover !== null &&
+                  "ring-2 ring-amber-500/40 bg-accent/60",
               )}
             >
               {visibleChildren.map((child) => (
@@ -1560,6 +1685,16 @@ export function ThreadCard({
                   {visibleSubsFor(child.id).map((sub) => stripDot(sub, true))}
                 </span>
               ))}
+              {stripNestHover !== undefined && stripNestHover !== null ? (
+                // The collapsed CARD, painted as the member it is about to
+                // become: one trailing ghost dot, the glyph size of a child
+                // dot, outside every group span until the write lands.
+                <span
+                  data-strip-nest-ghost=""
+                  aria-hidden
+                  className="ml-0.5 inline-block size-1.5 shrink-0 rounded-full bg-amber-500/60 motion-safe:animate-pulse"
+                />
+              ) : null}
             </div>
           ) : null}
           {activeCollapsedChild !== null && onOpenThread !== undefined ? (
@@ -1678,68 +1813,27 @@ export function ThreadCard({
           ) : null}
         </div>
       ) : null}
-      {previewChild === undefined || previewDot === null
-        ? null
-        : createPortal(
-            // The hover preview (issue #174): bb's sidebar thread preview
-            // shape — the title above, a supporting line under it, open
-            // while the dot is hovered or keyboard-focused. FIXED over the
-            // dot from its viewport rect, portaled to body: the card
-            // wrapper is overflow-hidden and the board's scroller clips
-            // too, so an in-card bubble was constrained to the card box
-            // (operator report). Decorative only (aria-hidden); the dot's
-            // aria-label names the child for screen readers. The left is
-            // previewLeftFor's screen-edge clamp; the bottom sits a hair
-            // above the dot's top edge.
-            <span
-              aria-hidden
-              data-child-dot-preview=""
-              // The portal leaves the plugin's scoping root, so it carries
-              // the dialog-overlay scope attributes (lib/portal-scope) —
-              // without them the compiled utilities never match the body
-              // child and the bubble renders unstyled.
-              {...usePortalScopeProps()}
-              className="pointer-events-none fixed z-50 mb-0 w-max max-w-64 rounded border border-border bg-popover px-2 py-1 text-left shadow-md"
-              style={{
-                // Border-box explicit: the compiled CSS ships without a
-                // preflight (the host provides it), and a body-level portal
-                // lives where that guarantee need not hold — without this,
-                // the width carried the padding and borders and the clamp's
-                // arithmetic drifted.
-                boxSizing: "border-box",
-                left: previewLeftFor(previewDot.centerX, window.innerWidth, CHILD_PREVIEW_WIDTH_PX),
-                top: previewDot.topY - 4,
-                transform: "translateY(-100%)",
-              }}
-            >
-              <span className="block line-clamp-2 text-[11px] font-medium leading-tight text-popover-foreground">
-                {previewChild.displayTitle}
-              </span>
-              <span className="mt-0.5 block text-[10px] leading-tight text-popover-foreground/70">
-                {THREAD_STATE_LABELS[threadState(previewChild, errorAckIds)] ?? threadState(previewChild, errorAckIds)}{" "}
-                · {relativeTime(previewChild.updatedAt, now)}
-                {previewChild.indicatorLabel === null ? null : ` · ${previewChild.indicatorLabel}`}
-              </span>
-              {childDotDrag?.escaped === true ? (
-                // The morph's full-card expansion (goal 5): the tooltip
-                // gains the card's supporting line the moment the gesture
-                // reads as a card drag, so the bubble and the lit family
-                // card together read as the member's card.
-                <span className="mt-0.5 block truncate text-[10px] leading-tight text-popover-foreground/70">
-                  {projectName}
-                  {(previewChild.environment?.branchName ?? previewChild.host?.name ?? "") === ""
-                    ? null
-                    : ` · ${previewChild.environment?.branchName ?? previewChild.host?.name ?? ""}`}
-                </span>
-              ) : null}
-              {previewSubCount > 0 ? (
-                <span className="mt-0.5 block text-[10px] leading-tight text-popover-foreground/70">
-                  {previewSubCount} {previewSubCount === 1 ? "sub-thread" : "sub-threads"}
-                </span>
-              ) : null}
-            </span>,
-            document.body,
-          )}
+      {previewDot !== null && previewChild !== undefined ? (
+        // The hover preview (issue #174): one component owns the shape.
+        <DotPreviewBubble
+          member={previewChild}
+          projectName={projectName}
+          centerX={previewDot.centerX}
+          topY={previewDot.topY}
+          variety={childDotDrag?.escaped === true && dotDragMemberId !== null ? "drag" : "dot"}
+          subCount={previewSubCount}
+        />
+      ) : stripNestHover !== undefined && stripNestHover !== null ? (
+        // The strip-nest collapse (goal 6): the hovered CARD's surface read
+        // at the pointer, tooltip plus dot, while it is inside the field.
+        <DotPreviewBubble
+          member={stripNestHover.member}
+          projectName={projectName}
+          centerX={stripNestHover.x}
+          topY={stripNestHover.y}
+          variety="strip"
+        />
+      ) : null}
     </div>
   );
   if (menuActions === undefined) return card;

@@ -787,6 +787,20 @@ export function Board({
     zone: Half;
   } | null>(null);
 
+  /**
+   * The strip-nest hover (issue #249, goal 6): the CARD a collapsed family's
+   * dot field is about to child, with the pointer position for the pinned
+   * bubble. Board-owned, like every other dot-surface decision: the strip
+   * handlers only report; the targeting, the refusal, and the write live
+   * with the board through the existing reparent path.
+   */
+  const [stripNestHover, setStripNestHover] = useState<{
+    familyId: string;
+    member: PluginSidebarThread;
+    x: number;
+    y: number;
+  } | null>(null);
+
   // The shift-click anchor: the last card clicked without Shift in the armed
   // column. Shift extends the selection from it (it stays put — standard
   // list semantics); plain and cmd/ctrl clicks move it. Reset whenever the
@@ -1662,6 +1676,7 @@ export function Board({
       clearRankDrop();
       setJoinHoverId(null);
       clearChildDrop();
+      setStripNestHover(null);
       releaseDropAffordances();
     }
   };
@@ -1958,11 +1973,15 @@ export function Board({
    * silently eat a gesture, the same failure mode the drag path shipped
    * twice before this.
    */
-  function commitNest(childId: string, target: PluginSidebarThread): void {
+  function commitNest(childId: string, target: PluginSidebarThread, afterWrite?: () => void): void {
     const write = onReparent;
     if (write === undefined) return;
     void write(childId, target.id).then(
       () => {
+        // Side effects the caller wants only after the parentage truly
+        // landed (the strip-nest's land-last rank append, issue #249
+        // goal 6): a range move whose placement the write itself decides.
+        if (afterWrite !== undefined) afterWrite();
         const child = nestThreadById.get(childId);
         const reason =
           child === undefined
@@ -2011,6 +2030,118 @@ export function Board({
   /** The live parent of `threadId`, or null for a top-level card. */
   const liveParentOf = (threadId: string): string | null =>
     rawParentOf?.get(threadId) ?? null;
+
+  // Every thread by id, for the strip-nest hover's bubble membership: the
+  // dragged card may live in any lane or nest under any family.
+  const threadById = new Map<string, PluginSidebarThread>();
+  for (const lane of columns) {
+    for (const candidate of lane.threads) threadById.set(candidate.id, candidate);
+  }
+  for (const list of nestedChildrenByParent.values()) {
+    for (const candidate of list) {
+      if (!threadById.has(candidate.id)) threadById.set(candidate.id, candidate);
+    }
+  }
+
+  /** The strip-nest target's refusal, or null when the childing is legal:
+   * self, the reparent guard's edges (cycle, tier cap, invalid parent), and
+   * the already-member no-op each name themselves — the same ledger #231's
+   * refusal law runs on, off the strip now too. */
+  const stripNestRefusalFor = (
+    parent: PluginSidebarThread,
+    draggedId: string,
+  ): string | null => {
+    if (draggedId === parent.id) return "a card cannot nest under itself.";
+    const guard = reparentRefusalFromParents(rawParentOf ?? EMPTY_PARENT_OF, draggedId, parent.id);
+    if (guard !== null) return `${guard}`;
+    if (liveParentOf(draggedId) === parent.id) {
+      return `already a member of ${parent.displayTitle}; nothing to add.`;
+    }
+    return null;
+  };
+
+  /**
+   * The dot field as a nest target (issue #249, goal 6): the strip claims
+   * the card dragover — stopPropagation keeps the card's own edge and nest
+   * promises off the dots — and reports the hover for the collapse visual.
+   * Dot-marked drags keep their home rules: they never read as a nest
+   * target here.
+   */
+  const stripNestOver = (parent: PluginSidebarThread, event: React.DragEvent): void => {
+    if (isDotDrag(event.dataTransfer.types)) return;
+    if (onReparent === undefined) return;
+    const draggedId = draggingIdRef.current;
+    if (draggedId === null || draggedId === "") return;
+    event.preventDefault();
+    event.stopPropagation();
+    event.dataTransfer.dropEffect = "move";
+    if (stripNestRefusalFor(parent, draggedId) !== null) {
+      // Claimed but confessed: the drop refuses loudly; no affordance
+      // promises it first.
+      setStripNestHover(null);
+      return;
+    }
+    const member = threadById.get(draggedId);
+    if (member === undefined) {
+      setStripNestHover(null);
+      return;
+    }
+    setStripNestHover((current) =>
+      current !== null &&
+      current.familyId === parent.id &&
+      current.member.id === draggedId
+        ? current
+        : { familyId: parent.id, member, x: event.clientX, y: event.clientY },
+    );
+  };
+
+  /** The strip-nest drop: the write is the existing nest path, guard and
+   * receipt included, and the affordance clears with the gesture. */
+  const stripNestDrop = (parent: PluginSidebarThread, event: React.DragEvent): void => {
+    if (isDotDrag(event.dataTransfer.types)) return;
+    if (onReparent === undefined) return;
+    const droppedId = draggedIdFor(event, draggingIdRef.current);
+    event.preventDefault();
+    event.stopPropagation();
+    setStripNestHover(null);
+    if (droppedId === "") {
+      reportRefusal("the drop could not identify the dragged card.");
+      return;
+    }
+    // The payload can name a card the board does not hold (a stale or ghost
+    // id): the nest write would fabricate a member out of nothing.
+    if (!threadById.has(droppedId)) {
+      reportRefusal("the dragged card is not on the board.");
+      return;
+    }
+    // The payload can name a card the hover's ref never saw: guards re-run.
+    const refusal = stripNestRefusalFor(parent, droppedId);
+    if (refusal !== null) {
+      reportRefusal(refusal);
+      return;
+    }
+    clearRankDrop();
+    releaseDropAffordances();
+    setRankError(null);
+    // The plan's land-last rule: the newly childed member reads as APPENDED
+    // to its tier (tooltip plus dot at the strip's end), placement then
+    // coming from a second dot drag — the two gestures stay orthogonal.
+    // The append rides the write's own resolution, and it uses the same
+    // child-rank key and onRankMove every dot reorder writes.
+    commitNest(droppedId, parent, () => {
+      const memberIds = [
+        ...(nestedChildrenByParent.get(parent.id)?.map((row) => row.id) ?? []).filter(
+          (id) => id !== droppedId,
+        ),
+        droppedId,
+      ];
+      onRankMove?.(childRankKey(parent.id), droppedId, null, true, memberIds);
+    });
+  };
+
+  const stripNestLeave = (): void => {
+    setStripNestHover(null);
+  };
   // Done, Unread, and Pinned lanes accept state-change drops; Unread exists
   // as a column only in the Attention grouping, and Pinned only once a card
   // is in it. Pinned without a handler stays a plain no-drop lane: dropping
@@ -3608,6 +3739,24 @@ export function Board({
                                   escaped:
                                     dotDragEscapedMember !== null &&
                                     dotTierParentOf(thread, dotDragEscapedMember) !== null,
+                                }
+                              : undefined
+                          }
+                          stripNestDrag={
+                            onReparent !== undefined
+                              ? {
+                                  onDragOver: (event) => stripNestOver(thread, event),
+                                  onDrop: (event) => stripNestDrop(thread, event),
+                                  onDragLeave: () => stripNestLeave(),
+                                }
+                              : undefined
+                          }
+                          stripNestHover={
+                            stripNestHover !== null && stripNestHover.familyId === thread.id
+                              ? {
+                                  member: stripNestHover.member,
+                                  x: stripNestHover.x,
+                                  y: stripNestHover.y,
                                 }
                               : undefined
                           }

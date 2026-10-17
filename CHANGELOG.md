@@ -9,6 +9,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 #### Cards and chips
 
+- **A card can drop into a collapsed family's dot field.** The strip claims the card's hover, lights up under the amber ring while a trailing ghost dot marks the landing, and the release children the member under the family root, landing it last in its tier. Its own dots refuse the write, dot drags keep their home rules, and a misplacement refuses with the banner it always names.
+
 - **A dot that leaves its collapsed strip turns into a card drag.** The family card lights up under a soft ring the instant the drag crosses the strip's edge, and the release lands by the card rules, so a drop on a floor un-parents the member entirely. A release back on the dots is refused, because the tail of the gesture is an ordinary card now.
 
 - **A collapsed strip's dot drags to reorder its tier of the family.** Dragging a dot across its siblings reorders them through the same child-rank write the nested rows use, and the tooltip names the dragged member for the whole gesture. A release anywhere but the strip refuses loudly and writes nothing, since dot drags never leave the hierarchy.

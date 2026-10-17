@@ -123,6 +123,13 @@ function previewBubble(): HTMLElement | null {
   return document.querySelector("[data-child-dot-preview]");
 }
 
+/** The collapsed strip itself, the goal-6 nest surface by its data attr. */
+function dots(): HTMLElement {
+  const strip = document.querySelector("[data-child-thread-dots]");
+  if (!(strip instanceof HTMLElement)) throw new Error("missing child dot strip");
+  return strip;
+}
+
 function bubbleTitle(): string {
   const bubble = previewBubble();
   if (bubble === null) throw new Error("no preview bubble open");
@@ -295,5 +302,49 @@ describe("the morph: a dot that crossed the boundary hands over with the card li
     const bubble = previewBubble();
     if (bubble === null) throw new Error("no pinned bubble after dragstart");
     expect(bubble.textContent).not.toContain("One");
+  });
+});
+
+describe("the dot field as a nest target for a card (cut 4, goal 6)", () => {
+  // A CARD dragged into a collapsed family's strip collapses into tooltip
+  // plus dot: the strip lights (ghost dot + amber ring, data-strip-nest)
+  // and the pinned bubble reads the dragged card's card surface (title,
+  // state, the project and branch line) at the pointer. The release write
+  // is the board's; the wire only reports the hover.
+  it("the hovered strip lights, grows a ghost dot, and previews the dragged card", () => {
+    renderGrandCard({
+      stripNestHover: { member: thread({ id: "thr_card_drag", displayTitle: "Dragged card", isUnread: true, updatedAt: 100, projectId: "p1" }), x: 300, y: 200 },
+    });
+    const strip = dots();
+    expect(strip.hasAttribute("data-strip-nest-target")).toBe(true);
+    expect(strip.className).toMatch(/ring-amber-500\/40/);
+    expect(strip.querySelector("[data-strip-nest-ghost]")).not.toBeNull();
+    const bubble = document.querySelector('[data-child-dot-preview][data-strip-nest=""]');
+    if (!(bubble instanceof HTMLElement)) throw new Error("no strip-nest bubble");
+    expect(bubble.textContent).toContain("Dragged card");
+    // The collapsed card surface: the project and branch line rides.
+    expect(bubble.textContent).toContain("One");
+  });
+
+  it("no hover is no affordance: the strip stays plain and bubbles stay dot-driven", () => {
+    renderGrandCard();
+    const strip = dots();
+    expect(strip.hasAttribute("data-strip-nest-target")).toBe(false);
+    expect(strip.querySelector("[data-strip-nest-ghost]")).toBeNull();
+    expect(document.querySelector('[data-child-dot-preview][data-strip-nest=""]')).toBeNull();
+    // The dot's own hover preview still works.
+    fireEvent.mouseEnter(dot("thr_c1"));
+    expect(bubbleTitle()).toContain("Child one");
+  });
+
+  it("a strip-nest hover never lights a dot: the ghost is the dragged card's, not a member's", () => {
+    renderGrandCard({
+      stripNestHover: { member: thread({ id: "thr_card_drag2", displayTitle: "Dragged two", updatedAt: 200 }), x: 10, y: 10 },
+    });
+    // Every member dot keeps its own identity; the ghost is outside the dot buttons.
+    for (const id of ["thr_c1", "thr_c1_s1", "thr_c2"]) {
+      expect(dot(id).hasAttribute("data-child-dot-active")).toBe(false);
+    }
+    expect(document.querySelectorAll("button[data-child-dot]")).toHaveLength(4);
   });
 });

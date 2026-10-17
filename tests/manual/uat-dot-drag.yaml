@@ -83,3 +83,27 @@ steps:
       - click_aria: "Open child thread: Legacy board 1: migrate rows and links"
     assert:
       - pane: { threadId: thr_big_c0 }
+
+  # Issue #249, goal 6 (cut 4): a CARD dragged into a dot field children it.
+  # The write is the existing thread_reparent nest path, and the refetch
+  # grows the strip. The self-drop refusal rides when the family's own root
+  # is released on its own dots. Each step re-gotoes: the mock's reparent
+  # write does not leak across steps.
+  - id: card-into-dot-field-children
+    title: Dropping the stranger card onto the family's dot field children it
+    goto: "?groupBy=status"
+    gestures:
+      - click_aria: { label: "Collapse subthreads", within: thr_gutter_family }
+      - drag_card_to_strip: { from: thr_rpc_auth, strip_of: thr_gutter_family }
+    assert:
+      - reparent_called: { threadId: thr_rpc_auth, parentThreadId: thr_gutter_family }
+      - dot_order: { family: thr_gutter_family, dots: [thr_gutter_family_c0, thr_gutter_family_c0_gc0, thr_rpc_auth] }
+
+  - id: card-into-dot-field-refuses-own-member
+    title: Dropping the family's own root onto its dot field refuses loudly
+    goto: "?groupBy=status"
+    gestures:
+      - click_aria: { label: "Collapse subthreads", within: thr_gutter_family }
+      - drag_card_to_strip: { from: thr_gutter_family, strip_of: thr_gutter_family }
+    assert:
+      - visible_error: "Reorder refused"
