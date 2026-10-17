@@ -33,6 +33,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - **A wallpaper chosen in one bb window survives the second window's dim change.** The wallpaper document was written whole from each window's state, so a settings edit on a stale window dropped the other window's image. The board panel and the configuration page's Appearance mirror now re-read the document whenever another window writes it (issue #245).
 
+#### Release safety
+
+- **Two release-safety runs started together capture their own board instead of whichever harness answered the port first.** The UAT suites and the release-safety shots share one fixed harness port, so a second tree's harness (or a stray one left up from an earlier session) used to be photographed and passed off as this run's evidence. Each run now verifies the harness on the port carries the run's own identity token and fails loudly before capturing anything (issue #116).
+
 ## [1.5.0] - 2026-10-16
 
 ### Added
