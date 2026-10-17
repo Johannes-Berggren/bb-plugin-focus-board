@@ -135,7 +135,9 @@ node scripts/screenshot/shoot.mjs                     # terminal 2
 
 The `probe-*.mjs` scripts measure board performance at a phone viewport
 (390x844, the release harness's phone size). `data.ts`'s `SIM_BULK_THREADS` +
-`?scale=N` (mock-sdk) grow the board to a long-lived workspace's size.
+`?scale=N` (mock-sdk) grow the board to a long-lived workspace's size, and
+`SIM_ATTENTION_THREADS` + `?attention=N` grow it with all-attention threads
+(every one renders the real pulsing treatment) for the pulse-cliff probes.
 
 **Measure against the production build, not the dev harness.** `vite.config.ts`
 serves React's development build, which is several times slower than the
@@ -163,6 +165,15 @@ npx vite preview --config scripts/screenshot/vite.probe.config.ts --strictPort
 - `probe-pulse-cost.mjs` — the cost of N simultaneous `animate-pulse` attention
   dots (see issue #260): injects copies of the real pulsing glyph and reports
   idle frame rate per N.
+- `probe-pulse-visible.mjs` — the visible-only gate's before/after (#260).
+  Opens `?attention=N` (real pulsing attention cards, no injected clones) and
+  reports, per viewport width (phone, 1280x800, 1920x1080, 2560x1440,
+  1280x2160, 3840x2160): how many pulses run, how many are visible, how many
+  the gate parks, the idle frame rate with the gate, the frame rate with the
+  gate's stylesheet removed (the pre-fix board), and the frame rate with every
+  pulse killed (the ceiling). Also scrolls a busy lane to prove the gate
+  toggles and adds no scroll cost. Reads `PROBE_ATTENTION`, `PROBE_CPU`,
+  `PROBE_SCALE`.
 - `probe-pinned-child.mjs`, `probe-chips.mjs` — the older one-shot DOM probes.
 
 Each honors `CHROME_PATH`, `HARNESS_URL`, `OUT_DIR`, and `PROBE_CPU`; evidence

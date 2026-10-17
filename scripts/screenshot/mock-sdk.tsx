@@ -9,7 +9,7 @@
  */
 import { createRoot } from "react-dom/client";
 import type { ComponentType, ReactNode } from "react";
-import { SIM_BULK_THREADS, SIM_DEMO_THREADS, SIM_DONE_IDS, SIM_DONE_RECORDS, SIM_PROJECTS, SIM_PROVIDERS, SIM_SECTIONS, SIM_THREADS, SIM_WORKSPACE_FILES, type SimThread } from "./data";
+import { SIM_ATTENTION_THREADS, SIM_BULK_THREADS, SIM_DEMO_THREADS, SIM_DONE_IDS, SIM_DONE_RECORDS, SIM_PROJECTS, SIM_PROVIDERS, SIM_SECTIONS, SIM_THREADS, SIM_WORKSPACE_FILES, type SimThread } from "./data";
 import {
   applyRankMoveFractions,
   type FractionColumn,
@@ -223,6 +223,11 @@ const DEMO_MODE = new URLSearchParams(window.location.search).get("demo") === "1
 // show a bottleneck. 0 (the default) leaves every fixture byte-for-byte what
 // the UAT suites and screenshots depend on.
 const SCALE = Math.max(0, Number(new URLSearchParams(window.location.search).get("scale") ?? "0") || 0);
+// `?attention=N` (the pulse probe, #260): append N all-attention threads
+// (data.ts SIM_ATTENTION_THREADS), each rendering the REAL pulsing treatment.
+// Unlike the probe's injected clones, these exercise the shipped card's pulse
+// path, so the pulse cliff is measured on genuine board pulses.
+const ATTENTION = Math.max(0, Number(new URLSearchParams(window.location.search).get("attention") ?? "0") || 0);
 // `?failautotitle=` (comma list): autotitle call kinds that fail ONCE, then
 // succeed — the UAT suite walks a failure into the fallback modal and out
 // through an alternative. Kinds: "plain" (the bare ✨ call), "threadmodel"
@@ -238,6 +243,7 @@ let simThreads: readonly SimThread[] = EMPTY_MODE
   : [
       ...(DEMO_MODE ? [...SIM_THREADS, ...SIM_DEMO_THREADS] : SIM_THREADS),
       ...(SCALE > 0 ? SIM_BULK_THREADS(SCALE) : []),
+      ...(ATTENTION > 0 ? SIM_ATTENTION_THREADS(ATTENTION) : []),
     ];
 
 /** Threads archived in the harness; `threads.list({ archived: true })` serves these. */

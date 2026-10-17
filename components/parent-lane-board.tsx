@@ -12,6 +12,7 @@ import { cn } from "@/lib/utils";
 import { ThreadCard } from "./thread-card";
 import { ThreadCardMenu } from "./thread-card-menu";
 import { useCardSpotlightStyles } from "./card-spotlight";
+import { useAttentionPulseGate } from "./attention-pulse-gate";
 import type { ThreadLink } from "../lib/link-metadata";
 import type { CardMenuAction } from "./thread-card-menu";
 import { EmptyState } from "./empty-state";
@@ -290,6 +291,7 @@ export function ParentLaneBoard({
   // The spotlight rule (components/card-spotlight.ts) is document-global CSS;
   // each board mounts it idempotently, so whichever board renders first wins.
   useCardSpotlightStyles();
+  useAttentionPulseGate();
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const spacerRef = useRef<HTMLDivElement | null>(null);
   const [geoIdx, setGeoIdx] = useState(0);

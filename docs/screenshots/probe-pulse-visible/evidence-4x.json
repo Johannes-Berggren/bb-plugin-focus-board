@@ -1,0 +1,250 @@
+{
+  "machine": {
+    "chrome": "Chrome/155.0.8059.80",
+    "cpuThrottleRate": 4,
+    "attention": 250
+  },
+  "query": "?demo=1&attention=250",
+  "viewports": [
+    {
+      "name": "phone-390",
+      "width": 390,
+      "height": 844,
+      "isMobile": true,
+      "cards": 328,
+      "gateCensus": {
+        "total": 10,
+        "visible": 10,
+        "parked": 244
+      },
+      "gateIdle": {
+        "fps": 60,
+        "dropped": 0,
+        "longTasks": 0,
+        "longTaskMs": 0
+      },
+      "scroll": {
+        "parkedBefore": 244,
+        "parkedAfter": 244,
+        "runningAfter": 10,
+        "fps": 61,
+        "dropped": 0
+      },
+      "killedCensus": {
+        "total": 0,
+        "visible": 0,
+        "parked": 244
+      },
+      "killedIdle": {
+        "fps": 61,
+        "dropped": 0,
+        "longTasks": 0,
+        "longTaskMs": 0
+      },
+      "scrollKilled": {
+        "fps": 61,
+        "dropped": 0
+      }
+    },
+    {
+      "name": "desktop-1280x800",
+      "width": 1280,
+      "height": 800,
+      "isMobile": false,
+      "cards": 328,
+      "gateCensus": {
+        "total": 10,
+        "visible": 10,
+        "parked": 244
+      },
+      "gateIdle": {
+        "fps": 60,
+        "dropped": 0,
+        "longTasks": 0,
+        "longTaskMs": 0
+      },
+      "scroll": {
+        "parkedBefore": 244,
+        "parkedAfter": 243,
+        "runningAfter": 11,
+        "fps": 49,
+        "dropped": 3
+      },
+      "killedCensus": {
+        "total": 0,
+        "visible": 0,
+        "parked": 243
+      },
+      "killedIdle": {
+        "fps": 60,
+        "dropped": 0,
+        "longTasks": 0,
+        "longTaskMs": 0
+      },
+      "scrollKilled": {
+        "fps": 48,
+        "dropped": 3
+      }
+    },
+    {
+      "name": "desktop-1920x1080",
+      "width": 1920,
+      "height": 1080,
+      "isMobile": false,
+      "cards": 328,
+      "gateCensus": {
+        "total": 13,
+        "visible": 13,
+        "parked": 241
+      },
+      "gateIdle": {
+        "fps": 60,
+        "dropped": 0,
+        "longTasks": 0,
+        "longTaskMs": 0
+      },
+      "scroll": {
+        "parkedBefore": 241,
+        "parkedAfter": 240,
+        "runningAfter": 14,
+        "fps": 48,
+        "dropped": 4
+      },
+      "killedCensus": {
+        "total": 0,
+        "visible": 0,
+        "parked": 240
+      },
+      "killedIdle": {
+        "fps": 60,
+        "dropped": 0,
+        "longTasks": 0,
+        "longTaskMs": 0
+      },
+      "scrollKilled": {
+        "fps": 47,
+        "dropped": 6
+      }
+    },
+    {
+      "name": "wide-2560x1440",
+      "width": 2560,
+      "height": 1440,
+      "isMobile": false,
+      "cards": 328,
+      "gateCensus": {
+        "total": 18,
+        "visible": 18,
+        "parked": 236
+      },
+      "gateIdle": {
+        "fps": 60,
+        "dropped": 0,
+        "longTasks": 0,
+        "longTaskMs": 0
+      },
+      "scroll": {
+        "parkedBefore": 236,
+        "parkedAfter": 235,
+        "runningAfter": 19,
+        "fps": 48,
+        "dropped": 5
+      },
+      "killedCensus": {
+        "total": 0,
+        "visible": 0,
+        "parked": 235
+      },
+      "killedIdle": {
+        "fps": 61,
+        "dropped": 0,
+        "longTasks": 0,
+        "longTaskMs": 0
+      },
+      "scrollKilled": {
+        "fps": 50,
+        "dropped": 2
+      }
+    },
+    {
+      "name": "tall-1280x2160",
+      "width": 1280,
+      "height": 2160,
+      "isMobile": false,
+      "cards": 328,
+      "gateCensus": {
+        "total": 26,
+        "visible": 26,
+        "parked": 228
+      },
+      "gateIdle": {
+        "fps": 60,
+        "dropped": 0,
+        "longTasks": 0,
+        "longTaskMs": 0
+      },
+      "scroll": {
+        "parkedBefore": 228,
+        "parkedAfter": 227,
+        "runningAfter": 27,
+        "fps": 47,
+        "dropped": 2
+      },
+      "killedCensus": {
+        "total": 0,
+        "visible": 0,
+        "parked": 227
+      },
+      "killedIdle": {
+        "fps": 61,
+        "dropped": 0,
+        "longTasks": 0,
+        "longTaskMs": 0
+      },
+      "scrollKilled": {
+        "fps": 49,
+        "dropped": 1
+      }
+    },
+    {
+      "name": "uhd-3840x2160",
+      "width": 3840,
+      "height": 2160,
+      "isMobile": false,
+      "cards": 328,
+      "gateCensus": {
+        "total": 26,
+        "visible": 26,
+        "parked": 228
+      },
+      "gateIdle": {
+        "fps": 60,
+        "dropped": 0,
+        "longTasks": 0,
+        "longTaskMs": 0
+      },
+      "scroll": {
+        "parkedBefore": 228,
+        "parkedAfter": 227,
+        "runningAfter": 27,
+        "fps": 47,
+        "dropped": 2
+      },
+      "killedCensus": {
+        "total": 0,
+        "visible": 0,
+        "parked": 227
+      },
+      "killedIdle": {
+        "fps": 61,
+        "dropped": 0,
+        "longTasks": 0,
+        "longTaskMs": 0
+      },
+      "scrollKilled": {
+        "fps": 49,
+        "dropped": 0
+      }
+    }
+  ]
+}

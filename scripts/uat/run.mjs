@@ -1056,6 +1056,57 @@ const pageHoverProminence = (id) => {
 };
 
 /**
+ * The attention pulse gate's census (#260): every `[data-attention-pulse]`
+ * overlay on the board, how many are parked (off screen), how many really
+ * intersect the scrollable board (the rule the gate itself uses — an
+ * IntersectionObserver against the viewport intersected with the lane's own
+ * clipping container, not a plain viewport-rect test, which counts a card
+ * clipped by its lane as visible), and whether any parked element is STILL
+ * animating, which is the gate's contract and reads computed `animationName`
+ * (what the compositor runs), not the class list.
+ */
+const pageAttentionPulse = () => {
+  const pulses = [...document.querySelectorAll("[data-attention-pulse]")];
+  // The authoritative visibility rule: an IntersectionObserver would report
+  // exactly this, so the census never disagrees with the gate about a card
+  // clipped by its lane's scroll container.
+  const intersects = (el) => {
+    const r = el.getBoundingClientRect();
+    const vw = innerWidth;
+    const vh = innerHeight;
+    let top = Math.max(r.top, 0);
+    let bottom = Math.min(r.bottom, vh);
+    let left = Math.max(r.left, 0);
+    let right = Math.min(r.right, vw);
+    for (let node = el.parentElement; node !== null; node = node.parentElement) {
+      const cs = getComputedStyle(node);
+      if (cs.overflow !== "visible" || cs.overflowX !== "visible" || cs.overflowY !== "visible") {
+        const cr = node.getBoundingClientRect();
+        top = Math.max(top, cr.top);
+        bottom = Math.min(bottom, cr.bottom);
+        left = Math.max(left, cr.left);
+        right = Math.min(right, cr.right);
+      }
+    }
+    return bottom > top && right > left;
+  };
+  let parked = 0;
+  let visible = 0;
+  let runningVisible = 0;
+  let runningParked = 0;
+  for (const el of pulses) {
+    const onScreen = intersects(el);
+    const isParked = el.hasAttribute("data-pulse-parked");
+    const animating = getComputedStyle(el).animationName !== "none";
+    if (onScreen) visible += 1;
+    if (isParked) parked += 1;
+    if (animating && onScreen) runningVisible += 1;
+    if (animating && isParked) runningParked += 1;
+  }
+  return { total: pulses.length, parked, visible, runningVisible, runningParked };
+};
+
+/**
  * Is the locked lane pinned flush against the rail? A wheel overshoot inside
  * the locked lane's own grab window must snap the board BACK to the flush
  * position (runCorrections drift re-pin) rather than leave the ruler sitting
@@ -1487,6 +1538,32 @@ async function check(step, page, gestureResults = []) {
     if (rule.card_visible !== undefined) {
       const got = await page.evaluate(pageCardVisible, rule.card_visible);
       expect(`card visible: ${rule.card_visible}`, got.ok === true, got.reason);
+    }
+    if (rule.attention_pulse !== undefined) {
+      const want = rule.attention_pulse; // { visible_animate?, parked_still?, parked_at_least? }
+      const got = await page.evaluate(pageAttentionPulse);
+      if (want.parked_at_least !== undefined) {
+        expect(
+          `at least ${want.parked_at_least} attention pulse(s) parked off screen`,
+          got.parked >= want.parked_at_least,
+          `parked ${got.parked} of ${got.total} (visible ${got.visible})`,
+        );
+      }
+      if (want.visible_animate !== undefined) {
+        expect(
+          `on-screen pulses animate (${got.runningVisible}/${got.visible})`,
+          want.visible_animate ? got.runningVisible === got.visible && got.visible > 0 : true,
+          `visible ${got.visible}, animating ${got.runningVisible}`,
+        );
+      }
+      if (want.parked_still !== undefined) {
+        // The gate's contract: a parked pulse must NOT be animating.
+        expect(
+          `off-screen pulses hold still (${got.runningParked} of ${got.parked} still animating)`,
+          want.parked_still ? got.runningParked === 0 : true,
+          `${got.parked} parked, ${got.runningParked} still animating`,
+        );
+      }
     }
     if (rule.band_hover !== undefined) {
       const got = await page.evaluate(pageBandHover);
