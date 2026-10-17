@@ -4,7 +4,7 @@ export const DERIVED_WHATS_NEW: readonly { version: string; items: readonly { le
     "version": "1.5.0",
     "items": [
       {
-        "lead": "The thread pane's composer names the project it writes into again.",
+        "lead": "The thread pane's composer names its project and checkout at rest.",
         "children": [],
         "group": "Board layout"
       },

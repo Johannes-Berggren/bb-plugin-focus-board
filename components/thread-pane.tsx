@@ -45,7 +45,7 @@ import {
 import { attachScrollDebug } from "@/components/scroll-debug";
 import { AutotitleFallbackModal } from "@/components/autotitle-fallback-modal";
 import { WorkspaceOpenMenu, OPEN_LABEL_MIN_PANE_WIDTH } from "@/components/workspace-open-menu";
-import { usePaneContextRowMissing, PaneContextRow, type PaneProbeEvent } from "@/components/pane-context-row";
+import { usePaneContextRowMissing, PaneContextRow } from "@/components/pane-context-row";
 import { HEADER_ICON_BUTTON_CLASS } from "@/lib/pane-chrome";
 import type {
   AutotitleFallbackState,
@@ -125,12 +125,6 @@ interface ThreadPaneProps {
   onRename: (title: string) => Promise<void>;
   onMaximize: () => void;
   onClose: () => void;
-  /**
-   * Receives the composer-probe's verdict changes (pane-context-row debug
-   * captures) for forwarding to the plugin server's capture file. Optional:
-   * absent keeps the probe silent, exactly the shipped behavior.
-   */
-  onProbeCapture?: (event: PaneProbeEvent) => void;
   /**
    * The open thread's controlled browser-tab reveal, the one-step gesture
    * the board card menu carries (lib/browser-reveal). Offered in the
@@ -478,7 +472,6 @@ export function ThreadPane({
   escStopsRunningThread,
   escapeSuppressed = false,
   referenceMentions,
-  onProbeCapture,
 }: ThreadPaneProps) {
   const [width, setWidth] = useState(readStoredPaneWidth);
   const windowCompact = useIsCompactViewport();
@@ -734,23 +727,12 @@ export function ThreadPane({
   // defensive revert guard on chat clicks until bb ships the fix (see
   // docs/chat-click-jump-2026-09-29.md, where this module is covered too).
   const chatBodyRef = useRef<HTMLDivElement>(null);
-  // The embedded ThreadChat renders no composer context on a pane container
-  // (it never receives bb's compact summary), so watch its DOM and fall
-  // back to our own project + checkout line when nothing shows.
-  //
-  // Temporary diagnosis: every verdict flip lands in the plugin server's
-  // capture file (lib/compose-probe), so a vanished line traces to the
-  // exact element the probe matched. Remove with the real fix.
-  const reportProbeEvent = useCallback(
-    (event: PaneProbeEvent) => {
-      onProbeCapture?.(event);
-      // A dropped diagnostic must never break the pane; the file cap also
-      // refuses events once the debug stream is full.
-      void rpc.call("compose_probe_capture", event).catch(() => {});
-    },
-    [rpc, onProbeCapture],
-  );
-  const contextRowMissing = usePaneContextRowMissing(chatBodyRef, thread.id, reportProbeEvent);
+  // The embedded ThreadChat's composer footer carries the project/checkout
+  // chips but COLLAPSES to height 0 whenever the composer sits unexpanded,
+  // so at rest in a pane the compose area paints none of it. Watch the
+  // chat DOM (attributes included: the collapse is an attribute flip) and
+  // fall back to our own project + checkout line when nothing shows there.
+  const contextRowMissing = usePaneContextRowMissing(chatBodyRef, thread.id);
   const chatJumpGuardRef = useRef<ChatClickJumpGuard | null>(null);
   const onChatBodyClickCapture = useCallback(
     (event: MouseEvent<HTMLDivElement>) => {

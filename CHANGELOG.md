@@ -49,7 +49,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 #### Board layout
 
-- **The thread pane's composer names the project it writes into again.** bb's embedded chat stopped showing the project and checkout line on a pane-sized surface, so the pane now checks the chat's DOM for it and draws its own "project · worktree · branch" line under the transcript when the host paints none. The probe stays quiet whenever bb shows its own context again, so the line never doubles up.
+- **The thread pane's composer names its project and checkout at rest.** bb's composer footer carries the project/checkout chips, but it collapses to height 0 whenever the composer sits unexpanded, so at rest in a pane nothing of it paints; the pane keeps its own "project · checkout · branch" line under the transcript whenever the host's chips are missing, hidden, or clipped, and yields the moment they actually paint, so the line never doubles up. A collapsed footer keeps its chips mounted but paints none of them, so the pane follows the paint, not the DOM.
 
 #### Groups and family boxes
 
