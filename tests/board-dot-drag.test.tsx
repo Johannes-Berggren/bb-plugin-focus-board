@@ -310,3 +310,136 @@ describe("wiring gates", () => {
     expect(refusalBanner().textContent).toContain("Reorder refused");
   });
 });
+
+describe("the morph: a dot that crosses the boundary becomes a card drag (cut 3, goal 5)", () => {
+  // The blessed in-place reading (docs/plans/2026-10-16-dot-drag-family-
+  // morphing-cuts-thr_gi3f228k3s.md): when the dragged dot's pointer leaves
+  // the home strip's box, the board hands the gesture to the card lifecycle
+  // — draggingIdRef adopts the member, the dot refs clear, and from that
+  // instant every release rule is the existing card rule. The tail of the
+  // gesture IS an ordinary card drag. jsdom rects are 0x0, so each test
+  // stamps the strip with a real box and moves the pointer outside it the
+  // way a browser would report it (a dragover whose coordinates land
+  // outside the strip).
+
+  function stampStrip() {
+    const strip = document.querySelector(
+      '[data-thread-card="thr_parent"] [data-child-thread-dots]',
+    );
+    if (!(strip instanceof HTMLElement)) throw new Error("missing home strip");
+    strip.getBoundingClientRect = () =>
+      ({ top: 12, left: 40, right: 180, bottom: 34, width: 140, height: 22 }) as DOMRect;
+    return strip;
+  }
+
+  function dragDotEscape(fromId: string) {
+    stampStrip();
+    const dt = makeDataTransfer();
+    fireEvent.dragStart(dot(fromId), { dataTransfer: dt });
+    const section = document.querySelector('section[data-column-id="working"]');
+    if (!(section instanceof HTMLElement)) throw new Error("missing column");
+    const over = createEvent.dragOver(section, { dataTransfer: dt });
+    // The pointer is far right of the strip's box: outside coordinates.
+    Object.defineProperty(over, "clientX", { value: 900 });
+    Object.defineProperty(over, "clientY", { value: 130 });
+    fireEvent(section, over);
+    return { dt, section };
+  }
+
+  function escapeRing(threadId = "thr_parent"): HTMLElement | null {
+    return document.querySelector(`[data-thread-card="${threadId}"][data-dot-escape]`);
+  }
+
+  it("an escaped dot released on its own lane's floor un-parents it (the morphed un-parent)", () => {
+    const { props } = renderFamilyBoard();
+    const { dt, section } = dragDotEscape("thr_c1");
+    const drop = createEvent.drop(section, { dataTransfer: dt });
+    fireEvent(section, drop);
+    expect(props.onReparent).toHaveBeenCalledWith("thr_c1", null);
+    expect(props.onRankMove).not.toHaveBeenCalled();
+  });
+
+  it("the escape lights the home card's soft amber ring and the dragend un-lights everything", () => {
+    renderFamilyBoard();
+    const { dt, section } = dragDotEscape("thr_c2");
+    expect(escapeRing()).not.toBeNull();
+    // Foreign cards never wear the morph; only the home family card does.
+    fireEvent.dragEnd(dot("thr_c2"), { dataTransfer: dt });
+    expect(escapeRing()).toBeNull();
+  });
+
+  it("an escaped dot released back on its strip refuses loudly and writes nothing", () => {
+    const { props } = renderFamilyBoard();
+    const { dt } = dragDotEscape("thr_c1");
+    fireEvent.dragOver(dot("thr_c2"), { dataTransfer: dt });
+    fireEvent.drop(dot("thr_c2"), { dataTransfer: dt });
+    expect(props.onRankMove).not.toHaveBeenCalled();
+    expect(props.onReparent).not.toHaveBeenCalled();
+    expect(refusalBanner().textContent).toContain("Reorder refused");
+  });
+
+  it("an escaped dot released onto another card's middle third nests (the tail is an ordinary card drag)", () => {
+    const scene = familyScene();
+    const stranger = thread({
+      id: "thr_stranger2",
+      displayTitle: "Stranger two",
+      status: "working",
+      updatedAt: NOW - 100,
+    });
+    const { props } = renderFamilyBoard({}, { threads: [...scene.threads, stranger] });
+    stampStrip();
+    const dt = makeDataTransfer();
+    fireEvent.dragStart(dot("thr_c1"), { dataTransfer: dt });
+    const section = document.querySelector('section[data-column-id="working"]');
+    if (!(section instanceof HTMLElement)) throw new Error("missing column");
+    // Escape far away, then hover the card's middle third like a card drag.
+    const away = createEvent.dragOver(section, { dataTransfer: dt });
+    Object.defineProperty(away, "clientX", { value: 900 });
+    Object.defineProperty(away, "clientY", { value: 130 });
+    fireEvent(section, away);
+    const anchor = cardAnchor("thr_stranger2");
+    // The card's handler reads the CARD WRAPPER's box (React's
+    // currentTarget), not the anchor's; the handoff's re-render replaces
+    // nodes, so each zone event re-stamps its own element.
+    const stampStranger = () => {
+      // The card's React handler reads the SLOT's box (its currentTarget is
+      // [data-rank-slot], not [data-thread-card]).
+      const slot = document.querySelector('[data-rank-slot="thr_stranger2"]');
+      if (!(slot instanceof HTMLElement)) throw new Error("missing stranger card slot");
+      slot.getBoundingClientRect = () =>
+        ({ top: 0, left: 200, right: 400, bottom: 300, width: 200, height: 300 }) as DOMRect;
+    };
+    stampStranger();
+    anchor.getBoundingClientRect = () =>
+      ({ top: 0, left: 0, right: 200, bottom: 300, width: 200, height: 300 }) as DOMRect;
+    const cardOver = createEvent.dragOver(anchor, { dataTransfer: dt });
+    Object.defineProperty(cardOver, "clientY", { value: 150 });
+    fireEvent(anchor, cardOver);
+    stampStranger();
+    const cardDrop = createEvent.drop(anchor, { dataTransfer: dt });
+    Object.defineProperty(cardDrop, "clientY", { value: 150 });
+    fireEvent(anchor, cardDrop);
+    expect(props.onReparent).toHaveBeenCalledWith("thr_c1", "thr_stranger2");
+  });
+
+  it("a dot still INSIDE the strip box never escapes, even over the strip's own background", () => {
+    const { props } = renderFamilyBoard();
+    stampStrip();
+    const dt = makeDataTransfer();
+    fireEvent.dragStart(dot("thr_c1"), { dataTransfer: dt });
+    const section = document.querySelector('section[data-column-id="working"]');
+    if (!(section instanceof HTMLElement)) throw new Error("missing column");
+    // The pointer rides over the home strip's own background (between the
+    // dots). The dragover arrives at the section with coordinates INSIDE
+    // the strip's stamped box: the observer must read in-strip.
+    const bgOver = createEvent.dragOver(section, { dataTransfer: dt });
+    Object.defineProperty(bgOver, "clientX", { value: 100 });
+    Object.defineProperty(bgOver, "clientY", { value: 20 });
+    fireEvent(section, bgOver);
+    expect(escapeRing()).toBeNull();
+    // The gesture's rules stay the strip's: a foreign floor still refuses.
+    const drop = createEvent.drop(section, { dataTransfer: dt });
+    fireEvent(section, drop);
+    expect(props.onReparent).not.toHaveBeenCalled();
+  });
+});

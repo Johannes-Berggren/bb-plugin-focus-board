@@ -35,6 +35,47 @@ function makeDataTransfer() {
 
 type CardProps = Parameters<typeof ThreadCard>[0];
 
+type DotDragShape = {
+  onDragStart: ReturnType<typeof vi.fn>;
+  onDragOver: ReturnType<typeof vi.fn>;
+  onDrop: ReturnType<typeof vi.fn>;
+  onDragEnd: ReturnType<typeof vi.fn>;
+  line?: { memberId: string; zone: "before" | "after" };
+  escaped?: boolean;
+};
+
+let dotDrag: DotDragShape;
+
+function renderGrandCard(overrides: Partial<CardProps> = {}) {
+  const { parent, children, subsByParent } = grandFamily();
+  dotDrag = {
+    onDragStart: vi.fn(),
+    onDragOver: vi.fn(),
+    onDrop: vi.fn(),
+    onDragEnd: vi.fn(),
+    ...((overrides.childDotDrag as Partial<DotDragShape> | undefined) ?? {}),
+  };
+  const props = {
+    thread: parent,
+    stateDot: null,
+    isActive: false,
+    isDone: false,
+    projectName: "One",
+    onOpen: vi.fn(),
+    onOpenThread: vi.fn(),
+    // The wiring rides BEFORE the overrides: a test that passes
+    // childDotDrag: undefined explicitly keeps the strip unwired, plain
+    // defaults come wired, and the injected dotDrag's own shape (line,
+    // escaped) follows the wire.
+    childDotDrag: dotDrag,
+    childThreads: children,
+    grandchildThreadsByParent: subsByParent,
+    isCollapsed: true,
+    ...overrides,
+  } as unknown as CardProps;
+  return render(<ThreadCard {...props} />);
+}
+
 function grandFamily() {
   const childOne = thread({
     id: "thr_c1",
@@ -72,39 +113,6 @@ function grandFamily() {
   };
 }
 
-let dotDrag: {
-  onDragStart: ReturnType<typeof vi.fn>;
-  onDragOver: ReturnType<typeof vi.fn>;
-  onDrop: ReturnType<typeof vi.fn>;
-  onDragEnd: ReturnType<typeof vi.fn>;
-  line?: { memberId: string; zone: "before" | "after" };
-};
-
-function renderGrandCard(overrides: Partial<CardProps> = {}) {
-  const { parent, children, subsByParent } = grandFamily();
-  dotDrag = {
-    onDragStart: vi.fn(),
-    onDragOver: vi.fn(),
-    onDrop: vi.fn(),
-    onDragEnd: vi.fn(),
-  };
-  const props = {
-    thread: parent,
-    stateDot: null,
-    isActive: false,
-    isDone: false,
-    projectName: "One",
-    onOpen: vi.fn(),
-    onOpenThread: vi.fn(),
-    childThreads: children,
-    grandchildThreadsByParent: subsByParent,
-    isCollapsed: true,
-    childDotDrag: dotDrag,
-    ...overrides,
-  } as unknown as CardProps;
-  return render(<ThreadCard {...props} />);
-}
-
 function dot(id: string): HTMLElement {
   const button = document.querySelector<HTMLElement>(`button[data-child-dot="${id}"]`);
   if (button === null) throw new Error(`missing dot for ${id}`);
@@ -139,7 +147,7 @@ describe("the dot is the drag source, the board owns the decision", () => {
     const dt = makeDataTransfer();
     fireEvent.dragStart(dot("thr_c1_s2"), { dataTransfer: dt });
     expect(dotDrag.onDragStart).toHaveBeenCalledTimes(1);
-    expect(dotDrag.onDragStart).toHaveBeenCalledWith("thr_c1_s2");
+    expect(dotDrag.onDragStart).toHaveBeenCalledWith("thr_c1_s2", expect.anything());
   });
 
   it("dragstart writes the dropped id and the dot-drag mark into the payload", () => {
@@ -216,7 +224,7 @@ describe("the tooltip stays open for the whole dot gesture (goal 4)", () => {
   });
 });
 
-describe("the insertion line rides the strip", () => {
+describe("the strip insertion line rides the wire (cut 1)", () => {
   it("the wired line paints a vertical before-marker on its dot", () => {
     renderGrandCard({
       childDotDrag: { ...dotDrag, line: { memberId: "thr_c2", zone: "before" } },
@@ -232,5 +240,60 @@ describe("the insertion line rides the strip", () => {
   it("no line renders without the wiring; dots stay plain", () => {
     renderGrandCard({ childDotDrag: undefined });
     expect(dot("thr_c2").className).not.toContain("before:w-0.5");
+  });
+});
+
+describe("the morph: a dot that crossed the boundary hands over with the card lit up", () => {
+  // Goal 5, in-place reading (the blessed plan): once the board reports
+  // `escaped`, the dragged member's family card is the in-place morph — a
+  // soft amber ring plus a gentle dim on the card root, marked by a
+  // data attribute the runner and the tests can find — and the pinned
+  // bubble expands to the full-card surface by gaining the project and
+  // branch line. The gesture's tail acts as an ordinary card drag, so no
+  // dot-specific controls should light: the insertion line dies with the
+  // escape.
+  it("the escaped wire rings and dims the card root and marks it findable", () => {
+    renderGrandCard({ childDotDrag: { ...dotDrag, escaped: true } });
+    const card = document.querySelector('[data-thread-card="thr_parent"]');
+    if (!(card instanceof HTMLElement)) throw new Error("missing family card root");
+    expect(card.hasAttribute("data-dot-escape")).toBe(true);
+    expect(card.className).toMatch(/ring-amber-500\/40/);
+    expect(card.className).toMatch(/opacity-75/);
+    // The morph is a promise about THE dragged member's card, not every
+    // card: the unescaped render carries no marker (its own container,
+    // since both cards render into this jsdom document).
+    const second = renderGrandCard({ childDotDrag: { ...dotDrag, escaped: false } });
+    const plain = second.container.querySelector('[data-thread-card="thr_parent"]');
+    expect(plain?.hasAttribute("data-dot-escape")).toBe(false);
+  });
+
+  it("the escaped wire kills any insertion line mid-gesture", () => {
+    renderGrandCard({
+      childDotDrag: {
+        ...dotDrag,
+        escaped: true,
+        line: { memberId: "thr_c2", zone: "before" },
+      },
+    });
+    expect(dot("thr_c2").className).not.toContain("before:w-0.5");
+  });
+
+  it("the pinned bubble gains the project and branch line once the gesture reads as a card drag", () => {
+    renderGrandCard({ childDotDrag: { ...dotDrag, escaped: true } });
+    const dt = makeDataTransfer();
+    fireEvent.dragStart(dot("thr_c1_s2"), { dataTransfer: dt });
+    const bubble = previewBubble();
+    if (bubble === null) throw new Error("no pinned bubble after dragstart");
+    expect(bubble.textContent).toContain("Sub two");
+    expect(bubble.textContent).toContain("One");
+  });
+
+  it("the unescaped bubble stays the three-line preview (no project line)", () => {
+    renderGrandCard({ childDotDrag: { ...dotDrag, escaped: false } });
+    const dt = makeDataTransfer();
+    fireEvent.dragStart(dot("thr_c1_s2"), { dataTransfer: dt });
+    const bubble = previewBubble();
+    if (bubble === null) throw new Error("no pinned bubble after dragstart");
+    expect(bubble.textContent).not.toContain("One");
   });
 });

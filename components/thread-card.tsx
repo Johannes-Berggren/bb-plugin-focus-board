@@ -144,12 +144,22 @@ interface ThreadCardProps {
    * the dots stay the click-preview controls they have always been.
    */
   childDotDrag?: {
-    onDragStart: (memberId: string) => void;
+    onDragStart: (memberId: string, event: DragEvent) => void;
     onDragOver: (hoverMemberId: string, event: DragEvent) => void;
     onDrop: (hoverMemberId: string, event: DragEvent) => void;
     onDragEnd: () => void;
     /** The dot currently carrying the insertion line, and its half. */
     line?: { memberId: string; zone: "before" | "after" };
+    /**
+     * The boundary handoff of the morph (issue #249, goal 5): the board
+     * reports the drag left the strip's box, the gesture's tail is now an
+     * ordinary card drag, and the dragged member's family card becomes the
+     * in-place morph — a soft amber ring and a gentle dim on the card root
+     * (`data-dot-escape`), while the pinned bubble expands to the full-card
+     * surface by gaining the project and branch line. The insertion line
+     * dies with the escape; no dot-specific promise survives it.
+     */
+    escaped?: boolean;
   };
   /**
    * The child-count chip's number: ALL visible children of this parent
@@ -984,10 +994,14 @@ export function ThreadCard({
     // the whole gesture.
     const memberSnoozed = (snoozeFor?.(member.id) ?? null) !== null;
     const dotDragWired = childDotDrag !== undefined;
+    // The escape kills any line first: after the boundary handoff the
+    // gesture is a card drag, and no dot promise survives it.
     const dotLine =
-      childDotDrag?.line?.memberId === member.id
-        ? childDotDrag.line?.zone
-        : undefined;
+      childDotDrag?.escaped === true
+        ? undefined
+        : childDotDrag?.line?.memberId === member.id
+          ? childDotDrag.line?.zone
+          : undefined;
     return (
       <button
         key={member.id}
@@ -1018,7 +1032,7 @@ export function ThreadCard({
             topY: rect.top,
           });
           setDotDragMemberId(member.id);
-          childDotDrag.onDragStart(member.id);
+          childDotDrag.onDragStart(member.id, event);
         }}
         onDragEnd={() => {
           setPreviewDot(null);
@@ -1169,6 +1183,10 @@ export function ThreadCard({
       data-sweep-highlighted={isSweepHighlighted ? "" : undefined}
       data-sweep-active={isSweeping ? "" : undefined}
       data-snoozed={snoozed ? "" : undefined}
+      // The dot-drag morph's in-place marker (issue #249, goal 5): while a
+      // dot of this family is dragged past its strip's boundary, the family
+      // card is the dragged member's in-place "real card" — light it.
+      data-dot-escape={childDotDrag?.escaped === true ? "" : undefined}
       // The spotlight's exemption marker (see components/card-status.ts): a
       // card with user focus (pane open, sweep-highlighted, needs-attention)
       // or a life of its own that already fades it (done / dimmed / snoozed,
@@ -1232,6 +1250,11 @@ export function ThreadCard({
         // overlay further down; the card keeps its own opaque surface.
         isSweepHighlighted && "ring-2 ring-amber-500 saturate-100 opacity-100",
         isSweepSelectable && "ring-1 ring-amber-500/40",
+        // The morph ring + dim ride LAST: the escaped drag's tail is a card
+        // drag, and this card is its landing-light while the ghost follows
+        // the pointer. Appended last so tailwind-merge lets it win any ring
+        // or opacity conflicts the statuses above set.
+        childDotDrag?.escaped === true && "opacity-75 ring-2 ring-amber-500/40",
       )}
     >
       <span
@@ -1697,6 +1720,18 @@ export function ThreadCard({
                 · {relativeTime(previewChild.updatedAt, now)}
                 {previewChild.indicatorLabel === null ? null : ` · ${previewChild.indicatorLabel}`}
               </span>
+              {childDotDrag?.escaped === true ? (
+                // The morph's full-card expansion (goal 5): the tooltip
+                // gains the card's supporting line the moment the gesture
+                // reads as a card drag, so the bubble and the lit family
+                // card together read as the member's card.
+                <span className="mt-0.5 block truncate text-[10px] leading-tight text-popover-foreground/70">
+                  {projectName}
+                  {(previewChild.environment?.branchName ?? previewChild.host?.name ?? "") === ""
+                    ? null
+                    : ` · ${previewChild.environment?.branchName ?? previewChild.host?.name ?? ""}`}
+                </span>
+              ) : null}
               {previewSubCount > 0 ? (
                 <span className="mt-0.5 block text-[10px] leading-tight text-popover-foreground/70">
                   {previewSubCount} {previewSubCount === 1 ? "sub-thread" : "sub-threads"}

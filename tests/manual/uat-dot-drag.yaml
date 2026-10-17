@@ -1,0 +1,85 @@
+# Operator-assisted E2E: dot dragging on the collapsed strip (issue #249).
+#
+# Cut 1 (goals 3 and 4) + the cut 3 morph (goal 5) against the real app:
+# dots drag to reorder their tier through the same child-rank write the
+# rows use, a drag that leaves the strip's box morphs in place (the family
+# card lights up) and its release is an ordinary card gesture (the column
+# floor un-parents the member), and dots keep every click/preview behavior
+# they had before dragging.
+#
+# Run: npm run uat -- tests/manual/uat-dot-drag.yaml
+#
+# The status board's two deep fixtures carry the gestures:
+#   thr_big_family ("Legacy board 0..8", idle, 16 days) for the child tier:
+#     nine child dots, recency-ordered (dn_c8's timestamp is the freshest);
+#   thr_gutter_family ("Three-tier family fixture #192", idle, 18 days)
+#     for the sub-tier: one child dot (thr_gutter_family_c0) leading its
+#     own sub-dot (thr_gutter_family_c0_gc0).
+suite: dot-drag-family
+harness:
+  config: scripts/screenshot/vite.config.ts
+  port: 5173
+defaults:
+  groupBy: status
+  theme: dark
+
+steps:
+  - id: collapse-then-flatten-strip
+    title: Collapsing the nine-child family paints the whole child tier as dots
+    goto: "?groupBy=status"
+    gestures:
+      - click_aria: { label: "Collapse subthreads", within: thr_big_family }
+    assert:
+      - dot_order: { family: thr_big_family, dots: [thr_big_c8, thr_big_c7, thr_big_c6, thr_big_c5, thr_big_c4, thr_big_c3, thr_big_c2, thr_big_c1, thr_big_c0] }
+
+  - id: dot-drag-reorders-the-child-tier
+    title: Dragging the freshest dot onto the last dot moves it to the bottom, through the child-rank write
+    # Recency order fresh-first; dropping c8 after c0 (the strip's last
+    # dot, the after half with no member below) is the end-of-list append,
+    # `toEnd` on the family's `child:<parent>` rank key.
+    goto: "?groupBy=status"
+    gestures:
+      - click_aria: { label: "Collapse subthreads", within: thr_big_family }
+      - drag_dot_to_dot: { from: thr_big_c8, to: thr_big_c0 }
+    assert:
+      - rpc_called: { columnKey: "child:thr_big_family", threadId: thr_big_c8, toEnd: true }
+      - dot_order: { family: thr_big_family, dots: [thr_big_c7, thr_big_c6, thr_big_c5, thr_big_c4, thr_big_c3, thr_big_c2, thr_big_c1, thr_big_c0, thr_big_c8] }
+
+  - id: dot-drag-out-morphs-the-family-card
+    title: A dot dragged out of its strip lights the family card (the in-place morph)
+    goto: "?groupBy=status"
+    gestures:
+      - click_aria: { label: "Collapse subthreads", within: thr_big_family }
+    dot_escape_hover: { from: thr_big_c4, column: working, shown: true }
+
+  - id: dot-drag-out-unparents-through-the-floor
+    title: Releasing the dragged dot on another column's floor un-parents it entirely
+    # The user's lane state stays out of the write: the drop lands on an
+    # idle bucket (no state-change handler there), so the release's write is
+    # the detach alone — parentThreadId null.
+    goto: "?groupBy=status"
+    gestures:
+      - click_aria: { label: "Collapse subthreads", within: thr_big_family }
+      - drag_dot_to_floor: { from: thr_big_c3, column: idle-recent }
+    assert:
+      - reparent_called: { threadId: thr_big_c3, parentThreadId: null }
+      - dot_order: { family: thr_big_family, dots: [thr_big_c8, thr_big_c7, thr_big_c6, thr_big_c5, thr_big_c4, thr_big_c2, thr_big_c1, thr_big_c0] }
+
+  - id: a-sub-dot-unparents-too
+    title: A sub-dot dragged out un-parents the deep member the same way
+    goto: "?groupBy=status"
+    gestures:
+      - click_aria: { label: "Collapse subthreads", within: thr_gutter_family }
+      - drag_dot_to_floor: { from: thr_gutter_family_c0_gc0, column: idle-recent }
+    assert:
+      - reparent_called: { threadId: thr_gutter_family_c0_gc0, parentThreadId: null }
+      - sub_row: { id: thr_gutter_family_c0_gc0, under: thr_gutter_family_c0, shown: false }
+
+  - id: dots-still-open-their-pane
+    title: After the gestures, a dot still opens its thread on click
+    goto: "?groupBy=status"
+    gestures:
+      - click_aria: { label: "Collapse subthreads", within: thr_big_family }
+      - click_aria: "Open child thread: Legacy board 1: migrate rows and links"
+    assert:
+      - pane: { threadId: thr_big_c0 }
