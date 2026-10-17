@@ -9,7 +9,7 @@
  */
 import { createRoot } from "react-dom/client";
 import type { ComponentType, ReactNode } from "react";
-import { SIM_DEMO_THREADS, SIM_DONE_IDS, SIM_DONE_RECORDS, SIM_PROJECTS, SIM_PROVIDERS, SIM_SECTIONS, SIM_THREADS, SIM_WORKSPACE_FILES, type SimThread } from "./data";
+import { SIM_BULK_THREADS, SIM_DEMO_THREADS, SIM_DONE_IDS, SIM_DONE_RECORDS, SIM_PROJECTS, SIM_PROVIDERS, SIM_SECTIONS, SIM_THREADS, SIM_WORKSPACE_FILES, type SimThread } from "./data";
 import {
   applyRankMoveFractions,
   type FractionColumn,
@@ -217,6 +217,12 @@ export function experimental_useSidebarThreads(): unknown {
  *  empty-workspace board a first-run operator sees. */
 const EMPTY_MODE = new URLSearchParams(window.location.search).get("empty") === "1";
 const DEMO_MODE = new URLSearchParams(window.location.search).get("demo") === "1";
+// `?scale=N` (performance probes only): append N synthetic bulk threads
+// (data.ts SIM_BULK_THREADS) so a probe measures a board the size a
+// long-lived workspace reaches, where the ~50-thread fixture is too small to
+// show a bottleneck. 0 (the default) leaves every fixture byte-for-byte what
+// the UAT suites and screenshots depend on.
+const SCALE = Math.max(0, Number(new URLSearchParams(window.location.search).get("scale") ?? "0") || 0);
 // `?failautotitle=` (comma list): autotitle call kinds that fail ONCE, then
 // succeed — the UAT suite walks a failure into the fallback modal and out
 // through an alternative. Kinds: "plain" (the bare ✨ call), "threadmodel"
@@ -229,9 +235,10 @@ const FAIL_AUTOTITLE_KINDS = new Set(
 );
 let simThreads: readonly SimThread[] = EMPTY_MODE
   ? []
-  : DEMO_MODE
-    ? [...SIM_THREADS, ...SIM_DEMO_THREADS]
-    : SIM_THREADS;
+  : [
+      ...(DEMO_MODE ? [...SIM_THREADS, ...SIM_DEMO_THREADS] : SIM_THREADS),
+      ...(SCALE > 0 ? SIM_BULK_THREADS(SCALE) : []),
+    ];
 
 /** Threads archived in the harness; `threads.list({ archived: true })` serves these. */
 let simArchived: readonly SimThread[] = [];

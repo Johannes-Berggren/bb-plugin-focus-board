@@ -1,0 +1,862 @@
+{
+  "machine": {
+    "chrome": "Chrome/155.0.8059.80",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "cpuThrottleRate": 10,
+    "base": "http://localhost:5173/",
+    "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/155.0.0.0 Safari/537.36"
+  },
+  "boards": [
+    {
+      "board": "columns-demo",
+      "query": "?demo=1",
+      "load": {
+        "domInteractive": 73,
+        "domContentLoaded": 741,
+        "load": 756,
+        "fcp": 1988,
+        "lcp": 1988,
+        "boardPaintAt": 1629,
+        "totalBlockingTime": 3531,
+        "longTaskCount": 8,
+        "commitCount": 5,
+        "nodeCount": 1488,
+        "cardCount": 78,
+        "laneCount": 9,
+        "styleSheets": 3
+      },
+      "interactions": [
+        {
+          "label": "pan-board-horizontal",
+          "wallMs": 1051,
+          "commits": 0,
+          "longTaskCount": 0,
+          "longTaskMs": 0,
+          "longestTaskMs": 0,
+          "frames": 63,
+          "dropped": 0,
+          "fps": 60
+        },
+        {
+          "label": "scroll-busiest-lane-vertical",
+          "wallMs": 881,
+          "commits": 0,
+          "longTaskCount": 0,
+          "longTaskMs": 0,
+          "longestTaskMs": 0,
+          "frames": 53,
+          "dropped": 0,
+          "fps": 60
+        },
+        {
+          "label": "hover-12-cards",
+          "wallMs": 1707,
+          "commits": 0,
+          "longTaskCount": 1,
+          "longTaskMs": 62,
+          "longestTaskMs": 62,
+          "frames": 100,
+          "dropped": 1,
+          "fps": 59
+        },
+        {
+          "label": "open-thread-pane",
+          "wallMs": 937,
+          "commits": 0,
+          "longTaskCount": 0,
+          "longTaskMs": 0,
+          "longestTaskMs": 0,
+          "frames": 54,
+          "dropped": 1,
+          "fps": 58
+        }
+      ],
+      "boardBox": {
+        "x": 0,
+        "y": 57,
+        "w": 390,
+        "h": 787,
+        "scrollWidth": 2444,
+        "clientWidth": 390
+      },
+      "laneScroll": {
+        "cards": 30,
+        "scrollHeight": 1660,
+        "clientHeight": 748,
+        "x": 553,
+        "y": 458
+      },
+      "hoverProfile": {
+        "label": "hover-12-cards",
+        "totalSamples": 1832,
+        "activeSamples": 36,
+        "sampleIntervalUs": 100,
+        "top": [
+          {
+            "file": "",
+            "line": 54,
+            "fn": "tick",
+            "selfSamples": 5,
+            "selfPctActive": 13.9,
+            "selfPctTotal": 0.3
+          },
+          {
+            "file": "react-dom_client.js",
+            "line": 2200,
+            "fn": "SyntheticBaseEvent",
+            "selfSamples": 5,
+            "selfPctActive": 13.9,
+            "selfPctTotal": 0.3
+          },
+          {
+            "file": "",
+            "line": 0,
+            "fn": "requestAnimationFrame",
+            "selfSamples": 4,
+            "selfPctActive": 11.1,
+            "selfPctTotal": 0.2
+          },
+          {
+            "file": "react-dom_client.js",
+            "line": 10005,
+            "fn": "(anonymous)",
+            "selfSamples": 3,
+            "selfPctActive": 8.3,
+            "selfPctTotal": 0.2
+          },
+          {
+            "file": "pptr",
+            "line": null,
+            "fn": "1:(anonymous)",
+            "selfSamples": 2,
+            "selfPctActive": 5.6,
+            "selfPctTotal": 0.1
+          },
+          {
+            "file": "react-dom_client.js",
+            "line": 2141,
+            "fn": "batchedUpdates$1",
+            "selfSamples": 2,
+            "selfPctActive": 5.6,
+            "selfPctTotal": 0.1
+          },
+          {
+            "file": "react-dom_client.js",
+            "line": 2152,
+            "fn": "getListener",
+            "selfSamples": 2,
+            "selfPctActive": 5.6,
+            "selfPctTotal": 0.1
+          },
+          {
+            "file": "react-dom_client.js",
+            "line": 12552,
+            "fn": "findInstanceBlockingTarget",
+            "selfSamples": 2,
+            "selfPctActive": 5.6,
+            "selfPctTotal": 0.1
+          },
+          {
+            "file": "",
+            "line": 0,
+            "fn": "(anonymous)",
+            "selfSamples": 1,
+            "selfPctActive": 2.8,
+            "selfPctTotal": 0.1
+          },
+          {
+            "file": "react-dom_client.js",
+            "line": 12500,
+            "fn": "dispatchContinuousEvent",
+            "selfSamples": 1,
+            "selfPctActive": 2.8,
+            "selfPctTotal": 0.1
+          },
+          {
+            "file": "react-dom_client.js",
+            "line": 9912,
+            "fn": "processDispatchQueue",
+            "selfSamples": 1,
+            "selfPctActive": 2.8,
+            "selfPctTotal": 0.1
+          },
+          {
+            "file": "app.tsx",
+            "line": 911,
+            "fn": "(anonymous)",
+            "selfSamples": 1,
+            "selfPctActive": 2.8,
+            "selfPctTotal": 0.1
+          },
+          {
+            "file": "thread-card.tsx",
+            "line": 386,
+            "fn": "ChildRow._jsxDEV.onMouseOut",
+            "selfSamples": 1,
+            "selfPctActive": 2.8,
+            "selfPctTotal": 0.1
+          },
+          {
+            "file": "attention-freeze.ts",
+            "line": 181,
+            "fn": "(anonymous)",
+            "selfSamples": 1,
+            "selfPctActive": 2.8,
+            "selfPctTotal": 0.1
+          },
+          {
+            "file": "react-dom_client.js",
+            "line": 337,
+            "fn": "getNearestMountedFiber",
+            "selfSamples": 1,
+            "selfPctActive": 2.8,
+            "selfPctTotal": 0.1
+          },
+          {
+            "file": "react-dom_client.js",
+            "line": 940,
+            "fn": "runWithFiberInDEV",
+            "selfSamples": 1,
+            "selfPctActive": 2.8,
+            "selfPctTotal": 0.1
+          },
+          {
+            "file": "react-dom_client.js",
+            "line": 12662,
+            "fn": "clearIfContinuousEvent",
+            "selfSamples": 1,
+            "selfPctActive": 2.8,
+            "selfPctTotal": 0.1
+          },
+          {
+            "file": "react-dom_client.js",
+            "line": 12510,
+            "fn": "dispatchEvent",
+            "selfSamples": 1,
+            "selfPctActive": 2.8,
+            "selfPctTotal": 0.1
+          },
+          {
+            "file": "react-dom_client.js",
+            "line": 12548,
+            "fn": "findInstanceBlockingEvent",
+            "selfSamples": 1,
+            "selfPctActive": 2.8,
+            "selfPctTotal": 0.1
+          }
+        ],
+        "files": [
+          {
+            "file": "react-dom_client.js",
+            "selfSamples": 21,
+            "selfPctActive": 58.3
+          },
+          {
+            "file": "",
+            "selfSamples": 10,
+            "selfPctActive": 27.8
+          },
+          {
+            "file": "pptr",
+            "selfSamples": 2,
+            "selfPctActive": 5.6
+          },
+          {
+            "file": "app.tsx",
+            "selfSamples": 1,
+            "selfPctActive": 2.8
+          },
+          {
+            "file": "thread-card.tsx",
+            "selfSamples": 1,
+            "selfPctActive": 2.8
+          },
+          {
+            "file": "attention-freeze.ts",
+            "selfSamples": 1,
+            "selfPctActive": 2.8
+          }
+        ]
+      }
+    },
+    {
+      "board": "columns-base",
+      "query": "",
+      "load": {
+        "domInteractive": 65,
+        "domContentLoaded": 685,
+        "load": 699,
+        "fcp": 1812,
+        "lcp": 1812,
+        "boardPaintAt": 1552,
+        "totalBlockingTime": 2627,
+        "longTaskCount": 8,
+        "commitCount": 5,
+        "nodeCount": 916,
+        "cardCount": 46,
+        "laneCount": 9,
+        "styleSheets": 3
+      },
+      "interactions": [
+        {
+          "label": "pan-board-horizontal",
+          "wallMs": 1045,
+          "commits": 0,
+          "longTaskCount": 0,
+          "longTaskMs": 0,
+          "longestTaskMs": 0,
+          "frames": 62,
+          "dropped": 0,
+          "fps": 59
+        },
+        {
+          "label": "scroll-busiest-lane-vertical",
+          "wallMs": 873,
+          "commits": 0,
+          "longTaskCount": 0,
+          "longTaskMs": 0,
+          "longestTaskMs": 0,
+          "frames": 52,
+          "dropped": 0,
+          "fps": 60
+        },
+        {
+          "label": "hover-12-cards",
+          "wallMs": 1645,
+          "commits": 0,
+          "longTaskCount": 0,
+          "longTaskMs": 0,
+          "longestTaskMs": 0,
+          "frames": 97,
+          "dropped": 2,
+          "fps": 59
+        },
+        {
+          "label": "open-thread-pane",
+          "wallMs": 914,
+          "commits": 0,
+          "longTaskCount": 0,
+          "longTaskMs": 0,
+          "longestTaskMs": 0,
+          "frames": 55,
+          "dropped": 0,
+          "fps": 60
+        }
+      ],
+      "boardBox": {
+        "x": 0,
+        "y": 57,
+        "w": 390,
+        "h": 787,
+        "scrollWidth": 2444,
+        "clientWidth": 390
+      },
+      "laneScroll": {
+        "cards": 18,
+        "scrollHeight": 1044,
+        "clientHeight": 741,
+        "x": 1634,
+        "y": 462
+      },
+      "hoverProfile": {
+        "label": "hover-12-cards",
+        "totalSamples": 1800,
+        "activeSamples": 34,
+        "sampleIntervalUs": 100,
+        "top": [
+          {
+            "file": "",
+            "line": 0,
+            "fn": "requestAnimationFrame",
+            "selfSamples": 8,
+            "selfPctActive": 23.5,
+            "selfPctTotal": 0.4
+          },
+          {
+            "file": "",
+            "line": 54,
+            "fn": "tick",
+            "selfSamples": 6,
+            "selfPctActive": 17.6,
+            "selfPctTotal": 0.3
+          },
+          {
+            "file": "react-dom_client.js",
+            "line": 10005,
+            "fn": "(anonymous)",
+            "selfSamples": 4,
+            "selfPctActive": 11.8,
+            "selfPctTotal": 0.2
+          },
+          {
+            "file": "react-dom_client.js",
+            "line": 12510,
+            "fn": "dispatchEvent",
+            "selfSamples": 4,
+            "selfPctActive": 11.8,
+            "selfPctTotal": 0.2
+          },
+          {
+            "file": "react-dom_client.js",
+            "line": 2141,
+            "fn": "batchedUpdates$1",
+            "selfSamples": 3,
+            "selfPctActive": 8.8,
+            "selfPctTotal": 0.2
+          },
+          {
+            "file": "",
+            "line": 0,
+            "fn": "getBoundingClientRect",
+            "selfSamples": 2,
+            "selfPctActive": 5.9,
+            "selfPctTotal": 0.1
+          },
+          {
+            "file": "react-dom_client.js",
+            "line": 2200,
+            "fn": "SyntheticBaseEvent",
+            "selfSamples": 2,
+            "selfPctActive": 5.9,
+            "selfPctTotal": 0.1
+          },
+          {
+            "file": "react-dom_client.js",
+            "line": 2152,
+            "fn": "getListener",
+            "selfSamples": 2,
+            "selfPctActive": 5.9,
+            "selfPctTotal": 0.1
+          },
+          {
+            "file": "react-dom_client.js",
+            "line": 2106,
+            "fn": "getEventTarget",
+            "selfSamples": 1,
+            "selfPctActive": 2.9,
+            "selfPctTotal": 0.1
+          },
+          {
+            "file": "react-dom_client.js",
+            "line": 12548,
+            "fn": "findInstanceBlockingEvent",
+            "selfSamples": 1,
+            "selfPctActive": 2.9,
+            "selfPctTotal": 0.1
+          },
+          {
+            "file": "react-dom_client.js",
+            "line": 337,
+            "fn": "getNearestMountedFiber",
+            "selfSamples": 1,
+            "selfPctActive": 2.9,
+            "selfPctTotal": 0.1
+          }
+        ],
+        "files": [
+          {
+            "file": "react-dom_client.js",
+            "selfSamples": 18,
+            "selfPctActive": 52.9
+          },
+          {
+            "file": "",
+            "selfSamples": 16,
+            "selfPctActive": 47.1
+          }
+        ]
+      }
+    },
+    {
+      "board": "parent-lanes-demo",
+      "query": "?groupBy=parent&demo=1",
+      "load": {
+        "domInteractive": 63,
+        "domContentLoaded": 688,
+        "load": 700,
+        "fcp": 1800,
+        "lcp": 1800,
+        "boardPaintAt": 1695,
+        "totalBlockingTime": 1510,
+        "longTaskCount": 5,
+        "commitCount": 5,
+        "nodeCount": 562,
+        "cardCount": 19,
+        "laneCount": 10,
+        "styleSheets": 3
+      },
+      "interactions": [
+        {
+          "label": "pan-board-horizontal",
+          "wallMs": 1188,
+          "commits": 1,
+          "longTaskCount": 1,
+          "longTaskMs": 137,
+          "longestTaskMs": 137,
+          "frames": 63,
+          "dropped": 1,
+          "fps": 53
+        },
+        {
+          "label": "hover-12-cards",
+          "wallMs": 1842,
+          "commits": 7,
+          "longTaskCount": 6,
+          "longTaskMs": 814,
+          "longestTaskMs": 146,
+          "frames": 49,
+          "dropped": 6,
+          "fps": 27
+        },
+        {
+          "label": "open-thread-pane",
+          "wallMs": 930,
+          "commits": 1,
+          "longTaskCount": 1,
+          "longTaskMs": 140,
+          "longestTaskMs": 140,
+          "frames": 48,
+          "dropped": 1,
+          "fps": 52
+        }
+      ],
+      "boardBox": {
+        "x": 0,
+        "y": 57,
+        "w": 390,
+        "h": 787,
+        "scrollWidth": 2078,
+        "clientWidth": 390
+      },
+      "laneScroll": null,
+      "hoverProfile": {
+        "label": "hover-12-cards",
+        "totalSamples": 2110,
+        "activeSamples": 1231,
+        "sampleIntervalUs": 100,
+        "top": [
+          {
+            "file": "react_jsx-dev-runtime.js",
+            "line": 192,
+            "fn": "exports.jsxDEV",
+            "selfSamples": 690,
+            "selfPctActive": 56.1,
+            "selfPctTotal": 32.7
+          },
+          {
+            "file": "",
+            "line": 0,
+            "fn": "run",
+            "selfSamples": 54,
+            "selfPctActive": 4.4,
+            "selfPctTotal": 2.6
+          },
+          {
+            "file": "react_jsx-dev-runtime.js",
+            "line": 105,
+            "fn": "ReactElement",
+            "selfSamples": 49,
+            "selfPctActive": 4,
+            "selfPctTotal": 2.3
+          },
+          {
+            "file": "react-dom_client.js",
+            "line": 2561,
+            "fn": "addObjectDiffToProperties",
+            "selfSamples": 41,
+            "selfPctActive": 3.3,
+            "selfPctTotal": 1.9
+          },
+          {
+            "file": "react-dom_client.js",
+            "line": 10695,
+            "fn": "updateProperties",
+            "selfSamples": 18,
+            "selfPctActive": 1.5,
+            "selfPctTotal": 0.9
+          },
+          {
+            "file": "",
+            "line": 0,
+            "fn": "(garbage collector)",
+            "selfSamples": 14,
+            "selfPctActive": 1.1,
+            "selfPctTotal": 0.7
+          },
+          {
+            "file": "react_jsx-dev-runtime.js",
+            "line": 15,
+            "fn": "getComponentNameFromType",
+            "selfSamples": 13,
+            "selfPctActive": 1.1,
+            "selfPctTotal": 0.6
+          },
+          {
+            "file": "react_jsx-dev-runtime.js",
+            "line": 149,
+            "fn": "jsxDEVImpl",
+            "selfSamples": 13,
+            "selfPctActive": 1.1,
+            "selfPctTotal": 0.6
+          },
+          {
+            "file": "react-dom_client.js",
+            "line": 2094,
+            "fn": "warnUnknownProperties",
+            "selfSamples": 12,
+            "selfPctActive": 1,
+            "selfPctTotal": 0.6
+          },
+          {
+            "file": "thread-card.tsx",
+            "line": 571,
+            "fn": "ThreadCard",
+            "selfSamples": 11,
+            "selfPctActive": 0.9,
+            "selfPctTotal": 0.5
+          },
+          {
+            "file": "",
+            "line": 0,
+            "fn": "now",
+            "selfSamples": 11,
+            "selfPctActive": 0.9,
+            "selfPctTotal": 0.5
+          },
+          {
+            "file": "react-dom_client.js",
+            "line": 1974,
+            "fn": "validateProperty",
+            "selfSamples": 11,
+            "selfPctActive": 0.9,
+            "selfPctTotal": 0.5
+          },
+          {
+            "file": "react-dom_client.js",
+            "line": 2633,
+            "fn": "logComponentRender",
+            "selfSamples": 11,
+            "selfPctActive": 0.9,
+            "selfPctTotal": 0.5
+          },
+          {
+            "file": "react_jsx-dev-runtime.js",
+            "line": 65,
+            "fn": "getTaskName",
+            "selfSamples": 10,
+            "selfPctActive": 0.8,
+            "selfPctTotal": 0.5
+          },
+          {
+            "file": "react-dom_client.js",
+            "line": 14138,
+            "fn": "react_stack_bottom_frame",
+            "selfSamples": 9,
+            "selfPctActive": 0.7,
+            "selfPctTotal": 0.4
+          },
+          {
+            "file": "tailwind-merge.js",
+            "line": 163,
+            "fn": "get",
+            "selfSamples": 9,
+            "selfPctActive": 0.7,
+            "selfPctTotal": 0.4
+          },
+          {
+            "file": "react.js",
+            "line": 624,
+            "fn": "exports.createElement",
+            "selfSamples": 9,
+            "selfPctActive": 0.7,
+            "selfPctTotal": 0.4
+          },
+          {
+            "file": "",
+            "line": 0,
+            "fn": "createTask",
+            "selfSamples": 8,
+            "selfPctActive": 0.6,
+            "selfPctTotal": 0.4
+          },
+          {
+            "file": "react_jsx-dev-runtime.js",
+            "line": 89,
+            "fn": "defineKeyPropWarningGetter",
+            "selfSamples": 8,
+            "selfPctActive": 0.6,
+            "selfPctTotal": 0.4
+          },
+          {
+            "file": "",
+            "line": 0,
+            "fn": "measure",
+            "selfSamples": 7,
+            "selfPctActive": 0.6,
+            "selfPctTotal": 0.3
+          },
+          {
+            "file": "react-dom_client.js",
+            "line": 3874,
+            "fn": "warnOnInvalidKey",
+            "selfSamples": 7,
+            "selfPctActive": 0.6,
+            "selfPctTotal": 0.3
+          },
+          {
+            "file": "react-dom_client.js",
+            "line": 2879,
+            "fn": "createWorkInProgress",
+            "selfSamples": 7,
+            "selfPctActive": 0.6,
+            "selfPctTotal": 0.3
+          },
+          {
+            "file": "react-dom_client.js",
+            "line": 940,
+            "fn": "runWithFiberInDEV",
+            "selfSamples": 6,
+            "selfPctActive": 0.5,
+            "selfPctTotal": 0.3
+          },
+          {
+            "file": "react-dom_client.js",
+            "line": 1744,
+            "fn": "updatedAncestorInfoDev",
+            "selfSamples": 6,
+            "selfPctActive": 0.5,
+            "selfPctTotal": 0.3
+          },
+          {
+            "file": "react-dom_client.js",
+            "line": 7841,
+            "fn": "commitMutationEffectsOnFiber",
+            "selfSamples": 6,
+            "selfPctActive": 0.5,
+            "selfPctTotal": 0.3
+          },
+          {
+            "file": "react-dom_client.js",
+            "line": 10005,
+            "fn": "(anonymous)",
+            "selfSamples": 5,
+            "selfPctActive": 0.4,
+            "selfPctTotal": 0.2
+          },
+          {
+            "file": "react-dom_client.js",
+            "line": 16,
+            "fn": "performWorkUntilDeadline",
+            "selfSamples": 5,
+            "selfPctActive": 0.4,
+            "selfPctTotal": 0.2
+          },
+          {
+            "file": "card-menu.ts",
+            "line": 27,
+            "fn": "cardMenuActions",
+            "selfSamples": 5,
+            "selfPctActive": 0.4,
+            "selfPctTotal": 0.2
+          },
+          {
+            "file": "",
+            "line": 0,
+            "fn": "URL",
+            "selfSamples": 5,
+            "selfPctActive": 0.4,
+            "selfPctTotal": 0.2
+          },
+          {
+            "file": "react-dom_client.js",
+            "line": 3899,
+            "fn": "reconcileChildrenArray",
+            "selfSamples": 5,
+            "selfPctActive": 0.4,
+            "selfPctTotal": 0.2
+          }
+        ],
+        "files": [
+          {
+            "file": "react_jsx-dev-runtime.js",
+            "selfSamples": 787,
+            "selfPctActive": 63.9
+          },
+          {
+            "file": "react-dom_client.js",
+            "selfSamples": 249,
+            "selfPctActive": 20.2
+          },
+          {
+            "file": "",
+            "selfSamples": 111,
+            "selfPctActive": 9
+          },
+          {
+            "file": "thread-card.tsx",
+            "selfSamples": 12,
+            "selfPctActive": 1
+          },
+          {
+            "file": "tailwind-merge.js",
+            "selfSamples": 10,
+            "selfPctActive": 0.8
+          },
+          {
+            "file": "react.js",
+            "selfSamples": 9,
+            "selfPctActive": 0.7
+          },
+          {
+            "file": "parent-lane-board.tsx",
+            "selfSamples": 8,
+            "selfPctActive": 0.6
+          },
+          {
+            "file": "tickets.ts",
+            "selfSamples": 8,
+            "selfPctActive": 0.6
+          },
+          {
+            "file": "card-menu.ts",
+            "selfSamples": 6,
+            "selfPctActive": 0.5
+          },
+          {
+            "file": "thread-card-menu.tsx",
+            "selfSamples": 5,
+            "selfPctActive": 0.4
+          },
+          {
+            "file": "link-metadata.ts",
+            "selfSamples": 5,
+            "selfPctActive": 0.4
+          },
+          {
+            "file": "grouping.ts",
+            "selfSamples": 4,
+            "selfPctActive": 0.3
+          },
+          {
+            "file": "app.tsx",
+            "selfSamples": 3,
+            "selfPctActive": 0.2
+          },
+          {
+            "file": "@hugeicons_react.js",
+            "selfSamples": 3,
+            "selfPctActive": 0.2
+          },
+          {
+            "file": "utils.ts",
+            "selfSamples": 2,
+            "selfPctActive": 0.2
+          }
+        ]
+      }
+    }
+  ]
+}

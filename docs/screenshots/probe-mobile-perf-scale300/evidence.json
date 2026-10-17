@@ -1,0 +1,1032 @@
+{
+  "machine": {
+    "chrome": "Chrome/155.0.8059.80",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "cpuThrottleRate": 4,
+    "base": "http://localhost:5174/",
+    "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/155.0.0.0 Safari/537.36"
+  },
+  "boards": [
+    {
+      "board": "columns-demo",
+      "query": "?demo=1&scale=300",
+      "load": {
+        "domInteractive": 34,
+        "domContentLoaded": 212,
+        "load": 213,
+        "fcp": 852,
+        "lcp": 852,
+        "boardPaintAt": 436,
+        "totalBlockingTime": 1422,
+        "longTaskCount": 25,
+        "commitCount": 5,
+        "nodeCount": 8927,
+        "cardCount": 480,
+        "laneCount": 9,
+        "styleSheets": 3
+      },
+      "interactions": [
+        {
+          "label": "pan-board-horizontal",
+          "wallMs": 3141,
+          "commits": 1,
+          "longTaskCount": 37,
+          "longTaskMs": 2877,
+          "longestTaskMs": 99,
+          "frames": 36,
+          "dropped": 35,
+          "fps": 11
+        },
+        {
+          "label": "scroll-busiest-lane-vertical",
+          "wallMs": 2751,
+          "commits": 0,
+          "longTaskCount": 34,
+          "longTaskMs": 2636,
+          "longestTaskMs": 84,
+          "frames": 34,
+          "dropped": 33,
+          "fps": 12
+        },
+        {
+          "label": "hover-12-cards",
+          "wallMs": 2016,
+          "commits": 14,
+          "longTaskCount": 16,
+          "longTaskMs": 1164,
+          "longestTaskMs": 105,
+          "frames": 34,
+          "dropped": 29,
+          "fps": 17
+        },
+        {
+          "label": "open-thread-pane",
+          "wallMs": 1058,
+          "commits": 2,
+          "longTaskCount": 11,
+          "longTaskMs": 865,
+          "longestTaskMs": 132,
+          "frames": 14,
+          "dropped": 12,
+          "fps": 13
+        }
+      ],
+      "boardBox": {
+        "x": 0,
+        "y": 57,
+        "w": 390,
+        "h": 787,
+        "scrollWidth": 2444,
+        "clientWidth": 390
+      },
+      "laneScroll": {
+        "cards": 230,
+        "scrollHeight": 15110,
+        "clientHeight": 748,
+        "x": 683,
+        "y": 458
+      },
+      "hoverProfile": {
+        "label": "hover-12-cards",
+        "totalSamples": 6694,
+        "activeSamples": 1901,
+        "sampleIntervalUs": 100,
+        "top": [
+          {
+            "file": "index-D0FDL4UB.js",
+            "line": 9455,
+            "fn": "updateProperties",
+            "selfSamples": 195,
+            "selfPctActive": 10.3,
+            "selfPctTotal": 2.9
+          },
+          {
+            "file": "index-D0FDL4UB.js",
+            "line": 6328,
+            "fn": "commitHostUpdate",
+            "selfSamples": 136,
+            "selfPctActive": 7.2,
+            "selfPctTotal": 2
+          },
+          {
+            "file": "index-D0FDL4UB.js",
+            "line": 20646,
+            "fn": "ThreadCard",
+            "selfSamples": 100,
+            "selfPctActive": 5.3,
+            "selfPctTotal": 1.5
+          },
+          {
+            "file": "index-D0FDL4UB.js",
+            "line": 24439,
+            "fn": "threadLi",
+            "selfSamples": 65,
+            "selfPctActive": 3.4,
+            "selfPctTotal": 1
+          },
+          {
+            "file": "index-D0FDL4UB.js",
+            "line": 3379,
+            "fn": "updateSlot",
+            "selfSamples": 59,
+            "selfPctActive": 3.1,
+            "selfPctTotal": 0.9
+          },
+          {
+            "file": "index-D0FDL4UB.js",
+            "line": 8049,
+            "fn": "workLoopSync",
+            "selfSamples": 57,
+            "selfPctActive": 3,
+            "selfPctTotal": 0.9
+          },
+          {
+            "file": "index-D0FDL4UB.js",
+            "line": 9062,
+            "fn": "setProp",
+            "selfSamples": 51,
+            "selfPctActive": 2.7,
+            "selfPctTotal": 0.8
+          },
+          {
+            "file": "index-D0FDL4UB.js",
+            "line": 3410,
+            "fn": "reconcileChildrenArray",
+            "selfSamples": 50,
+            "selfPctActive": 2.6,
+            "selfPctTotal": 0.7
+          },
+          {
+            "file": "index-D0FDL4UB.js",
+            "line": 3465,
+            "fn": "reconcileChildFibersImpl",
+            "selfSamples": 47,
+            "selfPctActive": 2.5,
+            "selfPctTotal": 0.7
+          },
+          {
+            "file": "index-D0FDL4UB.js",
+            "line": 13879,
+            "fn": "(anonymous)",
+            "selfSamples": 46,
+            "selfPctActive": 2.4,
+            "selfPctTotal": 0.7
+          },
+          {
+            "file": "index-D0FDL4UB.js",
+            "line": 6690,
+            "fn": "commitLayoutEffectOnFiber",
+            "selfSamples": 45,
+            "selfPctActive": 2.4,
+            "selfPctTotal": 0.7
+          },
+          {
+            "file": "index-D0FDL4UB.js",
+            "line": 5648,
+            "fn": "beginWork",
+            "selfSamples": 44,
+            "selfPctActive": 2.3,
+            "selfPctTotal": 0.7
+          },
+          {
+            "file": "index-D0FDL4UB.js",
+            "line": 19214,
+            "fn": "Icon",
+            "selfSamples": 44,
+            "selfPctActive": 2.3,
+            "selfPctTotal": 0.7
+          },
+          {
+            "file": "index-D0FDL4UB.js",
+            "line": 13589,
+            "fn": "scan",
+            "selfSamples": 38,
+            "selfPctActive": 2,
+            "selfPctTotal": 0.6
+          },
+          {
+            "file": "index-D0FDL4UB.js",
+            "line": 5226,
+            "fn": "updateFunctionComponent",
+            "selfSamples": 37,
+            "selfPctActive": 1.9,
+            "selfPctTotal": 0.6
+          },
+          {
+            "file": "index-D0FDL4UB.js",
+            "line": 7484,
+            "fn": "commitPassiveMountOnFiber",
+            "selfSamples": 35,
+            "selfPctActive": 1.8,
+            "selfPctTotal": 0.5
+          },
+          {
+            "file": "index-D0FDL4UB.js",
+            "line": 7627,
+            "fn": "recursivelyTraversePassiveUnmountEffects",
+            "selfSamples": 33,
+            "selfPctActive": 1.7,
+            "selfPctTotal": 0.5
+          },
+          {
+            "file": "",
+            "line": 0,
+            "fn": "(garbage collector)",
+            "selfSamples": 33,
+            "selfPctActive": 1.7,
+            "selfPctTotal": 0.5
+          },
+          {
+            "file": "index-D0FDL4UB.js",
+            "line": 20228,
+            "fn": "ThreadCardMenu",
+            "selfSamples": 31,
+            "selfPctActive": 1.6,
+            "selfPctTotal": 0.5
+          },
+          {
+            "file": "index-D0FDL4UB.js",
+            "line": 13898,
+            "fn": "(anonymous)",
+            "selfSamples": 26,
+            "selfPctActive": 1.4,
+            "selfPctTotal": 0.4
+          },
+          {
+            "file": "index-D0FDL4UB.js",
+            "line": 12745,
+            "fn": "jsxProd",
+            "selfSamples": 25,
+            "selfPctActive": 1.3,
+            "selfPctTotal": 0.4
+          },
+          {
+            "file": "index-D0FDL4UB.js",
+            "line": 341,
+            "fn": "exports.createElement",
+            "selfSamples": 25,
+            "selfPctActive": 1.3,
+            "selfPctTotal": 0.4
+          },
+          {
+            "file": "index-D0FDL4UB.js",
+            "line": 38894,
+            "fn": "(anonymous)",
+            "selfSamples": 24,
+            "selfPctActive": 1.3,
+            "selfPctTotal": 0.4
+          },
+          {
+            "file": "index-D0FDL4UB.js",
+            "line": 32474,
+            "fn": "cardMenuActions",
+            "selfSamples": 20,
+            "selfPctActive": 1.1,
+            "selfPctTotal": 0.3
+          },
+          {
+            "file": "index-D0FDL4UB.js",
+            "line": 7014,
+            "fn": "commitMutationEffectsOnFiber",
+            "selfSamples": 20,
+            "selfPctActive": 1.1,
+            "selfPctTotal": 0.3
+          },
+          {
+            "file": "index-D0FDL4UB.js",
+            "line": 6195,
+            "fn": "commitHookEffectListUnmount",
+            "selfSamples": 18,
+            "selfPctActive": 0.9,
+            "selfPctTotal": 0.3
+          },
+          {
+            "file": "index-D0FDL4UB.js",
+            "line": 15477,
+            "fn": "get",
+            "selfSamples": 17,
+            "selfPctActive": 0.9,
+            "selfPctTotal": 0.3
+          },
+          {
+            "file": "index-D0FDL4UB.js",
+            "line": 20274,
+            "fn": "(anonymous)",
+            "selfSamples": 17,
+            "selfPctActive": 0.9,
+            "selfPctTotal": 0.3
+          },
+          {
+            "file": "index-D0FDL4UB.js",
+            "line": 21739,
+            "fn": "buildFamilyIndex",
+            "selfSamples": 14,
+            "selfPctActive": 0.7,
+            "selfPctTotal": 0.2
+          },
+          {
+            "file": "index-D0FDL4UB.js",
+            "line": 6978,
+            "fn": "recursivelyTraverseMutationEffects",
+            "selfSamples": 14,
+            "selfPctActive": 0.7,
+            "selfPctTotal": 0.2
+          }
+        ],
+        "files": [
+          {
+            "file": "index-D0FDL4UB.js",
+            "selfSamples": 1824,
+            "selfPctActive": 95.9
+          },
+          {
+            "file": "",
+            "selfSamples": 74,
+            "selfPctActive": 3.9
+          },
+          {
+            "file": "pptr",
+            "selfSamples": 3,
+            "selfPctActive": 0.2
+          }
+        ]
+      }
+    },
+    {
+      "board": "columns-base",
+      "query": "?scale=300",
+      "load": {
+        "domInteractive": 29,
+        "domContentLoaded": 128,
+        "load": 128,
+        "fcp": 764,
+        "lcp": 764,
+        "boardPaintAt": 355,
+        "totalBlockingTime": 1474,
+        "longTaskCount": 24,
+        "commitCount": 5,
+        "nodeCount": 8355,
+        "cardCount": 448,
+        "laneCount": 9,
+        "styleSheets": 3
+      },
+      "interactions": [
+        {
+          "label": "pan-board-horizontal",
+          "wallMs": 3308,
+          "commits": 1,
+          "longTaskCount": 37,
+          "longTaskMs": 3031,
+          "longestTaskMs": 106,
+          "frames": 36,
+          "dropped": 35,
+          "fps": 11
+        },
+        {
+          "label": "scroll-busiest-lane-vertical",
+          "wallMs": 2922,
+          "commits": 0,
+          "longTaskCount": 35,
+          "longTaskMs": 2885,
+          "longestTaskMs": 89,
+          "frames": 34,
+          "dropped": 33,
+          "fps": 12
+        },
+        {
+          "label": "hover-12-cards",
+          "wallMs": 2178,
+          "commits": 18,
+          "longTaskCount": 21,
+          "longTaskMs": 1384,
+          "longestTaskMs": 107,
+          "frames": 36,
+          "dropped": 30,
+          "fps": 17
+        },
+        {
+          "label": "open-thread-pane",
+          "wallMs": 1035,
+          "commits": 2,
+          "longTaskCount": 8,
+          "longTaskMs": 673,
+          "longestTaskMs": 120,
+          "frames": 14,
+          "dropped": 12,
+          "fps": 14
+        }
+      ],
+      "boardBox": {
+        "x": 0,
+        "y": 57,
+        "w": 390,
+        "h": 787,
+        "scrollWidth": 2444,
+        "clientWidth": 390
+      },
+      "laneScroll": {
+        "cards": 210,
+        "scrollHeight": 14037,
+        "clientHeight": 748,
+        "x": 683,
+        "y": 458
+      },
+      "hoverProfile": {
+        "label": "hover-12-cards",
+        "totalSamples": 6748,
+        "activeSamples": 1848,
+        "sampleIntervalUs": 100,
+        "top": [
+          {
+            "file": "index-D0FDL4UB.js",
+            "line": 9455,
+            "fn": "updateProperties",
+            "selfSamples": 173,
+            "selfPctActive": 9.4,
+            "selfPctTotal": 2.6
+          },
+          {
+            "file": "index-D0FDL4UB.js",
+            "line": 6328,
+            "fn": "commitHostUpdate",
+            "selfSamples": 124,
+            "selfPctActive": 6.7,
+            "selfPctTotal": 1.8
+          },
+          {
+            "file": "index-D0FDL4UB.js",
+            "line": 20646,
+            "fn": "ThreadCard",
+            "selfSamples": 105,
+            "selfPctActive": 5.7,
+            "selfPctTotal": 1.6
+          },
+          {
+            "file": "index-D0FDL4UB.js",
+            "line": 3410,
+            "fn": "reconcileChildrenArray",
+            "selfSamples": 65,
+            "selfPctActive": 3.5,
+            "selfPctTotal": 1
+          },
+          {
+            "file": "index-D0FDL4UB.js",
+            "line": 19214,
+            "fn": "Icon",
+            "selfSamples": 61,
+            "selfPctActive": 3.3,
+            "selfPctTotal": 0.9
+          },
+          {
+            "file": "index-D0FDL4UB.js",
+            "line": 8049,
+            "fn": "workLoopSync",
+            "selfSamples": 59,
+            "selfPctActive": 3.2,
+            "selfPctTotal": 0.9
+          },
+          {
+            "file": "index-D0FDL4UB.js",
+            "line": 24439,
+            "fn": "threadLi",
+            "selfSamples": 58,
+            "selfPctActive": 3.1,
+            "selfPctTotal": 0.9
+          },
+          {
+            "file": "index-D0FDL4UB.js",
+            "line": 13879,
+            "fn": "(anonymous)",
+            "selfSamples": 52,
+            "selfPctActive": 2.8,
+            "selfPctTotal": 0.8
+          },
+          {
+            "file": "index-D0FDL4UB.js",
+            "line": 3465,
+            "fn": "reconcileChildFibersImpl",
+            "selfSamples": 46,
+            "selfPctActive": 2.5,
+            "selfPctTotal": 0.7
+          },
+          {
+            "file": "index-D0FDL4UB.js",
+            "line": 7484,
+            "fn": "commitPassiveMountOnFiber",
+            "selfSamples": 43,
+            "selfPctActive": 2.3,
+            "selfPctTotal": 0.6
+          },
+          {
+            "file": "index-D0FDL4UB.js",
+            "line": 7627,
+            "fn": "recursivelyTraversePassiveUnmountEffects",
+            "selfSamples": 42,
+            "selfPctActive": 2.3,
+            "selfPctTotal": 0.6
+          },
+          {
+            "file": "index-D0FDL4UB.js",
+            "line": 5648,
+            "fn": "beginWork",
+            "selfSamples": 41,
+            "selfPctActive": 2.2,
+            "selfPctTotal": 0.6
+          },
+          {
+            "file": "index-D0FDL4UB.js",
+            "line": 20228,
+            "fn": "ThreadCardMenu",
+            "selfSamples": 41,
+            "selfPctActive": 2.2,
+            "selfPctTotal": 0.6
+          },
+          {
+            "file": "index-D0FDL4UB.js",
+            "line": 13589,
+            "fn": "scan",
+            "selfSamples": 40,
+            "selfPctActive": 2.2,
+            "selfPctTotal": 0.6
+          },
+          {
+            "file": "index-D0FDL4UB.js",
+            "line": 9062,
+            "fn": "setProp",
+            "selfSamples": 39,
+            "selfPctActive": 2.1,
+            "selfPctTotal": 0.6
+          },
+          {
+            "file": "index-D0FDL4UB.js",
+            "line": 3379,
+            "fn": "updateSlot",
+            "selfSamples": 38,
+            "selfPctActive": 2.1,
+            "selfPctTotal": 0.6
+          },
+          {
+            "file": "index-D0FDL4UB.js",
+            "line": 6690,
+            "fn": "commitLayoutEffectOnFiber",
+            "selfSamples": 38,
+            "selfPctActive": 2.1,
+            "selfPctTotal": 0.6
+          },
+          {
+            "file": "index-D0FDL4UB.js",
+            "line": 5226,
+            "fn": "updateFunctionComponent",
+            "selfSamples": 33,
+            "selfPctActive": 1.8,
+            "selfPctTotal": 0.5
+          },
+          {
+            "file": "",
+            "line": 0,
+            "fn": "(garbage collector)",
+            "selfSamples": 31,
+            "selfPctActive": 1.7,
+            "selfPctTotal": 0.5
+          },
+          {
+            "file": "index-D0FDL4UB.js",
+            "line": 38894,
+            "fn": "(anonymous)",
+            "selfSamples": 29,
+            "selfPctActive": 1.6,
+            "selfPctTotal": 0.4
+          },
+          {
+            "file": "index-D0FDL4UB.js",
+            "line": 12745,
+            "fn": "jsxProd",
+            "selfSamples": 23,
+            "selfPctActive": 1.2,
+            "selfPctTotal": 0.3
+          },
+          {
+            "file": "index-D0FDL4UB.js",
+            "line": 6195,
+            "fn": "commitHookEffectListUnmount",
+            "selfSamples": 22,
+            "selfPctActive": 1.2,
+            "selfPctTotal": 0.3
+          },
+          {
+            "file": "index-D0FDL4UB.js",
+            "line": 341,
+            "fn": "exports.createElement",
+            "selfSamples": 21,
+            "selfPctActive": 1.1,
+            "selfPctTotal": 0.3
+          },
+          {
+            "file": "index-D0FDL4UB.js",
+            "line": 4082,
+            "fn": "updateSyncExternalStore",
+            "selfSamples": 19,
+            "selfPctActive": 1,
+            "selfPctTotal": 0.3
+          },
+          {
+            "file": "index-D0FDL4UB.js",
+            "line": 13898,
+            "fn": "(anonymous)",
+            "selfSamples": 19,
+            "selfPctActive": 1,
+            "selfPctTotal": 0.3
+          },
+          {
+            "file": "index-D0FDL4UB.js",
+            "line": 7014,
+            "fn": "commitMutationEffectsOnFiber",
+            "selfSamples": 19,
+            "selfPctActive": 1,
+            "selfPctTotal": 0.3
+          },
+          {
+            "file": "",
+            "line": 0,
+            "fn": "URL",
+            "selfSamples": 17,
+            "selfPctActive": 0.9,
+            "selfPctTotal": 0.3
+          },
+          {
+            "file": "index-D0FDL4UB.js",
+            "line": 20274,
+            "fn": "(anonymous)",
+            "selfSamples": 17,
+            "selfPctActive": 0.9,
+            "selfPctTotal": 0.3
+          },
+          {
+            "file": "index-D0FDL4UB.js",
+            "line": 39012,
+            "fn": "(anonymous)",
+            "selfSamples": 15,
+            "selfPctActive": 0.8,
+            "selfPctTotal": 0.2
+          },
+          {
+            "file": "index-D0FDL4UB.js",
+            "line": 13580,
+            "fn": "(anonymous)",
+            "selfSamples": 15,
+            "selfPctActive": 0.8,
+            "selfPctTotal": 0.2
+          }
+        ],
+        "files": [
+          {
+            "file": "index-D0FDL4UB.js",
+            "selfSamples": 1773,
+            "selfPctActive": 95.9
+          },
+          {
+            "file": "",
+            "selfSamples": 70,
+            "selfPctActive": 3.8
+          },
+          {
+            "file": "pptr",
+            "selfSamples": 5,
+            "selfPctActive": 0.3
+          }
+        ]
+      }
+    },
+    {
+      "board": "parent-lanes-demo",
+      "query": "?groupBy=parent&demo=1&scale=300",
+      "load": {
+        "domInteractive": 34,
+        "domContentLoaded": 135,
+        "load": 135,
+        "fcp": 536,
+        "lcp": 536,
+        "boardPaintAt": 462,
+        "totalBlockingTime": 315,
+        "longTaskCount": 2,
+        "commitCount": 5,
+        "nodeCount": 2961,
+        "cardCount": 119,
+        "laneCount": 60,
+        "styleSheets": 3
+      },
+      "interactions": [
+        {
+          "label": "pan-board-horizontal",
+          "wallMs": 1045,
+          "commits": 1,
+          "longTaskCount": 0,
+          "longTaskMs": 0,
+          "longestTaskMs": 0,
+          "frames": 63,
+          "dropped": 0,
+          "fps": 60
+        },
+        {
+          "label": "hover-12-cards",
+          "wallMs": 1654,
+          "commits": 12,
+          "longTaskCount": 0,
+          "longTaskMs": 0,
+          "longestTaskMs": 0,
+          "frames": 97,
+          "dropped": 2,
+          "fps": 59
+        },
+        {
+          "label": "open-thread-pane",
+          "wallMs": 925,
+          "commits": 2,
+          "longTaskCount": 0,
+          "longTaskMs": 0,
+          "longestTaskMs": 0,
+          "frames": 55,
+          "dropped": 0,
+          "fps": 59
+        }
+      ],
+      "boardBox": {
+        "x": 0,
+        "y": 57,
+        "w": 390,
+        "h": 787,
+        "scrollWidth": 10078,
+        "clientWidth": 390
+      },
+      "laneScroll": null,
+      "hoverProfile": {
+        "label": "hover-12-cards",
+        "totalSamples": 5179,
+        "activeSamples": 497,
+        "sampleIntervalUs": 100,
+        "top": [
+          {
+            "file": "index-D0FDL4UB.js",
+            "line": 6328,
+            "fn": "commitHostUpdate",
+            "selfSamples": 37,
+            "selfPctActive": 7.4,
+            "selfPctTotal": 0.7
+          },
+          {
+            "file": "index-D0FDL4UB.js",
+            "line": 20646,
+            "fn": "ThreadCard",
+            "selfSamples": 30,
+            "selfPctActive": 6,
+            "selfPctTotal": 0.6
+          },
+          {
+            "file": "index-D0FDL4UB.js",
+            "line": 9455,
+            "fn": "updateProperties",
+            "selfSamples": 29,
+            "selfPctActive": 5.8,
+            "selfPctTotal": 0.6
+          },
+          {
+            "file": "",
+            "line": 0,
+            "fn": "(garbage collector)",
+            "selfSamples": 16,
+            "selfPctActive": 3.2,
+            "selfPctTotal": 0.3
+          },
+          {
+            "file": "index-D0FDL4UB.js",
+            "line": 3410,
+            "fn": "reconcileChildrenArray",
+            "selfSamples": 15,
+            "selfPctActive": 3,
+            "selfPctTotal": 0.3
+          },
+          {
+            "file": "index-D0FDL4UB.js",
+            "line": 3379,
+            "fn": "updateSlot",
+            "selfSamples": 13,
+            "selfPctActive": 2.6,
+            "selfPctTotal": 0.3
+          },
+          {
+            "file": "index-D0FDL4UB.js",
+            "line": 3465,
+            "fn": "reconcileChildFibersImpl",
+            "selfSamples": 12,
+            "selfPctActive": 2.4,
+            "selfPctTotal": 0.2
+          },
+          {
+            "file": "",
+            "line": 0,
+            "fn": "querySelectorAll",
+            "selfSamples": 11,
+            "selfPctActive": 2.2,
+            "selfPctTotal": 0.2
+          },
+          {
+            "file": "index-D0FDL4UB.js",
+            "line": 8049,
+            "fn": "workLoopSync",
+            "selfSamples": 11,
+            "selfPctActive": 2.2,
+            "selfPctTotal": 0.2
+          },
+          {
+            "file": "index-D0FDL4UB.js",
+            "line": 3827,
+            "fn": "renderWithHooks",
+            "selfSamples": 10,
+            "selfPctActive": 2,
+            "selfPctTotal": 0.2
+          },
+          {
+            "file": "index-D0FDL4UB.js",
+            "line": 38894,
+            "fn": "(anonymous)",
+            "selfSamples": 10,
+            "selfPctActive": 2,
+            "selfPctTotal": 0.2
+          },
+          {
+            "file": "index-D0FDL4UB.js",
+            "line": 20228,
+            "fn": "ThreadCardMenu",
+            "selfSamples": 10,
+            "selfPctActive": 2,
+            "selfPctTotal": 0.2
+          },
+          {
+            "file": "index-D0FDL4UB.js",
+            "line": 37379,
+            "fn": "BoardPage",
+            "selfSamples": 10,
+            "selfPctActive": 2,
+            "selfPctTotal": 0.2
+          },
+          {
+            "file": "index-D0FDL4UB.js",
+            "line": 5648,
+            "fn": "beginWork",
+            "selfSamples": 9,
+            "selfPctActive": 1.8,
+            "selfPctTotal": 0.2
+          },
+          {
+            "file": "index-D0FDL4UB.js",
+            "line": 15301,
+            "fn": "r",
+            "selfSamples": 9,
+            "selfPctActive": 1.8,
+            "selfPctTotal": 0.2
+          },
+          {
+            "file": "",
+            "line": 0,
+            "fn": "requestAnimationFrame",
+            "selfSamples": 8,
+            "selfPctActive": 1.6,
+            "selfPctTotal": 0.2
+          },
+          {
+            "file": "index-D0FDL4UB.js",
+            "line": 33481,
+            "fn": "(anonymous)",
+            "selfSamples": 8,
+            "selfPctActive": 1.6,
+            "selfPctTotal": 0.2
+          },
+          {
+            "file": "index-D0FDL4UB.js",
+            "line": 13589,
+            "fn": "scan",
+            "selfSamples": 8,
+            "selfPctActive": 1.6,
+            "selfPctTotal": 0.2
+          },
+          {
+            "file": "index-D0FDL4UB.js",
+            "line": 6978,
+            "fn": "recursivelyTraverseMutationEffects",
+            "selfSamples": 8,
+            "selfPctActive": 1.6,
+            "selfPctTotal": 0.2
+          },
+          {
+            "file": "index-D0FDL4UB.js",
+            "line": 8817,
+            "fn": "(anonymous)",
+            "selfSamples": 7,
+            "selfPctActive": 1.4,
+            "selfPctTotal": 0.1
+          },
+          {
+            "file": "index-D0FDL4UB.js",
+            "line": 15709,
+            "fn": "tailwindMerge",
+            "selfSamples": 7,
+            "selfPctActive": 1.4,
+            "selfPctTotal": 0.1
+          },
+          {
+            "file": "index-D0FDL4UB.js",
+            "line": 21739,
+            "fn": "buildFamilyIndex",
+            "selfSamples": 7,
+            "selfPctActive": 1.4,
+            "selfPctTotal": 0.1
+          },
+          {
+            "file": "index-D0FDL4UB.js",
+            "line": 5829,
+            "fn": "bubbleProperties",
+            "selfSamples": 7,
+            "selfPctActive": 1.4,
+            "selfPctTotal": 0.1
+          },
+          {
+            "file": "",
+            "line": 54,
+            "fn": "tick",
+            "selfSamples": 6,
+            "selfPctActive": 1.2,
+            "selfPctTotal": 0.1
+          },
+          {
+            "file": "index-D0FDL4UB.js",
+            "line": 2079,
+            "fn": "SyntheticBaseEvent",
+            "selfSamples": 6,
+            "selfPctActive": 1.2,
+            "selfPctTotal": 0.1
+          },
+          {
+            "file": "index-D0FDL4UB.js",
+            "line": 38229,
+            "fn": "(anonymous)",
+            "selfSamples": 6,
+            "selfPctActive": 1.2,
+            "selfPctTotal": 0.1
+          },
+          {
+            "file": "index-D0FDL4UB.js",
+            "line": 9062,
+            "fn": "setProp",
+            "selfSamples": 6,
+            "selfPctActive": 1.2,
+            "selfPctTotal": 0.1
+          },
+          {
+            "file": "index-D0FDL4UB.js",
+            "line": 33367,
+            "fn": "trackBandHover",
+            "selfSamples": 5,
+            "selfPctActive": 1,
+            "selfPctTotal": 0.1
+          },
+          {
+            "file": "index-D0FDL4UB.js",
+            "line": 2016,
+            "fn": "getListener",
+            "selfSamples": 5,
+            "selfPctActive": 1,
+            "selfPctTotal": 0.1
+          },
+          {
+            "file": "index-D0FDL4UB.js",
+            "line": 33467,
+            "fn": "(anonymous)",
+            "selfSamples": 5,
+            "selfPctActive": 1,
+            "selfPctTotal": 0.1
+          }
+        ],
+        "files": [
+          {
+            "file": "index-D0FDL4UB.js",
+            "selfSamples": 438,
+            "selfPctActive": 88.1
+          },
+          {
+            "file": "",
+            "selfSamples": 57,
+            "selfPctActive": 11.5
+          },
+          {
+            "file": "pptr",
+            "selfSamples": 2,
+            "selfPctActive": 0.4
+          }
+        ]
+      }
+    }
+  ]
+}

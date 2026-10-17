@@ -1,0 +1,1027 @@
+{
+  "machine": {
+    "chrome": "Chrome/155.0.8059.80",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "cpuThrottleRate": 4,
+    "base": "http://localhost:5174/",
+    "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/155.0.0.0 Safari/537.36"
+  },
+  "boards": [
+    {
+      "board": "columns-demo",
+      "query": "?demo=1",
+      "load": {
+        "domInteractive": 23,
+        "domContentLoaded": 145,
+        "load": 146,
+        "fcp": 772,
+        "lcp": 772,
+        "boardPaintAt": 265,
+        "totalBlockingTime": 164,
+        "longTaskCount": 4,
+        "commitCount": 6,
+        "nodeCount": 1487,
+        "cardCount": 78,
+        "laneCount": 9,
+        "styleSheets": 3
+      },
+      "interactions": [
+        {
+          "label": "pan-board-horizontal",
+          "wallMs": 1030,
+          "commits": 0,
+          "longTaskCount": 0,
+          "longTaskMs": 0,
+          "longestTaskMs": 0,
+          "frames": 53,
+          "dropped": 1,
+          "fps": 51
+        },
+        {
+          "label": "scroll-busiest-lane-vertical",
+          "wallMs": 864,
+          "commits": 0,
+          "longTaskCount": 0,
+          "longTaskMs": 0,
+          "longestTaskMs": 0,
+          "frames": 52,
+          "dropped": 0,
+          "fps": 60
+        },
+        {
+          "label": "hover-12-cards",
+          "wallMs": 1601,
+          "commits": 18,
+          "longTaskCount": 0,
+          "longTaskMs": 0,
+          "longestTaskMs": 0,
+          "frames": 96,
+          "dropped": 0,
+          "fps": 60
+        },
+        {
+          "label": "open-thread-pane",
+          "wallMs": 915,
+          "commits": 2,
+          "longTaskCount": 0,
+          "longTaskMs": 0,
+          "longestTaskMs": 0,
+          "frames": 55,
+          "dropped": 0,
+          "fps": 60
+        }
+      ],
+      "boardBox": {
+        "x": 0,
+        "y": 57,
+        "w": 390,
+        "h": 787,
+        "scrollWidth": 2444,
+        "clientWidth": 390
+      },
+      "laneScroll": {
+        "cards": 30,
+        "scrollHeight": 1660,
+        "clientHeight": 748,
+        "x": 564,
+        "y": 458
+      },
+      "hoverProfile": {
+        "label": "hover-12-cards",
+        "totalSamples": 5245,
+        "activeSamples": 406,
+        "sampleIntervalUs": 100,
+        "top": [
+          {
+            "file": "index-BH3hoAt3.js",
+            "line": 9455,
+            "fn": "updateProperties",
+            "selfSamples": 23,
+            "selfPctActive": 5.7,
+            "selfPctTotal": 0.4
+          },
+          {
+            "file": "index-BH3hoAt3.js",
+            "line": 6328,
+            "fn": "commitHostUpdate",
+            "selfSamples": 19,
+            "selfPctActive": 4.7,
+            "selfPctTotal": 0.4
+          },
+          {
+            "file": "index-BH3hoAt3.js",
+            "line": 13791,
+            "fn": "(anonymous)",
+            "selfSamples": 18,
+            "selfPctActive": 4.4,
+            "selfPctTotal": 0.3
+          },
+          {
+            "file": "index-BH3hoAt3.js",
+            "line": 536,
+            "fn": "performWorkUntilDeadline",
+            "selfSamples": 13,
+            "selfPctActive": 3.2,
+            "selfPctTotal": 0.2
+          },
+          {
+            "file": "index-BH3hoAt3.js",
+            "line": 20558,
+            "fn": "ThreadCard",
+            "selfSamples": 13,
+            "selfPctActive": 3.2,
+            "selfPctTotal": 0.2
+          },
+          {
+            "file": "index-BH3hoAt3.js",
+            "line": 5648,
+            "fn": "beginWork",
+            "selfSamples": 10,
+            "selfPctActive": 2.5,
+            "selfPctTotal": 0.2
+          },
+          {
+            "file": "",
+            "line": 0,
+            "fn": "(garbage collector)",
+            "selfSamples": 10,
+            "selfPctActive": 2.5,
+            "selfPctTotal": 0.2
+          },
+          {
+            "file": "index-BH3hoAt3.js",
+            "line": 8817,
+            "fn": "(anonymous)",
+            "selfSamples": 9,
+            "selfPctActive": 2.2,
+            "selfPctTotal": 0.2
+          },
+          {
+            "file": "",
+            "line": 54,
+            "fn": "tick",
+            "selfSamples": 9,
+            "selfPctActive": 2.2,
+            "selfPctTotal": 0.2
+          },
+          {
+            "file": "index-BH3hoAt3.js",
+            "line": 3827,
+            "fn": "renderWithHooks",
+            "selfSamples": 8,
+            "selfPctActive": 2,
+            "selfPctTotal": 0.2
+          },
+          {
+            "file": "index-BH3hoAt3.js",
+            "line": 37291,
+            "fn": "BoardPage",
+            "selfSamples": 8,
+            "selfPctActive": 2,
+            "selfPctTotal": 0.2
+          },
+          {
+            "file": "index-BH3hoAt3.js",
+            "line": 24351,
+            "fn": "threadLi",
+            "selfSamples": 8,
+            "selfPctActive": 2,
+            "selfPctTotal": 0.2
+          },
+          {
+            "file": "index-BH3hoAt3.js",
+            "line": 13489,
+            "fn": "findTicketRefs",
+            "selfSamples": 8,
+            "selfPctActive": 2,
+            "selfPctTotal": 0.2
+          },
+          {
+            "file": "index-BH3hoAt3.js",
+            "line": 20140,
+            "fn": "ThreadCardMenu",
+            "selfSamples": 8,
+            "selfPctActive": 2,
+            "selfPctTotal": 0.2
+          },
+          {
+            "file": "index-BH3hoAt3.js",
+            "line": 3465,
+            "fn": "reconcileChildFibersImpl",
+            "selfSamples": 8,
+            "selfPctActive": 2,
+            "selfPctTotal": 0.2
+          },
+          {
+            "file": "index-BH3hoAt3.js",
+            "line": 8049,
+            "fn": "workLoopSync",
+            "selfSamples": 7,
+            "selfPctActive": 1.7,
+            "selfPctTotal": 0.1
+          },
+          {
+            "file": "index-BH3hoAt3.js",
+            "line": 13,
+            "fn": "(anonymous)",
+            "selfSamples": 7,
+            "selfPctActive": 1.7,
+            "selfPctTotal": 0.1
+          },
+          {
+            "file": "index-BH3hoAt3.js",
+            "line": 3917,
+            "fn": "updateWorkInProgressHook",
+            "selfSamples": 7,
+            "selfPctActive": 1.7,
+            "selfPctTotal": 0.1
+          },
+          {
+            "file": "index-BH3hoAt3.js",
+            "line": 2675,
+            "fn": "createWorkInProgress",
+            "selfSamples": 7,
+            "selfPctActive": 1.7,
+            "selfPctTotal": 0.1
+          },
+          {
+            "file": "index-BH3hoAt3.js",
+            "line": 3410,
+            "fn": "reconcileChildrenArray",
+            "selfSamples": 6,
+            "selfPctActive": 1.5,
+            "selfPctTotal": 0.1
+          },
+          {
+            "file": "index-BH3hoAt3.js",
+            "line": 3325,
+            "fn": "placeChild",
+            "selfSamples": 6,
+            "selfPctActive": 1.5,
+            "selfPctTotal": 0.1
+          },
+          {
+            "file": "index-BH3hoAt3.js",
+            "line": 2079,
+            "fn": "SyntheticBaseEvent",
+            "selfSamples": 5,
+            "selfPctActive": 1.2,
+            "selfPctTotal": 0.1
+          },
+          {
+            "file": "index-BH3hoAt3.js",
+            "line": 21651,
+            "fn": "buildFamilyIndex",
+            "selfSamples": 5,
+            "selfPctActive": 1.2,
+            "selfPctTotal": 0.1
+          },
+          {
+            "file": "index-BH3hoAt3.js",
+            "line": 21864,
+            "fn": "nestUnderParents",
+            "selfSamples": 5,
+            "selfPctActive": 1.2,
+            "selfPctTotal": 0.1
+          },
+          {
+            "file": "index-BH3hoAt3.js",
+            "line": 12658,
+            "fn": "jsxProd",
+            "selfSamples": 5,
+            "selfPctActive": 1.2,
+            "selfPctTotal": 0.1
+          },
+          {
+            "file": "index-BH3hoAt3.js",
+            "line": 9062,
+            "fn": "setProp",
+            "selfSamples": 5,
+            "selfPctActive": 1.2,
+            "selfPctTotal": 0.1
+          },
+          {
+            "file": "",
+            "line": 0,
+            "fn": "requestAnimationFrame",
+            "selfSamples": 5,
+            "selfPctActive": 1.2,
+            "selfPctTotal": 0.1
+          },
+          {
+            "file": "index-BH3hoAt3.js",
+            "line": 19126,
+            "fn": "Icon",
+            "selfSamples": 4,
+            "selfPctActive": 1,
+            "selfPctTotal": 0.1
+          },
+          {
+            "file": "index-BH3hoAt3.js",
+            "line": 23034,
+            "fn": "Board",
+            "selfSamples": 4,
+            "selfPctActive": 1,
+            "selfPctTotal": 0.1
+          },
+          {
+            "file": "index-BH3hoAt3.js",
+            "line": 32386,
+            "fn": "cardMenuActions",
+            "selfSamples": 4,
+            "selfPctActive": 1,
+            "selfPctTotal": 0.1
+          }
+        ],
+        "files": [
+          {
+            "file": "index-BH3hoAt3.js",
+            "selfSamples": 371,
+            "selfPctActive": 91.4
+          },
+          {
+            "file": "",
+            "selfSamples": 35,
+            "selfPctActive": 8.6
+          }
+        ]
+      }
+    },
+    {
+      "board": "columns-base",
+      "query": "",
+      "load": {
+        "domInteractive": 25,
+        "domContentLoaded": 109,
+        "load": 112,
+        "fcp": 312,
+        "lcp": 312,
+        "boardPaintAt": 224,
+        "totalBlockingTime": 104,
+        "longTaskCount": 3,
+        "commitCount": 6,
+        "nodeCount": 915,
+        "cardCount": 46,
+        "laneCount": 9,
+        "styleSheets": 3
+      },
+      "interactions": [
+        {
+          "label": "pan-board-horizontal",
+          "wallMs": 1038,
+          "commits": 0,
+          "longTaskCount": 0,
+          "longTaskMs": 0,
+          "longestTaskMs": 0,
+          "frames": 62,
+          "dropped": 0,
+          "fps": 60
+        },
+        {
+          "label": "scroll-busiest-lane-vertical",
+          "wallMs": 848,
+          "commits": 0,
+          "longTaskCount": 0,
+          "longTaskMs": 0,
+          "longestTaskMs": 0,
+          "frames": 51,
+          "dropped": 0,
+          "fps": 60
+        },
+        {
+          "label": "hover-12-cards",
+          "wallMs": 1596,
+          "commits": 12,
+          "longTaskCount": 0,
+          "longTaskMs": 0,
+          "longestTaskMs": 0,
+          "frames": 96,
+          "dropped": 0,
+          "fps": 60
+        },
+        {
+          "label": "open-thread-pane",
+          "wallMs": 906,
+          "commits": 0,
+          "longTaskCount": 0,
+          "longTaskMs": 0,
+          "longestTaskMs": 0,
+          "frames": 54,
+          "dropped": 0,
+          "fps": 60
+        }
+      ],
+      "boardBox": {
+        "x": 0,
+        "y": 57,
+        "w": 390,
+        "h": 787,
+        "scrollWidth": 2444,
+        "clientWidth": 390
+      },
+      "laneScroll": {
+        "cards": 18,
+        "scrollHeight": 1044,
+        "clientHeight": 741,
+        "x": 1654,
+        "y": 462
+      },
+      "hoverProfile": {
+        "label": "hover-12-cards",
+        "totalSamples": 5220,
+        "activeSamples": 218,
+        "sampleIntervalUs": 100,
+        "top": [
+          {
+            "file": "index-BH3hoAt3.js",
+            "line": 37291,
+            "fn": "BoardPage",
+            "selfSamples": 13,
+            "selfPctActive": 6,
+            "selfPctTotal": 0.2
+          },
+          {
+            "file": "index-BH3hoAt3.js",
+            "line": 9455,
+            "fn": "updateProperties",
+            "selfSamples": 9,
+            "selfPctActive": 4.1,
+            "selfPctTotal": 0.2
+          },
+          {
+            "file": "",
+            "line": 0,
+            "fn": "requestAnimationFrame",
+            "selfSamples": 7,
+            "selfPctActive": 3.2,
+            "selfPctTotal": 0.1
+          },
+          {
+            "file": "index-BH3hoAt3.js",
+            "line": 3827,
+            "fn": "renderWithHooks",
+            "selfSamples": 7,
+            "selfPctActive": 3.2,
+            "selfPctTotal": 0.1
+          },
+          {
+            "file": "index-BH3hoAt3.js",
+            "line": 20558,
+            "fn": "ThreadCard",
+            "selfSamples": 7,
+            "selfPctActive": 3.2,
+            "selfPctTotal": 0.1
+          },
+          {
+            "file": "index-BH3hoAt3.js",
+            "line": 6328,
+            "fn": "commitHostUpdate",
+            "selfSamples": 6,
+            "selfPctActive": 2.8,
+            "selfPctTotal": 0.1
+          },
+          {
+            "file": "index-BH3hoAt3.js",
+            "line": 2675,
+            "fn": "createWorkInProgress",
+            "selfSamples": 5,
+            "selfPctActive": 2.3,
+            "selfPctTotal": 0.1
+          },
+          {
+            "file": "index-BH3hoAt3.js",
+            "line": 13791,
+            "fn": "(anonymous)",
+            "selfSamples": 5,
+            "selfPctActive": 2.3,
+            "selfPctTotal": 0.1
+          },
+          {
+            "file": "",
+            "line": 0,
+            "fn": "(garbage collector)",
+            "selfSamples": 5,
+            "selfPctActive": 2.3,
+            "selfPctTotal": 0.1
+          },
+          {
+            "file": "index-BH3hoAt3.js",
+            "line": 8817,
+            "fn": "(anonymous)",
+            "selfSamples": 4,
+            "selfPctActive": 1.8,
+            "selfPctTotal": 0.1
+          },
+          {
+            "file": "index-BH3hoAt3.js",
+            "line": 22234,
+            "fn": "columnRunsOf",
+            "selfSamples": 4,
+            "selfPctActive": 1.8,
+            "selfPctTotal": 0.1
+          },
+          {
+            "file": "index-BH3hoAt3.js",
+            "line": 32386,
+            "fn": "cardMenuActions",
+            "selfSamples": 4,
+            "selfPctActive": 1.8,
+            "selfPctTotal": 0.1
+          },
+          {
+            "file": "index-BH3hoAt3.js",
+            "line": 13492,
+            "fn": "(anonymous)",
+            "selfSamples": 4,
+            "selfPctActive": 1.8,
+            "selfPctTotal": 0.1
+          },
+          {
+            "file": "index-BH3hoAt3.js",
+            "line": 19126,
+            "fn": "Icon",
+            "selfSamples": 4,
+            "selfPctActive": 1.8,
+            "selfPctTotal": 0.1
+          },
+          {
+            "file": "index-BH3hoAt3.js",
+            "line": 3410,
+            "fn": "reconcileChildrenArray",
+            "selfSamples": 4,
+            "selfPctActive": 1.8,
+            "selfPctTotal": 0.1
+          },
+          {
+            "file": "",
+            "line": 0,
+            "fn": "matchMedia",
+            "selfSamples": 4,
+            "selfPctActive": 1.8,
+            "selfPctTotal": 0.1
+          },
+          {
+            "file": "",
+            "line": 54,
+            "fn": "tick",
+            "selfSamples": 3,
+            "selfPctActive": 1.4,
+            "selfPctTotal": 0.1
+          },
+          {
+            "file": "index-BH3hoAt3.js",
+            "line": 2079,
+            "fn": "SyntheticBaseEvent",
+            "selfSamples": 3,
+            "selfPctActive": 1.4,
+            "selfPctTotal": 0.1
+          },
+          {
+            "file": "index-BH3hoAt3.js",
+            "line": 2016,
+            "fn": "getListener",
+            "selfSamples": 3,
+            "selfPctActive": 1.4,
+            "selfPctTotal": 0.1
+          },
+          {
+            "file": "index-BH3hoAt3.js",
+            "line": 8049,
+            "fn": "workLoopSync",
+            "selfSamples": 3,
+            "selfPctActive": 1.4,
+            "selfPctTotal": 0.1
+          },
+          {
+            "file": "index-BH3hoAt3.js",
+            "line": 5648,
+            "fn": "beginWork",
+            "selfSamples": 3,
+            "selfPctActive": 1.4,
+            "selfPctTotal": 0.1
+          },
+          {
+            "file": "index-BH3hoAt3.js",
+            "line": 19601,
+            "fn": "buildColumns",
+            "selfSamples": 3,
+            "selfPctActive": 1.4,
+            "selfPctTotal": 0.1
+          },
+          {
+            "file": "index-BH3hoAt3.js",
+            "line": 4423,
+            "fn": "updateCallback",
+            "selfSamples": 3,
+            "selfPctActive": 1.4,
+            "selfPctTotal": 0.1
+          },
+          {
+            "file": "index-BH3hoAt3.js",
+            "line": 23034,
+            "fn": "Board",
+            "selfSamples": 3,
+            "selfPctActive": 1.4,
+            "selfPctTotal": 0.1
+          },
+          {
+            "file": "index-BH3hoAt3.js",
+            "line": 24351,
+            "fn": "threadLi",
+            "selfSamples": 3,
+            "selfPctActive": 1.4,
+            "selfPctTotal": 0.1
+          },
+          {
+            "file": "",
+            "line": 0,
+            "fn": "URL",
+            "selfSamples": 3,
+            "selfPctActive": 1.4,
+            "selfPctTotal": 0.1
+          },
+          {
+            "file": "index-BH3hoAt3.js",
+            "line": 13501,
+            "fn": "scan",
+            "selfSamples": 3,
+            "selfPctActive": 1.4,
+            "selfPctTotal": 0.1
+          },
+          {
+            "file": "index-BH3hoAt3.js",
+            "line": 3465,
+            "fn": "reconcileChildFibersImpl",
+            "selfSamples": 3,
+            "selfPctActive": 1.4,
+            "selfPctTotal": 0.1
+          },
+          {
+            "file": "index-BH3hoAt3.js",
+            "line": 3379,
+            "fn": "updateSlot",
+            "selfSamples": 3,
+            "selfPctActive": 1.4,
+            "selfPctTotal": 0.1
+          },
+          {
+            "file": "index-BH3hoAt3.js",
+            "line": 5837,
+            "fn": "completeWork",
+            "selfSamples": 3,
+            "selfPctActive": 1.4,
+            "selfPctTotal": 0.1
+          }
+        ],
+        "files": [
+          {
+            "file": "index-BH3hoAt3.js",
+            "selfSamples": 194,
+            "selfPctActive": 89
+          },
+          {
+            "file": "",
+            "selfSamples": 22,
+            "selfPctActive": 10.1
+          },
+          {
+            "file": "pptr",
+            "selfSamples": 2,
+            "selfPctActive": 0.9
+          }
+        ]
+      }
+    },
+    {
+      "board": "parent-lanes-demo",
+      "query": "?groupBy=parent&demo=1",
+      "load": {
+        "domInteractive": 26,
+        "domContentLoaded": 107,
+        "load": 108,
+        "fcp": 336,
+        "lcp": 336,
+        "boardPaintAt": 277,
+        "totalBlockingTime": 144,
+        "longTaskCount": 2,
+        "commitCount": 5,
+        "nodeCount": 561,
+        "cardCount": 19,
+        "laneCount": 10,
+        "styleSheets": 3
+      },
+      "interactions": [
+        {
+          "label": "pan-board-horizontal",
+          "wallMs": 1044,
+          "commits": 1,
+          "longTaskCount": 0,
+          "longTaskMs": 0,
+          "longestTaskMs": 0,
+          "frames": 63,
+          "dropped": 0,
+          "fps": 60
+        },
+        {
+          "label": "hover-12-cards",
+          "wallMs": 1600,
+          "commits": 12,
+          "longTaskCount": 0,
+          "longTaskMs": 0,
+          "longestTaskMs": 0,
+          "frames": 95,
+          "dropped": 0,
+          "fps": 59
+        },
+        {
+          "label": "open-thread-pane",
+          "wallMs": 911,
+          "commits": 2,
+          "longTaskCount": 0,
+          "longTaskMs": 0,
+          "longestTaskMs": 0,
+          "frames": 45,
+          "dropped": 0,
+          "fps": 49
+        }
+      ],
+      "boardBox": {
+        "x": 0,
+        "y": 57,
+        "w": 390,
+        "h": 787,
+        "scrollWidth": 2078,
+        "clientWidth": 390
+      },
+      "laneScroll": null,
+      "hoverProfile": {
+        "label": "hover-12-cards",
+        "totalSamples": 5300,
+        "activeSamples": 172,
+        "sampleIntervalUs": 100,
+        "top": [
+          {
+            "file": "index-BH3hoAt3.js",
+            "line": 2079,
+            "fn": "SyntheticBaseEvent",
+            "selfSamples": 8,
+            "selfPctActive": 4.7,
+            "selfPctTotal": 0.2
+          },
+          {
+            "file": "index-BH3hoAt3.js",
+            "line": 9455,
+            "fn": "updateProperties",
+            "selfSamples": 8,
+            "selfPctActive": 4.7,
+            "selfPctTotal": 0.2
+          },
+          {
+            "file": "index-BH3hoAt3.js",
+            "line": 8817,
+            "fn": "(anonymous)",
+            "selfSamples": 7,
+            "selfPctActive": 4.1,
+            "selfPctTotal": 0.1
+          },
+          {
+            "file": "",
+            "line": 0,
+            "fn": "(garbage collector)",
+            "selfSamples": 6,
+            "selfPctActive": 3.5,
+            "selfPctTotal": 0.1
+          },
+          {
+            "file": "index-BH3hoAt3.js",
+            "line": 20558,
+            "fn": "ThreadCard",
+            "selfSamples": 5,
+            "selfPctActive": 2.9,
+            "selfPctTotal": 0.1
+          },
+          {
+            "file": "index-BH3hoAt3.js",
+            "line": 37291,
+            "fn": "BoardPage",
+            "selfSamples": 5,
+            "selfPctActive": 2.9,
+            "selfPctTotal": 0.1
+          },
+          {
+            "file": "",
+            "line": 0,
+            "fn": "querySelectorAll",
+            "selfSamples": 4,
+            "selfPctActive": 2.3,
+            "selfPctTotal": 0.1
+          },
+          {
+            "file": "",
+            "line": 54,
+            "fn": "tick",
+            "selfSamples": 4,
+            "selfPctActive": 2.3,
+            "selfPctTotal": 0.1
+          },
+          {
+            "file": "",
+            "line": 0,
+            "fn": "requestAnimationFrame",
+            "selfSamples": 4,
+            "selfPctActive": 2.3,
+            "selfPctTotal": 0.1
+          },
+          {
+            "file": "index-BH3hoAt3.js",
+            "line": 5648,
+            "fn": "beginWork",
+            "selfSamples": 4,
+            "selfPctActive": 2.3,
+            "selfPctTotal": 0.1
+          },
+          {
+            "file": "index-BH3hoAt3.js",
+            "line": 3827,
+            "fn": "renderWithHooks",
+            "selfSamples": 4,
+            "selfPctActive": 2.3,
+            "selfPctTotal": 0.1
+          },
+          {
+            "file": "index-BH3hoAt3.js",
+            "line": 2675,
+            "fn": "createWorkInProgress",
+            "selfSamples": 4,
+            "selfPctActive": 2.3,
+            "selfPctTotal": 0.1
+          },
+          {
+            "file": "index-BH3hoAt3.js",
+            "line": 33379,
+            "fn": "(anonymous)",
+            "selfSamples": 3,
+            "selfPctActive": 1.7,
+            "selfPctTotal": 0.1
+          },
+          {
+            "file": "index-BH3hoAt3.js",
+            "line": 15389,
+            "fn": "get",
+            "selfSamples": 3,
+            "selfPctActive": 1.7,
+            "selfPctTotal": 0.1
+          },
+          {
+            "file": "index-BH3hoAt3.js",
+            "line": 3917,
+            "fn": "updateWorkInProgressHook",
+            "selfSamples": 3,
+            "selfPctActive": 1.7,
+            "selfPctTotal": 0.1
+          },
+          {
+            "file": "index-BH3hoAt3.js",
+            "line": 38141,
+            "fn": "(anonymous)",
+            "selfSamples": 3,
+            "selfPctActive": 1.7,
+            "selfPctTotal": 0.1
+          },
+          {
+            "file": "index-BH3hoAt3.js",
+            "line": 20186,
+            "fn": "(anonymous)",
+            "selfSamples": 3,
+            "selfPctActive": 1.7,
+            "selfPctTotal": 0.1
+          },
+          {
+            "file": "index-BH3hoAt3.js",
+            "line": 3465,
+            "fn": "reconcileChildFibersImpl",
+            "selfSamples": 3,
+            "selfPctActive": 1.7,
+            "selfPctTotal": 0.1
+          },
+          {
+            "file": "index-BH3hoAt3.js",
+            "line": 33279,
+            "fn": "trackBandHover",
+            "selfSamples": 2,
+            "selfPctActive": 1.2,
+            "selfPctTotal": 0
+          },
+          {
+            "file": "",
+            "line": 0,
+            "fn": "postMessage",
+            "selfSamples": 2,
+            "selfPctActive": 1.2,
+            "selfPctTotal": 0
+          },
+          {
+            "file": "index-BH3hoAt3.js",
+            "line": 536,
+            "fn": "performWorkUntilDeadline",
+            "selfSamples": 2,
+            "selfPctActive": 1.2,
+            "selfPctTotal": 0
+          },
+          {
+            "file": "index-BH3hoAt3.js",
+            "line": 8049,
+            "fn": "workLoopSync",
+            "selfSamples": 2,
+            "selfPctActive": 1.2,
+            "selfPctTotal": 0
+          },
+          {
+            "file": "index-BH3hoAt3.js",
+            "line": 38806,
+            "fn": "(anonymous)",
+            "selfSamples": 2,
+            "selfPctActive": 1.2,
+            "selfPctTotal": 0
+          },
+          {
+            "file": "index-BH3hoAt3.js",
+            "line": 13501,
+            "fn": "scan",
+            "selfSamples": 2,
+            "selfPctActive": 1.2,
+            "selfPctTotal": 0
+          },
+          {
+            "file": "index-BH3hoAt3.js",
+            "line": 20398,
+            "fn": "(anonymous)",
+            "selfSamples": 2,
+            "selfPctActive": 1.2,
+            "selfPctTotal": 0
+          },
+          {
+            "file": "index-BH3hoAt3.js",
+            "line": 4431,
+            "fn": "updateMemo",
+            "selfSamples": 2,
+            "selfPctActive": 1.2,
+            "selfPctTotal": 0
+          },
+          {
+            "file": "index-BH3hoAt3.js",
+            "line": 21651,
+            "fn": "buildFamilyIndex",
+            "selfSamples": 2,
+            "selfPctActive": 1.2,
+            "selfPctTotal": 0
+          },
+          {
+            "file": "",
+            "line": 0,
+            "fn": "structuredClone",
+            "selfSamples": 2,
+            "selfPctActive": 1.2,
+            "selfPctTotal": 0
+          },
+          {
+            "file": "index-BH3hoAt3.js",
+            "line": 3841,
+            "fn": "finishRenderingHooks",
+            "selfSamples": 2,
+            "selfPctActive": 1.2,
+            "selfPctTotal": 0
+          },
+          {
+            "file": "index-BH3hoAt3.js",
+            "line": 400,
+            "fn": "exports.useEffect",
+            "selfSamples": 2,
+            "selfPctActive": 1.2,
+            "selfPctTotal": 0
+          }
+        ],
+        "files": [
+          {
+            "file": "index-BH3hoAt3.js",
+            "selfSamples": 147,
+            "selfPctActive": 85.5
+          },
+          {
+            "file": "",
+            "selfSamples": 24,
+            "selfPctActive": 14
+          },
+          {
+            "file": "pptr",
+            "selfSamples": 1,
+            "selfPctActive": 0.6
+          }
+        ]
+      }
+    }
+  ]
+}

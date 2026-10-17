@@ -1,0 +1,449 @@
+{
+  "machine": {
+    "chrome": "Chrome/155.0.8059.80",
+    "cpuThrottleRate": 20,
+    "viewport": {
+      "width": 390,
+      "height": 844
+    }
+  },
+  "gesture": "idle",
+  "query": "?demo=1",
+  "variants": [
+    {
+      "variant": "baseline",
+      "summary": {
+        "wallMs": 3036,
+        "longTaskCount": 0,
+        "longTaskMs": 0,
+        "longestTaskMs": 0,
+        "frames": 182,
+        "dropped": 0,
+        "fps": 60
+      },
+      "progress": {
+        "boardScrollLeftDelta": 0,
+        "laneScrollTopDelta": 0,
+        "paneOpened": false
+      },
+      "style": [
+        {
+          "name": "Commit",
+          "ms": 225,
+          "count": 182
+        },
+        {
+          "name": "UpdateLayoutTree",
+          "ms": 169,
+          "count": 182
+        },
+        {
+          "name": "PrePaint",
+          "ms": 62,
+          "count": 183
+        },
+        {
+          "name": "HitTest",
+          "ms": 18,
+          "count": 7
+        },
+        {
+          "name": "Layerize",
+          "ms": 0,
+          "count": 138
+        }
+      ]
+    },
+    {
+      "variant": "no-spotlight",
+      "summary": {
+        "wallMs": 3030,
+        "longTaskCount": 0,
+        "longTaskMs": 0,
+        "longestTaskMs": 0,
+        "frames": 182,
+        "dropped": 0,
+        "fps": 60
+      },
+      "progress": {
+        "boardScrollLeftDelta": 0,
+        "laneScrollTopDelta": 0,
+        "paneOpened": false
+      },
+      "style": [
+        {
+          "name": "Commit",
+          "ms": 226,
+          "count": 182
+        },
+        {
+          "name": "UpdateLayoutTree",
+          "ms": 168,
+          "count": 182
+        },
+        {
+          "name": "PrePaint",
+          "ms": 86,
+          "count": 183
+        },
+        {
+          "name": "HitTest",
+          "ms": 16,
+          "count": 7
+        },
+        {
+          "name": "Layerize",
+          "ms": 0,
+          "count": 126
+        }
+      ]
+    },
+    {
+      "variant": "cand-content-visibility",
+      "summary": {
+        "wallMs": 3035,
+        "longTaskCount": 0,
+        "longTaskMs": 0,
+        "longestTaskMs": 0,
+        "frames": 182,
+        "dropped": 0,
+        "fps": 60
+      },
+      "progress": {
+        "boardScrollLeftDelta": 0,
+        "laneScrollTopDelta": 0,
+        "paneOpened": false
+      },
+      "style": [
+        {
+          "name": "UpdateLayoutTree",
+          "ms": 161,
+          "count": 182
+        },
+        {
+          "name": "Commit",
+          "ms": 129,
+          "count": 183
+        },
+        {
+          "name": "PrePaint",
+          "ms": 58,
+          "count": 184
+        },
+        {
+          "name": "HitTest",
+          "ms": 8,
+          "count": 7
+        },
+        {
+          "name": "Layerize",
+          "ms": 2,
+          "count": 145
+        }
+      ]
+    },
+    {
+      "variant": "cand-lane-layer",
+      "summary": {
+        "wallMs": 3042,
+        "longTaskCount": 0,
+        "longTaskMs": 0,
+        "longestTaskMs": 0,
+        "frames": 182,
+        "dropped": 0,
+        "fps": 60
+      },
+      "progress": {
+        "boardScrollLeftDelta": 0,
+        "laneScrollTopDelta": 0,
+        "paneOpened": false
+      },
+      "style": [
+        {
+          "name": "Commit",
+          "ms": 213,
+          "count": 183
+        },
+        {
+          "name": "UpdateLayoutTree",
+          "ms": 117,
+          "count": 183
+        },
+        {
+          "name": "PrePaint",
+          "ms": 38,
+          "count": 184
+        },
+        {
+          "name": "HitTest",
+          "ms": 7,
+          "count": 7
+        },
+        {
+          "name": "Layerize",
+          "ms": 0,
+          "count": 126
+        }
+      ]
+    },
+    {
+      "variant": "cand-board-layer",
+      "summary": {
+        "wallMs": 3031,
+        "longTaskCount": 0,
+        "longTaskMs": 0,
+        "longestTaskMs": 0,
+        "frames": 180,
+        "dropped": 1,
+        "fps": 59
+      },
+      "progress": {
+        "boardScrollLeftDelta": 0,
+        "laneScrollTopDelta": 0,
+        "paneOpened": false
+      },
+      "style": [
+        {
+          "name": "Commit",
+          "ms": 218,
+          "count": 181
+        },
+        {
+          "name": "UpdateLayoutTree",
+          "ms": 159,
+          "count": 180
+        },
+        {
+          "name": "PrePaint",
+          "ms": 64,
+          "count": 182
+        },
+        {
+          "name": "HitTest",
+          "ms": 20,
+          "count": 7
+        },
+        {
+          "name": "Layerize",
+          "ms": 3,
+          "count": 124
+        }
+      ]
+    },
+    {
+      "variant": "cand-both-layers",
+      "summary": {
+        "wallMs": 3027,
+        "longTaskCount": 0,
+        "longTaskMs": 0,
+        "longestTaskMs": 0,
+        "frames": 182,
+        "dropped": 0,
+        "fps": 60
+      },
+      "progress": {
+        "boardScrollLeftDelta": 0,
+        "laneScrollTopDelta": 0,
+        "paneOpened": false
+      },
+      "style": [
+        {
+          "name": "Commit",
+          "ms": 226,
+          "count": 183
+        },
+        {
+          "name": "UpdateLayoutTree",
+          "ms": 139,
+          "count": 183
+        },
+        {
+          "name": "PrePaint",
+          "ms": 59,
+          "count": 184
+        },
+        {
+          "name": "Layerize",
+          "ms": 3,
+          "count": 124
+        },
+        {
+          "name": "HitTest",
+          "ms": 1,
+          "count": 7
+        }
+      ]
+    },
+    {
+      "variant": "cand-contain-paint",
+      "summary": {
+        "wallMs": 3030,
+        "longTaskCount": 0,
+        "longTaskMs": 0,
+        "longestTaskMs": 0,
+        "frames": 182,
+        "dropped": 0,
+        "fps": 60
+      },
+      "progress": {
+        "boardScrollLeftDelta": 0,
+        "laneScrollTopDelta": 0,
+        "paneOpened": false
+      },
+      "style": [
+        {
+          "name": "Commit",
+          "ms": 241,
+          "count": 183
+        },
+        {
+          "name": "UpdateLayoutTree",
+          "ms": 150,
+          "count": 182
+        },
+        {
+          "name": "PrePaint",
+          "ms": 50,
+          "count": 184
+        },
+        {
+          "name": "HitTest",
+          "ms": 31,
+          "count": 9
+        },
+        {
+          "name": "Layerize",
+          "ms": 10,
+          "count": 120
+        }
+      ]
+    },
+    {
+      "variant": "cand-card-layer",
+      "summary": {
+        "wallMs": 3035,
+        "longTaskCount": 0,
+        "longTaskMs": 0,
+        "longestTaskMs": 0,
+        "frames": 181,
+        "dropped": 1,
+        "fps": 60
+      },
+      "progress": {
+        "boardScrollLeftDelta": 0,
+        "laneScrollTopDelta": 0,
+        "paneOpened": false
+      },
+      "style": [
+        {
+          "name": "Commit",
+          "ms": 245,
+          "count": 182
+        },
+        {
+          "name": "UpdateLayoutTree",
+          "ms": 138,
+          "count": 181
+        },
+        {
+          "name": "PrePaint",
+          "ms": 36,
+          "count": 183
+        },
+        {
+          "name": "HitTest",
+          "ms": 9,
+          "count": 7
+        },
+        {
+          "name": "Layerize",
+          "ms": 1,
+          "count": 124
+        }
+      ]
+    },
+    {
+      "variant": "cand-no-pulse",
+      "summary": {
+        "wallMs": 3039,
+        "longTaskCount": 0,
+        "longTaskMs": 0,
+        "longestTaskMs": 0,
+        "frames": 182,
+        "dropped": 0,
+        "fps": 60
+      },
+      "progress": {
+        "boardScrollLeftDelta": 0,
+        "laneScrollTopDelta": 0,
+        "paneOpened": false
+      },
+      "style": [
+        {
+          "name": "Commit",
+          "ms": 86,
+          "count": 182
+        },
+        {
+          "name": "HitTest",
+          "ms": 12,
+          "count": 7
+        },
+        {
+          "name": "PrePaint",
+          "ms": 12,
+          "count": 182
+        },
+        {
+          "name": "Layerize",
+          "ms": 0,
+          "count": 109
+        }
+      ]
+    },
+    {
+      "variant": "cand-no-anim",
+      "summary": {
+        "wallMs": 3038,
+        "longTaskCount": 0,
+        "longTaskMs": 0,
+        "longestTaskMs": 0,
+        "frames": 182,
+        "dropped": 0,
+        "fps": 60
+      },
+      "progress": {
+        "boardScrollLeftDelta": 0,
+        "laneScrollTopDelta": 0,
+        "paneOpened": false
+      },
+      "style": [
+        {
+          "name": "Commit",
+          "ms": 210,
+          "count": 183
+        },
+        {
+          "name": "UpdateLayoutTree",
+          "ms": 73,
+          "count": 183
+        },
+        {
+          "name": "PrePaint",
+          "ms": 35,
+          "count": 184
+        },
+        {
+          "name": "HitTest",
+          "ms": 19,
+          "count": 7
+        },
+        {
+          "name": "Layerize",
+          "ms": 3,
+          "count": 107
+        }
+      ]
+    }
+  ]
+}

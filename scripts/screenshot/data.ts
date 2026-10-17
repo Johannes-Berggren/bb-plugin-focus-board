@@ -660,3 +660,91 @@ export const SIM_DEMO_THREADS: readonly SimThread[] = [
     href: `/projects/web/threads/${"thr_demo_unread_c1"}`,
   }),
 ];
+
+/**
+ * A synthetic bulk population for performance probes: `?scale=N` appends N
+ * threads (see mock-sdk.tsx) so a probe can measure a board the size an
+ * operator accumulates after months, instead of the ~50-thread fixture that
+ * fits every state treatment but is far smaller than a long-lived workspace.
+ *
+ * Deterministic and spread across the surfaces that cost work: the active,
+ * unread, pending-interaction, and idle age buckets each get a share; every
+ * sixth thread is a family root with one or two children (so nesting, child
+ * rows, the family expander, and the collapsed dot strip all run); a mix of
+ * providers and projects keeps the card's chip and breadcrumb paths warm.
+ * Ids are `thr_bulk_<index>`; `now` is the usual simulated clock.
+ */
+export function SIM_BULK_THREADS(count: number, now: number = SIM_NOW): SimThread[] {
+  const out: SimThread[] = [];
+  const projects = ["proj_board", "proj_api", "proj_web"];
+  const providers = ["pi", "claude-code", "codex"];
+  for (let i = 0; i < count; i += 1) {
+    // A realistic state mix for a long-lived workspace: most threads are
+    // idle, a slice is active or unread, and "needs you" stays RARE (every
+    // 50th) so the fixture does not manufacture an attention storm that a
+    // real board would not have. The mix is the input to column occupancy,
+    // so an unrealistic one would distort every measurement.
+    const kind = i % 50 === 7 ? "pending" : i % 12 === 0 ? "active" : i % 12 === 5 ? "unread" : "idle";
+    const projectId = projects[i % projects.length]!;
+    const providerId = providers[i % providers.length]!;
+    const age =
+      kind === "active"
+        ? 30 * MINUTE
+        : kind === "unread"
+          ? 3 * HOUR
+          : kind === "pending"
+            ? 20 * MINUTE
+            : [5 * HOUR, DAY + 2 * HOUR, 9 * DAY][i % 3]!;
+    const updatedAt = now - age - (i % 47) * MINUTE;
+    const label = kind === "active" ? "active work" : kind === "unread" ? "unread report" : kind === "pending" ? "needs input" : "idle item";
+    const common = {
+      projectId,
+      providerId,
+      updatedAt,
+      lastReadAt: updatedAt,
+      displayTitle: `Bulk thread ${i}: ${label}`,
+      environment: boardEnv(`perf/bulk-${i}`),
+      href: `/projects/board/threads/thr_bulk_${i}`,
+    };
+    if (kind === "active") {
+      out.push(thread({ id: `thr_bulk_${i}`, status: "active", runtimeStatus: "active", ...common }));
+    } else if (kind === "unread") {
+      out.push(thread({ id: `thr_bulk_${i}`, isUnread: true, ...common }));
+    } else if (kind === "pending") {
+      out.push(
+        thread({
+          id: `thr_bulk_${i}`,
+          hasPendingInteraction: true,
+          indicatorLabel: "Thread needs user input",
+          latestAttentionAt: updatedAt,
+          ...common,
+        }),
+      );
+    } else {
+      out.push(thread({ id: `thr_bulk_${i}`, ...common }));
+    }
+    // Every sixth thread is a family root: one or two children, one of them
+    // active on the first child so the family lifts into the Working lane.
+    if (i % 6 === 3) {
+      const children = 1 + (i % 2);
+      for (let c = 0; c < children; c += 1) {
+        out.push(
+          thread({
+            id: `thr_bulk_${i}_c${c}`,
+            displayTitle: `Bulk child ${i}.${c}: follow-up work`,
+            parentThreadId: `thr_bulk_${i}`,
+            projectId,
+            providerId,
+            status: c === 0 ? "active" : "idle",
+            runtimeStatus: c === 0 ? "active" : "idle",
+            updatedAt: updatedAt + (c + 1) * MINUTE,
+            lastReadAt: updatedAt,
+            environment: boardEnv(`perf/bulk-${i}`),
+            href: `/projects/board/threads/thr_bulk_${i}_c${c}`,
+          }),
+        );
+      }
+    }
+  }
+  return out;
+}
