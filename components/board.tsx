@@ -1608,6 +1608,23 @@ export function Board({
   // strip-honesty refusal only for a gesture that never resolved anywhere,
   // so one release raises exactly one banner, never two.
   const dotDragResolvedRef = useRef(true);
+  // The home strip's box, captured at dragstart. The morph's boundary
+  // (issue #249, goal 5) is geometric: the dragged dot's reported pointer
+  // coordinates leaving this box is the escape.
+  const dotStripRectRef = useRef<{
+    left: number;
+    right: number;
+    top: number;
+    bottom: number;
+  } | null>(null);
+  // The one-way escape flag, set exactly once per gesture at the boundary
+  // handoff and cleared at the next dragstart and at dragend. While true,
+  // the gesture's tail is an ordinary card drag: every code path outside
+  // the strip treats it through draggingIdRef, every dot rule is closed.
+  const dotEscapedRef = useRef(false);
+  // The escaped member, painted by its home card's morph ring through
+  // ThreadCard's `childDotDrag.escaped` wire.
+  const [dotDragEscapedMember, setDotDragEscapedMember] = useState<string | null>(null);
 
   function clearRankDrop(): void {
     setRankDrop(null);
@@ -1702,15 +1719,69 @@ export function Board({
    * the home strip refuses loudly and writes nothing, #231's law made
    * honest by naming where the dot has to land).
    */
-  const childDotDragStart = (memberId: string): void => {
+  const childDotDragStart = (memberId: string, event: React.DragEvent): void => {
     dotDraggingRef.current = memberId;
     dotDragResolvedRef.current = false;
+    dotEscapedRef.current = false;
+    // The strip's box, stamped from the source dot's own chain: the escape
+    // reads this box, so the dragover stream needs no re-lookups.
+    const strip = (event.currentTarget as Element).closest("[data-child-thread-dots]");
+    const rect = strip?.getBoundingClientRect();
+    dotStripRectRef.current =
+      rect === undefined || rect === null
+        ? null
+        : { left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom };
   };
+
+  /**
+   * The morph's boundary (issue #249, goal 5) — the board root watches every
+   * dragover a dot-marked drag raises. Coordinates inside the home strip's
+   * box (or missing — jsdom) keep the gesture a dot gesture; coordinates
+   * outside it hand the whole gesture to the card lifecycle at that
+   * instant: `draggingIdRef` adopts the member (so every floor, header, and
+   * card path downstream decides exactly as they do for card drags), the
+   * dot refs clear, and the home card lights its morph ring. One-way: a dot
+   * never re-becomes a dot mid-gesture, and its dragend unwinds the card
+   * lifecycle exactly once.
+   */
+  const dotDragEscapeObserver = (event: React.DragEvent): void => {
+    if (!isDotDrag(event.dataTransfer.types)) return;
+    if (dotDraggingRef.current === null || dotEscapedRef.current) return;
+    const box = dotStripRectRef.current;
+    const x = event.clientX;
+    const y = event.clientY;
+    // Missing coordinates are UNKNOWN, never outside: a simulated event
+    // without clientX/clientY (every jsdom dragover) keeps the gesture a
+    // dot gesture rather than escaping it.
+    if (box === null || typeof x !== "number" || typeof y !== "number") return;
+    if (Number.isNaN(x) || Number.isNaN(y)) return;
+    if (x >= box.left && x <= box.right && y >= box.top && y <= box.bottom) return;
+    const member = dotDraggingRef.current;
+    dotDraggingRef.current = null;
+    dotStripRectRef.current = null;
+    dotEscapedRef.current = true;
+    dotDragResolvedRef.current = true;
+    setDotDragEscapedMember(member);
+    rankDragLifecycle(member);
+  };
+
   const childDotDragEnd = (): void => {
+    if (dotEscapedRef.current) {
+      // The escaped gesture's tail was a card drag; its source dot's
+      // dragend unwinds the card lifecycle (the promise cleanup and the
+      // grown headers), never the dot dragend refusal — the escape already
+      // resolved the dot gesture.
+      dotEscapedRef.current = false;
+      dotStripRectRef.current = null;
+      setDotDragEscapedMember(null);
+      rankDragLifecycle(null);
+      return;
+    }
     const draggedId = dotDraggingRef.current;
     const resolved = dotDragResolvedRef.current;
     dotDraggingRef.current = null;
     dotDragResolvedRef.current = true;
+    dotStripRectRef.current = null;
     setChildDotLine(null);
     if (draggedId === null || draggedId === "" || resolved) return;
     reportRefusal("the dot release never landed on its family's strip, so nothing moved.");
@@ -1953,7 +2024,16 @@ export function Board({
     return null;
   };
   return (
-    <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+    <div
+      className="flex min-h-0 min-w-0 flex-1 flex-col"
+      // The morph's boundary watcher (issue #249, goal 5): the ROOT is the
+      // one surface every non-claiming dragover bubbles to, so an escaped
+      // dot's coordinates are always seen here. The strip's own claimed
+      // dragovers stop below, the strip's unclaimed background bubbling
+      // reads in-strip by coordinates, and once the handoff ran this
+      // watcher ignores the remainder of the card-typed gesture.
+      onDragOver={dotDragEscapeObserver}
+    >
       {/* The banner row lives above the horizontal scroll surface: a banner
           inside the overflow-x-auto container rides the same scrollable
           coordinate space as the columns, so once the column row overflows
@@ -2384,6 +2464,15 @@ export function Board({
           ): void => {
             if (!isDotDrag(event.dataTransfer.types)) return;
             if (!ranking) return;
+            if (dotEscapedRef.current) {
+              // The gesture already crossed the boundary: its tail is an
+              // ordinary card drag, and dot drops never reorder. Claim the
+              // strip quietly, promise nothing.
+              event.preventDefault();
+              event.stopPropagation();
+              setChildDotLine(null);
+              return;
+            }
             const draggedId = dotDraggingRef.current;
             if (draggedId === null || draggedId === "" || draggedId === hoverMemberId) {
               // The dragged dot's own slot: claimed with no line — the drop
@@ -2438,6 +2527,15 @@ export function Board({
           ): void => {
             if (!isDotDrag(event.dataTransfer.types)) return;
             if (!ranking) return;
+            if (dotEscapedRef.current) {
+              // The escaped drag came home: the release must land as a card
+              // (a floor, a header, a card), never back onto dot rules.
+              event.preventDefault();
+              event.stopPropagation();
+              setChildDotLine(null);
+              reportRefusal("a dot that already left its strip must land as a card, not back on the dots.");
+              return;
+            }
             // The payload is authoritative at drop; the ref is the fallback
             // (draggedIdFor's contract).
             const droppedId = draggedIdFor(event, dotDraggingRef.current);
@@ -2505,8 +2603,9 @@ export function Board({
                 // strip: the floor never promises it, so a release over a
                 // column resolves as the refused dragend, and a member can
                 // never detach by side effect — its drag-out is the explicit
-                // morph gesture of a later cut.
-                if (isDotDrag(event.dataTransfer.types)) return;
+                // morph gesture, and ESCAPED drags are exempt: the tail is a
+                // card drag and the card rules (detach included) apply.
+                if (isDotDrag(event.dataTransfer.types) && !dotEscapedRef.current) return;
                 // A nested child dragged over THIS floor is a detach hover: the
                 // family write rides any column, state gate or not — the same
                 // rule the card nest zone follows in non-state lanes.
@@ -2554,11 +2653,12 @@ export function Board({
                   // header drop bubbles into this very handler).
                   setFamilyHeaderColumn(null);
                 };
-                if (isDotDrag(event.dataTransfer.types)) {
+                if (isDotDrag(event.dataTransfer.types) && !dotEscapedRef.current) {
                   // A dot drag that reaches the floor anyway (a stale
                   // dragover's authorization, or a synthetic event) refuses
                   // loudly and writes nothing: the strip is the whole dot
-                  // surface of this cut (issue #249).
+                  // surface of this cut (issue #249). Escaped drags fall
+                  // through to the card rules below.
                   event.preventDefault();
                   releaseFloor();
                   dotDraggingRef.current = null;
@@ -2661,11 +2761,12 @@ export function Board({
                     setFamilyFloorColumn(null);
                     setFamilyHeaderColumn(null);
                   };
-                  if (isDotDrag(event.dataTransfer.types)) {
+                  if (isDotDrag(event.dataTransfer.types) && !dotEscapedRef.current) {
                     // Same law as the floor below: a dot drag that lands on
                     // the title anyway refuses loudly and writes nothing
                     // (issue #249) — un-nesting is never a release side
-                    // effect, the strip is the dot surface of this cut.
+                    // effect. Escaped drags fall through: the tail's detach
+                    // is a card rule now.
                     event.preventDefault();
                     event.stopPropagation();
                     releaseFloor();
@@ -2941,12 +3042,14 @@ export function Board({
                         onDragOver={
                           (event) => {
                             if (!ranking) return;
-                            if (isDotDrag(event.dataTransfer.types)) {
+                            if (isDotDrag(event.dataTransfer.types) && !dotEscapedRef.current) {
                               // Dot drags promise nothing on a card (issue
                               // #249): no nest zone, no edges — their surface
                               // is the family strip alone. Unclaimed, so the
                               // drop never fires here; the dragend refusal
-                              // names the miss.
+                              // names the miss. ESCAPED drags fall through:
+                              // the tail is an ordinary card drag, nest zone
+                              // and all.
                               return;
                             }
                             if (!isLaneDrag(event.dataTransfer.types, rankKey)) {
@@ -3076,13 +3179,14 @@ export function Board({
                         }
                         onDrop={
                           (event) => {
-                            if (isDotDrag(event.dataTransfer.types)) {
+                            if (isDotDrag(event.dataTransfer.types) && !dotEscapedRef.current) {
                               // A dot drag that reaches a card surface anyway
                               // (a stale dragover's authorization, or a
                               // synthetic event) refuses and nests nothing:
                               // childing a member is the childing morphology
                               // of a later cut, never a release side effect
-                              // (issue #249).
+                              // (issue #249). ESCAPED drags fall through:
+                              // their tail's nest writes are card rules.
                               event.preventDefault();
                               event.stopPropagation();
                               dotDraggingRef.current = null;
@@ -3489,7 +3593,8 @@ export function Board({
                               ) >
                               1
                               ? {
-                                  onDragStart: (memberId) => childDotDragStart(memberId),
+                                  onDragStart: (memberId, event) =>
+                                    childDotDragStart(memberId, event),
                                   onDragOver: (hoverMemberId, event) =>
                                     childDotDragOver(thread, hoverMemberId, event),
                                   onDrop: (hoverMemberId, event) =>
@@ -3499,6 +3604,11 @@ export function Board({
                                     childDotLine !== null && childDotLine.familyId === thread.id
                                       ? { memberId: childDotLine.memberId, zone: childDotLine.zone }
                                       : undefined,
+                                  // The morph wire: the strip whose dot crossed
+                                  // the boundary lights its own family card.
+                                  escaped:
+                                    dotDragEscapedMember !== null &&
+                                    dotTierParentOf(thread, dotDragEscapedMember) !== null,
                                 }
                               : undefined
                           }

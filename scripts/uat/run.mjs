@@ -214,6 +214,99 @@ const pageFloorAmber = ({ from, column }) => {
 };
 
 /**
+ * A dot gesture on the collapsed strip: dragstart on the source dot with a
+ * REAL DataTransfer (the dot's dragstart handler writes the dropped id and
+ * the dot mark into it — a bare object cannot carry those into the other
+ * handlers), then dragover and drop on the target dot. `edge` picks the
+ * hovered dot's half, after by default. Split from `pageDragChildToFloor`
+ * because the source is a BUTTON, not an anchor, and the events never
+ * carry clientX/undefined or anything in between.
+ */
+const pageDragDotToDot = ({ from, to, edge }) => {
+  const fromDot = document.querySelector(`button[data-child-dot="${from}"]`);
+  const toDot = document.querySelector(`button[data-child-dot="${to}"]`);
+  if (!fromDot || !toDot) throw new Error(`drag_dot_to_dot: missing ${from}=${fromDot !== null} or ${to}=${toDot !== null}`);
+  const dt = new DataTransfer();
+  fromDot.dispatchEvent(new DragEvent("dragstart", { bubbles: true, cancelable: true, dataTransfer: dt }));
+  const box = toDot.getBoundingClientRect();
+  const point = {
+    bubbles: true,
+    cancelable: true,
+    dataTransfer: dt,
+    clientX: box.left + box.width * (edge === "before" ? 0.25 : 0.75),
+    clientY: box.top + box.height / 2,
+  };
+  const over = new DragEvent("dragover", point);
+  toDot.dispatchEvent(over);
+  toDot.dispatchEvent(new DragEvent("drop", point));
+  fromDot.dispatchEvent(new DragEvent("dragend", { bubbles: true, dataTransfer: dt }));
+  return { ok: true };
+};
+
+/**
+ * A dot dragged OFF the strip to a column floor: crossing the boundary in a
+ * real browser fires dragovers whose coordinates already sit far outside
+ * the strip's box — the handoff runs then. The gesture mirrors that
+ * stream: an out-of-box dragover (escape), an authorizing dragover at the
+ * floor (the card-tail rules now decide), the drop (un-parent write), and
+ * the dragend on the source dot, which unwinds the card lifecycle.
+ */
+const pageDragDotToFloor = ({ from, column }) => {
+  const fromDot = document.querySelector(`button[data-child-dot="${from}"]`);
+  const section = document.querySelector(`section[data-column-id="${column}"]`);
+  if (!fromDot || !section) throw new Error(`drag_dot_to_floor: missing ${from}=${fromDot !== null} or ${column}=${section !== null}`);
+  const dt = new DataTransfer();
+  fromDot.dispatchEvent(new DragEvent("dragstart", { bubbles: true, cancelable: true, dataTransfer: dt }));
+  const box = section.getBoundingClientRect();
+  const point = {
+    bubbles: true,
+    cancelable: true,
+    dataTransfer: dt,
+    clientX: box.left + box.width / 2,
+    clientY: box.bottom - 12,
+  };
+  // The escape: the same boundaring dragover real browsers stream the
+  // instant the pointer leaves the strip's box.
+  section.dispatchEvent(new DragEvent("dragover", point));
+  // The authorizing + drop: the card-tail rules now decide (detach).
+  section.dispatchEvent(new DragEvent("dragover", point));
+  section.dispatchEvent(new DragEvent("drop", point));
+  fromDot.dispatchEvent(new DragEvent("dragend", { bubbles: true, dataTransfer: dt }));
+  return { ok: true };
+};
+
+/**
+ * A DOT hover over the floor, mid-gesture: does the GENESIS morph show? The
+ * home card's soft amber ring is the dragged member's in-place card reading
+ * (`data-dot-escape`), set the instant the dragover reports coordinates
+ * outside the strip's box. The drag ends on the dot, unwinding.
+ */
+const pageDotEscape = ({ from, column }) => {
+  const fromDot = document.querySelector(`button[data-child-dot="${from}"]`);
+  const section = document.querySelector(`section[data-column-id="${column}"]`);
+  if (!fromDot || !section) throw new Error(`dot_escape: missing ${from} or ${column}`);
+  const dt = new DataTransfer();
+  fromDot.dispatchEvent(new DragEvent("dragstart", { bubbles: true, cancelable: true, dataTransfer: dt }));
+  const box = section.getBoundingClientRect();
+  section.dispatchEvent(new DragEvent("dragover", {
+    bubbles: true,
+    cancelable: true,
+    dataTransfer: dt,
+    clientX: box.right + 30,
+    clientY: box.top + 40,
+  }));
+  const escaped = document.querySelector("[data-thread-card][data-dot-escape]") !== null;
+  const result = {
+    shown: escaped,
+    reason: escaped
+      ? "the dragged dot's family card wears the morph ring"
+      : "no morph ring on any family card",
+  };
+  fromDot.dispatchEvent(new DragEvent("dragend", { bubbles: true, dataTransfer: dt }));
+  return result;
+};
+
+/**
  * Drop a card (nested child row or top-level) on a column's TITLE strip: the
  * header sits inside the section, so the drop bubbles to the section's own
  * floor handlers — detach for a child, the column's normal floor action for
@@ -1623,6 +1716,62 @@ async function check(step, page, gestureResults = []) {
         `last call args ${JSON.stringify(last)}`,
       );
     }
+    if (rule.dot_order !== undefined) {
+      // The collapsed strip's dot sequence, read off the family card's own
+      // strip by DOM order: { family: <thread id>, dots: [...] }.
+      const want = rule.dot_order;
+      const got = await page.evaluate((familyCardId) => {
+        const strip = document.querySelector(
+          `[data-thread-card="${familyCardId}"] [data-child-thread-dots]`,
+        );
+        if (strip === null) return null;
+        return [...strip.querySelectorAll("button[data-child-dot]")].map((button) =>
+          button.getAttribute("data-child-dot"),
+        );
+      }, want.family);
+      if (got === null) {
+        expect(`strip dots of ${want.family}`, false, "no collapsed strip rendered for this family");
+      } else {
+        const hit = JSON.stringify(got) === JSON.stringify(want.dots ?? want.order ?? want);
+        expect(
+          `strip dots of ${want.family}`,
+          hit,
+          `painted ${JSON.stringify(got)} want ${JSON.stringify(want.dots ?? want.order ?? want)}`,
+        );
+      }
+    }
+    if (rule.dot_escape_hover !== undefined) {
+      // The morph read LIVE: a dot drags out over another column and the
+      // home card's ring is sampled mid-gesture, then the drag unwinds.
+      // { from: <dot>, column: <a section to hover over>, shown: boolean }.
+      const got = await page.evaluate(pageDotEscape, rule.dot_escape_hover);
+      expect(
+        "the morph ring shows while the drag is out of its strip",
+        got.shown === (rule.dot_escape_hover.shown ?? true),
+        got.reason,
+      );
+    }
+    if (rule.dot_escape !== undefined) {
+      // The morph's in-place marker while a dragged dot is outside its
+      // strip: the dragged member's family card wears data-dot-escape.
+      const want = rule.dot_escape;
+      const got = await page.evaluate((cardId) => {
+        const card = document.querySelector(`[data-thread-card="${cardId}"]`);
+        if (card === null) return null;
+        return card.hasAttribute("data-dot-escape");
+      }, want.card);
+      if (got === null) {
+        expect(`morph ring on ${want.card}`, false, "no card rendered");
+      } else {
+        expect(
+          `morph ring on ${want.card}`,
+          got === (want.shown ?? true),
+          got
+            ? "the family card wears the morph ring"
+            : "no family card wears the morph ring",
+        );
+      }
+    }
     if (rule.cleared_line !== undefined) {
       // The hover's promise must die when the pointer crosses out of the slot
       // toward the title strip — sample the slot the line was parked on,
@@ -1718,7 +1867,7 @@ async function runSuite(file, { port, browser }) {
       // is insertion order), not in this runner's historical fixed order — a
       // pane-history step sequences pushes and backs deliberately, and
       // silently reordering them rewrites the history under test.
-      const GESTURE_ORDER = ["drag", "drag_unidentified", "drag_to_column", "drag_child_to_floor", "drag_child_to_header", "hover_header", "hover", "hover_card", "mouse_to", "key", "back", "click", "click_aria", "type", "menu", "scroll", "wheel_pan", "resize", "sleep", "press_escape", "push_url"];
+      const GESTURE_ORDER = ["drag", "drag_unidentified", "drag_to_column", "drag_child_to_floor", "drag_child_to_header", "drag_dot_to_dot", "drag_dot_to_floor", "hover_header", "hover", "hover_card", "mouse_to", "key", "back", "click", "click_aria", "type", "menu", "scroll", "wheel_pan", "resize", "sleep", "press_escape", "push_url"];
       let gestureFailed = false;
       // A gesture that cannot even run (its own element is absent — a
       // regression deleted what the step targets) records the step and
@@ -1771,6 +1920,11 @@ async function runSuite(file, { port, browser }) {
           } else if (gesture === "drag_child_to_header") {
             await page.evaluate(pageDragChildToHeader, payload);
             await sleep(200);
+          } else if (gesture === "drag_dot_to_dot") {
+            await page.evaluate(pageDragDotToDot, payload);
+            await sleep(200);
+          } else if (gesture === "drag_dot_to_floor") {
+            await page.evaluate(pageDragDotToFloor, payload);
           } else if (gesture === "hover_header") {
             // Two-stage: hover=false sets the line and keeps the drag alive;
             // hover=true is the pointer's boundary crossing out of the slot
