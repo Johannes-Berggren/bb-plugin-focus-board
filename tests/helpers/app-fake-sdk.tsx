@@ -11,7 +11,12 @@
  * timing, which is exactly when attention-freeze races show themselves.
  */
 import { useSyncExternalStore, type ReactNode } from "react";
-import { applyMoveVisible } from "../../lib/rank";
+import {
+  applyRankMoveFractions,
+  type FractionColumn,
+  ordersFromFractionStore,
+} from "../../lib/rank-fractions";
+import { mintLegacyColumn } from "../../lib/rank-fractions";
 
 interface FakeSidebarThread {
   id: string;
@@ -196,10 +201,14 @@ function publishThreadChanged(): void {
   }
 }
 
-// Rank orders: a sparse per-column store the fake host mutates exactly the
-// way the real server's rank_move does (the real applyMoveVisible, not a
-// re-spelled copy), so app-level rank races are testable end to end.
-let fakeRanks: Record<string, string[]> = {};
+// Rank orders: per-card FRACTIONS internally (the real storage model,
+// lib/rank-fractions.ts), projected to the ordered id lists the app reads.
+// The rank_move arm runs the REAL shared move op (applyRankMoveFractions)
+// — the same function the live server calls — so app-level rank races are
+// testable end to end and the semantics cannot drift between host and
+// fake. Seeding keeps the ordered-list API and converts losslessly, the
+// same migration the server does on its first read.
+let fakeRanks: Record<string, FractionColumn> = {};
 const rpcCalls: { method: string; args?: unknown }[] = [];
 // A host rejection stub (issue #232: the operator's host served rank RPCs
 // from a foreign plugin instance that rejected rank_move with an input
@@ -221,13 +230,18 @@ export function resetFakeRpcCalls(): void {
   rpcCalls.splice(0, rpcCalls.length);
 }
 
-/** Seed the fake rank store (fresh per test). */
+/** Seed the fake rank store from ordered lists (fresh per test). */
 export function seedFakeRanks(orders: Record<string, string[]>): void {
-  fakeRanks = structuredClone(orders);
+  fakeRanks = Object.fromEntries(
+    Object.entries(orders).map(([columnKey, order]) => [
+      columnKey,
+      mintLegacyColumn(order),
+    ]),
+  );
 }
 
 export function fakeRankOrders(): Record<string, string[]> {
-  return structuredClone(fakeRanks);
+  return structuredClone(ordersFromFractionStore(fakeRanks));
 }
 
 // Feature-group fake state: the registry and the assignments the group_*
@@ -262,24 +276,28 @@ const rpcCall = async (method: string, args?: unknown): Promise<unknown> => {
     case "snooze_list":
       return { snoozes: {} };
     case "rank_list":
-      return { orders: structuredClone(fakeRanks) };
+      return { orders: structuredClone(ordersFromFractionStore(fakeRanks)) };
     case "rank_move": {
       if (rankMoveFailure !== null) throw new Error(rankMoveFailure);
-      const { columnKey, threadId, beforeId, toEnd, visibleIds } = args as {
-        columnKey: string;
-        threadId: string;
-        beforeId: string | null;
-        toEnd: boolean;
-        visibleIds: string[];
-      };
-      fakeRanks[columnKey] = applyMoveVisible(
-        fakeRanks[columnKey] ?? [],
-        visibleIds,
+      const { columnKey, threadId, beforeId, toEnd, visibleIds, unitIds } =
+        args as {
+          columnKey: string;
+          threadId: string;
+          beforeId: string | null;
+          toEnd: boolean;
+          visibleIds: string[];
+          unitIds?: string[];
+        };
+      const result = applyRankMoveFractions(fakeRanks, {
+        columnKey,
         threadId,
         beforeId,
         toEnd,
-      );
-      return { columnKey, order: [...fakeRanks[columnKey]] };
+        visibleIds,
+        unitIds,
+      });
+      fakeRanks = result.next;
+      return { columnKey, order: result.order };
     }
     case "groups_list":
       return {

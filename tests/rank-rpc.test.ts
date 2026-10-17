@@ -187,8 +187,11 @@ describe("a malformed stored row fails loud", () => {
     const rpc = await setup();
     await rpc.kvSet(RANK_KV_KEY, { "status:unread": "thr_a" });
     // Silently returning an empty store here would look exactly like the
-    // drag never saved.
-    await expect(list(rpc)).rejects.toThrow(/not an array/);
+    // drag never saved. The fraction parser (lib/rank-fractions.ts) accepts
+    // both shape generations, so the malformed column must be NEITHER.
+    await expect(list(rpc)).rejects.toThrow(
+      /neither an order list nor a fraction map/,
+    );
   });
 
   it("an absent row is not a failure", async () => {

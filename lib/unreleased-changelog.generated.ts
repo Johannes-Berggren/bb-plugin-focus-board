@@ -49,5 +49,10 @@ export const UNRELEASED_ITEMS: readonly { text: string; children: string[]; grou
     "text": "**Two release-safety runs started together capture their own board instead of whichever harness answered the port first.** The UAT suites and the release-safety shots share one fixed harness port, so a second tree's harness (or a stray one left up from an earlier session) used to be photographed and passed off as this run's evidence. Each run now verifies the harness on the port carries the run's own identity token and fails loudly before capturing anything (issue #116).",
     "children": [],
     "group": "Release safety"
+  },
+  {
+    "text": "**A rank drag in one bb window now survives another window's drop in the same lane.** Every card stores its own fractional rank, so a move writes only the dragged card's rank plus the unranked cards above its landing, and no stale view rewrites the arrangement another window's move just placed (issue #246).",
+    "children": [],
+    "group": "Board layout"
   }
 ];

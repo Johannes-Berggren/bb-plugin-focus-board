@@ -72,15 +72,14 @@ import {
   pruneEmptyGroups,
   type GroupRecord,
 } from "./lib/group-metadata";
+import { RANK_KV_KEY } from "./lib/rank";
 import {
-  RANK_KV_KEY,
-  applyMoveVisible,
-  orderForColumn,
-  parseRankStore,
-  rankRowFromStore,
-  type RankStore,
-} from "./lib/rank";
-import { applyUnitMoveVisible } from "./lib/rank-unit-move";
+  applyRankMoveFractions,
+  fractionRowFromStore,
+  ordersFromFractionStore,
+  parseFractionRankStore,
+  type FractionRankStore,
+} from "./lib/rank-fractions";
 import {
   sweepCliEligible,
   type SweepEligible,
@@ -515,10 +514,12 @@ export const rpcContract = defineRpcContract({
       /** Drop below the last ranked card instead of at an anchor. */
       toEnd: z.boolean(),
       /**
-       * The column's displayed order at drop time. The move ranks every card
-       * above the drop point from this list — a first drop into an unranked
-       * column otherwise ranks one card and reorders nothing, because the
-       * sparse comparator sorts all ranked cards above unranked ones.
+       * The column's displayed order at drop time (used only to name and
+       * order the UNRANKED remainder: which cards sit above the drop point
+       * without a rank, and a unit move's membership). Ranked cards take
+       * their positions from the server's stored fractions — a stale view
+       * cannot rewrite them, so two windows' drags in the same lane both
+       * survive.
        */
       visibleIds: z.array(z.string()),
       /**
@@ -1319,12 +1320,12 @@ export default async function plugin(bb: BbPluginApi) {
     await bb.storage.kv.set(KEEP_KEY, keepRowFromStore(store));
   }
 
-  async function readRanks(): Promise<RankStore> {
-    return parseRankStore(await bb.storage.kv.get<unknown>(RANK_KV_KEY));
+  async function readRanks(): Promise<FractionRankStore> {
+    return parseFractionRankStore(await bb.storage.kv.get<unknown>(RANK_KV_KEY));
   }
 
-  async function writeRanks(store: RankStore): Promise<void> {
-    await bb.storage.kv.set(RANK_KV_KEY, rankRowFromStore(store));
+  async function writeRanks(store: FractionRankStore): Promise<void> {
+    await bb.storage.kv.set(RANK_KV_KEY, fractionRowFromStore(store));
   }
 
   /**
@@ -2324,8 +2325,11 @@ export default async function plugin(bb: BbPluginApi) {
       return { threadId, keep };
     },
     rank_list: async () => {
+      // The wire projection: clients read ordered id lists, never fractions
+      // (lib/rank-fractions.ts). A legacy list row converts here in the read
+      // view — the stored row itself converts when a rank write lands.
       const store = await readRanks();
-      return { orders: rankRowFromStore(store) };
+      return { orders: ordersFromFractionStore(store) };
     },
     thread_reparent: async ({ threadId, parentThreadId }) => {
       // Validate against fresh rows, not the board's map — a family some
@@ -2347,35 +2351,34 @@ export default async function plugin(bb: BbPluginApi) {
     rank_move: ({ columnKey, threadId, beforeId, toEnd, visibleIds, unitIds }) =>
       withKvWriteLock(async () => {
         const store = await readRanks();
-        const current = orderForColumn(store, columnKey);
-        // A unit move (family box): the whole box lands contiguously at the
-        // drop point and ranks together. threadId must be one of the unit's
-        // ids — a mismatch is a client bug, never coerced.
-        const next =
-          unitIds !== undefined && unitIds.length > 0
-            ? ((): string[] => {
-                if (!unitIds.includes(threadId)) {
-                  throw new PluginCliError(
-                    `rank_move: dragged id ${threadId} is not part of the unit (${unitIds.join(", ")})`,
-                    { code: "invalid_value" },
-                  );
-                }
-                return applyUnitMoveVisible(
-                  current,
-                  visibleIds,
-                  unitIds,
-                  beforeId,
-                  toEnd,
-                );
-              })()
-            : applyMoveVisible(current, visibleIds, threadId, beforeId, toEnd);
-        // Skip the write (and the refetch) when the move changes nothing, so
-        // a drop that lands where the card already sits is a no-op everywhere.
-        if (next.join("\u0000") !== current.join("\u0000")) {
-          await writeRanks({ ...store, [columnKey]: next });
+        // The unit membership check fires here first so the RPC can carry
+        // its PluginCliError code; the shared move op re-checks and throws
+        // a plain Error as a backstop.
+        if (unitIds !== undefined && unitIds.length > 0 && !unitIds.includes(threadId)) {
+          throw new PluginCliError(
+            `rank_move: dragged id ${threadId} is not part of the unit (${unitIds.join(", ")})`,
+            { code: "invalid_value" },
+          );
+        }
+        // Anchor-fresh (lib/rank-fractions.ts): a ranked card the gesture
+        // did not aim at keeps its stored fraction, so the only change
+        // expressible is the moved card's fragment plus the densify mints.
+        // Skip the write (and the refetch) when the derived ranked order is
+        // unchanged — a re-drop that lands where the card already sits, or
+        // a stale drop the fresh state already satisfies, is a no-op.
+        const result = applyRankMoveFractions(store, {
+          columnKey,
+          threadId,
+          beforeId,
+          toEnd,
+          visibleIds,
+          unitIds,
+        });
+        if (!result.unchanged) {
+          await writeRanks(result.next);
           bb.realtime.publish(RANK_CHANGED, { columnKey });
         }
-        return { columnKey, order: next };
+        return { columnKey, order: result.order };
       }),
     groups_list: async () => {
       // Live rows only, like the other list scans: an archived member has
