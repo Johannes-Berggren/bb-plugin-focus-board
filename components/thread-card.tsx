@@ -1903,6 +1903,26 @@ function sameSetMembership(
  * The comparator therefore compares ACTIONS BY CONTENT — id, label, icon,
  * danger, divider — never by closure identity.
  */
+/**
+ * Content equality of a list of threads a card renders: the nested rows and
+ * the sub-row lists. The board rebuilds the collection wrappers on every
+ * render, but the THREAD objects inside are stable (the assembly reuses
+ * them), so comparing element identity in order is the right bar — a row
+ * whose thread object changed, moved, or disappeared must re-render the card.
+ */
+function sameThreadList(
+  prev: readonly PluginSidebarThread[] | undefined,
+  next: readonly PluginSidebarThread[] | undefined,
+): boolean {
+  if (prev === next) return true;
+  if (prev === undefined || next === undefined) return false;
+  if (prev.length !== next.length) return false;
+  for (let index = 0; index < prev.length; index++) {
+    if (prev[index] !== next[index]) return false;
+  }
+  return true;
+}
+
 function sameMenuActions(
   prev: readonly CardMenuAction[] | undefined,
   next: readonly CardMenuAction[] | undefined,
@@ -2057,8 +2077,18 @@ export function sameCardProps(prev: ThreadCardProps, next: ThreadCardProps): boo
       if (before?.kind !== after?.kind || before?.state !== after?.state) return false;
     }
   }
-  if (prev.childThreads !== next.childThreads) return false;
-  if (prev.grandchildThreadsByParent !== next.grandchildThreadsByParent) return false;
+  if (!sameThreadList(prev.childThreads, next.childThreads)) return false;
+  if (prev.grandchildThreadsByParent !== next.grandchildThreadsByParent) {
+    // The map is board-wide and rebuilt whenever the assembly is (a pane
+    // capture joins its deps), but a card only paints the sub-rows of ITS
+    // OWN children — so only those lists must match, exactly like the
+    // membership probes above.
+    const prevMap = prev.grandchildThreadsByParent;
+    const nextMap = next.grandchildThreadsByParent;
+    for (const child of next.childThreads ?? []) {
+      if (!sameThreadList(prevMap?.get(child.id), nextMap?.get(child.id))) return false;
+    }
+  }
   if (prev.childRankDrag?.line?.childId !== next.childRankDrag?.line?.childId) return false;
   if (prev.childRankDrag?.line?.zone !== next.childRankDrag?.line?.zone) return false;
   // The dot strip's own gesture state (issues #249/#172), which the board
