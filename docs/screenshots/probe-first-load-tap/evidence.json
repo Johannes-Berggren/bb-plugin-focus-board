@@ -1,0 +1,25 @@
+{
+ "machine": {
+  "chrome": "Chrome/155.0.8059.80",
+  "cpuThrottleRate": 4,
+  "scale": 300,
+  "viewport": {
+   "width": 390,
+   "height": 844
+  },
+  "query": "?demo=1&scale=300"
+ },
+ "firstCardAt": null,
+ "quietAt": 33,
+ "sampleCount": 348,
+ "distinctTargetsAtPoint": 1,
+ "targetSequence": [
+  {
+   "t": 33,
+   "id": null
+  }
+ ],
+ "cls": 0,
+ "worstDrift": [],
+ "cardCount": 478
+}

@@ -171,6 +171,55 @@ through `puppeteer-core` (nothing is downloaded), writes a report per suite to
   clipping container), and a `resize` to 1920x1080 re-runs the gate. The
   assertion demands at least one parked pulse, so the suite fails on a tree
   without the fix (verified: 0 of 42 parked before, 32 after).
+- `uat-tap-latency.yaml` — the mobile tap-latency budget under real load
+  conditions (issue #265). Declares `scale: 300` and `cpu_throttle: 4` at the
+  suite level, so it runs on a 478-card board with a phone-class CPU, then
+  times the tap that opens the pane and the tap that closes it against
+  `gesture_budget: { max_ms: 350 }`. Fails on the unfixed board (measured 812ms
+  and 725ms) and is the gate that catches the regression the standalone probes
+  only reported.
+
+## Load conditions (issue #266)
+
+A suite may declare the load it runs under in `defaults`, and it applies to
+every step of that suite:
+
+```yaml
+defaults:
+  viewport: { width: 390, height: 844 }
+  scale: 300          # append 300 synthetic threads (mock-sdk `?scale=N`)
+  attention: 40       # append 40 all-attention threads (`?attention=N`)
+  cpu_throttle: 4     # CDP Emulation.setCPUThrottlingRate — a phone-class CPU
+  network: slow3g     # CDP network throttling: none | fast3g | slow3g
+```
+
+- `scale` and `attention` ride the `goto` URL, so the mock SDK's existing
+  fixtures load. A step's own query value wins, so one step in a scaled suite
+  can still load the base fixture with `goto: "?scale=0"`.
+- `cpu_throttle` and `network` are applied to the page through a CDP session,
+  per suite, so they never leak into the next suite. `network: none` is
+  throttling OFF, which measures the CPU alone.
+- A bad value (a negative number, a misspelled preset) fails the run before
+  the browser launches. A perf suite that silently ran unthrottled would pass
+  for the wrong reason, which is the failure this feature exists to prevent.
+- The pure helpers live in `scripts/uat/load-conditions.mjs` and are pinned by
+  `tests/uat-load-conditions.test.ts`.
+
+A step may time its own gesture with a budget:
+
+```yaml
+- id: a-tap-opens-the-pane-within-budget
+  gestures:
+    - click: { card: thr_uat_queue }
+  assert:
+    - gesture_budget: { gesture: click, max_ms: 350 }
+```
+
+The measurement is the gesture's own round trip in page time — dispatch to
+the DOM going quiet for two animation frames — so the runner's own `sleep`
+waits and the CDP round trip are not part of the number. A missing reading is
+a FAIL, never a silent pass. `gesture` names which timed gesture to check
+(omit it to judge the step's last timed gesture).
 
 ## Notes
 

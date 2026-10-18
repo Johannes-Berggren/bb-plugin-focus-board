@@ -1,0 +1,54 @@
+# Operator-assisted E2E: the mobile tap latency budget (issue #265), run under
+# the load conditions a phone actually reaches (issue #266).
+#
+# The suite renders the real app in the screenshot harness at a phone viewport,
+# throttles the CPU to a phone-class rate, and loads a board with 300 synthetic
+# threads on top of the base fixture (478 cards total). It then times the two
+# taps the operator reported: opening a thread pane and closing it again.
+#
+# The budget is the number issue #265 measured on the fixed build, with a
+# little headroom for machine variance. On the unfixed build the same taps
+# measure 260-530ms and this suite fails, which is the point: a gate, not a
+# report.
+#
+# Run: npm run uat -- tests/manual/uat-tap-latency.yaml
+# (npm run build first — the harness loads dist/app.css)
+
+suite: tap-latency
+harness:
+  config: scripts/screenshot/vite.config.ts
+  port: 5190
+defaults:
+  groupBy: status
+  theme: dark
+  # The load conditions a mid-range phone is under: a 4x CPU throttle and a
+  # 478-card board.
+  viewport:
+    width: 390
+    height: 844
+  scale: 300
+  cpu_throttle: 4
+
+steps:
+  - id: a-tap-opens-the-pane-within-budget
+    title: On a throttled phone with 478 cards, a tap opens the pane inside the latency budget
+    goto: "?groupBy=status"
+    # The gesture_budget assertion times the click's own round trip in page
+    # time (dispatch to DOM-quiet), so the runner's own settle waits are not
+    # part of the number.
+    gestures:
+      - click: { card: thr_uat_queue }
+    assert:
+      - pane: { threadId: thr_uat_queue }
+      - gesture_budget: { gesture: click, max_ms: 350 }
+
+  - id: a-tap-closes-the-pane-within-budget
+    title: Tapping Back to board closes the pane inside the latency budget
+    goto: "?groupBy=status"
+    gestures:
+      - click: { card: thr_uat_queue }
+      - sleep: 400
+      - click_aria: { label: "Back to board" }
+    assert:
+      - pane: { open: false }
+      - gesture_budget: { gesture: click_aria, max_ms: 350 }
