@@ -113,7 +113,7 @@ function renderFamilyBoard(
     ]),
     rankStore: {},
     onRankMove: vi.fn(),
-    onReparent: vi.fn(),
+    onReparent: vi.fn(() => Promise.resolve()),
     onDropDone: vi.fn(),
     onDropUnread: vi.fn(),
     onDropPinned: vi.fn(),
