@@ -2008,6 +2008,10 @@ export function sameCardProps(prev: ThreadCardProps, next: ThreadCardProps): boo
     "isTransportGhost",
     "compact",
     "isCollapsed",
+    // The idle-children filter (issue #172) joined the card after this
+    // comparator was written; like `isCollapsed` it is a render branch, so a
+    // flip must re-render the card.
+    "hideIdleChildren",
   ] as const) {
     if (prev[key] !== next[key]) return false;
   }
@@ -2044,6 +2048,20 @@ export function sameCardProps(prev: ThreadCardProps, next: ThreadCardProps): boo
   if (prev.grandchildThreadsByParent !== next.grandchildThreadsByParent) return false;
   if (prev.childRankDrag?.line?.childId !== next.childRankDrag?.line?.childId) return false;
   if (prev.childRankDrag?.line?.zone !== next.childRankDrag?.line?.zone) return false;
+  // The dot strip's own gesture state (issues #249/#172), which the board
+  // rebuilds every render: the insertion line, the boundary-escape flag, and
+  // the strip's nest-target hover (the dragged card's identity plus the
+  // pointer position the bubble tracks). Every field is compared by value;
+  // the closures churn by design, like the other gesture objects.
+  if (prev.childDotDrag?.line?.memberId !== next.childDotDrag?.line?.memberId) return false;
+  if (prev.childDotDrag?.line?.zone !== next.childDotDrag?.line?.zone) return false;
+  if (prev.childDotDrag?.escaped !== next.childDotDrag?.escaped) return false;
+  if (prev.stripNestHover?.member !== next.stripNestHover?.member) return false;
+  if (prev.stripNestHover?.x !== next.stripNestHover?.x) return false;
+  if (prev.stripNestHover?.y !== next.stripNestHover?.y) return false;
+  // The strip's card-drag nest affordance: non-null exactly while a card
+  // drag hovers this family's strip, so its presence must re-render.
+  if ((prev.stripNestDrag === undefined) !== (next.stripNestDrag === undefined)) return false;
   // Menus: content-equal is the bar (closures churn by design).
   if (!sameMenuActions(prev.menuActions, next.menuActions)) return false;
   const prevChildMenus = prev.childMenuActions;
