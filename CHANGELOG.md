@@ -11,6 +11,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+#### Board layout
+
+- **A phone's pane header sizes the done checkbox to its thumb.** The pane's Mark done control was the one header button that never joined the coarse-pointer ladder, so on a phone it measured 18x22px against its 36x36 siblings. It now takes the same 36px box and a larger glyph, so the header row is one target size (issue #267).
+
 ## [1.6.0] - 2026-10-18
 
 ### Added
