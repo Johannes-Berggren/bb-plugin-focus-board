@@ -58,6 +58,30 @@ function isLive(thread: PluginSidebarThread, doneIds: ReadonlySet<string>): bool
   return !thread.isArchived && !doneIds.has(thread.id);
 }
 
+/**
+ * Every card of one row across every lane, in board display order (lane
+ * order, then the row's own order inside each lane).
+ *
+ * This is what a row sweep acts on. The sweep's eligibility law is the same
+ * predicates the Focus view's columns run (lib/sweep's candidate functions
+ * take this list instead of a column's threads), so a thread sweepable in
+ * one view is sweepable in the other, and one excluded for a reason
+ * (pinned, attention, working, live children) is excluded identically. Lanes
+ * whose row is empty contribute nothing, so the union covers exactly the
+ * cards the operator can see and click in that row.
+ */
+export function laneRowThreads(
+  lanes: readonly ParentLane[],
+  rowId: string,
+): PluginSidebarThread[] {
+  const out: PluginSidebarThread[] = [];
+  for (const lane of lanes) {
+    const row = lane.rows.find((candidate) => candidate.id === rowId);
+    if (row !== undefined) out.push(...row.threads);
+  }
+  return out;
+}
+
 /** Label for a row id, even when the row is empty. */
 export function parentLaneRowLabel(id: string): string {
   if (id === "done") return "Done";

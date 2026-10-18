@@ -538,6 +538,9 @@ let simGroupAssignments: Record<string, string> = {
   },
   ranks: () => structuredClone(ordersFromFractionStore(simRanks)),
   calls: () => structuredClone(uatCalls),
+  /** The thread ids the harness's mock moved into the archived set — the
+   *  sweep's visible write, for the parent-view sweep suite. */
+  sweepArchived: () => simArchived.map((thread) => thread.id),
   sidebarFooterAction: () => {
     const registration = registeredSidebarFooterAction;
     if (registration === null) return null;

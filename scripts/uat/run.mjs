@@ -962,6 +962,75 @@ const pageBoardScroll = ({ dx, dy, target = "lanes" }) => {
   return { scrollLeft: board.scrollLeft, scrollTop: board.scrollTop };
 };
 
+/**
+ * The Parent view's row sweep: read the rail's pill for a row, its rendered
+ * label, its armed state, and which cards board-wide carry the sweep marks.
+ * The row scope is the same column vocabulary the Focus view uses, so a
+ * suite can assert both views through one probe. `present: false` reads the
+ * absence side: the row exists with no pill on it.
+ */
+const pageParentRowSweep = (rowId) => {
+  const rail = document.querySelector("[data-rail]");
+  if (!rail) return { ok: false, reason: "no rail" };
+  const cell = rail.querySelector(`[data-rail-row="${rowId}"]`);
+  if (!cell) return { ok: false, reason: `no rail row ${rowId}` };
+  const pill = cell.querySelector("[data-sweep-button]");
+  const board = document.querySelector("[data-parent-board]");
+  const highlighted = [...(board?.querySelectorAll("[data-sweep-highlighted]") ?? [])].map(
+    (el) => el.getAttribute("data-thread-card"),
+  );
+  const active = board?.querySelector("[data-sweep-active]") ?? null;
+  return {
+    ok: true,
+    present: pill !== null,
+    label: cell.textContent?.trim() ?? "",
+    pill: pill?.textContent?.trim() ?? "",
+    armed: pill?.getAttribute("aria-pressed") === "true",
+    cancel: cell.querySelector("[data-sweep-cancel]") !== null,
+    highlighted,
+    activeId: active === null ? null : active.getAttribute("data-thread-card"),
+  };
+};
+
+/** Click the Parent view's sweep pill on one row (arm or confirm, per state):
+ *  the same gesture an operator makes, keyed by row id so the suite need not
+ *  know the pill's count-bearing aria-label. */
+const pageClickRowSweepPill = ({ row }) => {
+  const rail = document.querySelector("[data-rail]");
+  if (!rail) throw new Error("no rail");
+  const cell = rail.querySelector(`[data-rail-row="${row}"]`);
+  if (!cell) throw new Error(`no rail row ${row}`);
+  const pill = cell.querySelector("[data-sweep-button]");
+  if (!pill) throw new Error(`no sweep pill on row ${row}`);
+  if (pill.disabled) throw new Error(`the sweep pill on row ${row} is disabled`);
+  pill.click();
+  return { ok: true };
+};
+
+/** Which lanes hold highlighted cards for the armed row, and how many. */
+const pageParentRowSweepSpread = () => {
+  const byLane = {};
+  for (const lane of document.querySelectorAll("[data-parent-board] section[data-lane-id]")) {
+    const n = lane.querySelectorAll("[data-sweep-highlighted]").length;
+    if (n > 0) byLane[lane.getAttribute("data-lane-id")] = n;
+  }
+  return byLane;
+};
+
+/** The banner a sweep outcome paints, on either board. */
+const pageSweepBanner = () => {
+  const notice = document.querySelector('[data-testid="sweep-notice"]');
+  const refusal = document.querySelector('[data-testid="sweep-refusal"]');
+  return {
+    notice: notice?.textContent?.trim() ?? null,
+    refusal: refusal?.textContent?.trim() ?? null,
+    undo: document.querySelector("[data-sweep-undo]") !== null,
+  };
+};
+/** The ARCHIVED thread ids the harness's mock moved out of the sidebar. */
+const pageSweepArchived = () =>
+  globalThis.__uat.sweepArchived();
+
 /** Which lane is the locked ruler lane (or null when the lock is released)? */
 const pageLockedLane = () => {
   const locked = document.querySelector("section[data-locked]");
@@ -1515,6 +1584,148 @@ async function check(step, page, gestureResults = [], gestureTimings = []) {
         () => document.querySelector('p[role="status"]')?.textContent?.trim() ?? "",
       );
       expect("no refusal banner", text === "", `banner said ${JSON.stringify(text)}`);
+    }
+    if (rule.parent_row_sweep !== undefined) {
+      const want = rule.parent_row_sweep;
+      const got = await page.evaluate(pageParentRowSweep, want.row);
+      if (!got.ok) {
+        expect(`parent row sweep (${want.row})`, false, got.reason);
+      } else {
+        if (want.present !== undefined) {
+          expect(
+            `row ${want.row} sweep pill ${want.present ? "present" : "absent"}`,
+            got.present === want.present,
+            `pill ${want.present ? "present" : "absent"} (cell reads ${JSON.stringify(got.label)})`,
+          );
+        }
+        if (want.count !== undefined) {
+          expect(
+            `row ${want.row} pill reads ${want.count}`,
+            got.pill.startsWith(String(want.count)),
+            `pill reads ${JSON.stringify(got.pill)}`,
+          );
+        }
+        if (want.pill !== undefined) {
+          const re = new RegExp(want.pill);
+          expect(
+            `row ${want.row} pill matches ${want.pill}`,
+            re.test(got.pill),
+            `pill reads ${JSON.stringify(got.pill)}`,
+          );
+        }
+        if (want.cancel !== undefined) {
+          expect(
+            `row ${want.row} ${want.cancel ? "offers" : "hides"} the sweep exit`,
+            got.cancel === want.cancel,
+            got.cancel ? "exit button present" : "no exit button",
+          );
+        }
+        if (want.excludes !== undefined) {
+          expect(
+            `row ${want.row} excludes ${want.excludes.join(",")}`,
+            want.excludes.every((id) => !got.highlighted.includes(id)),
+            `highlighted ${JSON.stringify(got.highlighted)}`,
+          );
+        }
+        if (want.armed !== undefined) {
+          expect(
+            `row ${want.row} ${want.armed ? "armed" : "not armed"}`,
+            got.armed === want.armed,
+            got.armed ? "armed" : "not armed",
+          );
+        }
+        if (want.highlighted !== undefined) {
+          expect(
+            `row ${want.row} highlights ${want.highlighted.join(",") || "(none)"}`,
+            JSON.stringify([...got.highlighted].sort()) ===
+              JSON.stringify([...want.highlighted].sort()),
+            `highlighted ${JSON.stringify(got.highlighted)}`,
+          );
+        }
+        if (want.includes !== undefined) {
+          expect(
+            `row ${want.row} highlights ${want.includes.join(",")}`,
+            want.includes.every((id) => got.highlighted.includes(id)),
+            `highlighted ${JSON.stringify(got.highlighted)}`,
+          );
+        }
+        if (want.active !== undefined) {
+          expect(
+            `row ${want.row} active sweep card is ${want.active}`,
+            got.activeId === want.active,
+            `active ${JSON.stringify(got.activeId)}`,
+          );
+        }
+      }
+    }
+    if (rule.parent_row_sweep_lanes !== undefined) {
+      // Each named lane must hold that many highlighted cards (a subset
+      // check, not equality: context lanes chip their overflow, so the
+      // rendered spread is a lower bound on the row's preselect).
+      const want = rule.parent_row_sweep_lanes;
+      const got = await page.evaluate(pageParentRowSweepSpread);
+      const missing = Object.entries(want).filter(([lane, n]) => got[lane] !== n);
+      expect(
+        `row sweep reaches ${Object.entries(want).map(([lane, n]) => `${lane}:${n}`).join(", ")}`,
+        missing.length === 0,
+        missing.length === 0
+          ? `spread ${JSON.stringify(got)}`
+          : `spread ${JSON.stringify(got)} misses ${JSON.stringify(Object.fromEntries(missing))}`,
+      );
+    }
+    if (rule.sweep_banner !== undefined) {
+      const want = rule.sweep_banner;
+      const got = await page.evaluate(pageSweepBanner);
+      if (want.notice !== undefined) {
+        const re = new RegExp(want.notice);
+        expect(
+          `sweep notice matches ${want.notice}`,
+          got.notice !== null && re.test(got.notice),
+          `notice ${JSON.stringify(got.notice)}`,
+        );
+      }
+      if (want.refusal !== undefined) {
+        const re = new RegExp(want.refusal);
+        expect(
+          `sweep refusal matches ${want.refusal}`,
+          got.refusal !== null && re.test(got.refusal),
+          `refusal ${JSON.stringify(got.refusal)}`,
+        );
+      }
+      if (want.undo !== undefined) {
+        expect(
+          `sweep undo ${want.undo ? "offered" : "absent"}`,
+          got.undo === want.undo,
+          got.undo ? "undo button present" : "no undo button",
+        );
+      }
+    }
+    if (rule.sweep_archived !== undefined) {
+      const got = await page.evaluate(pageSweepArchived);
+      const want = rule.sweep_archived;
+      expect(
+        `archived set is ${JSON.stringify(want)}`,
+        JSON.stringify([...got].sort()) === JSON.stringify([...want].sort()),
+        `archived ${JSON.stringify(got)}`,
+      );
+    }
+    if (rule.sweep_done_set !== undefined) {
+      // The last done_set call's args must carry every key/value given — the
+      // Focus view's idle arm and the Parent view's row arm both write here.
+      const want = rule.sweep_done_set;
+      const last = await page.evaluate(() => {
+        const calls = globalThis.__uat.calls().filter((call) => call.method === "done_set");
+        return calls.at(-1)?.args ?? null;
+      });
+      const hit =
+        last !== null &&
+        typeof last === "object" &&
+        Object.entries(want).every(([key, value]) => last[key] === value);
+      expect(
+        `done_set ${JSON.stringify(want)}`,
+        hit,
+        `last call args ${JSON.stringify(last)}`,
+      );
     }
     if (rule.column_card_visible !== undefined) {
       const got = await page.evaluate(pageColumnCardVisible, rule.column_card_visible);
@@ -2149,7 +2360,7 @@ async function runSuite(file, { port, browser }) {
       // is insertion order), not in this runner's historical fixed order — a
       // pane-history step sequences pushes and backs deliberately, and
       // silently reordering them rewrites the history under test.
-      const GESTURE_ORDER = ["drag", "drag_unidentified", "drag_to_column", "drag_child_to_floor", "drag_child_to_header", "drag_dot_to_dot", "drag_dot_to_floor", "drag_card_to_strip", "hover_header", "hover", "hover_card", "mouse_to", "key", "back", "click", "click_aria", "type", "menu", "scroll", "wheel_pan", "resize", "sleep", "press_escape", "push_url"];
+      const GESTURE_ORDER = ["drag", "drag_unidentified", "drag_to_column", "drag_child_to_floor", "drag_child_to_header", "drag_dot_to_dot", "drag_dot_to_floor", "drag_card_to_strip", "hover_header", "hover", "hover_card", "mouse_to", "key", "back", "click", "click_aria", "click_row_sweep", "type", "menu", "scroll", "wheel_pan", "resize", "sleep", "press_escape", "push_url"];
       let gestureFailed = false;
       // A gesture that cannot even run (its own element is absent — a
       // regression deleted what the step targets) records the step and
@@ -2298,6 +2509,12 @@ async function runSuite(file, { port, browser }) {
           } else if (gesture === "click_aria") {
             await page.evaluate(pageClickAria, payload);
             await sleep(300);
+          } else if (gesture === "click_row_sweep") {
+            // The Parent view's row pill, keyed by row id. A confirm kicks off
+            // the sequential sweep (async writes), so the settle is longer
+            // than a plain click's.
+            await page.evaluate(pageClickRowSweepPill, payload);
+            await sleep(900);
           } else if (gesture === "type") {
             // Focus the labelled field, then type through the real input
             // pipeline (per-keystroke input events, not a value assignment) —

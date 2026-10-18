@@ -56,6 +56,15 @@ interface BoardShape {
   menuLabel?: string;
   repoHrefBase?: string;
   statusFor?: ThreadCardProps["statusFor"];
+  /** The row/column sweep surface, as the board builds it per card. Keyed by
+   *  thread id: the board arms a scope, so only that scope's cards carry the
+   *  flags. */
+  sweepFor?: (threadId: string) => {
+    highlighted?: boolean;
+    sweeping?: boolean;
+    selecting?: boolean;
+    selectable?: boolean;
+  };
 }
 
 const doneMenuRun = () => {};
@@ -92,10 +101,10 @@ function cardProps(board: BoardShape, entry: PluginSidebarThread): ThreadCardPro
     onSweepToggle: (threadId, gesture) => void `${threadId}${gesture.shiftKey}`,
     onAttentionEnter: () => onEnter(entry.id),
     onAttentionLeave: () => onLeave(entry.id),
-    isSweepHighlighted: false,
-    isSweeping: false,
-    isSweepSelecting: false,
-    isSweepSelectable: false,
+    isSweepHighlighted: board.sweepFor?.(entry.id)?.highlighted ?? false,
+    isSweeping: board.sweepFor?.(entry.id)?.sweeping ?? false,
+    isSweepSelecting: board.sweepFor?.(entry.id)?.selecting ?? false,
+    isSweepSelectable: board.sweepFor?.(entry.id)?.selectable ?? false,
     projectName: "Alpha",
     repoHrefBase: board.repoHrefBase,
     statusFor: board.statusFor,
@@ -246,6 +255,41 @@ describe("the memoized card field's comparator", () => {
     expect(
       sameCardProps(cardProps(closed, threads[0] as PluginSidebarThread), cardProps(opened, threads[0] as PluginSidebarThread)),
     ).toBe(true);
+  });
+
+  it("renders a card whose sweep flag flips, and skips the untouched ones", () => {
+    // The row/column sweep rides four card flags. Arming a row (or a column)
+    // turns `isSweepSelecting` on for that scope's cards and highlights the
+    // preselect, then the run flips `isSweeping` on the active card, so all
+    // four must defeat the comparator for the card that carries them and
+    // stay invisible to a card outside the sweep.
+    const threads = baseThreads(6);
+    const idle: BoardShape = { threads, doneIds: new Set(), errorAckIds: new Set() };
+    const firm = (
+      flag: "highlighted" | "sweeping" | "selecting" | "selectable",
+    ): BoardShape => ({
+      ...idle,
+      // Only the armed scope's cards carry the flag, exactly as the board
+      // sets it.
+      sweepFor: (threadId) => (threadId === "thr_memo_2" ? { [flag]: true } : {}),
+    });
+    for (const flag of ["highlighted", "sweeping", "selecting", "selectable"] as const) {
+      const on = firm(flag);
+      expect(
+        sameCardProps(
+          cardProps(idle, threads[2] as PluginSidebarThread),
+          cardProps(on, threads[2] as PluginSidebarThread),
+        ),
+      ).toBe(false);
+      // A card the sweep does not touch keeps its skip: the flags are
+      // per-card, never board-wide.
+      expect(
+        sameCardProps(
+          cardProps(idle, threads[0] as PluginSidebarThread),
+          cardProps(on, threads[0] as PluginSidebarThread),
+        ),
+      ).toBe(true);
+    }
   });
 
   it("skips menu closure churn and renders menu content changes", () => {

@@ -10,8 +10,6 @@ import type { PluginSidebarThread } from "@get-bb/plugin-sdk/app";
 import type { BoardColumn, GroupBy, LaneHideOutcome } from "./grouping";
 import { threadState } from "./grouping";
 import {
-  SWEEP_DESTINATION_LABELS,
-  SWEEP_SETTLED_WORDS,
   sweepColumnKind,
   sweepDestination,
   sweepRangeIds,
@@ -21,6 +19,8 @@ import {
   type SweepNotice,
   type SweepRunView,
 } from "../lib/sweep";
+import { SweepButton, SweepCancelButton } from "./sweep-button";
+import { SweepNoticeBanner, SweepRefusalBanner } from "./sweep-banners";
 import { ThreadCard } from "./thread-card";
 import { useCardSpotlightStyles } from "./card-spotlight";
 import { useAttentionPulseGate } from "./attention-pulse-gate";
@@ -566,10 +566,6 @@ const DOT_CLASS: Record<string, string> = {
   idle: "bg-muted-foreground/30",
 };
 
-/** The running pill's aria-label word: what the sweep has done so far. */
-const settledSoFar = (destination: SweepDestination): string =>
-  `${SWEEP_SETTLED_WORDS[destination]} so far`;
-
 function StateDot({
   thread,
   errorAcks = new Set<string>(),
@@ -586,83 +582,6 @@ function StateDot({
       )}
       aria-hidden
     />
-  );
-}
-
-function SweepButton({
-  eligibleCount,
-  isArmed,
-  run,
-  destination,
-  onArm,
-  onConfirm,
-}: {
-  /** Threads past the threshold — the pre-selection a new sweep mode starts with. */
-  eligibleCount: number;
-  isArmed: boolean;
-  run: { done: number; total: number } | null;
-  /** Where a confirmed sweep sends this column's candidates. */
-  destination: SweepDestination;
-  onArm: () => void;
-  onConfirm: () => void;
-}) {
-  const destinationLabel = SWEEP_DESTINATION_LABELS[destination];
-  const settledWord = settledSoFar(destination);
-  if (run !== null) {
-    return (
-      <button
-        type="button"
-        data-sweep-button=""
-        disabled
-        aria-label={`Sweeping: ${run.done} of ${run.total} threads ${settledWord}`}
-        className="inline-flex h-5 shrink-0 cursor-default items-center gap-1 whitespace-nowrap rounded bg-amber-500/90 px-1.5 text-[10px] font-medium text-amber-950"
-      >
-        <Icon name="Spinner" className="size-3 animate-spin" aria-hidden />
-        {run.done} of {run.total}
-      </button>
-    );
-  }
-  // Always present on a sweepable column: sweep mode is enterable on
-  // demand, even when nothing is past the threshold yet. With no
-  // pre-selection the button is icon-only; armed, it confirms whatever the
-  // operator's live selection holds, and an empty selection cannot confirm.
-  // The broom is the pill's only glyph and the word "Sweep" appears
-  // nowhere: the word repeated on every column header read as noise, and
-  // the broom plus the count (plus the destination, armed) carries the
-  // meaning at a glance.
-  const inert = isArmed && eligibleCount === 0;
-  return (
-    <button
-      type="button"
-      data-sweep-button=""
-      aria-pressed={isArmed}
-      disabled={inert}
-      aria-label={
-        isArmed
-          ? inert
-            ? "Confirm sweep: no threads selected; click cards to add them"
-            : `Confirm sweep of ${eligibleCount} threads from this column to ${destinationLabel}; click away to disarm`
-          : eligibleCount > 0
-            ? `Arm sweep for this column: ${eligibleCount} eligible threads`
-            : "Enter sweep mode: click cards to select threads to sweep"
-      }
-      onClick={(event) => {
-        event.stopPropagation();
-        if (isArmed) onConfirm();
-        else onArm();
-      }}
-      className={cn(
-        "inline-flex h-5 shrink-0 items-center gap-1 whitespace-nowrap rounded px-1.5 text-[10px] font-medium transition-colors",
-        "focus:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-        isArmed
-          ? "bg-amber-500/90 text-amber-950 hover:bg-amber-500"
-          : "text-muted-foreground/70 hover:bg-accent/60 hover:text-foreground",
-        inert && "cursor-default opacity-60",
-      )}
-    >
-      <Icon name="Broom" className="size-3" aria-hidden />
-      {isArmed ? `${eligibleCount} → ${destinationLabel}` : eligibleCount > 0 ? eligibleCount : null}
-    </button>
   );
 }
 
@@ -2219,42 +2138,11 @@ export function Board({
           </div>
         ) : null}
         {sweepNotice !== null ? (
-          <div
-            role="status"
-            data-testid="sweep-notice"
-            className="mx-3 mb-1 flex items-center justify-between gap-2 rounded border border-amber-500/40 bg-amber-50 dark:bg-amber-950 px-2 py-1 text-[11px] text-amber-700 dark:text-amber-400"
-          >
-            <p className="min-w-0">{sweepNotice.message}</p>
-            <span className="flex shrink-0 items-center gap-0.5">
-              {sweepNotice.undo !== undefined && sweepNotice.undo.ids.length > 0 ? (
-                <button
-                  type="button"
-                  data-sweep-undo=""
-                  onClick={() => {
-                    const undo = sweepNotice.undo;
-                    if (undo !== undefined) onSweepUndo?.(undo.ids, undo.destination);
-                  }}
-                  aria-label={
-                    sweepNotice.undo.destination === "done"
-                      ? `Undo the sweep: mark ${sweepNotice.undo.ids.length} threads not Done again`
-                      : `Undo the sweep: restore ${sweepNotice.undo.ids.length} archived threads`
-                  }
-                  className="rounded px-1.5 py-0.5 font-medium underline decoration-dotted underline-offset-2 transition-colors hover:bg-amber-500/10 hover:text-amber-700 focus-visible:outline focus-visible:outline-1 focus-visible:outline-amber-600 dark:hover:text-amber-400"
-                >
-                  Undo
-                </button>
-              ) : null}
-              <button
-                type="button"
-                onClick={() => onDismissSweepNotice?.()}
-                aria-label="Dismiss sweep notice"
-                title="Dismiss"
-                className="rounded p-0.5 text-amber-700/70 transition-colors hover:bg-amber-500/10 hover:text-amber-700 focus-visible:outline focus-visible:outline-1 focus-visible:outline-amber-600 dark:text-amber-400/70 dark:hover:text-amber-400"
-              >
-                <Icon name="X" className="size-3" aria-hidden />
-              </button>
-            </span>
-          </div>
+          <SweepNoticeBanner
+            notice={sweepNotice}
+            onUndo={onSweepUndo}
+            onDismiss={onDismissSweepNotice}
+          />
         ) : null}
         {browserNotice !== null ? (
           <div
@@ -2314,22 +2202,10 @@ export function Board({
           </div>
         ) : null}
         {sweepRefusal !== null ? (
-          <div
-            role="status"
-            data-testid="sweep-refusal"
-            className="mx-3 mb-1 flex items-center justify-between gap-2 rounded border border-destructive/40 bg-red-50 dark:bg-red-950 px-2 py-1 text-[11px] text-destructive dark:text-red-400"
-          >
-            <p className="min-w-0">{sweepRefusal}</p>
-            <button
-              type="button"
-              onClick={() => setSweepRefusal(null)}
-              aria-label="Dismiss sweep refusal"
-              title="Dismiss"
-              className="shrink-0 rounded p-0.5 text-destructive/70 dark:text-red-400/70 transition-colors hover:bg-destructive/10 hover:text-destructive dark:hover:text-red-400 focus-visible:outline focus-visible:outline-1 focus-visible:outline-destructive"
-            >
-              <Icon name="X" className="size-3" aria-hidden />
-            </button>
-          </div>
+          <SweepRefusalBanner
+            message={sweepRefusal}
+            onDismiss={() => setSweepRefusal(null)}
+          />
         ) : null}
       </div>
       <div
@@ -2958,23 +2834,10 @@ export function Board({
                           onConfirm={() => onSweepConfirm?.(column.id)}
                         />
                         {isArmed || runHere !== null ? (
-                          <button
-                            type="button"
-                            data-sweep-cancel=""
-                            aria-label={runHere !== null ? "Cancel sweep" : "Exit sweep mode"}
-                            title={
-                              runHere !== null
-                                ? "Cancel: the current thread finishes, nothing else is swept"
-                                : "Exit sweep mode"
-                            }
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              onSweepCancel?.();
-                            }}
-                            className="inline-flex size-5 items-center justify-center rounded text-muted-foreground/70 transition-colors hover:bg-accent/60 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                          >
-                            <Icon name="X" className="size-3" aria-hidden />
-                          </button>
+                          <SweepCancelButton
+                            running={runHere !== null}
+                            onClick={() => onSweepCancel?.()}
+                          />
                         ) : null}
                       </>
                     ) : null}
@@ -4359,10 +4222,15 @@ function cssEscape(value: string): string {
 
 /**
  * Disarm an armed sweep when the operator clicks anywhere else. Clicks on
- * cards inside the armed column do NOT disarm: in sweep mode those clicks
+ * cards inside the armed lane do NOT disarm: in sweep mode those clicks
  * toggle the card's selection. The sweep button, the cancel button, the
- * armed column's cards, and Escape are the only surfaces that keep the mode
- * alive; anything else (empty board area, another column, a header) ends it.
+ * armed lane's cards, and Escape are the only surfaces that keep the mode
+ * alive; anything else (empty board area, another lane, a header) ends it.
+ *
+ * The armed scope is either a Focus-view column (`[data-column-id]` around
+ * its cards) or a Parent-view row (`[data-sweep-row]`, worn by every lane's
+ * band for that row) — the id is the same column/row vocabulary either way,
+ * so one hook serves both boards.
  */
 export function useSweepClickAway(
   armedColumnId: string | null,
@@ -4370,14 +4238,14 @@ export function useSweepClickAway(
 ): void {
   useEffect(() => {
     if (armedColumnId === null) return;
+    const scopeId = cssEscape(armedColumnId);
     const onPointerDown = (event: PointerEvent) => {
       const target = event.target;
       if (!(target instanceof Element)) return;
       if (target.closest("[data-sweep-button], [data-sweep-cancel]")) return;
       if (
-        target.closest(
-          `[data-column-id="${cssEscape(armedColumnId)}"] [data-thread-card]`,
-        )
+        target.closest(`[data-column-id="${scopeId}"] [data-thread-card]`) !== null ||
+        target.closest(`[data-sweep-row="${scopeId}"] [data-thread-card]`) !== null
       ) {
         return;
       }
