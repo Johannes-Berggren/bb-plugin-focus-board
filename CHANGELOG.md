@@ -7,6 +7,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+### Changed
+
+### Fixed
+
+## [1.6.0] - 2026-10-18
+
+### Added
+
 #### Cards and chips
 
 - **A card can drop into a collapsed family's dot field.** The strip claims the card's hover, lights up under the amber ring while a trailing ghost dot marks the landing, and the release children the member under the family root, landing it last in its tier. Its own dots refuse the write, dot drags keep their home rules, and a misplacement refuses with the banner it always names.
