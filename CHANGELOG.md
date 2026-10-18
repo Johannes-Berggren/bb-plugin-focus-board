@@ -7,6 +7,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+### Changed
+
+### Fixed
+
+## [1.6.0] - 2026-10-18
+
+### Added
+
 #### Cards and chips
 
 - **A card can drop into a collapsed family's dot field.** The strip claims the card's hover, lights up under the amber ring while a trailing ghost dot marks the landing, and the release children the member under the family root, landing it last in its tier. Its own dots refuse the write, dot drags keep their home rules, and a misplacement refuses with the banner it always names.
@@ -38,18 +46,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **A family folded in one bb window stays folded when the other window folds one.** The fold and hide-idle sets were written whole from each window's own state, so the second window's write erased the first window's choice. Both sets now propagate live between windows through a storage event, and each toggle merges with the stored list instead of overwriting it (issue #245).
 - **A group created in one board window survives a simultaneous change in another.** Group creates, renames, deletes, and the member-scan prune each rewrite the whole registry row; serialized, a create in window A is no longer wiped from the registry by a create or assign in window B (issue #242).
 
-#### Settings
-
-- **A wallpaper chosen in one bb window survives the second window's dim change.** The wallpaper document was written whole from each window's state, so a settings edit on a stale window dropped the other window's image. The board panel and the configuration page's Appearance mirror now re-read the document whenever another window writes it (issue #245).
-
-#### Release safety
-
-- **Two release-safety runs started together capture their own board instead of whichever harness answered the port first.** The UAT suites and the release-safety shots share one fixed harness port, so a second tree's harness (or a stray one left up from an earlier session) used to be photographed and passed off as this run's evidence. Each run now verifies the harness on the port carries the run's own identity token and fails loudly before capturing anything (issue #116).
-
 #### Board layout
 
 - **A board crowded with cards that need you no longer crawls.** Every attention card pulsed at once, which dragged a busy board to a few frames per second; the pulse now animates only while it is on screen and holds still off screen, so nothing the operator can see changes (issue #260).
 - **A rank drag in one bb window now survives another window's drop in the same lane.** Every card stores its own fractional rank, so a move writes only the dragged card's rank plus the unranked cards above its landing, and no stale view rewrites the arrangement another window's move just placed (issue #246).
+- **A wallpaper chosen in one bb window survives the second window's dim change.** The wallpaper document was written whole from each window's state, so a settings edit on a stale window dropped the other window's image. The board panel and the configuration page's Appearance mirror now re-read the document whenever another window writes it (issue #245).
 
 ## [1.5.0] - 2026-10-16
 
