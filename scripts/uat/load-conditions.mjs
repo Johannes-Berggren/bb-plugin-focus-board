@@ -108,13 +108,25 @@ export function parseLoadConditions(defaults = {}) {
  * (scripts/screenshot/mock-sdk.tsx), so a suite declares them once and every
  * `goto` inherits them. A step's own query value wins where the two collide,
  * which lets one step in an otherwise-scaled suite load the base fixture.
+ *
+ * The fragment is preserved verbatim, never folded into the query. A suite
+ * deep-links with `?groupBy=status#/plugins/focus-board/board/t/thr_x`, and
+ * rebuilding that with URLSearchParams would percent-encode the `#` into the
+ * query string — the hash route dies and the pane never opens. Query edits
+ * stay before the `#`; a bare fragment (`#/…`) gains the query ahead of it.
  */
 export function withLoadQuery(goto, load) {
   if (goto === undefined || goto === null) return goto;
-  const [path, query = ""] = String(goto).split("?");
+  const text = String(goto);
+  const hashAt = text.indexOf("#");
+  const fragment = hashAt === -1 ? "" : text.slice(hashAt);
+  const beforeHash = hashAt === -1 ? text : text.slice(0, hashAt);
+  const qAt = beforeHash.indexOf("?");
+  const path = qAt === -1 ? beforeHash : beforeHash.slice(0, qAt);
+  const query = qAt === -1 ? "" : beforeHash.slice(qAt + 1);
   const params = new URLSearchParams(query);
   if (load.scale > 0 && !params.has("scale")) params.set("scale", String(load.scale));
   if (load.attention > 0 && !params.has("attention")) params.set("attention", String(load.attention));
   const merged = params.toString();
-  return merged === "" ? path : `${path}?${merged}`;
+  return `${merged === "" ? path : `${path}?${merged}`}${fragment}`;
 }

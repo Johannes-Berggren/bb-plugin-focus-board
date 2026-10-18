@@ -161,4 +161,26 @@ describe("withLoadQuery", () => {
     expect(params.get("ranks")).toBe('{"a":["t"]}');
     expect(params.get("scale")).toBe("300");
   });
+
+  it("preserves a deep-link fragment instead of forcing it into the query", () => {
+    // A suite deep-links with `?groupBy=status#/plugins/focus-board/board/t/x`.
+    // Rebuilding the query with URLSearchParams percent-encodes the `#` into
+    // the query string, so the hash route dies and the pane never opens —
+    // which silently broke every deep-link suite (glyph-glue, pane-history).
+    expect(
+      withLoadQuery("?groupBy=status#/plugins/focus-board/board/t/thr_glyph_glue", load),
+    ).toBe("?groupBy=status&scale=300#/plugins/focus-board/board/t/thr_glyph_glue");
+  });
+
+  it("preserves a bare fragment with no query at all", () => {
+    expect(withLoadQuery("#/plugins/focus-board/board/t/thr_x", load)).toBe(
+      "?scale=300#/plugins/focus-board/board/t/thr_x",
+    );
+  });
+
+  it("keeps a step's own value when a fragment is present", () => {
+    expect(withLoadQuery("?scale=0#/plugins/focus-board/board/t/thr_x", load)).toBe(
+      "?scale=0#/plugins/focus-board/board/t/thr_x",
+    );
+  });
 });
