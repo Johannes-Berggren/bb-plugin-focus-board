@@ -930,7 +930,16 @@ export function ThreadPane({
               title={doneLabel}
               onClick={() => onToggleDone(!isDone)}
               className={cn(
-                "shrink-0 rounded-sm p-0.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                // The header's coarse-pointer ladder (issue #267): this was the
+                // one control that never joined it, so on a phone it measured
+                // 18x22 against its 36px siblings. A bare button, not a Button,
+                // because its glyph sits in the card-checkbox slot, so it
+                // carries the ladder itself: a 36px box below md on a coarse
+                // pointer, with the glyph stepped to 20px to match.
+                "flex items-center justify-center shrink-0 rounded-sm p-0.5",
+                "max-md:pointer-coarse:h-9 max-md:pointer-coarse:w-9",
+                "max-md:pointer-coarse:[&_[data-icon-root]]:size-5",
+                "focus:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                 isDone
                   ? "text-muted-foreground"
                   : "text-muted-foreground/60 hover:text-muted-foreground",
