@@ -2004,7 +2004,6 @@ export function sameCardProps(prev: ThreadCardProps, next: ThreadCardProps): boo
     "childCount",
     "dimmed",
     "rankKey",
-    "activeThreadId",
     "isTransportGhost",
     "compact",
     "isCollapsed",
@@ -2014,6 +2013,20 @@ export function sameCardProps(prev: ThreadCardProps, next: ThreadCardProps): boo
     "hideIdleChildren",
   ] as const) {
     if (prev[key] !== next[key]) return false;
+  }
+  // `activeThreadId` is a board-WIDE value: opening any thread's pane sets it
+  // on every card at once. Inside this card it is only consulted for the
+  // FAMILY — the collapsed strip's listed active child, each dot's
+  // `isMemberActive`, and each nested row's `isActive` (the card's OWN active
+  // state rides the `isActive` prop, compared above). So a change of
+  // `activeThreadId` is invisible here unless the old or new id is a member
+  // this card renders; without this, every pane open re-rendered every card
+  // (the exact tap issue #265 measured at 1005 card renders).
+  if (prev.activeThreadId !== next.activeThreadId) {
+    const members = cardSetIds(next);
+    const touches = (id: string | null | undefined): boolean =>
+      id !== null && id !== undefined && members.includes(id);
+    if (touches(prev.activeThreadId) || touches(next.activeThreadId)) return false;
   }
   const ids = cardSetIds(next);
   if (!sameSetMembership(prev.doneIds, next.doneIds, ids)) return false;

@@ -206,6 +206,48 @@ describe("the memoized card field's comparator", () => {
     ).toBe(true);
   });
 
+  it("skips unrelated cards when a pane opens (board-wide activeThreadId)", () => {
+    // Issue #265's exact tap case: opening ONE thread's pane sets
+    // `activeThreadId` on every card at once. Only the opened card (and any
+    // family card that renders it as a member) may re-render; every other
+    // card's `activeThreadId` change is invisible, because it is only
+    // consulted for the card's own family.
+    const threads = baseThreads(6);
+    const closed: BoardShape = { threads, doneIds: new Set(), errorAckIds: new Set(), activeThreadId: null };
+    const opened: BoardShape = { threads, doneIds: new Set(), errorAckIds: new Set(), activeThreadId: "thr_memo_3" };
+    // The opened card itself re-renders (its `isActive` flips).
+    expect(
+      sameCardProps(cardProps(closed, threads[3] as PluginSidebarThread), cardProps(opened, threads[3] as PluginSidebarThread)),
+    ).toBe(false);
+    // An unrelated card skips: its data, and everything it renders, is
+    // untouched by some other thread's pane opening.
+    expect(
+      sameCardProps(cardProps(closed, threads[0] as PluginSidebarThread), cardProps(opened, threads[0] as PluginSidebarThread)),
+    ).toBe(true);
+    expect(
+      sameCardProps(cardProps(closed, threads[5] as PluginSidebarThread), cardProps(opened, threads[5] as PluginSidebarThread)),
+    ).toBe(true);
+  });
+
+  it("re-renders a family card whose rendered child becomes the active thread", () => {
+    // The inverse law for the same value: a card that DRAWS the active
+    // thread (a nested row, or a collapsed strip's listed child) must
+    // re-render when it becomes active, or the row highlight would be stale.
+    const child = thread({ id: "thr_memo_row", displayTitle: "Row", updatedAt: 900, parentThreadId: "thr_memo_2" });
+    const threads = [...baseThreads(4), child];
+    const childrenByParent = new Map([["thr_memo_2", [child]]]);
+    const closed: BoardShape = { threads, doneIds: new Set(), errorAckIds: new Set(), childrenByParent, activeThreadId: null };
+    const opened: BoardShape = { threads, doneIds: new Set(), errorAckIds: new Set(), childrenByParent, activeThreadId: "thr_memo_row" };
+    // The parent draws the row: it must re-render.
+    expect(
+      sameCardProps(cardProps(closed, threads[2] as PluginSidebarThread), cardProps(opened, threads[2] as PluginSidebarThread)),
+    ).toBe(false);
+    // A card outside that family still skips.
+    expect(
+      sameCardProps(cardProps(closed, threads[0] as PluginSidebarThread), cardProps(opened, threads[0] as PluginSidebarThread)),
+    ).toBe(true);
+  });
+
   it("skips menu closure churn and renders menu content changes", () => {
     const threads = baseThreads(4);
     const board: BoardShape = { threads, doneIds: new Set(), errorAckIds: new Set(), menuLabel: "Actions" };
