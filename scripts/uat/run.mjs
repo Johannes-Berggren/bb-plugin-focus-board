@@ -24,6 +24,8 @@ import { startHarness } from "./harness.mjs";
 import {
   NETWORK_PRESETS,
   parseLoadConditions,
+  parseManualFlag,
+  partitionSuites,
   withLoadQuery,
 } from "./load-conditions.mjs";
 
@@ -35,13 +37,36 @@ const REPORT_DIR = fileURLToPath(new URL("../../docs/uat/", import.meta.url));
 const suites = process.argv.slice(2).filter((a) => !a.startsWith("-"));
 // No args → every suite in tests/manual, in name order (the README's
 // documented behavior); args name individual suites.
-const suiteFiles =
+const discovered =
   suites.length > 0
     ? suites
     : (await readdir(fileURLToPath(new URL("../../tests/manual", import.meta.url))))
         .filter((name) => name.endsWith(".yaml"))
         .sort()
         .map((name) => fileURLToPath(new URL(`../../tests/manual/${name}`, import.meta.url)));
+
+// The `manual: true` opt-in (issue #265/#266): a suite marked manual is
+// runnable on demand but is NOT part of the bare-sweep default, so
+// `npm run uat` and the `release-safety` gate that calls it never run a gate
+// whose budget is currently red. Naming the file explicitly on the command
+// line always runs it, marked or not.
+//
+// A suite's flag lives at its top level, so the file has to be read here to
+// decide. Only the default (no-args) path filters: an explicit argument is
+// the operator asking for exactly that suite.
+let suiteFiles = discovered;
+let skippedManual = [];
+if (suites.length === 0) {
+  const entries = await Promise.all(
+    discovered.map(async (file) => ({
+      file,
+      manual: parseManualFlag(parse(await readFile(file, "utf8"))),
+    })),
+  );
+  const { run, skipped } = partitionSuites(entries);
+  suiteFiles = run.map((entry) => entry.file);
+  skippedManual = skipped.map((entry) => entry.file);
+}
 
 /**
  * A DataTransfer that enforces the browser's protected mode, which a plain
@@ -2408,5 +2433,12 @@ for (const report of reports) {
 }
 
 console.log(`\n${failed === 0 ? "all steps passed" : `${failed} step(s) failed`}`);
+if (skippedManual.length > 0) {
+  // Name what the sweep left out, so a skipped gate is visible rather than
+  // silently missing (the reason it is opt-in is documented in the suite and
+  // in load-conditions.mjs).
+  console.log(`skipped (manual: true) — run by path to include:`);
+  for (const file of skippedManual) console.log(`  ${file}`);
+}
 console.log(`reports:\n${outFiles.map((f) => `  ${f}`).join("\n")}`);
 process.exit(failed === 0 ? 0 : 1);

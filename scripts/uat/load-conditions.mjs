@@ -37,6 +37,42 @@ export const NETWORK_PRESETS = {
 export const DEFAULT_LOAD = { scale: 0, attention: 0, cpuThrottle: 0, network: "none" };
 
 /**
+ * A suite's opt-in flag (top-level `manual: true`): the gate is runnable on
+ * demand (`npm run uat -- tests/manual/<file>.yaml`) but skipped by the
+ * default sweep, so `npm run uat` (and the `release-safety` gate that calls
+ * its bare form) never runs it. This is what keeps a budget that is currently
+ * red — issue #265's tap-latency gate, calibrated on the production bundle
+ * while the runner serves the slower dev harness — from wedging every release
+ * until the underlying fix lands.
+ *
+ * Fail loud on a non-boolean: a quoted `"true"` or a stray `1` silently
+ * staying in (or dropping out of) the sweep changes which gates run.
+ */
+export function parseManualFlag(suite = {}) {
+  const raw = suite.manual;
+  if (raw === undefined || raw === null) return false;
+  if (typeof raw !== "boolean") {
+    throw new Error(`suite manual flag must be a boolean, got ${JSON.stringify(raw)}`);
+  }
+  return raw;
+}
+
+/**
+ * Split parsed suites into the ones the default sweep runs and the `manual`
+ * ones it skips, preserving input order in both lists. Only the `run` list is
+ * ever executed; the skipped list exists so the runner can name what it left
+ * out rather than dropping it silently.
+ */
+export function partitionSuites(entries) {
+  const run = [];
+  const skipped = [];
+  for (const entry of entries) {
+    (entry.manual ? skipped : run).push(entry);
+  }
+  return { run, skipped };
+}
+
+/**
  * Read a suite's `defaults` block into a load condition. Fail loud on a bad
  * value: a typo'd `cpu_throttle` or an unknown network preset silently
  * degrading to "no throttle" would make a perf suite pass for the wrong
