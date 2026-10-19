@@ -6,23 +6,23 @@
 # threads on top of the base fixture (478 cards total). It then times the two
 # taps the operator reported: opening a thread pane and closing it again.
 #
-# The budget is the number issue #265 measured on the PRODUCTION bundle after
-# the memoization fix (a production React build measured ~230ms for the open
-# and ~230ms for the close at this load; the runner serves the DEV harness, so
-# its numbers run several hundred ms higher — see the OPT-IN note below). The
-# unfixed build measured 260-530ms on production; the gap is what the budget
-# guards.
+# The budget is calibrated on the DEV harness the runner actually serves
+# (React's development build), not the production bundle: the runner boots
+# `scripts/screenshot/vite.config.ts`, so a production-bundle number would
+# never describe what this suite measures. With the corrected settle clock
+# (scripts/uat/settle-clock.mjs) the two taps measure open 410-472ms and
+# close 364-377ms at this load (478 cards, 4x CPU) — three runs on an M3 Pro.
+# The 600ms budget is that worst case plus ~27% headroom for machine variance,
+# so it gates a real regression (a re-introduced whole-board re-render costs
+# hundreds of ms, not tens) without tripping on a slower-but-healthy machine.
 #
 # Run: npm run uat -- tests/manual/uat-tap-latency.yaml
 # (npm run build first — the harness loads dist/app.css)
 #
 # OPT-IN (manual: true, issue #265/#266): the default sweep — `npm run uat`
 # with no arguments, which `npm run release-safety` calls — SKIPS this suite.
-# The 350ms budget was calibrated on the production bundle (scripts/screenshot/
-# vite.probe.config.ts), but the UAT runner serves the DEV harness (React's
-# development build), where the same tap measures several hundred ms more even
-# after #265's memoization fix. Running it in the sweep would therefore fail
-# every release for a reason that is an artifact of the harness, not the app.
+# Taking it off opt-in is a separate decision (the release gate should not
+# depend on a freshly fixed clock in the same change that fixed it).
 # Name the file to run it: `npm run uat -- tests/manual/uat-tap-latency.yaml`.
 
 suite: tap-latency
@@ -52,7 +52,7 @@ steps:
       - click: { card: thr_uat_queue }
     assert:
       - pane: { threadId: thr_uat_queue }
-      - gesture_budget: { gesture: click, max_ms: 350 }
+      - gesture_budget: { gesture: click, max_ms: 600 }
 
   - id: a-tap-closes-the-pane-within-budget
     title: Tapping Back to board closes the pane inside the latency budget
@@ -63,4 +63,4 @@ steps:
       - click_aria: { label: "Back to board" }
     assert:
       - pane: { open: false }
-      - gesture_budget: { gesture: click_aria, max_ms: 350 }
+      - gesture_budget: { gesture: click_aria, max_ms: 600 }
