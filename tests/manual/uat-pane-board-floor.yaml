@@ -1,0 +1,50 @@
+# Operator-assisted E2E: the thread pane's board-lane floor (issue #273).
+#
+# The pane resizes by dragging its left edge (`aria-label="Resize thread
+# pane"`). Dragged wide, it used to squeeze the board's own column until the
+# board's toolbar and lane headers spilled past the board's box, and with a
+# wallpaper active the board column paints as `relative z-10`, which beats the
+# side-by-side pane's `z-index: auto`, so the board's chrome painted ON TOP of
+# the pane (doubled text in the operator's screenshot). The pane now stops
+# PANE_BOARD_LANE_FLOOR (320px = 1.25 lanes of 256px) short of the panel's
+# right edge, so the board keeps its floor and nothing crosses the seam.
+#
+# Both viewports are desktop widths (above the 767px compact media query) so the
+# side-by-side pane is the live path, not the mobile sheet. The second step uses
+# a band below NARROW_HEADER_COLLAPSE_WIDTH but above VIEW_KEEP_VISIBLE_MIN_WIDTH
+# so the collapsed header borrows the mobile ribbon with the View chip still on
+# the row. Run:
+#   npm run uat -- tests/manual/uat-pane-board-floor.yaml
+defaults:
+  viewport: { width: 1000, height: 900 }
+  groupBy: status
+  theme: dark
+
+suite: pane-board-floor
+harness:
+  config: scripts/screenshot/vite.config.ts
+  port: 5186
+
+steps:
+  - id: dragging-the-pane-wide-keeps-the-board-lane-floor
+    title: Dragging the pane's edge as wide as it goes leaves the board its lane floor
+    goto: "?groupBy=status"
+    click: { card: thr_uat_queue }
+    # Push the pane wider until it stops. On this 1000px panel the board's floor
+    # bites: without it the pane would reach PANE_MAX_WIDTH (900) and leave a
+    # 100px board.
+    resize_pane: {}
+    assert:
+      - pane_board_floor: {}
+      - pane: { threadId: thr_uat_queue }
+
+  - id: the-floor-holds-when-the-band-borrows-the-collapsed-header
+    title: The board keeps its floor with the collapsed header's filter ribbon in play
+    goto: "?groupBy=status"
+    resize: { width: 880, height: 900 }
+    click: { card: thr_uat_queue }
+    resize_pane: {}
+    assert:
+      - pane_board_floor: {}
+      - pane: { threadId: thr_uat_queue }
+      - no_visible_error: true

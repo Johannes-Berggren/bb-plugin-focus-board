@@ -129,14 +129,25 @@ describe("ThreadPane on a narrow panel", () => {
     expect(aside.style.width).toBe("");
   });
 
-  it("at or above the threshold the side-by-side pane persists at its stored width", () => {
+  it("at or above the threshold the side-by-side pane persists, floored by the board's lanes", () => {
     vi.stubGlobal("ResizeObserver", StubResizeObserver);
     renderPane();
     fireWidth(paneRow(), PANE_SHEET_MAX_PANEL_WIDTH);
     const aside = paneAside();
     expect(aside.className).toContain("relative");
     expect(aside.className).not.toContain("absolute");
-    expect(aside.style.width).toBe("480px");
+    // The sheet threshold row is 640px: the board keeps its 320px lane floor,
+    // so the stored 480px pane is clamped to 320 rather than squeezing the
+    // board below a lane and a quarter.
+    expect(aside.style.width).toBe("320px");
+  });
+
+  it("a row wide enough for both keeps the stored width untouched", () => {
+    vi.stubGlobal("ResizeObserver", StubResizeObserver);
+    renderPane();
+    fireWidth(paneRow(), 900);
+    // 900 - 320 = 580, so a 480px stored pane is inside the floor unchecked.
+    expect(paneAside().style.width).toBe("480px");
   });
 
   it("the boundary pins exactly: one pixel below the threshold is a sheet", () => {
@@ -151,8 +162,35 @@ describe("ThreadPane on a narrow panel", () => {
     vi.stubGlobal("ResizeObserver", StubResizeObserver);
     renderPane();
     fireWidth(paneRow(), 700);
-    // Stored 800 cannot exceed the 700px row; the clamp keeps it inside.
+    // Stored 800 cannot exceed what the 700px row allows.
     expect(Number.parseInt(paneAside().style.width, 10)).toBeLessThanOrEqual(700);
+  });
+
+  it("the side-by-side width keeps 1.25 lanes of board, so the board never overlaps", () => {
+    // The pane's own maximum (900) would leave a 0px board on a 900px row:
+    // the board column shrinks below its toolbar's min-content width and its
+    // controls paint past the lane area (over the pane when a wallpaper makes
+    // the board a z-10 stacking context). The row's floor is 1.25 lanes of
+    // 256px = 320px, so the pane stops at row - 320.
+    window.localStorage.setItem("focus-board:paneWidth", "900");
+    vi.stubGlobal("ResizeObserver", StubResizeObserver);
+    renderPane();
+    fireWidth(paneRow(), 900);
+    const rendered = Number.parseInt(paneAside().style.width, 10);
+    expect(rendered).toBe(580);
+    // The margin left of the pane is the floor exactly.
+    expect(900 - rendered).toBe(320);
+  });
+
+  it("the board floor never squeezes the pane below its own minimum width", () => {
+    // The tightest side-by-side row (the sheet threshold itself): 640 - 320 =
+    // 320, exactly PANE_MIN_WIDTH, so the floor and the pane's own minimum
+    // meet and neither is violated.
+    window.localStorage.setItem("focus-board:paneWidth", "900");
+    vi.stubGlobal("ResizeObserver", StubResizeObserver);
+    renderPane();
+    fireWidth(paneRow(), PANE_SHEET_MAX_PANEL_WIDTH);
+    expect(Number.parseInt(paneAside().style.width, 10)).toBe(320);
   });
 
   it("the window compact mode still wins: a fixed window sheet, even on a wide row", () => {

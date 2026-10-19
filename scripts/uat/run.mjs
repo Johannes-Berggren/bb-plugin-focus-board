@@ -1297,6 +1297,64 @@ const pagePaneState = () => {
 };
 
 /**
+ * The pane's board-lane floor (issue #273): with the pane's left edge dragged
+ * as far left as it goes, the board must keep PANE_BOARD_LANE_FLOOR (320px =
+ * 1.25 lanes of 256px) to the pane's left, and the board's own chrome must not
+ * paint past its box (the overflow that, on a wallpaper's z-10 board column,
+ * paints over the pane). Overlap is sampled by hit-testing inside the pane: a
+ * clipped lane scrolled out of the overflow container is not an overlap, so a
+ * rect test alone would miscount it.
+ */
+const pagePaneBoardFloor = ({ floor }) => {
+  const panel = document.querySelector('[data-bb-plugin="focus-board"]');
+  const aside = document.querySelector('aside[aria-label^="Thread: "]');
+  if (panel === null || aside === null) {
+    return { ok: false, detail: "no pane or no panel on the page" };
+  }
+  const board = panel.querySelector(":scope > div > div.flex-1");
+  if (board === null) return { ok: false, detail: "the board column is not beside the pane" };
+  const band = board.querySelector(":scope > div");
+  const paneRect = aside.getBoundingClientRect();
+  const boardRect = board.getBoundingClientRect();
+  const margin = Math.round(paneRect.left - boardRect.left);
+  // The board's own chrome painted past the board's box: the overflow that
+  // turns into an on-top overlap when a wallpaper makes the board z-10.
+  let bandOut = -Infinity;
+  if (band !== null) {
+    for (const el of band.querySelectorAll("button, input, div, span")) {
+      const r = el.getBoundingClientRect();
+      if (r.width === 0 && r.height === 0) continue;
+      bandOut = Math.max(bandOut, r.right - boardRect.right);
+    }
+  }
+  // Hit-test grid inside the pane's upper region: a board element winning a
+  // sample is the operator's overlap symptom (and respects clipping).
+  let boardWins = 0;
+  let samples = 0;
+  for (let y = 8; y < Math.min(240, paneRect.height); y += 16) {
+    for (let x = Math.max(6, paneRect.left + 6); x < Math.min(paneRect.right - 6, paneRect.left + 400); x += 24) {
+      const el = document.elementFromPoint(x, y);
+      if (el === null) continue;
+      samples += 1;
+      if (board.contains(el) && !aside.contains(el)) boardWins += 1;
+    }
+  }
+  const ok = margin >= floor - 1 && boardWins === 0;
+  return {
+    ok,
+    margin,
+    floor,
+    paneWidth: Math.round(paneRect.width),
+    boardWidth: Math.round(boardRect.width),
+    boardZ: getComputedStyle(board).zIndex,
+    bandOut: Number.isFinite(bandOut) ? Math.round(bandOut) : null,
+    boardWins,
+    samples,
+    detail: `margin ${margin}px (floor ${floor}px), board ${Math.round(boardRect.width)}px wide, ${boardWins}/${samples} pane samples landed on board chrome, band overflow ${Number.isFinite(bandOut) ? Math.round(bandOut) : "n/a"}px, board z-index ${getComputedStyle(board).zIndex}`,
+  };
+};
+
+/**
  * The inline-code open glyph, measured in a real line breaker. jsdom cannot
  * wrap text, so this probe is the automated counterpart of staring at a
  * narrow pane: wait for the decoration (its verdict flow is async — environment
@@ -2057,6 +2115,19 @@ async function check(step, page, gestureResults = [], gestureTimings = []) {
         probe.failures.length > 0 ? probe.failures.join("; ") : "all surfaces measured",
       );
     }
+    if (rule.pane_board_floor !== undefined) {
+      // The pane's board-lane floor (issue #273): after the pane is dragged
+      // wide, the board keeps its lane floor and no board element crosses the
+      // pane's left edge.
+      const want = rule.pane_board_floor; // { floor?: px }
+      const floor = want.floor ?? 320;
+      const probe = await page.evaluate(pagePaneBoardFloor, { floor });
+      expect(
+        `the board keeps its ${floor}px lane floor beside a wide pane`,
+        probe.ok,
+        probe.detail,
+      );
+    }
     if (rule.floor_amber !== undefined) {
       // Hover a child over the floor (the amber rides the dragover commit),
       // sample, then clean the drag up — no drop is performed.
@@ -2287,7 +2358,7 @@ async function runSuite(file, { port, browser }) {
       // is insertion order), not in this runner's historical fixed order — a
       // pane-history step sequences pushes and backs deliberately, and
       // silently reordering them rewrites the history under test.
-      const GESTURE_ORDER = ["drag", "drag_unidentified", "drag_to_column", "drag_child_to_floor", "drag_child_to_header", "drag_dot_to_dot", "drag_dot_to_floor", "drag_card_to_strip", "hover_header", "hover", "hover_card", "mouse_to", "key", "back", "click", "click_aria", "click_row_sweep", "type", "menu", "scroll", "wheel_pan", "resize", "sleep", "press_escape", "push_url"];
+      const GESTURE_ORDER = ["drag", "drag_unidentified", "drag_to_column", "drag_child_to_floor", "drag_child_to_header", "drag_dot_to_dot", "drag_dot_to_floor", "drag_card_to_strip", "hover_header", "hover", "hover_card", "mouse_to", "key", "back", "click", "click_aria", "click_row_sweep", "type", "menu", "scroll", "wheel_pan", "resize", "resize_pane", "sleep", "press_escape", "push_url"];
       let gestureFailed = false;
       // A gesture that cannot even run (its own element is absent — a
       // regression deleted what the step targets) records the step and
@@ -2474,6 +2545,33 @@ async function runSuite(file, { port, browser }) {
             // the resize observer commit before assertions sample the DOM.
             await page.setViewport({ width: payload.width, height: payload.height });
             await sleep(800);
+          } else if (gesture === "resize_pane") {
+            // Drag the thread pane's left edge as far left as it goes, through
+            // the real pointer pipeline (the pane's resize handle listens for
+            // pointerdown/move/up with pointer capture). `pane_to` pins an
+            // absolute pane width instead of dragging to the panel edge. The
+            // handle moves with the pane, so it is re-read after each step.
+            const paneTo = payload?.pane_to;
+            for (let attempt = 0; attempt < 24; attempt += 1) {
+              const handle = await page.$('[aria-label="Resize thread pane"]');
+              if (handle === null) break;
+              const box = await handle.boundingBox();
+              const pane = await page.$('aside[aria-label^="Thread: "]');
+              const paneBox = pane === null ? null : await pane.boundingBox();
+              if (box === null || paneBox === null || paneBox.width === 0) break;
+              const grabX = Math.round(box.x + box.width / 2);
+              const grabY = Math.round(box.y + box.height / 2);
+              // Default: one more step leftward (wider). `pane_to` targets an
+              // absolute width, so the drag stops once it lands.
+              const target = paneTo !== undefined ? paneTo : paneBox.width + 60;
+              const dx = target - paneBox.width;
+              if (Math.abs(dx) < 0.5) break;
+              await page.mouse.move(grabX, grabY);
+              await page.mouse.down();
+              for (let i = 1; i <= 8; i += 1) await page.mouse.move(grabX - (dx * i) / 8, grabY);
+              await page.mouse.up();
+              await sleep(150);
+            }
           } else if (gesture === "sleep") {
             // A wait between gestures, for multi-phase board reactions (pin
             // glide, recut, post-recut corrections) that no single event

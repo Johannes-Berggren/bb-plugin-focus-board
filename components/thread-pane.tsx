@@ -67,6 +67,17 @@ const PANE_DEFAULT_WIDTH = 480;
  *  (480px on a 250px panel) would otherwise overrun the panel edge. */
 export const PANE_SHEET_MAX_PANEL_WIDTH = 640;
 
+/** The board margin the side-by-side pane must leave for the board's lanes:
+ *  1.25 lanes of 256px (the lane width in `components/board.tsx`). Above the
+ *  sheet threshold a pane dragged wider than the row minus this floor would
+ *  squeeze the board column below its toolbar's min-content width, and the
+ *  board's chrome (toolbar controls, lane headers) then paints past the board's
+ *  own edge — over the pane when a wallpaper makes the board column a z-10
+ *  stacking context, and flush against the pane's seam otherwise. The pane
+ *  stops at the floor instead, so the board always keeps a lane and a quarter
+ *  of room. */
+export const PANE_BOARD_LANE_FLOOR = 320;
+
 /**
  * Debounce window for the pane's Escape handling (see the keydown effect in
  * ThreadPane). Matches the OS double-click convention (~500 ms): wide enough
@@ -504,8 +515,13 @@ export function ThreadPane({
   const panelScopedSheet = panelNarrow && !windowCompact;
   // A stored pane width can exceed the panel (a wide pane stored on a
   // wider panel that later narrowed): clamp to the measured row so the
-  // pane can never jut past the panel edge.
-  const effectiveWidth = panelWidth === null ? width : Math.min(width, panelWidth);
+  // pane can never jut past the panel edge. Above the sheet threshold the
+  // pane also stops PANE_BOARD_LANE_FLOOR short of the row, so the board
+  // behind it keeps 1.25 lanes of room and its chrome never runs out of
+  // width and paints over the pane (see the constant's comment).
+  const boardFloor = panelWidth === null ? 0 : Math.max(0, panelWidth - PANE_BOARD_LANE_FLOOR);
+  const effectiveWidth =
+    panelWidth === null ? width : Math.min(width, boardFloor, panelWidth);
   const sdk = useSdk();
   const navigate = useBbNavigate();
   const rpc = useRpc<typeof rpcContract>();
@@ -618,10 +634,14 @@ export function ThreadPane({
     const edge = edgeRef.current;
     if (edge === null) return;
     const startDrag = (event: PointerEvent) => {
+      // The baseline is the RENDERED width (effectiveWidth), not the stored
+      // one: when the row's board floor clamps a stored wide pane, the edge
+      // under the pointer sits at the clamp, and a stored-width baseline would
+      // swallow the first drag step before the pane moved.
       dragStateRef.current = {
         pointerId: event.pointerId,
         startX: event.clientX,
-        startWidth: width,
+        startWidth: effectiveWidth,
       };
       edge.setPointerCapture(event.pointerId);
     };
@@ -635,7 +655,7 @@ export function ThreadPane({
       edge.removeEventListener("pointerup", endDrag);
       edge.removeEventListener("pointercancel", endDrag);
     };
-  }, [width, onPointerMove, endDrag]);
+  }, [width, effectiveWidth, onPointerMove, endDrag]);
 
   // Double-tap debounce state for the pane's Escape handling. A ref, not
   // effect-local: the keydown effect re-runs whenever the thread's status
