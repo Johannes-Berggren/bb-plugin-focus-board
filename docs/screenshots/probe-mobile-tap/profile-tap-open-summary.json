@@ -1,0 +1,507 @@
+{
+ "machine": {
+  "chrome": "Chrome/155.0.8059.80",
+  "cpuThrottleRate": 4,
+  "scale": 300,
+  "viewport": {
+   "width": 390,
+   "height": 844
+  },
+  "query": "?demo=1&scale=300"
+ },
+ "target": {
+  "x": 140,
+  "y": 136,
+  "id": "thr_ship_release"
+ },
+ "frameMs": 17,
+ "openMs": 301,
+ "byLocation": {
+  "totalSamples": 863,
+  "activeSamples": 396,
+  "top": [
+   {
+    "file": "index-MCFTP3x7.js",
+    "line": 9455,
+    "fn": "updateProperties",
+    "selfSamples": 26,
+    "pctActive": 6.6
+   },
+   {
+    "file": "index-MCFTP3x7.js",
+    "line": 6328,
+    "fn": "commitHostUpdate",
+    "selfSamples": 24,
+    "pctActive": 6.1
+   },
+   {
+    "file": "",
+    "line": 0,
+    "fn": "getBoundingClientRect",
+    "selfSamples": 17,
+    "pctActive": 4.3
+   },
+   {
+    "file": "index-MCFTP3x7.js",
+    "line": 3827,
+    "fn": "renderWithHooks",
+    "selfSamples": 16,
+    "pctActive": 4
+   },
+   {
+    "file": "index-MCFTP3x7.js",
+    "line": 5648,
+    "fn": "beginWork",
+    "selfSamples": 15,
+    "pctActive": 3.8
+   },
+   {
+    "file": "index-MCFTP3x7.js",
+    "line": 3410,
+    "fn": "reconcileChildrenArray",
+    "selfSamples": 12,
+    "pctActive": 3
+   },
+   {
+    "file": "index-MCFTP3x7.js",
+    "line": 20764,
+    "fn": "ThreadCard$1",
+    "selfSamples": 10,
+    "pctActive": 2.5
+   },
+   {
+    "file": "index-MCFTP3x7.js",
+    "line": 9062,
+    "fn": "setProp",
+    "selfSamples": 9,
+    "pctActive": 2.3
+   },
+   {
+    "file": "",
+    "line": 0,
+    "fn": "(garbage collector)",
+    "selfSamples": 9,
+    "pctActive": 2.3
+   },
+   {
+    "file": "index-MCFTP3x7.js",
+    "line": 38991,
+    "fn": "(anonymous)",
+    "selfSamples": 8,
+    "pctActive": 2
+   },
+   {
+    "file": "index-MCFTP3x7.js",
+    "line": 3465,
+    "fn": "reconcileChildFibersImpl",
+    "selfSamples": 8,
+    "pctActive": 2
+   },
+   {
+    "file": "index-MCFTP3x7.js",
+    "line": 24561,
+    "fn": "threadLi",
+    "selfSamples": 7,
+    "pctActive": 1.8
+   },
+   {
+    "file": "index-MCFTP3x7.js",
+    "line": 3917,
+    "fn": "updateWorkInProgressHook",
+    "selfSamples": 7,
+    "pctActive": 1.8
+   },
+   {
+    "file": "index-MCFTP3x7.js",
+    "line": 13633,
+    "fn": "scan",
+    "selfSamples": 6,
+    "pctActive": 1.5
+   },
+   {
+    "file": "index-MCFTP3x7.js",
+    "line": 15753,
+    "fn": "tailwindMerge",
+    "selfSamples": 6,
+    "pctActive": 1.5
+   },
+   {
+    "file": "index-MCFTP3x7.js",
+    "line": 19258,
+    "fn": "Icon",
+    "selfSamples": 6,
+    "pctActive": 1.5
+   },
+   {
+    "file": "index-MCFTP3x7.js",
+    "line": 7014,
+    "fn": "commitMutationEffectsOnFiber",
+    "selfSamples": 6,
+    "pctActive": 1.5
+   },
+   {
+    "file": "index-MCFTP3x7.js",
+    "line": 6690,
+    "fn": "commitLayoutEffectOnFiber",
+    "selfSamples": 6,
+    "pctActive": 1.5
+   },
+   {
+    "file": "index-MCFTP3x7.js",
+    "line": 7484,
+    "fn": "commitPassiveMountOnFiber",
+    "selfSamples": 6,
+    "pctActive": 1.5
+   },
+   {
+    "file": "index-MCFTP3x7.js",
+    "line": 8049,
+    "fn": "workLoopSync",
+    "selfSamples": 5,
+    "pctActive": 1.3
+   },
+   {
+    "file": "index-MCFTP3x7.js",
+    "line": 37511,
+    "fn": "BoardPage",
+    "selfSamples": 5,
+    "pctActive": 1.3
+   },
+   {
+    "file": "index-MCFTP3x7.js",
+    "line": 13942,
+    "fn": "(anonymous)",
+    "selfSamples": 5,
+    "pctActive": 1.3
+   },
+   {
+    "file": "index-MCFTP3x7.js",
+    "line": 5837,
+    "fn": "completeWork",
+    "selfSamples": 5,
+    "pctActive": 1.3
+   },
+   {
+    "file": "",
+    "line": 0,
+    "fn": "querySelectorAll",
+    "selfSamples": 5,
+    "pctActive": 1.3
+   },
+   {
+    "file": "index-MCFTP3x7.js",
+    "line": 8817,
+    "fn": "(anonymous)",
+    "selfSamples": 4,
+    "pctActive": 1
+   },
+   {
+    "file": "index-MCFTP3x7.js",
+    "line": 2079,
+    "fn": "SyntheticBaseEvent",
+    "selfSamples": 4,
+    "pctActive": 1
+   },
+   {
+    "file": "index-MCFTP3x7.js",
+    "line": 12890,
+    "fn": "push",
+    "selfSamples": 4,
+    "pctActive": 1
+   },
+   {
+    "file": "index-MCFTP3x7.js",
+    "line": 5226,
+    "fn": "updateFunctionComponent",
+    "selfSamples": 4,
+    "pctActive": 1
+   },
+   {
+    "file": "index-MCFTP3x7.js",
+    "line": 19395,
+    "fn": "threadState",
+    "selfSamples": 4,
+    "pctActive": 1
+   },
+   {
+    "file": "index-MCFTP3x7.js",
+    "line": 32596,
+    "fn": "cardMenuActions",
+    "selfSamples": 4,
+    "pctActive": 1
+   },
+   {
+    "file": "index-MCFTP3x7.js",
+    "line": 12784,
+    "fn": "jsxProd",
+    "selfSamples": 4,
+    "pctActive": 1
+   },
+   {
+    "file": "index-MCFTP3x7.js",
+    "line": 13,
+    "fn": "(anonymous)",
+    "selfSamples": 4,
+    "pctActive": 1
+   },
+   {
+    "file": "index-MCFTP3x7.js",
+    "line": 20346,
+    "fn": "ThreadCardMenu",
+    "selfSamples": 4,
+    "pctActive": 1
+   },
+   {
+    "file": "index-MCFTP3x7.js",
+    "line": 13923,
+    "fn": "(anonymous)",
+    "selfSamples": 4,
+    "pctActive": 1
+   },
+   {
+    "file": "index-MCFTP3x7.js",
+    "line": 2005,
+    "fn": "batchedUpdates$1",
+    "selfSamples": 4,
+    "pctActive": 1
+   },
+   {
+    "file": "index-MCFTP3x7.js",
+    "line": 13621,
+    "fn": "findTicketRefs",
+    "selfSamples": 3,
+    "pctActive": 0.8
+   },
+   {
+    "file": "index-MCFTP3x7.js",
+    "line": 20392,
+    "fn": "(anonymous)",
+    "selfSamples": 3,
+    "pctActive": 0.8
+   },
+   {
+    "file": "index-MCFTP3x7.js",
+    "line": 13450,
+    "fn": "inlineMarkup",
+    "selfSamples": 3,
+    "pctActive": 0.8
+   },
+   {
+    "file": "index-MCFTP3x7.js",
+    "line": 3310,
+    "fn": "deleteRemainingChildren",
+    "selfSamples": 3,
+    "pctActive": 0.8
+   },
+   {
+    "file": "index-MCFTP3x7.js",
+    "line": 5047,
+    "fn": "reconcileChildren",
+    "selfSamples": 3,
+    "pctActive": 0.8
+   }
+  ]
+ },
+ "byFunction": [
+  {
+   "fn": "(anonymous)",
+   "selfSamples": 58,
+   "pctActive": 14.6
+  },
+  {
+   "fn": "updateProperties",
+   "selfSamples": 26,
+   "pctActive": 6.6
+  },
+  {
+   "fn": "commitHostUpdate",
+   "selfSamples": 24,
+   "pctActive": 6.1
+  },
+  {
+   "fn": "getBoundingClientRect",
+   "selfSamples": 17,
+   "pctActive": 4.3
+  },
+  {
+   "fn": "renderWithHooks",
+   "selfSamples": 16,
+   "pctActive": 4
+  },
+  {
+   "fn": "beginWork",
+   "selfSamples": 15,
+   "pctActive": 3.8
+  },
+  {
+   "fn": "reconcileChildrenArray",
+   "selfSamples": 12,
+   "pctActive": 3
+  },
+  {
+   "fn": "ThreadCard$1",
+   "selfSamples": 10,
+   "pctActive": 2.5
+  },
+  {
+   "fn": "setProp",
+   "selfSamples": 9,
+   "pctActive": 2.3
+  },
+  {
+   "fn": "(garbage collector)",
+   "selfSamples": 9,
+   "pctActive": 2.3
+  },
+  {
+   "fn": "reconcileChildFibersImpl",
+   "selfSamples": 8,
+   "pctActive": 2
+  },
+  {
+   "fn": "threadLi",
+   "selfSamples": 7,
+   "pctActive": 1.8
+  },
+  {
+   "fn": "updateWorkInProgressHook",
+   "selfSamples": 7,
+   "pctActive": 1.8
+  },
+  {
+   "fn": "scan",
+   "selfSamples": 6,
+   "pctActive": 1.5
+  },
+  {
+   "fn": "tailwindMerge",
+   "selfSamples": 6,
+   "pctActive": 1.5
+  },
+  {
+   "fn": "Icon",
+   "selfSamples": 6,
+   "pctActive": 1.5
+  },
+  {
+   "fn": "commitMutationEffectsOnFiber",
+   "selfSamples": 6,
+   "pctActive": 1.5
+  },
+  {
+   "fn": "commitLayoutEffectOnFiber",
+   "selfSamples": 6,
+   "pctActive": 1.5
+  },
+  {
+   "fn": "commitPassiveMountOnFiber",
+   "selfSamples": 6,
+   "pctActive": 1.5
+  },
+  {
+   "fn": "workLoopSync",
+   "selfSamples": 5,
+   "pctActive": 1.3
+  },
+  {
+   "fn": "BoardPage",
+   "selfSamples": 5,
+   "pctActive": 1.3
+  },
+  {
+   "fn": "completeWork",
+   "selfSamples": 5,
+   "pctActive": 1.3
+  },
+  {
+   "fn": "querySelectorAll",
+   "selfSamples": 5,
+   "pctActive": 1.3
+  },
+  {
+   "fn": "SyntheticBaseEvent",
+   "selfSamples": 4,
+   "pctActive": 1
+  },
+  {
+   "fn": "push",
+   "selfSamples": 4,
+   "pctActive": 1
+  },
+  {
+   "fn": "updateFunctionComponent",
+   "selfSamples": 4,
+   "pctActive": 1
+  },
+  {
+   "fn": "threadState",
+   "selfSamples": 4,
+   "pctActive": 1
+  },
+  {
+   "fn": "cardMenuActions",
+   "selfSamples": 4,
+   "pctActive": 1
+  },
+  {
+   "fn": "jsxProd",
+   "selfSamples": 4,
+   "pctActive": 1
+  },
+  {
+   "fn": "ThreadCardMenu",
+   "selfSamples": 4,
+   "pctActive": 1
+  },
+  {
+   "fn": "batchedUpdates$1",
+   "selfSamples": 4,
+   "pctActive": 1
+  },
+  {
+   "fn": "findTicketRefs",
+   "selfSamples": 3,
+   "pctActive": 0.8
+  },
+  {
+   "fn": "inlineMarkup",
+   "selfSamples": 3,
+   "pctActive": 0.8
+  },
+  {
+   "fn": "deleteRemainingChildren",
+   "selfSamples": 3,
+   "pctActive": 0.8
+  },
+  {
+   "fn": "reconcileChildren",
+   "selfSamples": 3,
+   "pctActive": 0.8
+  },
+  {
+   "fn": "updateSlot",
+   "selfSamples": 3,
+   "pctActive": 0.8
+  },
+  {
+   "fn": "setAttribute",
+   "selfSamples": 3,
+   "pctActive": 0.8
+  },
+  {
+   "fn": "recursivelyTraversePassiveUnmountEffects",
+   "selfSamples": 3,
+   "pctActive": 0.8
+  },
+  {
+   "fn": "commitHookEffectListUnmount",
+   "selfSamples": 3,
+   "pctActive": 0.8
+  },
+  {
+   "fn": "getNearestMountedFiber",
+   "selfSamples": 3,
+   "pctActive": 0.8
+  }
+ ]
+}

@@ -1,0 +1,183 @@
+{
+ "machine": {
+  "chrome": "Chrome/155.0.8059.80",
+  "viewport": {
+   "width": 390,
+   "height": 844
+  },
+  "cpuThrottleRate": 4,
+  "scale": 300,
+  "network": "fast3g",
+  "netPreset": {
+   "offline": false,
+   "latency": 150,
+   "downloadThroughput": 209715.2,
+   "uploadThroughput": 96000
+  },
+  "query": "?demo=1&scale=300"
+ },
+ "load": {
+  "domReadyMs": 3402,
+  "boardPaintAt": 2439
+ },
+ "taps": [
+  {
+   "label": "first-load-target-stability",
+   "sampledCardId": "thr_ship_release",
+   "atDispatchCardId": "thr_ship_release",
+   "sameTarget": true
+  },
+  {
+   "label": "tap-to-open",
+   "tapped": {
+    "tag": "p",
+    "cardId": "thr_ship_release",
+    "ariaLabel": null
+   },
+   "targetCardId": "thr_ship_release",
+   "openedOn": "Thread: Ship 0.1.1: column ordering fix + release notes",
+   "ms": 286,
+   "wrongObject": true
+  },
+  {
+   "label": "tap-to-close",
+   "ms": 261
+  },
+  {
+   "label": "tap-series",
+   "budgetMs": 400,
+   "samples": [
+    {
+     "i": 0,
+     "tapped": {
+      "tag": "p",
+      "cardId": "thr_ship_release",
+      "ariaLabel": null
+     },
+     "targetCardId": "thr_ship_release",
+     "openedOn": "Thread: Ship 0.1.1: column ordering fix + release notes",
+     "ms": 276,
+     "wrongObject": true,
+     "overBudget": false
+    },
+    {
+     "i": 1,
+     "tapped": {
+      "tag": "p",
+      "cardId": "thr_ship_release",
+      "ariaLabel": null
+     },
+     "targetCardId": "thr_ship_release",
+     "openedOn": "Thread: Ship 0.1.1: column ordering fix + release notes",
+     "ms": 268,
+     "wrongObject": true,
+     "overBudget": false
+    },
+    {
+     "i": 2,
+     "tapped": {
+      "tag": "p",
+      "cardId": "thr_ship_release",
+      "ariaLabel": null
+     },
+     "targetCardId": "thr_ship_release",
+     "openedOn": "Thread: Ship 0.1.1: column ordering fix + release notes",
+     "ms": 251,
+     "wrongObject": true,
+     "overBudget": false
+    },
+    {
+     "i": 3,
+     "tapped": {
+      "tag": "p",
+      "cardId": "thr_ship_release",
+      "ariaLabel": null
+     },
+     "targetCardId": "thr_ship_release",
+     "openedOn": "Thread: Ship 0.1.1: column ordering fix + release notes",
+     "ms": 244,
+     "wrongObject": true,
+     "overBudget": false
+    },
+    {
+     "i": 4,
+     "tapped": {
+      "tag": "p",
+      "cardId": "thr_ship_release",
+      "ariaLabel": null
+     },
+     "targetCardId": "thr_ship_release",
+     "openedOn": "Thread: Ship 0.1.1: column ordering fix + release notes",
+     "ms": 221,
+     "wrongObject": true,
+     "overBudget": false
+    },
+    {
+     "i": 5,
+     "tapped": {
+      "tag": "p",
+      "cardId": "thr_ship_release",
+      "ariaLabel": null
+     },
+     "targetCardId": "thr_ship_release",
+     "openedOn": "Thread: Ship 0.1.1: column ordering fix + release notes",
+     "ms": 210,
+     "wrongObject": true,
+     "overBudget": false
+    },
+    {
+     "i": 6,
+     "tapped": {
+      "tag": "p",
+      "cardId": "thr_ship_release",
+      "ariaLabel": null
+     },
+     "targetCardId": "thr_ship_release",
+     "openedOn": "Thread: Ship 0.1.1: column ordering fix + release notes",
+     "ms": 212,
+     "wrongObject": true,
+     "overBudget": false
+    },
+    {
+     "i": 7,
+     "tapped": {
+      "tag": "p",
+      "cardId": "thr_ship_release",
+      "ariaLabel": null
+     },
+     "targetCardId": "thr_ship_release",
+     "openedOn": "Thread: Ship 0.1.1: column ordering fix + release notes",
+     "ms": 220,
+     "wrongObject": true,
+     "overBudget": false
+    },
+    {
+     "i": 8,
+     "tapped": {
+      "tag": "p",
+      "cardId": "thr_ship_release",
+      "ariaLabel": null
+     },
+     "targetCardId": "thr_ship_release",
+     "openedOn": "Thread: Ship 0.1.1: column ordering fix + release notes",
+     "ms": 223,
+     "wrongObject": true,
+     "overBudget": false
+    },
+    {
+     "i": 9,
+     "tapped": {
+      "tag": "p",
+      "cardId": "thr_ship_release",
+      "ariaLabel": null
+     },
+     "targetCardId": "thr_ship_release",
+     "openedOn": "Thread: Ship 0.1.1: column ordering fix + release notes",
+     "ms": 217,
+     "wrongObject": true,
+     "overBudget": false
+    }
+   ]
+  }
+ ]
+}

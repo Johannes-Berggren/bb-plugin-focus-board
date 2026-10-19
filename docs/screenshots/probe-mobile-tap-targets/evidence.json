@@ -1,0 +1,180 @@
+{
+ "machine": {
+  "chrome": "Chrome/155.0.8059.80",
+  "cpuThrottleRate": 4,
+  "scale": 300,
+  "demo": true,
+  "viewport": {
+   "width": 390,
+   "height": 844
+  },
+  "query": "?demo=1&scale=300"
+ },
+ "firstLoadDrift": {
+  "firstCardAt": 321,
+  "sampleCount": 114,
+  "points": 20,
+  "driftingPoints": 0,
+  "worst": [
+   {
+    "point": 0,
+    "distinctCount": 1,
+    "distinct": [
+     "thr_ship_release"
+    ],
+    "sequence": [
+     {
+      "t": 31,
+      "id": null
+     },
+     {
+      "t": 321,
+      "id": "thr_ship_release"
+     }
+    ]
+   },
+   {
+    "point": 1,
+    "distinctCount": 1,
+    "distinct": [
+     "thr_roadmap"
+    ],
+    "sequence": [
+     {
+      "t": 31,
+      "id": null
+     },
+     {
+      "t": 321,
+      "id": "thr_roadmap"
+     }
+    ]
+   },
+   {
+    "point": 5,
+    "distinctCount": 1,
+    "distinct": [
+     "thr_ship_release"
+    ],
+    "sequence": [
+     {
+      "t": 31,
+      "id": null
+     },
+     {
+      "t": 321,
+      "id": "thr_ship_release"
+     }
+    ]
+   },
+   {
+    "point": 6,
+    "distinctCount": 1,
+    "distinct": [
+     "thr_roadmap"
+    ],
+    "sequence": [
+     {
+      "t": 31,
+      "id": null
+     },
+     {
+      "t": 321,
+      "id": "thr_roadmap"
+     }
+    ]
+   },
+   {
+    "point": 10,
+    "distinctCount": 1,
+    "distinct": [
+     "thr_ship_release"
+    ],
+    "sequence": [
+     {
+      "t": 31,
+      "id": null
+     },
+     {
+      "t": 321,
+      "id": "thr_ship_release"
+     }
+    ]
+   },
+   {
+    "point": 11,
+    "distinctCount": 1,
+    "distinct": [
+     "thr_roadmap"
+    ],
+    "sequence": [
+     {
+      "t": 31,
+      "id": null
+     },
+     {
+      "t": 321,
+      "id": "thr_roadmap"
+     }
+    ]
+   }
+  ],
+  "cardCount": 478
+ },
+ "singleTapMisroute": {
+  "targets": [
+   {
+    "id": "thr_ship_release",
+    "title": "",
+    "topLevel": true,
+    "cx": 140,
+    "cy": 136,
+    "centreHitsId": "thr_ship_release"
+   },
+   {
+    "id": "thr_roadmap",
+    "title": "",
+    "topLevel": true,
+    "cx": 140,
+    "cy": 211,
+    "centreHitsId": "thr_roadmap"
+   }
+  ],
+  "taps": [
+   {
+    "tappedCardId": "thr_ship_release",
+    "tappedTitle": "",
+    "centreHitsId": "thr_ship_release",
+    "opened": "Thread: Ship 0.1.1: column ordering fix + release notes",
+    "misrouted": false
+   },
+   {
+    "tappedCardId": "thr_roadmap",
+    "tappedTitle": "",
+    "centreHitsId": "thr_roadmap",
+    "opened": "Thread: Plan Q4 plugin roadmap",
+    "misrouted": false
+   }
+  ],
+  "familyTaps": [
+   {
+    "tappedCardId": "thr_pane_padding",
+    "tappedTitle": "",
+    "centreHitsId": "thr_pane_padding",
+    "opened": "Thread: Fix pane safe-area padding on mobile"
+   },
+   {
+    "tappedCardId": "thr_license",
+    "tappedTitle": "",
+    "centreHitsId": "thr_license",
+    "opened": "Thread: Add MIT license"
+   },
+   {
+    "tappedCardId": "thr_proj_family",
+    "tappedTitle": "",
+    "centreHitsId": "thr_proj_family",
+    "opened": null
+   }
+  ]
+ }
+}

@@ -21,6 +21,13 @@ import { fileURLToPath } from "node:url";
 import puppeteer from "puppeteer-core";
 import { parse } from "yaml";
 import { startHarness } from "./harness.mjs";
+import {
+  NETWORK_PRESETS,
+  parseLoadConditions,
+  parseManualFlag,
+  partitionSuites,
+  withLoadQuery,
+} from "./load-conditions.mjs";
 
 const CHROME =
   process.env.CHROME_PATH ?? "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
@@ -30,13 +37,36 @@ const REPORT_DIR = fileURLToPath(new URL("../../docs/uat/", import.meta.url));
 const suites = process.argv.slice(2).filter((a) => !a.startsWith("-"));
 // No args → every suite in tests/manual, in name order (the README's
 // documented behavior); args name individual suites.
-const suiteFiles =
+const discovered =
   suites.length > 0
     ? suites
     : (await readdir(fileURLToPath(new URL("../../tests/manual", import.meta.url))))
         .filter((name) => name.endsWith(".yaml"))
         .sort()
         .map((name) => fileURLToPath(new URL(`../../tests/manual/${name}`, import.meta.url)));
+
+// The `manual: true` opt-in (issue #265/#266): a suite marked manual is
+// runnable on demand but is NOT part of the bare-sweep default, so
+// `npm run uat` and the `release-safety` gate that calls it never run a gate
+// whose budget is currently red. Naming the file explicitly on the command
+// line always runs it, marked or not.
+//
+// A suite's flag lives at its top level, so the file has to be read here to
+// decide. Only the default (no-args) path filters: an explicit argument is
+// the operator asking for exactly that suite.
+let suiteFiles = discovered;
+let skippedManual = [];
+if (suites.length === 0) {
+  const entries = await Promise.all(
+    discovered.map(async (file) => ({
+      file,
+      manual: parseManualFlag(parse(await readFile(file, "utf8"))),
+    })),
+  );
+  const { run, skipped } = partitionSuites(entries);
+  suiteFiles = run.map((entry) => entry.file);
+  skippedManual = skipped.map((entry) => entry.file);
+}
 
 /**
  * A DataTransfer that enforces the browser's protected mode, which a plain
@@ -70,6 +100,79 @@ function installProtectedDrag() {
       reading.on = on;
     };
     return transfer;
+  };
+}
+
+/**
+ * The gesture-settle clock for `gesture_budget` assertions. Installed before
+ * any document script runs, so a suite can arm it immediately before a gesture
+ * and read the round trip afterwards.
+ *
+ * `arm()` stamps `t0` and starts a two-frame quiet detector: every DOM
+ * mutation stamps `lastMutationAt`, and the measurement settles once two
+ * consecutive animation frames pass with no mutation. The settle promise
+ * resolves AT settle time, not at read time, so a gesture branch's own
+ * `sleep(300)` between arm and read never inflates the number.
+ *
+ * This measures the gesture's own round trip in page time: dispatch to the
+ * DOM being quiet. It is deliberately not wall-clock from Node, so the CDP
+ * round trip is not part of the budget.
+ */
+function installSettleInstrument() {
+  const w = window;
+  w.__uatSettle = {
+    t0: 0,
+    lastMutationAt: 0,
+    settled: null,
+    arm() {
+      this.t0 = performance.now();
+      this.lastMutationAt = this.t0;
+      this.settled = null;
+      if (this.observer !== undefined) this.observer.disconnect();
+      this.observer = new MutationObserver(() => {
+        this.lastMutationAt = performance.now();
+      });
+      this.observer.observe(document, {
+        childList: true,
+        subtree: true,
+        attributes: true,
+        characterData: true,
+      });
+      let lastFrame = performance.now();
+      const tick = () => {
+        if (this.settled !== null) return;
+        const now = performance.now();
+        // Two quiet frames: the first frame is the commit, the second the paint.
+        if (now - lastFrame >= 30 && this.lastMutationAt <= lastFrame) {
+          this.settled = Math.round(this.lastMutationAt - this.t0);
+          this.observer.disconnect();
+          return;
+        }
+        lastFrame = now;
+        requestAnimationFrame(tick);
+      };
+      requestAnimationFrame(tick);
+      return true;
+    },
+    /** Wait for the measurement to settle, up to `maxMs`; null on timeout. */
+    read(maxMs) {
+      const deadline = performance.now() + (maxMs ?? 8000);
+      return new Promise((resolve) => {
+        const poll = () => {
+          if (this.settled !== null) {
+            resolve(this.settled);
+            return;
+          }
+          if (performance.now() > deadline) {
+            this.observer?.disconnect();
+            resolve(null);
+            return;
+          }
+          requestAnimationFrame(poll);
+        };
+        poll();
+      });
+    },
   };
 }
 
@@ -1280,11 +1383,39 @@ function rule_has(step, name) {
 }
 
 /** Turn one YAML step's assertions into pass/fail records. */
-async function check(step, page, gestureResults = []) {
+async function check(step, page, gestureResults = [], gestureTimings = []) {
   const results = [];
   const expect = (name, ok, detail) => results.push({ name, ok, detail });
 
   for (const rule of step.assert ?? []) {
+    if (rule.gesture_budget !== undefined) {
+      // The gesture's own round trip against a millisecond budget (issue
+      // #266). Payload: `{ max_ms, gesture? }`; `gesture` defaults to the
+      // step's first timed gesture. A missing reading is a FAIL, never a
+      // silent pass: an un-timed budget proves nothing.
+      const want = rule.gesture_budget;
+      const gestureName = want.gesture;
+      const readings =
+        gestureName === undefined
+          ? gestureTimings
+          : gestureTimings.filter((t) => t.gesture === gestureName);
+      const reading = readings.at(-1);
+      if (reading === undefined || reading.ms === null) {
+        expect(
+          `gesture_budget ${gestureName ?? "(any)"} ≤${want.max_ms}ms`,
+          false,
+          readings.length === 0
+            ? "no timed gesture matched — the step must declare a timed gesture"
+            : "the gesture never settled inside the read window",
+        );
+      } else {
+        expect(
+          `gesture_budget ${reading.gesture} ≤${want.max_ms}ms`,
+          reading.ms <= want.max_ms,
+          `measured ${reading.ms}ms`,
+        );
+      }
+    }
     if (rule.column !== undefined) {
       const state = await page.evaluate(pageOrder, rule.column);
       if (state === null) {
@@ -1935,10 +2066,29 @@ async function runSuite(file, { port, browser }) {
   const theme = suite.defaults?.theme ?? "dark";
   const groupBy = suite.defaults?.groupBy ?? "status";
   const viewport = suite.defaults?.viewport ?? { width: 1920, height: 1080 };
+  // Declared load conditions (issue #266). A suite that declares none runs
+  // exactly as it always did: full desktop speed, base fixture. Bad values
+  // throw here, before the browser is launched, so a typo cannot silently
+  // disable the throttle a perf suite depends on.
+  const load = parseLoadConditions(suite.defaults ?? {});
   const { child, base } = await startHarness(port);
   const page = await browser.newPage();
   await page.setViewport(viewport);
-  const report = { suite: suite.suite, file, theme, steps: [] };
+  const report = { suite: suite.suite, file, theme, load, steps: [] };
+
+  // Throttling is PER PAGE through a CDP session, so a suite's conditions
+  // never leak to the next suite (each runSuite makes its own page). The
+  // instrument is installed before any document script, alongside the drag
+  // shim, so `gesture_budget` can arm it from the first goto on.
+  await page.evaluateOnNewDocument(installSettleInstrument);
+  const cdp = await page.createCDPSession();
+  if (load.cpuThrottle > 0) {
+    await cdp.send("Emulation.setCPUThrottlingRate", { rate: load.cpuThrottle });
+  }
+  if (load.network !== "none") {
+    await cdp.send("Network.enable");
+    await cdp.send("Network.emulateNetworkConditions", NETWORK_PRESETS[load.network]);
+  }
 
   try {
     for (const step of suite.steps) {
@@ -1946,7 +2096,7 @@ async function runSuite(file, { port, browser }) {
         // Before any document script runs, so the app and the helpers share
         // one page.
         await page.evaluateOnNewDocument(installProtectedDrag);
-        await page.goto(`${base}${step.goto}`, { waitUntil: "domcontentloaded", timeout: 60_000 });
+        await page.goto(`${base}${withLoadQuery(step.goto, load)}`, { waitUntil: "domcontentloaded", timeout: 60_000 });
         // The board surface: a grouped board (sections) or an empty state.
         // The parent-thread view legitimately renders no sections when a
         // filter/search drops every family, so the wait must accept both.
@@ -1976,6 +2126,25 @@ async function runSuite(file, { port, browser }) {
       // assertions, so a broken drop shows up alongside what it broke rather
       // than replacing it.
       const gestureResults = [];
+      // `gesture_budget` (issue #266): each gesture is timed by its own
+      // round trip in page time. The settle instrument is armed immediately
+      // before the gesture is dispatched and read immediately after, so the
+      // number is dispatch to DOM-quiet — not the suite's own `sleep` waits,
+      // and not the CDP round trip.
+      const wantsBudget = rule_has(step, "gesture_budget");
+      const gestureTimings = [];
+      const pendingSettles = [];
+      const armSettle = () =>
+        wantsBudget
+          ? page.evaluate(() => globalThis.__uatSettle?.arm() ?? null).catch(() => {})
+          : Promise.resolve();
+      const readSettle = (gesture) =>
+        wantsBudget
+          ? page
+              .evaluate(() => globalThis.__uatSettle?.read(8000) ?? null)
+              .then((ms) => gestureTimings.push({ gesture, ms }))
+              .catch(() => gestureTimings.push({ gesture, ms: null }))
+          : Promise.resolve();
       // Gestures run in the order the step declares them (YAML mapping order
       // is insertion order), not in this runner's historical fixed order — a
       // pane-history step sequences pushes and backs deliberately, and
@@ -2002,6 +2171,11 @@ async function runSuite(file, { port, browser }) {
               .filter((key) => GESTURE_ORDER.includes(key))
               .map((key) => [key, step[key]]);
         for (const [gesture, payload] of orderedGestures) {
+          // The budget clock wraps the DISPATCH only: arm, dispatch, read the
+          // settle. Everything the branch does after (its own settle sleeps,
+          // assertion setup) is outside the measurement.
+          await armSettle();
+          pendingSettles.push(readSettle(gesture));
           if (gesture === "drag") {
             const outcome = await page.evaluate(pageDrag, payload);
             if (outcome.dropped === false) {
@@ -2181,6 +2355,8 @@ async function runSuite(file, { port, browser }) {
           }
           if (gestureFailed) break;
         }
+        // Collect the budget readings before the step's own assertions run.
+        await Promise.all(pendingSettles);
       } catch (error) {
         gestureFailed = true;
         report.steps.push({
@@ -2198,7 +2374,7 @@ async function runSuite(file, { port, browser }) {
       const results = [
         ...preResults,
         ...(rule_has(step, "expect_drop_refused") ? [] : gestureResults),
-        ...(await check(step, page, gestureResults)),
+        ...(await check(step, page, gestureResults, gestureTimings)),
       ];
       report.steps.push({
         id: step.id,
@@ -2257,5 +2433,12 @@ for (const report of reports) {
 }
 
 console.log(`\n${failed === 0 ? "all steps passed" : `${failed} step(s) failed`}`);
+if (skippedManual.length > 0) {
+  // Name what the sweep left out, so a skipped gate is visible rather than
+  // silently missing (the reason it is opt-in is documented in the suite and
+  // in load-conditions.mjs).
+  console.log(`skipped (manual: true) — run by path to include:`);
+  for (const file of skippedManual) console.log(`  ${file}`);
+}
 console.log(`reports:\n${outFiles.map((f) => `  ${f}`).join("\n")}`);
 process.exit(failed === 0 ? 0 : 1);

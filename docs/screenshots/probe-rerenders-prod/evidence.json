@@ -1,0 +1,46 @@
+{
+  "machine": {
+    "chrome": "Chrome/155.0.8059.80",
+    "cpuThrottleRate": 4,
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "query": "?demo=1&scale=300"
+  },
+  "cardCount": 478,
+  "idle": {
+    "ms": 3000,
+    "renders": 0
+  },
+  "hover1": {
+    "steps": 1,
+    "renders": 0,
+    "wallMs": 181
+  },
+  "hover12": {
+    "steps": 12,
+    "renders": 0,
+    "wallMs": 1633
+  },
+  "familyCollapse": {
+    "selector": "[aria-label=\"Collapse subthreads\"]",
+    "renders": 335,
+    "wallMs": 643
+  },
+  "familyExpand": {
+    "selector": "[aria-label=\"Expand subthreads\"]",
+    "renders": 335,
+    "wallMs": 578
+  },
+  "paneOpen": {
+    "selector": "[data-columns-board] [data-thread-card] a",
+    "renders": 1005,
+    "wallMs": 1046
+  },
+  "drag": {
+    "steps": 16,
+    "renders": 0,
+    "wallMs": 840
+  }
+}

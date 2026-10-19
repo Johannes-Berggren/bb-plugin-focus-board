@@ -1,0 +1,116 @@
+{
+ "machine": {
+  "chrome": "Chrome/155.0.8059.80",
+  "cpuThrottleRate": 4,
+  "scale": 300,
+  "viewport": {
+   "width": 390,
+   "height": 844
+  },
+  "query": "?demo=1&scale=300",
+  "retryMs": 120
+ },
+ "trials": [
+  {
+   "i": 0,
+   "aimedCardId": "thr_ship_release",
+   "openedOn": "Thread: Ship 0.1.1: column ordering fix + release notes",
+   "underBackButton": {
+    "tag": "button",
+    "cardId": null,
+    "inPane": true
+   },
+   "paneStillOpenAtRetry": false,
+   "underRetryPoint": {
+    "tag": "svg",
+    "cardId": null,
+    "inPane": false
+   },
+   "finalPane": null,
+   "reopenedUnintended": false,
+   "reopenedDifferentThread": false
+  },
+  {
+   "i": 1,
+   "openedOn": null,
+   "error": "no back button"
+  },
+  {
+   "i": 2,
+   "aimedCardId": "thr_ship_release",
+   "openedOn": "Thread: Ship 0.1.1: column ordering fix + release notes",
+   "underBackButton": {
+    "tag": "button",
+    "cardId": null,
+    "inPane": true
+   },
+   "paneStillOpenAtRetry": false,
+   "underRetryPoint": {
+    "tag": "svg",
+    "cardId": null,
+    "inPane": false
+   },
+   "finalPane": null,
+   "reopenedUnintended": false,
+   "reopenedDifferentThread": false
+  },
+  {
+   "i": 3,
+   "openedOn": null,
+   "error": "no back button"
+  },
+  {
+   "i": 4,
+   "aimedCardId": "thr_ship_release",
+   "openedOn": "Thread: Ship 0.1.1: column ordering fix + release notes",
+   "underBackButton": {
+    "tag": "button",
+    "cardId": null,
+    "inPane": true
+   },
+   "paneStillOpenAtRetry": false,
+   "underRetryPoint": {
+    "tag": "svg",
+    "cardId": null,
+    "inPane": false
+   },
+   "finalPane": null,
+   "reopenedUnintended": false,
+   "reopenedDifferentThread": false
+  },
+  {
+   "i": 5,
+   "openedOn": null,
+   "error": "no back button"
+  },
+  {
+   "i": 6,
+   "aimedCardId": "thr_ship_release",
+   "openedOn": "Thread: Ship 0.1.1: column ordering fix + release notes",
+   "underBackButton": {
+    "tag": "button",
+    "cardId": null,
+    "inPane": true
+   },
+   "paneStillOpenAtRetry": false,
+   "underRetryPoint": {
+    "tag": "svg",
+    "cardId": null,
+    "inPane": false
+   },
+   "finalPane": null,
+   "reopenedUnintended": false,
+   "reopenedDifferentThread": false
+  },
+  {
+   "i": 7,
+   "openedOn": null,
+   "error": "no back button"
+  }
+ ],
+ "summary": {
+  "unintendedReopen": 0,
+  "differentThread": 0,
+  "deadTap": 4
+ }
+}
