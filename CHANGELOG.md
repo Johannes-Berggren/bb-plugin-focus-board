@@ -7,6 +7,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+#### Board layout
+
+- **The Parent view's rows each carry their own sweep.** Every sweepable row's rail cell has the same broom the Focus view's columns use, and arming it sweeps that row's cards across every family lane. The A-while-ago row marks its aged-out children Done, the Done row archives, and the Needs-you and Working rows carry no sweep at all.
+
 ### Changed
 
 #### Board scale

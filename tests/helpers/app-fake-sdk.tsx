@@ -354,6 +354,13 @@ const rpcCall = async (method: string, args?: unknown): Promise<unknown> => {
       }
       return { groupId };
     }
+    case "done_set": {
+      // The board tracks done-ness in its own state (done_list + the write's
+      // own echo); the fake only has to answer, like the real handler does.
+      const { threadId, done } = args as { threadId: string; done: boolean };
+      publishThreadChanged();
+      return { threadId, done };
+    }
     case "thread_reparent": {
       const { threadId, parentThreadId } = args as { threadId: string; parentThreadId: string | null };
       mutateThread(threadId, (thread) => ({ ...thread, parentThreadId }));

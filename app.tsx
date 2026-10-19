@@ -55,7 +55,7 @@ import {
   filterIndividually,
   assembleBoard,
 } from "./components/nesting";
-import { buildParentLanes } from "./components/parent-lanes";
+import { buildParentLanes, laneRowThreads } from "./components/parent-lanes";
 import type { ParentLane } from "./components/parent-lanes";
 import { ParentLaneBoard } from "./components/parent-lane-board";
 import {
@@ -1693,19 +1693,24 @@ function BoardPage({ subPath }: { subPath: string }) {
     return parents;
   }, [liveThreads]);
 
-  const sweepCandidatesFor = useCallback(
-    (columnId: string): readonly string[] => {
-      const column = columns.find((candidate) => candidate.id === columnId);
-      if (column === undefined || sweepColumnKind(columnId) === null) return [];
+  // ONE eligibility law for every sweep surface: the Focus view calls this
+  // with each column's own threads, the Parent view with a row's cards
+  // gathered across every lane (laneRowThreads). Same predicates, same
+  // config, same exclusions — so a thread sweepable in one view is
+  // sweepable in the other, and one excluded for a pinned/attention/live
+  // reason is excluded identically.
+  const sweepCandidatesAmong = useCallback(
+    (scopeId: string, threads: readonly PluginSidebarThread[]): readonly string[] => {
+      const kind = sweepColumnKind(scopeId);
+      if (kind === null) return [];
       const now = Date.now();
       // A snoozed thread sleeps through sweeps too: the wake is the whole
       // point of the snooze, so its card is not a sweep candidate — on any
       // arm, aged-out or manually curated (the server-side sweep skips
       // snoozed facts the same way).
-      const sweepable = column.threads.filter(
+      const sweepable = threads.filter(
         (candidate) => !snoozedIds.has(candidate.id),
       );
-      const kind = sweepColumnKind(columnId);
       switch (kind) {
         case "done":
           return sweepCandidatesForDoneColumn(
@@ -1717,7 +1722,7 @@ function BoardPage({ subPath }: { subPath: string }) {
             liveChildParentIds,
           );
         case "idle-bucket":
-          return sweepArmPreselects(columnId)
+          return sweepArmPreselects(scopeId)
             ? sweepCandidatesForIdleColumn(
                 sweepable,
                 doneIds,
@@ -1736,8 +1741,30 @@ function BoardPage({ subPath }: { subPath: string }) {
           return [];
       }
     },
-    [columns, doneIds, doneAgeSource, idleKept, liveChildParentIds, snoozedIds, sweepConfig, errorAckIds],
+    [doneIds, doneAgeSource, idleKept, liveChildParentIds, snoozedIds, sweepConfig, errorAckIds],
   );
+
+  const sweepCandidatesFor = useCallback(
+    (columnId: string): readonly string[] => {
+      const column = columns.find((candidate) => candidate.id === columnId);
+      if (column === undefined) return [];
+      return sweepCandidatesAmong(columnId, column.threads);
+    },
+    [columns, sweepCandidatesAmong],
+  );
+
+  // The Parent view's sweep, per ROW: the same law over the row's cards
+  // across every family lane. A row exists on every lane, so this is a
+  // union; a row that holds nothing sweepable still arms (manual sweep
+  // mode), exactly as an empty Focus column does.
+  const parentLaneSweepCandidatesFor = useCallback(
+    (rowId: string): readonly string[] => {
+      if (parentLanes === null) return [];
+      return sweepCandidatesAmong(rowId, laneRowThreads(parentLanes, rowId));
+    },
+    [parentLanes, sweepCandidatesAmong],
+  );
+
 
   // A Done-column projection card (a live family's Done card) cannot join a
   // sweep either: it is a rendering of a live parent, not a done thread.
@@ -1760,6 +1787,19 @@ function BoardPage({ subPath }: { subPath: string }) {
       setArmedSweep(armSweep(columnId, sweepCandidatesFor(columnId)));
     },
     [sweepCandidatesFor, sweepRun],
+  );
+
+  // The Parent view's arm: the same gesture over a row's cards across every
+  // lane. The row id is the armed scope, so the Focus board's confirm,
+  // toggle, range, cancel, and undo paths serve this arm unchanged — one
+  // armed sweep, two boards that can show it.
+  const armParentLaneSweepFor = useCallback(
+    (rowId: string) => {
+      if (sweepRun !== null) return;
+      if (sweepColumnKind(rowId) === null) return;
+      setArmedSweep(armSweep(rowId, parentLaneSweepCandidatesFor(rowId)));
+    },
+    [parentLaneSweepCandidatesFor, sweepRun],
   );
 
   // visibleRefKey is a sorted, comma-joined snapshot ("owner/repo#42,...").
@@ -3171,6 +3211,18 @@ function BoardPage({ subPath }: { subPath: string }) {
             snoozeFor={snoozeFor}
             onAttentionEnter={attentionEnter}
             onAttentionLeave={attentionLeave}
+            sweepCandidatesFor={parentLaneSweepCandidatesFor}
+            armedSweep={armedSweep}
+            sweepRun={sweepRun}
+            sweepNotice={sweepNotice}
+            onDismissSweepNotice={clearSweepNotice}
+            onSweepUndo={undoSweepFor}
+            onSweepToggle={toggleSweepSelectionFor}
+            onSweepRangeSelect={addSweepSelectionFor}
+            sweepBlockedIds={sweepBlockedIds}
+            onSweepArm={armParentLaneSweepFor}
+            onSweepConfirm={confirmSweepFor}
+            onSweepCancel={cancelSweepFor}
           />
         ) : boardCount === 0 ? (
           <div className="p-4">

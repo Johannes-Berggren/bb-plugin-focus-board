@@ -1,6 +1,6 @@
 # UAT report
 
-_Generated 2026-10-17T04:22:46.942Z by `npm run uat`._
+_Generated 2026-10-18T22:26:34.517Z by `npm run uat`._
 
 ## parent-lanes
 
@@ -29,3 +29,9 @@ Source: `tests/manual/uat-parent-lanes.yaml` · theme dark
 | Toggling lane order to By project then back to Recency keeps the board usable | pass | ✓ text visible: "By project"; ✓ text visible: "Parent thread lane fixture" |
 | Returning to Recency order removes project sections | pass | ✓ text visible: "Parent thread lane fixture"; ✓ text hidden: "Standalone" |
 | Switching back to Focus grouping renders normal columns | pass | ✓ unread order |
+| Each sweepable row's rail cell carries the sweep pill, and the non-sweepable rows carry none | pass | ✓ row idle-awhile sweep pill present; ✓ row idle-awhile pill matches ^\d+$; ✓ row done sweep pill present; ✓ row done pill matches ^\d+$; ✓ row attention sweep pill absent; ✓ row working sweep pill absent |
+| Clicking the idle row's broom arms the row and highlights its aged-out cards across every family lane | pass | ✓ row idle-awhile pill matches ^\d+ → Done$; ✓ row idle-awhile offers the sweep exit; ✓ row idle-awhile armed; ✓ row sweep reaches thr_sweep_parent:1, thr_proj_family:1; ✓ row idle-awhile excludes thr_sweep_w0,thr_sweep_w3 |
+| Confirming the armed idle row writes the same done_set the Focus view's idle column writes | pass | ✓ called done_set; ✓ done_set {"done":true}; ✓ row idle-awhile not armed; ✓ row idle-awhile excludes thr_sweep_child; ✓ row working sweep pill absent |
+| Arming the Done row's sweep names the Archive destination and offers the exit | pass | ✓ row done pill matches 1 → Archive; ✓ row done offers the sweep exit; ✓ row done armed |
+| Confirming the Done row's sweep archives its aged-out done child, the Focus view's Done-column destination | pass | ✓ archived set is ["thr_proj_done"]; ✓ row done pill matches ^$; ✓ row done not armed |
+| Clicking a card inside the armed row curates the sweep instead of disarming it | pass | ✓ row idle-awhile excludes thr_sweep_child; ✓ row idle-awhile armed; ✓ pane closed |

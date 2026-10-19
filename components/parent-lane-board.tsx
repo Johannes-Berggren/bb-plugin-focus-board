@@ -17,7 +17,20 @@ import type { ThreadLink } from "../lib/link-metadata";
 import type { CardMenuAction } from "./thread-card-menu";
 import { EmptyState } from "./empty-state";
 import { threadState } from "./grouping";
+import { SweepButton, SweepCancelButton } from "./sweep-button";
+import { SweepNoticeBanner, SweepRefusalBanner, SWEEP_BANNER_DISMISS_MS } from "./sweep-banners";
 import {
+  sweepColumnKind,
+  sweepDestination,
+  sweepRangeIds,
+  sweepRemovesThreads,
+  type ArmedSweep,
+  type SweepDestination,
+  type SweepNotice,
+  type SweepRunView,
+} from "../lib/sweep";
+import {
+  laneRowThreads,
   sectionParentLanes,
   type ParentLane,
   type ParentLaneSection,
@@ -76,6 +89,33 @@ interface ParentLaneBoardProps {
    */
   onAttentionEnter?: (threadId: string) => void;
   onAttentionLeave?: (threadId: string) => void;
+  /**
+   * Sweep wiring, the same contract the Focus view's columns use: the sweep
+   * pill rides each sweepable row's rail cell, arming pre-selects the
+   * past-threshold cards (that row's own candidates), card clicks toggle
+   * membership, and confirm applies the row's destination to the frozen
+   * selection. Eligibility is computed by the caller over this row's cards
+   * across every lane (`laneRowThreads`), through the same lib/sweep
+   * predicates the Focus view runs.
+   */
+  sweepCandidatesFor?: (rowId: string) => readonly string[];
+  armedSweep?: ArmedSweep | null;
+  /** A confirmed sweep in progress; the active card carries the throbber. */
+  sweepRun?: SweepRunView | null;
+  /** A finished sweep's summary; null hides the banner. */
+  sweepNotice?: SweepNotice | null;
+  onDismissSweepNotice?: () => void;
+  onSweepUndo?: (
+    threadIds: readonly string[],
+    destination: SweepDestination,
+  ) => void;
+  onSweepToggle?: (threadId: string) => void;
+  onSweepRangeSelect?: (threadIds: readonly string[]) => void;
+  /** Threads that may never join a sweep (live-child parents). */
+  sweepBlockedIds?: ReadonlySet<string>;
+  onSweepArm?: (rowId: string) => void;
+  onSweepConfirm?: (rowId: string) => void;
+  onSweepCancel?: () => void;
 }
 
 /** Ruler+wrap board chrome measurements (shared with parent-lane-layout.ts).
@@ -287,6 +327,18 @@ export function ParentLaneBoard({
   snoozeFor,
   onAttentionEnter,
   onAttentionLeave,
+  sweepCandidatesFor,
+  armedSweep = null,
+  sweepRun = null,
+  sweepNotice = null,
+  onDismissSweepNotice,
+  onSweepUndo,
+  onSweepToggle,
+  onSweepRangeSelect,
+  sweepBlockedIds,
+  onSweepArm,
+  onSweepConfirm,
+  onSweepCancel,
 }: ParentLaneBoardProps) {
   // The spotlight rule (components/card-spotlight.ts) is document-global CSS;
   // each board mounts it idempotently, so whichever board renders first wins.
@@ -301,6 +353,22 @@ export function ParentLaneBoard({
    *  hover. Updated only when the row changes, so pans never re-render. */
   const [bandHover, setBandHover] = useState<string | null>(null);
   const bandHoverRef = useRef<string | null>(null);
+  /** An armed row's refusal (a live-child parent clicked into the sweep),
+   *  said on screen the same way the Focus board says it. */
+  const [sweepRefusal, setSweepRefusal] = useState<string | null>(null);
+  // The shift-click anchor, exactly as the Focus board keeps it: the last
+  // card clicked without Shift in the armed row. Reset whenever the armed
+  // row changes or sweep mode ends, so a re-arm never inherits an old anchor.
+  const sweepAnchorRef = useRef<{ rowId: string; threadId: string } | null>(null);
+  const armedRowId = armedSweep?.columnId ?? null;
+  useEffect(() => {
+    sweepAnchorRef.current = null;
+  }, [armedRowId]);
+  useEffect(() => {
+    if (sweepRefusal === null) return;
+    const timer = setTimeout(() => setSweepRefusal(null), SWEEP_BANNER_DISMISS_MS);
+    return () => clearTimeout(timer);
+  }, [sweepRefusal]);
   /** The viewport is too narrow for lane snapping (a lane overflows, or a
    *  phone-width scrollport fits fewer than two context columns): snap-to on
    *  scroll is disabled, header clicks select lanes. */
@@ -740,6 +808,17 @@ export function ParentLaneBoard({
   const rowIds = flat[0].lane.rows.map((row) => row.id);
   const rowLabels = flat[0].lane.rows.map((row) => row.label);
   const lockedLane = lockedIndex === null ? undefined : flat[lockedIndex].lane;
+  // Each row's cards in board display order (lane order, then the lane's own
+  // row order): the order a shift-click's range walks, and the order the
+  // caller's eligibility union was built in. A plain map, not a hook — it
+  // sits after the empty-board return.
+  const rowDisplayOrder = new Map<string, string[]>();
+  {
+    const laneList = flat.map((entry) => entry.lane);
+    for (const rowId of rowIds) {
+      rowDisplayOrder.set(rowId, laneRowThreads(laneList, rowId).map((t) => t.id));
+    }
+  }
   // Trailing spacer: enough room for a full viewport past the last lane so
   // it can reach the locked position. Constant per viewport — it never
   // depends on the live scroll position, so it cannot wobble mid-pan
@@ -770,17 +849,95 @@ export function ParentLaneBoard({
     setBandHover(null);
   };
 
+  // The sweep wiring, mirroring the Focus board's per-column block. Every
+  // row is a sweep scope in the same vocabulary the Focus view's columns
+  // use, so one state machine and one set of labels serve both boards.
+  const sweepActive = sweepCandidatesFor !== undefined && onSweepArm !== undefined;
+  const sweepStateFor = (rowId: string) => {
+    const kind = sweepColumnKind(rowId);
+    // Arm-scoped refusal law, exactly as in the Focus view: only the arms
+    // whose action removes the thread from the live board (Done → Archive,
+    // idle → Done) refuse live-child parents.
+    const blocked = sweepRemovesThreads(rowId) ? sweepBlockedIds : undefined;
+    const isArmed = armedSweep !== null && armedSweep.columnId === rowId;
+    const runHere = sweepRun !== null && sweepRun.columnId === rowId ? sweepRun : null;
+    const eligible = isArmed
+      ? (armedSweep?.threadIds ?? [])
+      : sweepActive && kind !== null
+        ? (sweepCandidatesFor?.(rowId) ?? [])
+        : [];
+    return {
+      kind,
+      blocked,
+      isArmed,
+      runHere,
+      eligible,
+      armedSet: isArmed ? new Set(eligible) : null,
+    };
+  };
+  /**
+   * The toggle a lane card reports in sweep mode, mirroring Board's: a card
+   * that may not join refuses loudly, shift extends from the anchor through
+   * this card in the row's display order, and a plain or cmd/ctrl click
+   * toggles one card and becomes the next shift-click's anchor.
+   *
+   * Unlike the Focus board there is no Done-projection carve-out: the Parent
+   * view's Done row holds real done children, never a family's projection
+   * card.
+   */
+  const sweepCardToggle = (
+    rowId: string,
+    blocked: ReadonlySet<string> | undefined,
+    displayOrder: readonly string[],
+    title: string,
+  ) => {
+    const mayJoin = (threadId: string) => !(blocked?.has(threadId) ?? false);
+    return (toggledId: string, gesture: { shiftKey: boolean }) => {
+      if (!mayJoin(toggledId)) {
+        setSweepRefusal(`"${title}" still has live children, so it cannot join a sweep.`);
+        return;
+      }
+      if (gesture.shiftKey) {
+        const anchor =
+          sweepAnchorRef.current?.rowId === rowId ? sweepAnchorRef.current.threadId : null;
+        onSweepRangeSelect?.(sweepRangeIds(displayOrder, anchor, toggledId, mayJoin));
+        return;
+      }
+      sweepAnchorRef.current = { rowId, threadId: toggledId };
+      onSweepToggle?.(toggledId);
+    };
+  };
+
   return (
-    <div
-      ref={scrollRef}
-      onClick={handleBackgroundClick}
-      onMouseMove={trackBandHover}
-      onMouseLeave={clearBandHover}
-      data-parent-board
-      className={cn(
-        "min-h-0 flex-1 overflow-auto px-3 pb-3 pt-2",
-      )}
-    >
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+      {/* The sweep banners live above the horizontal scroll surface, exactly
+          as the Focus board's do: a banner inside the scroller would ride the
+          pan and be carried off the viewport's left edge. */}
+      <div data-banner-row className="shrink-0">
+        {sweepNotice !== null ? (
+          <SweepNoticeBanner
+            notice={sweepNotice}
+            onUndo={onSweepUndo}
+            onDismiss={onDismissSweepNotice}
+          />
+        ) : null}
+        {sweepRefusal !== null ? (
+          <SweepRefusalBanner
+            message={sweepRefusal}
+            onDismiss={() => setSweepRefusal(null)}
+          />
+        ) : null}
+      </div>
+      <div
+        ref={scrollRef}
+        onClick={handleBackgroundClick}
+        onMouseMove={trackBandHover}
+        onMouseLeave={clearBandHover}
+        data-parent-board
+        className={cn(
+          "min-h-0 flex-1 overflow-auto px-3 pb-3 pt-2",
+        )}
+      >
       <div className="flex min-h-full w-max items-stretch">
         {/* Row rail: pinned left; labels ride their band heights, so labels
             and seams line up board-wide by construction. */}
@@ -805,16 +962,25 @@ export function ParentLaneBoard({
             </button>
           </div>
           {rowLabels.map((label, index) => {
+            const rowId = rowIds[index];
             const count =
               released || lockedLane === undefined
                 ? null
                 : lockedLane.rows[index].threads.length;
+            // The row's sweep, in its rail cell: the rail is the only
+            // always-visible chrome a row owns board-wide (the row spans
+            // every family lane, so a pill inside one lane's band would
+            // either need one copy per lane or hide behind the next pan).
+            // Only sweepable rows get it — a Needs-you or Working row has no
+            // sweep, and shows no button at all.
+            const sweep = sweepStateFor(rowId);
             return (
               <div
-                key={rowIds[index]}
+                key={rowId}
+                data-rail-row={rowId}
                 style={{ height: layout.bandHeights[index] }}
                 className={cn(
-                  "flex flex-col justify-center border-b border-border/40 px-1.5",
+                  "flex flex-col justify-center gap-0.5 border-b border-border/40 px-1.5",
                   "transition-[height] duration-200",
                 )}
               >
@@ -829,6 +995,30 @@ export function ParentLaneBoard({
                     {count}
                   </span>
                 )}
+                {sweepActive && sweep.kind !== null ? (
+                  <span className="flex min-w-0 items-center gap-0.5">
+                    <SweepButton
+                      eligibleCount={sweep.eligible.length}
+                      isArmed={sweep.isArmed}
+                      run={
+                        sweep.runHere === null
+                          ? null
+                          : { done: sweep.runHere.done, total: sweep.runHere.total }
+                      }
+                      destination={sweepDestination(rowId) ?? "archive"}
+                      scope="row"
+                      truncates
+                      onArm={() => onSweepArm?.(rowId)}
+                      onConfirm={() => onSweepConfirm?.(rowId)}
+                    />
+                    {sweep.isArmed || sweep.runHere !== null ? (
+                      <SweepCancelButton
+                        running={sweep.runHere !== null}
+                        onClick={() => onSweepCancel?.()}
+                      />
+                    ) : null}
+                  </span>
+                ) : null}
               </div>
             );
           })}
@@ -881,10 +1071,16 @@ export function ParentLaneBoard({
               {lane.rows.map((row, rowIndex) => {
                 const cells = laneLayout.cells.filter((cell) => cell.row === rowIndex);
                 const chip = laneLayout.chipFor[rowIndex];
+                // Every lane's band for this row wears the row's own id, so
+                // the click-away hook can spare a card inside the ARMED row
+                // wherever it sits across the lanes.
+                const sweep = sweepStateFor(row.id);
+                const order = rowDisplayOrder.get(row.id) ?? [];
                 return (
                   <div
                     key={row.id}
                     data-band={row.id}
+                    data-sweep-row={row.id}
                     data-band-hover={bandHover === row.id ? "true" : undefined}
                     style={{ height: layout.bandHeights[rowIndex] }}
                     className={cn(
@@ -937,6 +1133,20 @@ export function ParentLaneBoard({
                           stateDot={<LaneStateDot thread={cell.thread} errorAcks={errorAckIds} />}
                           isActive={cell.thread.id === activeThreadId}
                           isDone={doneIds.has(cell.thread.id)}
+                          isSweepHighlighted={sweep.armedSet?.has(cell.thread.id) ?? false}
+                          isSweeping={sweep.runHere !== null && sweep.runHere.activeId === cell.thread.id}
+                          isSweepSelecting={sweep.isArmed}
+                          isSweepSelectable={
+                            sweep.isArmed &&
+                            !sweep.armedSet?.has(cell.thread.id) &&
+                            !(sweep.blocked?.has(cell.thread.id) ?? false)
+                          }
+                          onSweepToggle={sweepCardToggle(
+                            row.id,
+                            sweep.blocked,
+                            order,
+                            cell.thread.displayTitle,
+                          )}
                           onAttentionEnter={onAttentionEnter}
                           onAttentionLeave={onAttentionLeave}
                           projectName={projectNameFor(cell.thread.projectId)}
@@ -981,6 +1191,7 @@ export function ParentLaneBoard({
           style={{ width: spacerW }}
           className="shrink-0 transition-[width] duration-200"
         />
+      </div>
       </div>
     </div>
   );

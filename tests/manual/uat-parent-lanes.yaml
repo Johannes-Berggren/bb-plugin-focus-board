@@ -208,3 +208,76 @@ steps:
     assert:
       - column: unread
         ordered: [thr_rpc_auth, thr_uat_queue, thr_review_pr]
+
+  # The row sweep: the Parent view's horizontal bands each carry the same
+  # sweep the Focus view's vertical columns do. The idle and Done rows are
+  # the sweepable ones; Needs you and Working never sweep.
+  - id: row-rail-carries-a-sweep-per-sweepable-row
+    title: Each sweepable row's rail cell carries the sweep pill, and the non-sweepable rows carry none
+    goto: "?groupBy=parent"
+    assert:
+      - parent_row_sweep: { row: idle-awhile, present: true, pill: "^\\d+$" }
+      - parent_row_sweep: { row: done, present: true, pill: "^\\d+$" }
+      # Needs you and Working sweep nothing: the row exists, with no pill.
+      - parent_row_sweep: { row: attention, present: false }
+      - parent_row_sweep: { row: working, present: false }
+
+  - id: arming-an-idle-row-preselects-the-aged-out-cards
+    title: Clicking the idle row's broom arms the row and highlights its aged-out cards across every family lane
+    goto: "?groupBy=parent"
+    click_row_sweep: { row: idle-awhile }
+    assert:
+      - parent_row_sweep: { row: idle-awhile, armed: true, pill: "^\\d+ → Done$", cancel: true }
+      # The preselect spans lanes: one aged-out card in each of these
+      # families' idle cells lights up from the ONE row gesture.
+      - parent_row_sweep_lanes: { thr_sweep_parent: 1, thr_proj_family: 1 }
+      # A working child of the sweep family never joins a removing sweep.
+      - parent_row_sweep: { row: idle-awhile, excludes: [thr_sweep_w0, thr_sweep_w3] }
+
+  - id: confirming-an-idle-row-sweep-marks-done
+    title: Confirming the armed idle row writes the same done_set the Focus view's idle column writes
+    goto: "?groupBy=parent"
+    # Gestures run in array order: arm (first click), then confirm (second).
+    gestures:
+      - click_row_sweep: { row: idle-awhile }
+      - click_row_sweep: { row: idle-awhile }
+    assert:
+      - rpc_called_method: done_set
+      - sweep_done_set: { done: true }
+      # The run drained the preselect: the row is idle again, nothing armed.
+      - parent_row_sweep: { row: idle-awhile, armed: false }
+      # The swept child left the idle row (it is Done now), and no working
+      # card of its family was ever touched by the row's sweep.
+      - parent_row_sweep: { row: idle-awhile, excludes: [thr_sweep_child] }
+      - parent_row_sweep: { row: working, present: false }
+
+  - id: arming-the-done-row-names-archive
+    title: Arming the Done row's sweep names the Archive destination and offers the exit
+    goto: "?groupBy=parent"
+    click_row_sweep: { row: done }
+    assert:
+      - parent_row_sweep: { row: done, armed: true, pill: "1 → Archive", cancel: true }
+
+  - id: confirming-the-done-row-sweep-archives
+    title: Confirming the Done row's sweep archives its aged-out done child, the Focus view's Done-column destination
+    goto: "?groupBy=parent"
+    gestures:
+      - click_row_sweep: { row: done }
+      - click_row_sweep: { row: done }
+    assert:
+      # thr_proj_done is the family's done child: the one done card living in
+      # a family lane, and the one thread the Focus view's Done column would
+      # sweep for these rows.
+      - sweep_archived: [thr_proj_done]
+      - parent_row_sweep: { row: done, armed: false, pill: "^$" }
+
+  - id: a-card-in-the-armed-row-toggles-the-selection
+    title: Clicking a card inside the armed row curates the sweep instead of disarming it
+    goto: "?groupBy=parent"
+    click_row_sweep: { row: idle-awhile }
+    click: { card: thr_sweep_child }
+    assert:
+      # Toggled out of the selection (the row stays armed, the clicked card
+      # is no longer highlighted) and the click never opened its pane.
+      - parent_row_sweep: { row: idle-awhile, armed: true, excludes: [thr_sweep_child] }
+      - pane: { open: false }
