@@ -21,6 +21,7 @@ import { fileURLToPath } from "node:url";
 import puppeteer from "puppeteer-core";
 import { parse } from "yaml";
 import { startHarness } from "./harness.mjs";
+import { installSettleInstrument } from "./settle-clock.mjs";
 import {
   NETWORK_PRESETS,
   parseLoadConditions,
@@ -102,80 +103,6 @@ function installProtectedDrag() {
     return transfer;
   };
 }
-
-/**
- * The gesture-settle clock for `gesture_budget` assertions. Installed before
- * any document script runs, so a suite can arm it immediately before a gesture
- * and read the round trip afterwards.
- *
- * `arm()` stamps `t0` and starts a two-frame quiet detector: every DOM
- * mutation stamps `lastMutationAt`, and the measurement settles once two
- * consecutive animation frames pass with no mutation. The settle promise
- * resolves AT settle time, not at read time, so a gesture branch's own
- * `sleep(300)` between arm and read never inflates the number.
- *
- * This measures the gesture's own round trip in page time: dispatch to the
- * DOM being quiet. It is deliberately not wall-clock from Node, so the CDP
- * round trip is not part of the budget.
- */
-function installSettleInstrument() {
-  const w = window;
-  w.__uatSettle = {
-    t0: 0,
-    lastMutationAt: 0,
-    settled: null,
-    arm() {
-      this.t0 = performance.now();
-      this.lastMutationAt = this.t0;
-      this.settled = null;
-      if (this.observer !== undefined) this.observer.disconnect();
-      this.observer = new MutationObserver(() => {
-        this.lastMutationAt = performance.now();
-      });
-      this.observer.observe(document, {
-        childList: true,
-        subtree: true,
-        attributes: true,
-        characterData: true,
-      });
-      let lastFrame = performance.now();
-      const tick = () => {
-        if (this.settled !== null) return;
-        const now = performance.now();
-        // Two quiet frames: the first frame is the commit, the second the paint.
-        if (now - lastFrame >= 30 && this.lastMutationAt <= lastFrame) {
-          this.settled = Math.round(this.lastMutationAt - this.t0);
-          this.observer.disconnect();
-          return;
-        }
-        lastFrame = now;
-        requestAnimationFrame(tick);
-      };
-      requestAnimationFrame(tick);
-      return true;
-    },
-    /** Wait for the measurement to settle, up to `maxMs`; null on timeout. */
-    read(maxMs) {
-      const deadline = performance.now() + (maxMs ?? 8000);
-      return new Promise((resolve) => {
-        const poll = () => {
-          if (this.settled !== null) {
-            resolve(this.settled);
-            return;
-          }
-          if (performance.now() > deadline) {
-            this.observer?.disconnect();
-            resolve(null);
-            return;
-          }
-          requestAnimationFrame(poll);
-        };
-        poll();
-      });
-    },
-  };
-}
-
 /**
  * Page-context drag. Runs in the browser because HTML5 drag needs a real
  * DataTransfer and coordinates on the target's own box.

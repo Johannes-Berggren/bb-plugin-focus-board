@@ -175,10 +175,10 @@ through `puppeteer-core` (nothing is downloaded), writes a report per suite to
   conditions (issue #265). Declares `scale: 300` and `cpu_throttle: 4` at the
   suite level, so it runs on a 478-card board with a phone-class CPU, then
   times the tap that opens the pane and the tap that closes it against
-  `gesture_budget: { max_ms: 350 }`. Marked `manual: true` (see below): the
-  budget is calibrated on the production bundle, while the runner serves the
-  dev harness, so the sweep skips it and it is run by path until the runner
-  can serve a production build.
+  `gesture_budget: { max_ms: 600 }`, the number calibrated on the DEV harness
+  the runner serves (open 410-472ms, close 364-377ms, plus headroom). Marked
+  `manual: true` (see below): the sweep skips it and it runs by path, because
+  taking it off opt-in is a separate decision.
 
 ## Manual (opt-in) suites
 
@@ -229,7 +229,9 @@ defaults:
   the browser launches. A perf suite that silently ran unthrottled would pass
   for the wrong reason, which is the failure this feature exists to prevent.
 - The pure helpers live in `scripts/uat/load-conditions.mjs` and are pinned by
-  `tests/uat-load-conditions.test.ts`.
+  `tests/uat-load-conditions.test.ts`. The gesture-settle clock lives in
+  `scripts/uat/settle-clock.mjs` and is pinned by
+  `tests/uat-settle-clock.test.ts`.
 
 A step may time its own gesture with a budget:
 
@@ -238,7 +240,7 @@ A step may time its own gesture with a budget:
   gestures:
     - click: { card: thr_uat_queue }
   assert:
-    - gesture_budget: { gesture: click, max_ms: 350 }
+    - gesture_budget: { gesture: click, max_ms: 600 }
 ```
 
 The measurement is the gesture's own round trip in page time — dispatch to
