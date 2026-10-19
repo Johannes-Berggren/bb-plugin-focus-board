@@ -19,6 +19,11 @@ import { cleanup, fireEvent, render, waitFor } from "@testing-library/react";
 vi.mock("@get-bb/plugin-sdk/app", async () => await import("./helpers/app-fake-sdk"));
 
 // Count ThreadCard renders without changing behavior: wrap the real component.
+// The wrapper is a plain function component (NOT memoized), so it is invoked
+// whenever the board re-renders a card — the count is board-driven renders,
+// which is what these tests measure. It renders the real card as an element
+// rather than calling it, because the card is itself a memo component now
+// (issue #186): calling a memo object as a function is not a component.
 const cardRenders = vi.hoisted(() => ({ count: 0 }));
 vi.mock("../components/thread-card", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../components/thread-card")>();
@@ -27,7 +32,7 @@ vi.mock("../components/thread-card", async (importOriginal) => {
     ...actual,
     ThreadCard: (props: Parameters<typeof Real>[0]) => {
       cardRenders.count += 1;
-      return Real(props);
+      return <Real {...props} />;
     },
   };
 });
