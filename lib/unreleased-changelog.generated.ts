@@ -24,5 +24,10 @@ export const UNRELEASED_ITEMS: readonly { text: string; children: string[]; grou
     "text": "**A phone's pane header sizes the done checkbox to its thumb.** The pane's Mark done control was the one header button that never joined the coarse-pointer ladder, so on a phone it measured 18x22px against its 36x36 siblings. It now takes the same 36px box and a larger glyph, so the header row is one target size (issue #267).",
     "children": [],
     "group": "Board layout"
+  },
+  {
+    "text": "**The thread pane stops before the board runs out of room.** Dragging the pane's edge wide used to squeeze the board's own column until its toolbar and lane headers spilled over the pane, doubling text on a wallpaper whose z-order put the board on top. The pane now keeps a lane and a quarter (320px) of board to its left, so the drag settles with a clean board instead of overlapping chrome (issue #273).",
+    "children": [],
+    "group": "Board layout"
   }
 ];

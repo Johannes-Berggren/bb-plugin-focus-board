@@ -121,6 +121,19 @@ host app involved.
   vite harness first (same as above); honors the same `CHROME_PATH`,
   `HARNESS_URL`, and `OUT_DIR` overrides.
 
+- `repro-pane-overlap-wide.mjs` — one-shot headless repro/verification for the
+  thread pane's board-lane floor (#273): seeds a wallpaper (which paints the
+  board's flex column `relative z-10`, beating the un-z-indexed pane's paint
+  order), then runs three passes at a fixed panel width — the
+  (wallpaper × ribbon × panel × pane) matrix, the margin sweep that names the
+  threshold (the margin left of the pane, the lanes it affords, whether the
+  toolbar band wrapped, and the first margin where board chrome paints past the
+  board's own edge), and a drag hysteresis walk that proves the clamp is
+  symmetric with no dead step. Artifacts land in
+  `docs/screenshots/repro-pane-overlap-wide/` (`evidence.json` with the full
+  tables, plus before/after shots). Run the vite harness first (same as above);
+  honors the same `CHROME_PATH`, `HARNESS_URL`, and `OUT_DIR` overrides.
+
 Regenerate the screenshots:
 
 ```sh
