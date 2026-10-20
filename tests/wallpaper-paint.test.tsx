@@ -153,4 +153,24 @@ describe("WallpaperPaintLayer (the board's wallpaper layer)", () => {
     expect(paint.getAttribute("style")).toContain('url("https://a/w.png")');
     expect(paint.getAttribute("style")).not.toContain("width:");
   });
+
+  it("paints the stored letterbox canvas behind the image, so the bars read as the image's edge color", () => {
+    stubWindow(1280, 633);
+    const panel = document.createElement("div");
+    document.body.append(panel);
+    Object.defineProperty(panel, "getBoundingClientRect", { value: () => rect(320, 48, 960, 585), configurable: true });
+    const panelRef = { current: panel };
+    const view = render(
+      <WallpaperPaintLayer layer={{ ...LAYER, canvas: "#112233" }} dark={false} panelRef={panelRef} />,
+    );
+    const paint = view.container.firstElementChild?.firstElementChild as HTMLElement;
+    expect(paint.style.backgroundColor).toBe("rgb(17, 34, 51)");
+    expect(paint.getAttribute("style")).toContain('url("https://a/w.png")');
+  });
+
+  it("paints no canvas color when the layer stored none (the unframed mount path included)", () => {
+    const framed = render(<WallpaperPaintLayer layer={LAYER} dark={false} panelRef={{ current: null }} />);
+    const framedPaint = framed.container.firstElementChild?.firstElementChild as HTMLElement;
+    expect(framedPaint.style.backgroundColor).toBe("");
+  });
 });

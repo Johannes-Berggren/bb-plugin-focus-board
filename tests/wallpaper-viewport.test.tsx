@@ -137,17 +137,18 @@ describe("wallpaper viewport", () => {
     const imageBox = root.querySelector("[data-wallpaper-imagebox]") as HTMLElement;
     expect((imageBox.querySelector("img") as HTMLImageElement).getAttribute("src")).toBe("https://a/w.png");
     // The crop window: cover at zoom 2 about focal (25, 75) over an image
-    // that matches the window's ratio -> { x: .375, y: .625, w: .5, h: .5 }.
+    // that matches the window's ratio. Its center lands at fx+(0.5-fx)*k =
+    // (0.375, 0.625), so the corners are { x: .125, y: .375, w: .5, h: .5 }.
     const cropWindow = screen.getByLabelText("Wallpaper crop window") as HTMLElement;
-    expect(cropWindow.getAttribute("style")).toContain("left: 37.5%");
-    expect(cropWindow.getAttribute("style")).toContain("top: 62.5%");
+    expect(cropWindow.getAttribute("style")).toContain("left: 12.5%");
+    expect(cropWindow.getAttribute("style")).toContain("top: 37.5%");
     expect(cropWindow.getAttribute("style")).toContain("width: 50%");
     expect(cropWindow.getAttribute("style")).toContain("height: 50%");
     // The clipped paint copy spans the window at the paint's scale:
     // left = -x/w, top = -y/h, size = 1/w x 1/h.
     const copy = cropWindow.querySelector("[data-wallpaper-window-image]") as HTMLElement;
-    expect(copy.getAttribute("style")).toContain("left: -75%");
-    expect(copy.getAttribute("style")).toContain("top: -125%");
+    expect(copy.getAttribute("style")).toContain("left: -25%");
+    expect(copy.getAttribute("style")).toContain("top: -75%");
     expect(copy.getAttribute("style")).toContain("width: 200%");
     expect(copy.getAttribute("style")).toContain("height: 200%");
     // The porthole repeats the board's own footprint as fractions of the
