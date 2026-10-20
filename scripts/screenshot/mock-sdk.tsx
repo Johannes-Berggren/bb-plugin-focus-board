@@ -9,7 +9,7 @@
  */
 import { createRoot } from "react-dom/client";
 import type { ComponentType, ReactNode } from "react";
-import { SIM_ATTENTION_THREADS, SIM_BULK_THREADS, SIM_DEMO_THREADS, SIM_DONE_IDS, SIM_DONE_RECORDS, SIM_PROJECTS, SIM_PROVIDERS, SIM_SECTIONS, SIM_THREADS, SIM_WORKSPACE_FILES, type SimThread } from "./data";
+import { SIM_ATTENTION_THREADS, SIM_BULK_THREADS, SIM_DEMO_THREADS, SIM_DONE_IDS, SIM_DONE_RECORDS, SIM_PROJECTS, SIM_PROVIDERS, SIM_SECTIONS, SIM_THREADS, SIM_WORKSPACE_FILES, SIM_ZOOM_FAMILY_THREADS, type SimThread } from "./data";
 import {
   applyRankMoveFractions,
   type FractionColumn,
@@ -228,6 +228,11 @@ const SCALE = Math.max(0, Number(new URLSearchParams(window.location.search).get
 // Unlike the probe's injected clones, these exercise the shipped card's pulse
 // path, so the pulse cliff is measured on genuine board pulses.
 const ATTENTION = Math.max(0, Number(new URLSearchParams(window.location.search).get("attention") ?? "0") || 0);
+// `?zoomfamily=1` (the family-zoom GIF capture only): append the 24-child
+// zoom fixture (data.ts SIM_ZOOM_FAMILY_THREADS) — a parent with far more
+// children than the standard demo families carry, so the right-click →
+// "Zoom to family" sequence reads on a family whose size is the point.
+const ZOOM_FAMILY_MODE = new URLSearchParams(window.location.search).get("zoomfamily") === "1";
 // `?failautotitle=` (comma list): autotitle call kinds that fail ONCE, then
 // succeed — the UAT suite walks a failure into the fallback modal and out
 // through an alternative. Kinds: "plain" (the bare ✨ call), "threadmodel"
@@ -244,6 +249,7 @@ let simThreads: readonly SimThread[] = EMPTY_MODE
       ...(DEMO_MODE ? [...SIM_THREADS, ...SIM_DEMO_THREADS] : SIM_THREADS),
       ...(SCALE > 0 ? SIM_BULK_THREADS(SCALE) : []),
       ...(ATTENTION > 0 ? SIM_ATTENTION_THREADS(ATTENTION) : []),
+      ...(ZOOM_FAMILY_MODE ? SIM_ZOOM_FAMILY_THREADS : []),
     ];
 
 /** Threads archived in the harness; `threads.list({ archived: true })` serves these. */
