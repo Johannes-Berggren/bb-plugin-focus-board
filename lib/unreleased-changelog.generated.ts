@@ -21,6 +21,11 @@ export const UNRELEASED_ITEMS: readonly { text: string; children: string[]; grou
     "group": "Cards"
   },
   {
+    "text": "**The wallpaper frames the window, not the board's viewport.** The wallpaper now paints into the bb window's box at the window's ratio: opening and closing the thread pane (or resizing a sidebar) carves the board's view out of one fixed image instead of refitting the crop, and the picker's viewport preview models the same framing.",
+    "children": [],
+    "group": "Wallpaper"
+  },
+  {
     "text": "**A phone's pane header sizes the done checkbox to its thumb.** The pane's Mark done control was the one header button that never joined the coarse-pointer ladder, so on a phone it measured 18x22px against its 36x36 siblings. It now takes the same 36px box and a larger glyph, so the header row is one target size (issue #267).",
     "children": [],
     "group": "Board layout"
