@@ -90,6 +90,7 @@ import {
   type NewThreadEnvironmentArgs,
 } from "./lib/new-thread-seed";
 import { majorityGroupSpawnSeed, type GroupSpawnSeed } from "./lib/group-spawn-seed";
+import { spawnInheritedGroupId } from "./lib/group-inheritance";
 import { maximizeComposerToMainView } from "./lib/compose-maximize";
 import { SnoozeDialog } from "./components/snooze-dialog";
 import {
@@ -2370,18 +2371,33 @@ function BoardPage({ subPath }: { subPath: string }) {
     },
     [pluginId, openThreadCard],
   );
-  // The group preset's spawn: the opened composer promised to tag the result
-  // into the armed group, so the tag write rides the success path before the
-  // board hands the thread to the pane. The optimistic assign + the
-  // group-changed refetch (setThreadGroup) settle the box on the board.
-  const handleGroupSpawnedThread = useCallback(
+  // The group tag every successful composer spawn carries, resolved from
+  // the armed presets (lib/group-inheritance): the explicit "New thread in
+  // group…" preset, or — the operator's decided design, metadata at spawn —
+  // a child preset's inheritance of its parent's membership. A resolver
+  // miss (root spawn, ungrouped parent) writes nothing: a plain spawn never
+  // clears an assignment. The optimistic assign + the group-changed
+  // refetch (setThreadGroup) settle the box on the board.
+  const handleComposerSpawnedThread = useCallback(
     (thread: SpawnedThread) => {
-      if (newThreadGroupId !== null) {
-        setThreadGroup(thread.id, newThreadGroupId);
+      const groupId = spawnInheritedGroupId({
+        presetGroupId: newThreadGroupId,
+        parentThreadId: newThreadParentId,
+        parentGroupId:
+          newThreadParentId !== null ? groupAssignments[newThreadParentId] : undefined,
+      });
+      if (groupId !== undefined) {
+        setThreadGroup(thread.id, groupId);
       }
       handleSpawnedThread(thread);
     },
-    [newThreadGroupId, setThreadGroup, handleSpawnedThread],
+    [
+      newThreadGroupId,
+      newThreadParentId,
+      groupAssignments,
+      setThreadGroup,
+      handleSpawnedThread,
+    ],
   );
 
   const closeThreadPane = useCallback(() => {
@@ -3548,6 +3564,14 @@ function BoardPage({ subPath }: { subPath: string }) {
         parentThreadId={newThreadParentId ?? undefined}
         parentThreadTitle={newThreadParentTitle}
         spawnParentTitle={newThreadNest?.spawnParentTitle}
+        // The preset parent's group name, when it has a membership: the
+        // dialog announces the child's inheritance before the prompt is
+        // spent (a plain root spawn or an ungrouped parent hides the hint).
+        parentGroupName={
+          newThreadParentId !== null
+            ? (groupRegistry[groupAssignments[newThreadParentId] ?? ""]?.name ?? undefined)
+            : undefined
+        }
         groupName={
           newThreadGroupId === null
             ? undefined
@@ -3560,7 +3584,7 @@ function BoardPage({ subPath }: { subPath: string }) {
           newThreadParentId === null && newThreadGroupId === null ? maximizeNewThread : undefined
         }
         rememberEnvironment={rememberSpawnEnvironment}
-        onSpawned={newThreadGroupId === null ? handleSpawnedThread : handleGroupSpawnedThread}
+        onSpawned={handleComposerSpawnedThread}
       />
       <SettingsModal
         open={settingsOpen}
