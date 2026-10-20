@@ -61,7 +61,6 @@ describe("configuration-page Appearance section", () => {
     fireEvent.click(screen.getByRole("radio", { name: "Horizontal" }));
     expect(window.localStorage.getItem(LANE_DIRECTION_KEY)).toBe("horizontal");
   });
-  });
 
   it("a transport pick writes the modal's localStorage key through the shared serializer", () => {
     seeded({});

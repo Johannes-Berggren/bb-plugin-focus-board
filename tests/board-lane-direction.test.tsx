@@ -122,11 +122,14 @@ describe("Board: the vertical default is today's column board", () => {
 
   it("a same-lane reorder still splits the drop on the slot's top/bottom halves", () => {
     const { props } = renderBoard(LANES);
-    const slot = cardSlot("thr_b");
+    // The lane's display order is the newer card first; the drag is the OLDER
+    // card moving above it, so the drop is a real move and not the adjacency
+    // refusal the board reports for a drop on the dragged card's own slot.
+    const slot = cardSlot("thr_a");
     stubSlotRect(slot, 0, 200, 0, 100);
     const dt = makeDataTransfer();
     // Vertical: y 20 (top half) lands before.
-    fireEvent.dragStart(cardSlot("thr_a").querySelector("a[draggable]") as HTMLElement, {
+    fireEvent.dragStart(cardSlot("thr_b").querySelector("a[draggable]") as HTMLElement, {
       dataTransfer: dt,
     });
     const drop = createEvent.drop(slot, { dataTransfer: dt });
@@ -135,8 +138,8 @@ describe("Board: the vertical default is today's column board", () => {
     fireEvent(slot, drop);
     expect(props.onRankMove).toHaveBeenCalledWith(
       "pinned",
-      "thr_a",
       "thr_b",
+      "thr_a",
       false,
       ["thr_a", "thr_b"],
     );
@@ -175,12 +178,14 @@ describe("Board: the horizontal read turns every lane into a row", () => {
 
   it("a same-lane reorder splits the drop on the slot's left/right halves", () => {
     const { props } = renderBoard(LANES, { laneDirection: "horizontal" });
-    const slot = cardSlot("thr_b");
+    // The older card moves above the newer one (a real move, not the
+    // adjacency refusal a drop on the dragged card's own slot reports).
+    const slot = cardSlot("thr_a");
     stubSlotRect(slot, 0, 200, 0, 100);
     const dt = makeDataTransfer();
-    // Horizontal: x 20 (left half) lands before, regardless of the pointer's
+    // Horizontal: x 20 (left third) lands before, regardless of the pointer's
     // y (which sits in the slot's bottom half — jsdom's own default here).
-    fireEvent.dragStart(cardSlot("thr_a").querySelector("a[draggable]") as HTMLElement, {
+    fireEvent.dragStart(cardSlot("thr_b").querySelector("a[draggable]") as HTMLElement, {
       dataTransfer: dt,
     });
     const drop = createEvent.drop(slot, { dataTransfer: dt });
@@ -189,8 +194,8 @@ describe("Board: the horizontal read turns every lane into a row", () => {
     fireEvent(slot, drop);
     expect(props.onRankMove).toHaveBeenCalledWith(
       "pinned",
-      "thr_a",
       "thr_b",
+      "thr_a",
       false,
       ["thr_a", "thr_b"],
     );
