@@ -7,6 +7,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+#### Board toolbar
+
+- **The board search field gains a search button while it holds text and is focused.** The button sits left of the clear x and clicks like Enter: it re-confirms the live search and keeps the field focused with its text. Blurring the field or clearing it hides the button.
+
 #### Board layout
 
 - **The Parent view's rows each carry their own sweep.** Every sweepable row's rail cell has the same broom the Focus view's columns use, and arming it sweeps that row's cards across every family lane. The A-while-ago row marks its aged-out children Done, the Done row archives, and the Needs-you and Working rows carry no sweep at all.

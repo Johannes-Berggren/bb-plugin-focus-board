@@ -825,6 +825,14 @@ const pageFocusLabelled = ({ label }) => {
   return { ok: true, tag: el.tagName };
 };
 
+/** Probe whether a control with this exact aria-label is on the page — the
+ *  presence assertion for surfaces the page text cannot see (the search
+ *  button is a labelled icon button, with no visible text of its own). */
+const pageAriaProbe = (label) => {
+  const el = document.querySelector(`[aria-label="${CSS.escape(label)}"]`);
+  return { present: el !== null };
+};
+
 /**
  * A card's right-click menu: dispatch a real contextmenu event on the card
  * (the menu handler lives on ThreadCardMenu's wrapper and the card's anchor
@@ -1988,6 +1996,22 @@ async function check(step, page, gestureResults = [], gestureTimings = []) {
         );
       }
     }
+    if (rule.aria_present !== undefined) {
+      const got = await page.evaluate(pageAriaProbe, rule.aria_present);
+      expect(
+        `control present: ${JSON.stringify(rule.aria_present)}`,
+        got.present,
+        got.present ? "present" : "absent",
+      );
+    }
+    if (rule.aria_absent !== undefined) {
+      const got = await page.evaluate(pageAriaProbe, rule.aria_absent);
+      expect(
+        `control absent: ${JSON.stringify(rule.aria_absent)}`,
+        !got.present,
+        got.present ? "still on the page" : "absent",
+      );
+    }
     if (rule.text_visible !== undefined) {
       const got = await page.evaluate(pageTextVisible, rule.text_visible);
       expect(
@@ -2749,7 +2773,7 @@ async function runSuite(file, { port, browser, cell = null }) {
       // is insertion order), not in this runner's historical fixed order — a
       // pane-history step sequences pushes and backs deliberately, and
       // silently reordering them rewrites the history under test.
-      const GESTURE_ORDER = ["drag", "drag_unidentified", "drag_to_column", "drag_child_to_floor", "drag_child_to_header", "drag_dot_to_dot", "drag_dot_to_floor", "drag_card_to_strip", "hover_header", "hover", "hover_card", "mouse_to", "key", "back", "click", "click_aria", "click_row_sweep", "type", "menu", "scroll", "wheel_pan", "resize", "resize_pane", "sleep", "press_escape", "push_url", "push_update"];
+      const GESTURE_ORDER = ["drag", "drag_unidentified", "drag_to_column", "drag_child_to_floor", "drag_child_to_header", "drag_dot_to_dot", "drag_dot_to_floor", "drag_card_to_strip", "hover_header", "hover", "hover_card", "mouse_to", "key", "back", "click", "click_aria", "click_row_sweep", "type", "menu", "scroll", "wheel_pan", "resize", "resize_pane", "sleep", "blur", "press_escape", "push_url", "push_update"];
       let gestureFailed = false;
       // A gesture that cannot even run (its own element is absent — a
       // regression deleted what the step targets) records the step and
@@ -2978,6 +3002,16 @@ async function runSuite(file, { port, browser, cell = null }) {
             // glide, recut, post-recut corrections) that no single event
             // boundary covers.
             await sleep(Math.max(0, Number(payload) || 0));
+          } else if (gesture === "blur") {
+            // The labelled control lets its focus go (the gesture behind
+            // "press into the board background"): the shape of a pointer
+            // click somewhere outside a focused field.
+            await page.evaluate((label) => {
+              const el = document.querySelector(`[aria-label="${CSS.escape(label)}"]`);
+              if (!el) throw new Error(`blur: nothing labelled ${label}`);
+              el.blur();
+            }, payload);
+            await sleep(300);
           } else if (gesture === "press_escape") {
             // The pane listens on document capture, so a bubbling keydown from
             // the body reaches it — the same path a real Escape takes.
