@@ -1,0 +1,187 @@
+# Operator-assisted E2E: the lane-direction preference on the real board.
+#
+# The harness mounts the actual app.tsx against the mocked SDK
+# (scripts/screenshot). The lane direction is a real layout read (issue
+# #153): this suite proves the shipped default stays the vertical column
+# board, the horizontal read renders lanes as rows, and the drag, insertion
+# line, and keyboard reorders all follow the row's left-to-right flow — plus
+# the settings path flipping the board live without a reload.
+#
+# Run: npm run uat -- tests/manual/uat-lane-direction.yaml
+suite: lane-direction
+harness:
+  config: scripts/screenshot/vite.config.ts
+  port: 5194
+defaults:
+  groupBy: status
+  theme: dark
+shots: true
+
+steps:
+  - id: the-shipped-default-stays-vertical
+    title: A board with no stored choice renders the vertical column layout
+    goto: "?groupBy=status"
+    assert:
+      - lane_direction: vertical
+      - column: unread
+        ordered: [thr_rpc_auth, thr_uat_queue, thr_review_pr]
+
+  - id: horizontal-renders-lanes-as-rows
+    title: The horizontal read renders lanes as rows with the same lanes and cards
+    goto: "?groupBy=status&laneDirection=horizontal"
+    assert:
+      - lane_direction: horizontal
+      - text_visible: "Unread"
+      - column: unread
+        ordered: [thr_rpc_auth, thr_uat_queue, thr_review_pr]
+      - rank_slots: { column: unread, count: 3 }
+
+  - id: horizontal-drop-reorders-along-the-row
+    title: A same-row drop ranks along the left-to-right flow
+    goto: "?groupBy=status&laneDirection=horizontal"
+    drag: { from: thr_review_pr, to: thr_rpc_auth, edge: before }
+    assert:
+      - column: unread
+        ordered: [thr_review_pr, thr_rpc_auth, thr_uat_queue]
+      - store: { "status:unread": [thr_review_pr] }
+      - rpc_called: { columnKey: "status:unread", threadId: thr_review_pr, beforeId: thr_rpc_auth, toEnd: false }
+
+  - id: horizontal-line-splits-on-the-cards-sides
+    title: The insertion line draws on the hovered card's left/right edges
+    goto: "?groupBy=status&laneDirection=horizontal"
+    hover: { from: thr_review_pr, to: thr_rpc_auth, edge: before }
+    assert:
+      - insertion_line: { from: thr_review_pr, to: thr_rpc_auth, edge: before }
+      - insertion_line: { from: thr_review_pr, to: thr_rpc_auth, edge: after }
+
+  - id: horizontal-keyboard-steps-left-and-right
+    title: Alt+ArrowLeft / Alt+ArrowRight step a card along the row
+    goto: "?groupBy=status&laneDirection=horizontal"
+    gestures:
+      - key: { card: thr_uat_queue, key: ArrowLeft, alt: true }
+      - key: { card: thr_rpc_auth, key: ArrowRight, alt: true }
+    assert:
+      # uat_queue steps back over rpc_auth; rpc_auth then steps forward past
+      # review_pr, anchoring on nothing (append at the row's end).
+      - column: unread
+        ordered: [thr_uat_queue, thr_review_pr, thr_rpc_auth]
+
+  - id: vertical-keys-do-nothing-on-a-horizontal-board
+    title: Alt+ArrowUp is not a horizontal-board reorder key
+    goto: "?groupBy=status&laneDirection=horizontal"
+    key: { card: thr_uat_queue, key: ArrowUp, alt: true }
+    assert:
+      - column: unread
+        ordered: [thr_rpc_auth, thr_uat_queue, thr_review_pr]
+
+  - id: the-settings-choice-flips-the-board-live
+    title: Picking Horizontal in the Appearance tab re-lays the open board at once
+    goto: "?groupBy=status&laneDirection=vertical&lastSeenUnreleased=current"
+    gestures:
+      - click_aria: "Focus Board settings"
+      - click_aria: "Appearance"
+      - click_aria: "Horizontal"
+    assert:
+      - lane_direction: horizontal
+
+  - id: the-settings-choice-flips-back
+    title: Picking Vertical flips the live board straight back
+    gestures:
+      - click_aria: "Vertical"
+    assert:
+      - lane_direction: vertical
+
+  # ── The rest of the draggable surface, on the horizontal board ──────────
+  # The row read must carry every gesture the column board carries, not just
+  # the same-lane reorder: state drops, floor appends, the nest third, the
+  # family-box unit drag, and the refusal banner all split on the row's x.
+
+  - id: horizontal-cross-lane-done-drop
+    title: Dropping an Unread card on the Done row marks it done
+    goto: "?groupBy=status&laneDirection=horizontal"
+    assert_before_drag:
+      - column: done
+        ordered: [thr_pane_padding, thr_license, thr_proj_family]
+    drag_to_column: { from: thr_rpc_auth, column: done }
+    assert:
+      - rpc_called_method: done_set
+      - column: done
+        ordered: [thr_rpc_auth, thr_pane_padding, thr_license, thr_proj_family]
+      - no_visible_error: true
+
+  - id: horizontal-drop-on-pinned-row-pins
+    title: Dropping an Unread card on the Pinned row pins it without a rank write
+    goto: "?groupBy=status&laneDirection=horizontal"
+    drag_to_column: { from: thr_review_pr, column: pinned }
+    assert:
+      # The new pin lands after the more recently pinned fixture card (pin
+      # recency: ship 6h vs roadmap 2d), before the older pin.
+      - column: pinned
+        ordered: [thr_ship_release, thr_review_pr, thr_roadmap]
+      - rpc_not_called: rank_move
+      - no_visible_error: true
+
+  - id: horizontal-floor-drop-appends
+    title: Releasing a card on its row's trailing floor appends it
+    goto: "?groupBy=status&laneDirection=horizontal"
+    drag_to_column: { from: thr_rpc_auth, column: unread }
+    assert:
+      # A same-lane floor drop is the append: rpc_auth leaves the front.
+      - column: unread
+        ordered: [thr_uat_queue, thr_review_pr, thr_rpc_auth]
+      - rpc_called: { columnKey: "status:unread", threadId: thr_rpc_auth, beforeId: null, toEnd: true }
+
+  - id: horizontal-onto-drop-nests
+    title: Dropping onto a card's middle nests across the row's width
+    goto: "?groupBy=status&laneDirection=horizontal"
+    assert_before_drag:
+      - nest_ring: { from: thr_rpc_auth, to: thr_uat_queue, shown: true }
+    drag: { from: thr_rpc_auth, to: thr_uat_queue, edge: onto }
+    assert:
+      - rpc_called_method: thread_reparent
+      - rank_slots: { column: unread, count: 2 }
+      - nested_row: { id: thr_rpc_auth, shown: true }
+
+  - id: horizontal-box-drag-moves-the-whole-box
+    title: Dragging a boxed card moves the whole family box along the row
+    # The group fixture's two members gather into one dashed frame in the
+    # Working row; a unit drag before the sweep fixture's card parks the
+    # whole box behind it in display order.
+    goto: "?groupBy=status&laneDirection=horizontal"
+    drag: { from: thr_column_sort, to: thr_sweep_parent, edge: after }
+    assert:
+      - column: working
+        ordered: [thr_sweep_parent, thr_column_sort, thr_drag_done]
+      # The move ranks the drop point's whole prefix, so the sweep fixture's
+      # card joins the store in front of the boxed pair.
+      - store: { "status:working": [thr_sweep_parent, thr_column_sort, thr_drag_done] }
+
+  - id: horizontal-unidentified-drop-refuses-quietly
+    title: A drag whose payload lost its id refuses without an error banner
+    goto: "?groupBy=status&laneDirection=horizontal"
+    drag_unidentified: { from: thr_roadmap, to: thr_ship_release, edge: before }
+    assert:
+      # The same contract uat-rank pins: the lost payload falls back to the
+      # live drag ref, so the drop still attributes the card and reorders —
+      # no error banner (the fallback is the resilience, not a refusal).
+      - column: pinned
+        ordered: [thr_roadmap, thr_ship_release]
+      - no_visible_error: true
+
+  - id: horizontal-reveal-brings-the-destination-row-into-view
+    title: A menu relocation brings an offscreen destination row into view
+    # The rows board scrolls vertically and each row scrolls its own flow:
+    # scroll down to push the top Pinned row offscreen, then Pin — the
+    # reveal claim must slide the container back up (the transposed
+    # containerSlideX), not leave the card in a row the operator cannot see.
+    goto: "?groupBy=status&laneDirection=horizontal"
+    assert_before_drag:
+      - column: pinned
+        ordered: [thr_ship_release, thr_roadmap]
+    scroll: { dy: 800, target: columns }
+    menu: { card: thr_review_pr, item: "Pin" }
+    assert:
+      # The new pin lands between the two fixture pins (pin recency).
+      - column: pinned
+        ordered: [thr_ship_release, thr_review_pr, thr_roadmap]
+      - column_card_visible: thr_review_pr
