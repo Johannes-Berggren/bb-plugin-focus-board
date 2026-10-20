@@ -775,6 +775,53 @@ export function SIM_BULK_THREADS(count: number, now: number = SIM_NOW): SimThrea
 }
 
 /**
+ * The Zoom-to-family GIF fixture (`?zoomfamily=1` on top of `?demo=1`): a
+ * 24-child family the README's animated capture right-clicks. The card's
+ * fold reads "24 child threads", plainly past the 20-child bar the shot
+ * promises, and the active child lifts the family into the Working lane so
+ * the card sits on-screen at the capture viewport. Gated behind its own
+ * flag so neither the UAT fixtures nor the standard demo shots ever see it.
+ */
+export const SIM_ZOOM_FAMILY_PARENT_ID = "thr_zoomfam";
+export const SIM_ZOOM_FAMILY_THREADS: readonly SimThread[] = [
+  thread({
+    id: SIM_ZOOM_FAMILY_PARENT_ID,
+    displayTitle: "Migrate the board to fractional ranks",
+    updatedAt: SIM_NOW - 2 * MINUTE,
+    lastReadAt: SIM_NOW - 2 * MINUTE,
+    environment: boardEnv("feat/fractional-ranks"),
+  }),
+  ...Array.from({ length: 24 }, (_, index) =>
+    thread({
+      id: `${SIM_ZOOM_FAMILY_PARENT_ID}_c${index}`,
+      displayTitle: `Rank migration step ${index} · rewrite the order writes`,
+      parentThreadId: SIM_ZOOM_FAMILY_PARENT_ID,
+      // The zoomed family surface lays children into per-lane arms, so the
+      // fixture seeds one child per attention bucket (pinned, needs-you,
+      // unread, working) ahead of the idle rest — empty arms would read as
+      // blank bands in the GIF's closing frame.
+      ...(index === 0
+        ? { isPinned: true, pinnedAt: 1, pinSortKey: 1 }
+        : index === 1
+          ? {
+              hasPendingInteraction: true,
+              indicatorLabel: "Thread needs user input",
+              latestAttentionAt: SIM_NOW - 60 * 1000,
+              updatedAt: SIM_NOW - 60 * 1000,
+            }
+          : index === 2
+            ? { isUnread: true }
+            : index === 3
+              ? { status: "active" as const, runtimeStatus: "active" as const, updatedAt: SIM_NOW - 30 * 1000 }
+              : {}),
+      updatedAt: SIM_NOW - (index + 3) * MINUTE,
+      lastReadAt: SIM_NOW - (index + 3) * MINUTE,
+      environment: boardEnv("feat/fractional-ranks"),
+    }),
+  ),
+];
+
+/**
  * A synthetic ATTENTION-HEAVY population for the pulse probe (#260):
  * `?attention=N` appends N threads that all carry a pending interaction, so
  * every one renders the real pulsing attention treatment (the amber overlay

@@ -68,6 +68,18 @@ host app involved.
   `HARNESS_URL=... node scripts/screenshot/capture-toolbar-tint.mjs`;
   honors the same `CHROME_PATH` and `HARNESS_URL` overrides.
 
+- `capture-family-zoom-gif.mjs` — the README's animated "Zoom to family"
+  GIF: loads the demo board with the zoom fixture (`?demo=1&zoomfamily=1`;
+  data.ts `SIM_ZOOM_FAMILY_THREADS` is a 24-child family seeded so every
+  per-lane arm of the zoomed surface holds a card), right-clicks the family
+  card, runs the card menu's "Zoom to family" entry, and captures the
+  Parent view scoped to that family — with a synthetic cursor overlay so
+  the pointer is part of the shot — then assembles the frames with ffmpeg
+  (palettegen/paletteuse) into `docs/screenshots/family-zoom.gif`. Run the
+  vite harness first (same as above), then
+  `node scripts/screenshot/capture-family-zoom-gif.mjs`; honors `CHROME_PATH`,
+  `HARNESS_URL`, `OUT_DIR`, `FRAMES_DIR`, and `GIF_WIDTH`.
+
 - `repro-right-gutter.mjs` — one-shot headless repro for the family card's
   right gutter (#192): measures a demo family card with a ticket chip and
   expanded nested children (`thr_demo_gutter`, `?demo=1`) on the columns
