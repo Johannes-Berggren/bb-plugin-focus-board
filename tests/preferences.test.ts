@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   CARD_TRANSPORT_KEY,
   COLLAPSED_FAMILIES_KEY,
+  COLLAPSED_GROUPS_KEY,
   HIDE_IDLE_CHILDREN_KEY,
   LANE_DIRECTION_KEY,
   MOTION_PREF_KEY,
@@ -10,6 +11,7 @@ import {
   laneDirectionStoredValue,
   cardTransportStoredValue,
   collapsedFamiliesStoredValue,
+  collapsedGroupsStoredValue,
   escStopsRunningFromSetting,
   hideIdleChildrenStoredValue,
   motionPacingFromIndex,
@@ -21,6 +23,7 @@ import {
   nestStoredValue,
   parseCardTransportStored,
   parseCollapsedFamiliesStored,
+  parseCollapsedGroupsStored,
   parseGroupStored,
   parseHideIdleChildrenStored,
   parseMotionPacing,
@@ -343,6 +346,40 @@ describe("hide-idle-children persistence", () => {
     expect(parseHideIdleChildrenStored(JSON.stringify({ thr_a: true })).size).toBe(0);
     const parsed = parseHideIdleChildrenStored(JSON.stringify(["thr_a", 7, null, {}]));
     expect([...parsed]).toEqual(["thr_a"]);
+  });
+});
+
+describe("collapsed group persistence", () => {
+  it("exposes the localStorage key", () => {
+    expect(COLLAPSED_GROUPS_KEY).toBe("focus-board:collapsedGroups");
+  });
+
+  it("round-trips a set of group ids", () => {
+    const ids = new Set(["grp_a", "grp_b"]);
+    expect([...parseCollapsedGroupsStored(collapsedGroupsStoredValue(ids))].sort()).toEqual([
+      "grp_a",
+      "grp_b",
+    ]);
+  });
+
+  it("defaults to an empty set for null — first visit, everything expanded", () => {
+    expect(parseCollapsedGroupsStored(null).size).toBe(0);
+    expect(parseCollapsedGroupsStored("").size).toBe(0);
+  });
+
+  it("falls back to an empty set on corrupt JSON or a non-array", () => {
+    expect(parseCollapsedGroupsStored("{not json").size).toBe(0);
+    expect(parseCollapsedGroupsStored(JSON.stringify({ grp_a: true })).size).toBe(0);
+  });
+
+  it("drops non-string entries instead of admitting them", () => {
+    const parsed = parseCollapsedGroupsStored(JSON.stringify(["grp_a", 7, null, {}]));
+    expect([...parsed]).toEqual(["grp_a"]);
+  });
+
+  it("stores sorted, so equal sets round-trip byte-identical", () => {
+    const unsorted = new Set(["grp_b", "grp_a"]);
+    expect(collapsedGroupsStoredValue(unsorted)).toBe('["grp_a","grp_b"]');
   });
 });
 
