@@ -104,6 +104,10 @@ export function WallpaperPaintLayer({
       <div
         className={frame === null ? "absolute inset-0" : "absolute"}
         style={{
+          // The sampled letterbox canvas sits behind the image, so the bars
+          // where the image under-fills read as its own edge color rather
+          // than the theme background (the picker samples and stores it).
+          ...(layer.canvas === undefined ? null : { backgroundColor: layer.canvas }),
           ...(frame === null
             ? null
             : { left: frame.left, top: frame.top, width: frame.width, height: frame.height }),

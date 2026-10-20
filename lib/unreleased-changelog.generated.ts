@@ -21,6 +21,13 @@ export const UNRELEASED_ITEMS: readonly { text: string; children: string[]; grou
     "group": "Groups and family boxes"
   },
   {
+    "text": "**Letterbox bars take the image's own edge color.** When a wallpaper leaves bars under Letterbox, the picker samples the image's averaged edge color once (CORS-permitting hosts only) and fills the bars with it instead of the theme background.",
+    "children": [
+      "The sampled color saves with the wallpaper, so the board never re-reads pixels; a host that refuses the read keeps the themed bars."
+    ],
+    "group": "Wallpaper"
+  },
+  {
     "text": "**A burst of realtime signals refetches the board once, not once per signal.** The done, link, ack, snooze, rank, and group echoes now wait out one quiet window: ten signals landing together settle as a single coalesced refetch pass, so a board with hundreds of threads stops repainting on every echo.",
     "children": [],
     "group": "Board scale"
@@ -39,6 +46,11 @@ export const UNRELEASED_ITEMS: readonly { text: string; children: string[]; grou
     "text": "**Opening a thread holds its card in the spotlight while the rest of the board recedes.** The pane-held card and the family holding it keep their surface, the same focus the pointer arms on hover, now with no pointer in play.",
     "children": [],
     "group": "Cards"
+  },
+  {
+    "text": "**The wallpaper crop tunes over the image itself.** The picker's preview now paints the image at its own aspect and lays the board's paint frame, the box the wallpaper actually fills at the window's ratio, over it, so its place and size show which parts and how much of the image fill the board, with the bars showing as frame overhang. Dragging reframes, pinching zooms, the frame takes arrow keys, and the board's own footprint rides inside as the porthole with the dim scrim and the lane and card silhouettes.",
+    "children": [],
+    "group": "Wallpaper"
   },
   {
     "text": "**The wallpaper frames the window, not the board's viewport.** The wallpaper now paints into the bb window's box at the window's ratio: opening and closing the thread pane (or resizing a sidebar) carves the board's view out of one fixed image instead of refitting the crop, and the picker's viewport preview models the same framing.",

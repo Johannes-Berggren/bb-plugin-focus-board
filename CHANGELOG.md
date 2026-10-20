@@ -21,6 +21,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - **A child thread joins the parent's group.** Starting a child thread from a grouped parent (card menu or pane menu) writes the parent's group membership onto the spawn, so the child counts as a real member of the box and the group filter everywhere, including after the parent is archived. The dialog names the group before the prompt is spent ("Will join the group …").
 
+#### Wallpaper
+
+- **Letterbox bars take the image's own edge color.** When a wallpaper leaves bars under Letterbox, the picker samples the image's averaged edge color once (CORS-permitting hosts only) and fills the bars with it instead of the theme background.
+  - The sampled color saves with the wallpaper, so the board never re-reads pixels; a host that refuses the read keeps the themed bars.
+
 ### Changed
 
 #### Board scale
@@ -34,6 +39,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **Opening a thread on a big board repaints one card, not the whole board.** The open thread was a board-wide value, so tapping a card set it on every card at once and re-rendered all of them: on a phone that measured 1005 card renders and made the tap feel like it had missed (issue #265). A card now reacts only when the open thread is its own or one of its family's.
 
 - **Opening a thread holds its card in the spotlight while the rest of the board recedes.** The pane-held card and the family holding it keep their surface, the same focus the pointer arms on hover, now with no pointer in play.
+
+#### Wallpaper
+
+- **The wallpaper crop tunes over the image itself.** The picker's preview now paints the image at its own aspect and lays the board's paint frame, the box the wallpaper actually fills at the window's ratio, over it, so its place and size show which parts and how much of the image fill the board, with the bars showing as frame overhang. Dragging reframes, pinching zooms, the frame takes arrow keys, and the board's own footprint rides inside as the porthole with the dim scrim and the lane and card silhouettes.
 
 ### Fixed
 
