@@ -1,10 +1,10 @@
 # UAT report
 
-_Generated 2026-10-15T16:55:29.091Z by `npm run uat`._
+_Generated 2026-10-20T20:01:21.362Z by `npm run uat`._
 
 ## search-field
 
-Source: `/Users/cristos/.bb/plugins/environment-git-worktree/host-data/worktrees/thr_3jfspvnikn-1/bb-plugin-focus-board/tests/manual/uat-search.yaml` · theme dark
+Source: `tests/manual/uat-search.yaml` · theme dark
 
 | Step | Result | Detail |
 | --- | --- | --- |
