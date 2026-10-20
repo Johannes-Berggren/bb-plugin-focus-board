@@ -39,6 +39,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - **The thread pane stops before the board runs out of room.** Dragging the pane's edge wide used to squeeze the board's own column until its toolbar and lane headers spilled over the pane, doubling text on a wallpaper whose z-order put the board on top. The pane now keeps a lane and a quarter (320px) of board to its left, so the drag settles with a clean board instead of overlapping chrome (issue #273).
 
+#### Card ticket chips
+
+- **A Forgejo chip names its item, not its host.** A Cove or Gitea link used to collapse every item on the host into one chip reading `git.cove`, and following it opened whichever item happened to be first. Each link now reads its number (`#42`) with its own href, a PR leads with the PR glyph, the mark points at that repo's list page, and a `#39` in a title stops wearing GitHub's mark.
+
 ## [1.6.0] - 2026-10-18
 
 ### Added
