@@ -42,6 +42,17 @@ export const CARD_SPOTLIGHT_RULE = `/* The card spotlight (issue #123): while ON
   opacity: 0.7;
   transition-delay: 300ms;
   transition-duration: 300ms;
+}
+/* The focus arm: the thread pane holding one thread open is the same "focused
+   on one thread" state the pointer arms. A card wearing data-focus-solid (the
+   pane-held card, its family, or a parent-lane cell) lights the spotlight with
+   no pointer in play; the marker also feeds data-spotlight-immune, and the
+   marker is excluded here too, so the focused family never recedes. No
+   debounce: a click cannot sweep, so the recede rides the card's own 150ms
+   base transition in both directions. */
+[data-columns-board]:has(div[data-focus-solid]) div[data-thread-card]:not(:hover):not([data-focus-solid]):not([data-spotlight-immune]),
+[data-parent-board]:has(div[data-focus-solid]) div[data-thread-card]:not(:hover):not([data-focus-solid]):not([data-spotlight-immune]) {
+  opacity: 0.7;
 }`;
 
 /**

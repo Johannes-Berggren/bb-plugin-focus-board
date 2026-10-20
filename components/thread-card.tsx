@@ -210,6 +210,14 @@ export interface ThreadCardProps {
   /** The currently open thread; a nested child row matching it is highlighted. */
   activeThreadId?: string | null;
   /**
+   * A caller-forced focus-solid marker (the `data-focus-solid` attribute in
+   * the render): the parent-lane board renders a family as sibling cells
+   * rather than nested rows, so it forces the marker on the lane's cells
+   * when the lane holds the focused thread. Marker only — the solid surface
+   * stays with the focused thread's own card.
+   */
+  familySolid?: boolean;
+  /**
    * The dissolve slot's old-lane copy of the card (a transport ghost): the
    * slot li is already aria-hidden and inert, so the anchor never reports
    * `aria-current` either — the live card owns the marker. A ghost that
@@ -417,7 +425,8 @@ export function previewLeftFor(
  * hand-written and injected once by components/card-spotlight.ts — one block,
  * one exemption list (the hovered card, plus the `data-spotlight-immune`
  * marker components/card-status.ts computes). Pure CSS; the card just wears
- * the marker.
+ * the marker. The pane-open card arms a second arm of the same rule through
+ * `data-focus-solid`; see components/card-spotlight.ts.
  */
 /**
  * The hovered card's surface, one source of truth. Scheme-aware since the
@@ -434,6 +443,18 @@ export function previewLeftFor(
  */
 export const HOVER_SURFACE =
   "dark:hover:bg-[color-mix(in_oklab,var(--card)_80%,black)]";
+
+/**
+ * The solid surface the pane-held (focused) card keeps: the click-into twin
+ * of HOVER_SURFACE. The same card token mixed toward BLACK under the same
+ * `dark:` scheme rule (#195), so the DARK canvas holds the darker, opaque
+ * surface for as long as the thread pane stays open, while the LIGHT canvas
+ * leaves the card surface untouched and the active ring plus the recede
+ * carry the emphasis. ThreadCard applies it to the card wearing
+ * `data-focus-solid`; see components/card-spotlight.ts for the recede arm.
+ */
+export const CARD_SURFACE_SOLID =
+  "dark:bg-[color-mix(in_oklab,var(--card)_80%,black)]";
 
 /**
  * One provider-grouped chip (lib/ticket-chips.ts): all the provider's IDs of
@@ -907,6 +928,7 @@ export function ThreadCardImpl({
   snoozeFor,
   onOpen,
   activeThreadId,
+  familySolid,
   isTransportGhost = false,
   onOpenThread,
   childMenuActions,
@@ -1045,11 +1067,31 @@ export function ThreadCardImpl({
   // the content without ever making the surface transparent, so it is not
   // a transparency rule and focus never has to beat it.
   const wallpaperActive = useWallpaperActive();
+  // The focus spotlight (see components/card-spotlight.ts): the thread pane holds
+  // ONE thread open (`activeThreadId`) — the click-into surface, the same
+  // "focused on one thread" state the hover surface serves for the pointer.
+  // That thread's card, and the family card whose nested rows contain it (a
+  // focused child keeps its family solid as one card), wear
+  // `data-focus-solid` so the board recedes the other cards, and keep the
+  // opaque darker surface (CARD_SURFACE_SOLID) while their own dim systems
+  // stay in charge: done / dimmed / snoozed keep the marker but not a second
+  // surface, sweep-highlight keeps its amber read, and a transport ghost
+  // never claims either — two copies of one thread would both light up
+  // during a dissolve.
+  const focusHeld =
+    activeThreadId !== undefined &&
+    activeThreadId !== null &&
+    (thread.id === activeThreadId ||
+      children.some((child) => child.id === activeThreadId));
+  const focusSolid = !isTransportGhost && (focusHeld || familySolid === true);
+
   // The card statuses in one object (components/card-status.ts); the fade
   // systems consume `status.faded` and `status.spotlightImmune` (the marker
-  // below). Parenting status is not modeled here: it expresses itself
-  // structurally (which component renders this thread), and no fade
-  // decision branches on it.
+  // below). The focus marker feeds `focusMarker`: a card holding the focus
+  // spotlight never recedes, so the hover arm cannot dim the focused family
+  // while the pointer sits on another card. Parenting status is not modeled
+  // here: it expresses itself structurally (which component renders this
+  // thread), and no fade decision branches on it.
   const status = deriveCardStatus({
     isActive,
     isSweepHighlighted,
@@ -1057,8 +1099,11 @@ export function ThreadCardImpl({
     isDone,
     dimmed: dimmed ?? false,
     snoozed,
+    focusMarker: focusSolid,
   });
   const dimsByScrim = wallpaperActive && status.faded && !isSweepHighlighted;
+  const focusSurface =
+    !isTransportGhost && focusHeld && !status.faded && !isSweepHighlighted;
 
   // The two-click Mark Done checkbox, swapped INTO THE STATE DOT'S SLOT: on
   // hover the dot fades and the checkbox centers over its exact pixels —
@@ -1318,6 +1363,12 @@ export function ThreadCardImpl({
       // recede never stacks a second dim on top and never fades what the
       // operator is focused on.
       data-spotlight-immune={status.spotlightImmune ? "" : undefined}
+      // The focus spotlight's marker (see components/card-spotlight.ts): the
+      // card the thread pane holds open — or the family card whose rows
+      // contain it, or a parent-lane cell the board forces it on — so the
+      // board arms the recede on FOCUS, not just on hover, and that card
+      // (with its family) keeps the solid surface throughout.
+      data-focus-solid={focusSolid ? "" : undefined}
       // `group` drives the hover-revealed done checkbox below.
       onPointerLeave={armedDone ? () => setArmedDone(false) : undefined}
       onMouseEnter={
@@ -1356,6 +1407,12 @@ export function ThreadCardImpl({
         // darkens the hovered card; the light canvas keeps the card surface
         // and the ring below carries the emphasis instead.
         HOVER_SURFACE,
+        // The pane-open surface (the click-into twin of the hover surface):
+        // the same opaque mix persists while the board's focus spotlight
+        // recedes the other cards. The card's own dim systems stay in charge
+        // (a faded card never gets a second surface) and
+        // sweep-highlight keeps its amber read — see focusSurface above.
+        focusSurface && CARD_SURFACE_SOLID,
         // A card with a child section needs bottom padding beyond the body's
         // own 8px: the rows (or the folded strip) would otherwise sit flush
         // against the card's bottom edge.
@@ -2045,6 +2102,9 @@ export function sameCardProps(prev: ThreadCardProps, next: ThreadCardProps): boo
     "isTransportGhost",
     "compact",
     "isCollapsed",
+    // The parent-lane board's forced focus marker (a render branch like the
+    // flags above): a flip must repaint the cell.
+    "familySolid",
     // The idle-children filter (issue #172) joined the card after this
     // comparator was written; like `isCollapsed` it is a render branch, so a
     // flip must re-render the card.
@@ -2055,8 +2115,9 @@ export function sameCardProps(prev: ThreadCardProps, next: ThreadCardProps): boo
   // `activeThreadId` is a board-WIDE value: opening any thread's pane sets it
   // on every card at once. Inside this card it is only consulted for the
   // FAMILY — the collapsed strip's listed active child, each dot's
-  // `isMemberActive`, and each nested row's `isActive` (the card's OWN active
-  // state rides the `isActive` prop, compared above). So a change of
+  // `isMemberActive`, each nested row's `isActive`, and the focus marker
+  // (`focusHeld` reads the same own-or-child membership). The card's OWN
+  // active state rides the `isActive` prop, compared above. So a change of
   // `activeThreadId` is invisible here unless the old or new id is a member
   // this card renders; without this, every pane open re-rendered every card
   // (the exact tap issue #265 measured at 1005 card renders).

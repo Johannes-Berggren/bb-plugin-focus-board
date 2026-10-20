@@ -36,6 +36,11 @@ export const UNRELEASED_ITEMS: readonly { text: string; children: string[]; grou
     "group": "Cards"
   },
   {
+    "text": "**Opening a thread holds its card in the spotlight while the rest of the board recedes.** The pane-held card and the family holding it keep their surface, the same focus the pointer arms on hover, now with no pointer in play.",
+    "children": [],
+    "group": "Cards"
+  },
+  {
     "text": "**The wallpaper frames the window, not the board's viewport.** The wallpaper now paints into the bb window's box at the window's ratio: opening and closing the thread pane (or resizing a sidebar) carves the board's view out of one fixed image instead of refitting the crop, and the picker's viewport preview models the same framing.",
     "children": [],
     "group": "Wallpaper"
