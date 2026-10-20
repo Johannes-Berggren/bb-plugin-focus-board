@@ -194,17 +194,19 @@ export function groupMenuActions(options: {
 /**
  * The GROUP BOX's own right-click menu: the actions the box's surface
  * (label, padding, gaps — not its member cards, whose own menus win) offers
- * over the whole group. Four entries, in fixed order: the spawn ("New
+ * over the whole group. Five entries, in fixed order: the spawn ("New
  * thread in group…" — the preset that seeds the composer from the
  * members' majority and tags the result into the group), the zoom ("Zoom
  * to group" — the existing group filter restricted to exactly this group,
  * the card-level zoom gesture's group counterpart), the rename (the
- * same inline label editor the box label's click opens), and the ungroup
+ * same inline label editor the box label's click opens), the collapse
+ * ("Collapse group" — folds the whole box into one normal-size card; the
+ * label flips to "Expand group" while folded), and the ungroup
  * (the delete-with-confirm, armed in place — the label editor's two-click
  * pattern carried into the menu).
  *
  * Every capability is optional: an unwired one is OMITTED, never a dead
- * entry. All four unwired → an empty menu — the board must not open one.
+ * entry. All five unwired → an empty menu — the board must not open one.
  * Pure like groupMenuActions so tests pin the order, labels, icons and
  * the armed flip without rendering the board.
  */
@@ -225,6 +227,13 @@ export function groupBoxMenuActions(options: {
   zoom: (() => void) | undefined;
   /** Start the box label's inline rename editor. */
   rename: (() => void) | undefined;
+  /**
+   * The fold toggle: present when the caller persists collapse state —
+   * `collapsed` picks the label, `toggle` reports the gesture. Unwired →
+   * the menu offers no fold entry (a board that cannot expand a folded
+   * box must never fold one).
+   */
+  collapse?: { collapsed: boolean; toggle: () => void } | undefined;
   /** Run the confirmed ungroup (the caller arms; the lib only renders). */
   ungroup: (() => void) | undefined;
 }): readonly GroupBoxMenuAction[] {
@@ -251,6 +260,14 @@ export function groupBoxMenuActions(options: {
       label: "Rename group…",
       icon: "Edit",
       run: options.rename,
+    });
+  }
+  if (options.collapse !== undefined) {
+    entries.push({
+      id: "collapse-group",
+      label: options.collapse.collapsed ? "Expand group" : "Collapse group",
+      icon: options.collapse.collapsed ? "ChevronsDown" : "ChevronsUp",
+      run: options.collapse.toggle,
     });
   }
   if (options.ungroup !== undefined) {

@@ -142,24 +142,27 @@ import { useSweepClickAway } from "./components/board";
 import { useCrossWindowStorage } from "./components/preferences-sync";
 import {
   COLLAPSED_FAMILIES_KEY,
-  HIDE_IDLE_CHILDREN_KEY,
+  COLLAPSED_GROUPS_KEY,
   GROUP_BY_KEY,
+  HIDE_IDLE_CHILDREN_KEY,
   NEST_CHILDREN_KEY,
   PARENT_LANE_ORDER_KEY,
-  collapsedFamiliesStoredValue,
   applyStoredSetDelta,
-  toggleStoredSetId,
-  repairStoredList,
+  collapsedFamiliesStoredValue,
+  collapsedGroupsStoredValue,
   escStopsRunningFromSetting,
   hideIdleChildrenStoredValue,
   newThreadShortcutKeyFromSetting,
   nestStoredValue,
   parseCollapsedFamiliesStored,
+  parseCollapsedGroupsStored,
   parseHideIdleChildrenStored,
   parseNestStored,
   parseGroupStored,
   parseParentLaneOrderStored,
   parseWallpaperStored,
+  repairStoredList,
+  toggleStoredSetId,
   readStored,
   readStoredText,
   writeStored,
@@ -875,6 +878,13 @@ function BoardPage({ subPath }: { subPath: string }) {
   const [hideIdleFamilies, setHideIdleFamilies] = useState<ReadonlySet<string>>(() =>
     parseHideIdleChildrenStored(readStoredText(HIDE_IDLE_CHILDREN_KEY, "")),
   );
+  // Collapsed family boxes: the GROUP ids whose dashed boxes fold into one
+  // normal-size card. Same deliberate-toggle-only shape as the family fold:
+  // an id absent from the stored list renders expanded, and a corrupt stored
+  // list degrades to every box expanded.
+  const [collapsedGroups, setCollapsedGroups] = useState<ReadonlySet<string>>(() =>
+    parseCollapsedGroupsStored(readStoredText(COLLAPSED_GROUPS_KEY, "")),
+  );
   // Board wallpaper: a versioned settings document (single global layer
   // today; per-project / per-group overrides extend the same document).
   const [wallpaper, setWallpaper] = useState<WallpaperSettings>(() =>
@@ -944,9 +954,18 @@ function BoardPage({ subPath }: { subPath: string }) {
   const hydrateWallpaper = useCallback((_oldRaw: string | null, newRaw: string | null) => {
     setWallpaper(parseWallpaperStored(newRaw ?? ""));
   }, []);
+  const hydrateCollapsedGroups = useCallback(
+    (oldRaw: string | null, newRaw: string | null) => {
+      setCollapsedGroups((current) =>
+        applyStoredSetDelta(current, oldRaw, newRaw, parseCollapsedGroupsStored),
+      );
+    },
+    [],
+  );
   useCrossWindowStorage([
     { key: COLLAPSED_FAMILIES_KEY, onRemoteChange: hydrateCollapsedFamilies },
     { key: HIDE_IDLE_CHILDREN_KEY, onRemoteChange: hydrateHideIdleFamilies },
+    { key: COLLAPSED_GROUPS_KEY, onRemoteChange: hydrateCollapsedGroups },
     { key: WALLPAPER_KEY, onRemoteChange: hydrateWallpaper },
   ]);
   // Appearance tab: the board lane direction's read. Vertical keeps today's
@@ -1334,6 +1353,7 @@ function BoardPage({ subPath }: { subPath: string }) {
   useEffect(() => {
     repairStoredList(COLLAPSED_FAMILIES_KEY, parseCollapsedFamiliesStored, collapsedFamiliesStoredValue);
     repairStoredList(HIDE_IDLE_CHILDREN_KEY, parseHideIdleChildrenStored, hideIdleChildrenStoredValue);
+    repairStoredList(COLLAPSED_GROUPS_KEY, parseCollapsedGroupsStored, collapsedGroupsStoredValue);
   }, []);
   const setFamilyCollapsed = useCallback((parentId: string, collapsed: boolean) => {
     setCollapsedFamilies((current) => {
@@ -1365,6 +1385,26 @@ function BoardPage({ subPath }: { subPath: string }) {
       hide,
       parseHideIdleChildrenStored,
       hideIdleChildrenStoredValue,
+    );
+  }, []);
+  // The collapsed group boxes, same write discipline as the family fold: a
+  // local toggle updates this window's state and writes its one-id delta
+  // against the stored list (a concurrent bb window's fold survives), the
+  // mount run repairs a corrupt stored list once, and a remote window's
+  // toggle hydrates through the storage listener above.
+  const setGroupCollapsed = useCallback((groupId: string, collapsed: boolean) => {
+    setCollapsedGroups((current) => {
+      const next = new Set(current);
+      if (collapsed) next.add(groupId);
+      else next.delete(groupId);
+      return next;
+    });
+    toggleStoredSetId(
+      COLLAPSED_GROUPS_KEY,
+      groupId,
+      collapsed,
+      parseCollapsedGroupsStored,
+      collapsedGroupsStoredValue,
     );
   }, []);
 
@@ -3318,6 +3358,8 @@ function BoardPage({ subPath }: { subPath: string }) {
             onFamilyCollapsedChange={setFamilyCollapsed}
             hideIdleFamilyIds={hideIdleFamilies}
             onFamilyHideIdleChange={setFamilyHideIdle}
+            collapsedGroupIds={collapsedGroups}
+            onGroupCollapsedChange={setGroupCollapsed}
             dimmedIds={dimmedIds}
             projectNameFor={projectNameFor}
             repoBaseFor={repoBaseFor}
