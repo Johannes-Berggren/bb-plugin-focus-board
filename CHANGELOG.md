@@ -27,6 +27,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - **A family box folds into one normal card.** A chevron beside the box label, or Collapse group in the box menu, turns the whole dashed box into a single card: it keeps the dashed ring so it never reads as a parent card, names the group with its member count and one status dot per member, and a click (or the menu's Expand group) unfolds it again. The fold persists per group and stays in step with a second bb window's fold, and the folded card still drags and join-drops as the whole box.
 
+#### Status dots
+
+- **A collapsed family's working dots breathe at the thread's token rate.** The blue dot now pulses, and its period comes from how fast that thread is spending tokens, so a thread streaming fast breathes fast and a quiet one breathes slow.
+  - A thread the board cannot measure yet still pulses, at the slowest period, instead of sitting still.
+  - A folded family box's member dots breathe the same way, off-screen dots hold still, and rates are asked for only while a board is open and visible, so the breathing adds no idle work.
+
 #### Wallpaper
 
 - **Letterbox bars take the image's own edge color.** When a wallpaper leaves bars under Letterbox, the picker samples the image's averaged edge color once (CORS-permitting hosts only) and fills the bars with it instead of the theme background.
