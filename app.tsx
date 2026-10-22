@@ -30,6 +30,7 @@ import type { ThreadPaneThread } from "./components/thread-pane";
 import { useSearchFocusOnSlash } from "./hooks/use-search-focus";
 import { useNewThreadComposerShortcut } from "./hooks/use-new-thread-shortcut";
 import { useTicketStatuses } from "./hooks/use-ticket-statuses";
+import { usePulseRates } from "./hooks/use-pulse-rates";
 import { NewThreadModal } from "./components/new-thread-modal";
 import type { SpawnedThread } from "./components/new-thread-modal";
 import type { CardMenuAction } from "./components/thread-card-menu";
@@ -2002,6 +2003,16 @@ function BoardPage({ subPath }: { subPath: string }) {
     [ticketStatuses],
   );
 
+  // Live token burn rates for the working dots' pulse (issue #279): one poll
+  // for the whole board, nothing while the document is hidden. The lookup is a
+  // per-id prop like `statusFor` above, and the card comparator probes its
+  // results, so a poll only repaints the cards whose dots actually changed.
+  const pulseRates = usePulseRates({ rpc });
+  const pulseRateFor = useCallback(
+    (threadId: string) => pulseRates.get(threadId),
+    [pulseRates],
+  );
+
   const anyFilterActive =
     filter.projects.size > 0 ||
     filter.providers.size > 0 ||
@@ -3295,6 +3306,7 @@ function BoardPage({ subPath }: { subPath: string }) {
             projectNameFor={projectNameFor}
             repoBaseFor={repoBaseFor}
             statusFor={statusFor}
+            pulseRateFor={pulseRateFor}
             linkedIssuesFor={(threadId) => linksByThread[threadId]}
             validatedHrefs={validatedHrefs}
             parentLaneOrder={parentLaneOrder}
@@ -3364,6 +3376,7 @@ function BoardPage({ subPath }: { subPath: string }) {
             projectNameFor={projectNameFor}
             repoBaseFor={repoBaseFor}
             statusFor={statusFor}
+            pulseRateFor={pulseRateFor}
             linkedIssuesFor={(threadId) => linksByThread[threadId]}
             validatedHrefs={validatedHrefs}
             onOpenThread={openThreadCard}

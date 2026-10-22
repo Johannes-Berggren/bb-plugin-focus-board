@@ -2,6 +2,8 @@ import { isValidElement, memo, type DragEvent, type ReactNode, useState } from "
 import { createPortal } from "react-dom";
 import type { PluginSidebarThread } from "@get-bb/plugin-sdk/app";
 import { attentionPulseRef } from "./attention-pulse-gate";
+import { DOT_PULSE_ATTR, dotPulseStyle } from "./dot-pulse";
+import { pulsePeriodMs } from "@/lib/pulse-rate";
 import { Icon } from "@/components/ui/icon";
 import { cn } from "@/lib/utils";
 import { threadState, THREAD_STATE_LABELS } from "./grouping";
@@ -204,6 +206,13 @@ export interface ThreadCardProps {
    * child rows too, via the same lookup.
    */
   snoozeFor?: (threadId: string) => number | null;
+  /**
+   * Token burn rate lookup in tokens per second (issue #279), from
+   * `usePulseRates`. The collapsed strip's `working` dots pulse at a period
+   * derived from it (lib/pulse-rate); an absent id is the honest unmeasured
+   * state and holds the base period. Consulted for the strip's members only.
+   */
+  pulseRateFor?: (threadId: string) => number | undefined;
   /** Reports the card a drag started on, so the board can hold it. */
   onRankDragStart?: (threadId: string | null) => void;
   onOpen: () => void;
@@ -926,6 +935,7 @@ export function ThreadCardImpl({
   rankKey,
   onRankDragStart,
   snoozeFor,
+  pulseRateFor,
   onOpen,
   activeThreadId,
   familySolid,
@@ -1163,6 +1173,10 @@ export function ThreadCardImpl({
    * hover or focus previews, click opens that thread's pane. */
   const stripDot = (member: PluginSidebarThread, isSub: boolean) => {
     const state = threadState(member, errorAckIds);
+    // The rate pulse (issue #279): a working member's dot breathes at a period
+    // derived from its token burn. A member the sampler cannot measure yet
+    // answers the base period, so it still reads as working — never frozen.
+    const pulsePeriod = state === "working" ? pulsePeriodMs(pulseRateFor?.(member.id) ?? null) : null;
     const isMemberActive = member.id === activeThreadId;
     // The dot-drag gesture (issue #249): a snoozed member refuses drag —
     // the same one rule as the cards and the rows — and the preview bubble
@@ -1287,9 +1301,11 @@ export function ThreadCardImpl({
         )}
       >
         <span
-          ref={state === "attention" ? attentionPulseRef : undefined}
+          ref={state === "attention" || pulsePeriod !== null ? attentionPulseRef : undefined}
           aria-hidden
           data-child-dot-glyph=""
+          data-dot-pulse={pulsePeriod === null ? undefined : String(pulsePeriod)}
+          style={pulsePeriod === null ? undefined : dotPulseStyle(pulsePeriod)}
           className={cn(
             // The generation cue: a sub-dot draws one size step down
             // from its parent's dot (the musing's size rule).
@@ -2208,6 +2224,16 @@ export function sameCardProps(prev: ThreadCardProps, next: ThreadCardProps): boo
     if (prev.snoozeFor === undefined || next.snoozeFor === undefined) return false;
     for (const id of ids) {
       if (prev.snoozeFor(id) !== next.snoozeFor(id)) return false;
+    }
+  }
+  // The rate lookup (issue #279) is the same kind of per-id prop as the snooze
+  // lookup above: a poll that moves one thread's rate must repaint the cards
+  // that paint THAT thread (its own family strip, or a card that lists it as a
+  // child), and nothing else.
+  if (prev.pulseRateFor !== next.pulseRateFor) {
+    if (prev.pulseRateFor === undefined || next.pulseRateFor === undefined) return false;
+    for (const id of ids) {
+      if (prev.pulseRateFor(id) !== next.pulseRateFor(id)) return false;
     }
   }
   return true;
