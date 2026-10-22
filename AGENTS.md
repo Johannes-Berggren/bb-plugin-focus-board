@@ -14,7 +14,7 @@ harness loads `dist/app.css`) and uses the system Chrome, so set `CHROME_PATH`
 if it is not in the default place. Run a single suite with
 `npm run uat -- tests/manual/uat-rank.yaml`. Reports land in `docs/uat/`.
 
-The chain can outlive one turn, and a backgrounded run dies with the turn: run it in the foreground, a suite at a time when one turn cannot hold the whole chain, and commit before the turn ends. Two threads in one session ended their turns with a backgrounded chain and were left with uncommitted work and no evidence of how the suites finished.
+The chain can outlive one turn, and a backgrounded run dies with the turn: run it in the foreground, a suite at a time when one turn cannot hold it, and commit before the turn ends; the rule covers the whole `npm run uat` chain and `npm run release-safety`, its longest superset (`build` + `uat` + `release-shots`). Two threads in one session ended their turns with a backgrounded chain and were left with uncommitted work and no evidence of how the suites finished.
 
 ## node_modules — never a symlink in any checkout
 
