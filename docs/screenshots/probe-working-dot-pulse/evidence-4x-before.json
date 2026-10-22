@@ -1,0 +1,349 @@
+{
+  "machine": {
+    "chrome": "Chrome/156.0.8078.48",
+    "cpuThrottleRate": 4
+  },
+  "groups": [
+    0,
+    20,
+    70
+  ],
+  "cases": [
+    {
+      "viewport": "phone-390",
+      "width": 390,
+      "height": 844,
+      "groups": 0,
+      "query": "?workpulse=0",
+      "cards": 46,
+      "rateDots": 0,
+      "stylesheetInjected": false,
+      "gateRemoved": true,
+      "gatedCensus": {
+        "dots": 0,
+        "parked": 0,
+        "animating": 0,
+        "animatingVisible": 0,
+        "anyRunning": 3
+      },
+      "gatedIdle": {
+        "fps": 60,
+        "frames": 151,
+        "dropped": 0,
+        "longTasks": 0,
+        "longTaskMs": 0
+      },
+      "ungatedCensus": {
+        "dots": 0,
+        "parked": 0,
+        "animating": 0,
+        "animatingVisible": 0,
+        "anyRunning": 3
+      },
+      "ungatedIdle": {
+        "fps": 60,
+        "frames": 151,
+        "dropped": 0,
+        "longTasks": 0,
+        "longTaskMs": 0
+      },
+      "killedCensus": {
+        "dots": 0,
+        "parked": 0,
+        "animating": 0,
+        "animatingVisible": 0,
+        "anyRunning": 3
+      },
+      "killedIdle": {
+        "fps": 60,
+        "frames": 151,
+        "dropped": 0,
+        "longTasks": 0,
+        "longTaskMs": 0
+      },
+      "elapsedMs": 8154,
+      "pulseRateCalls": 0,
+      "pollsInWindow": 0
+    },
+    {
+      "viewport": "phone-390",
+      "width": 390,
+      "height": 844,
+      "groups": 20,
+      "query": "?workpulse=20&collapsedGroups=grp_wp_0,grp_wp_1,grp_wp_2,grp_wp_3,grp_wp_4,grp_wp_5,grp_wp_6,grp_wp_7,grp_wp_8,grp_wp_9,grp_wp_10,grp_wp_11,grp_wp_12,grp_wp_13,grp_wp_14,grp_wp_15,grp_wp_16,grp_wp_17,grp_wp_18,grp_wp_19",
+      "cards": 46,
+      "rateDots": 0,
+      "stylesheetInjected": false,
+      "gateRemoved": true,
+      "gatedCensus": {
+        "dots": 0,
+        "parked": 0,
+        "animating": 0,
+        "animatingVisible": 0,
+        "anyRunning": 3
+      },
+      "gatedIdle": {
+        "fps": 60,
+        "frames": 151,
+        "dropped": 0,
+        "longTasks": 0,
+        "longTaskMs": 0
+      },
+      "ungatedCensus": {
+        "dots": 0,
+        "parked": 0,
+        "animating": 0,
+        "animatingVisible": 0,
+        "anyRunning": 3
+      },
+      "ungatedIdle": {
+        "fps": 60,
+        "frames": 151,
+        "dropped": 0,
+        "longTasks": 0,
+        "longTaskMs": 0
+      },
+      "killedCensus": {
+        "dots": 0,
+        "parked": 0,
+        "animating": 0,
+        "animatingVisible": 0,
+        "anyRunning": 3
+      },
+      "killedIdle": {
+        "fps": 60,
+        "frames": 151,
+        "dropped": 0,
+        "longTasks": 0,
+        "longTaskMs": 0
+      },
+      "elapsedMs": 8154,
+      "pulseRateCalls": 0,
+      "pollsInWindow": 0
+    },
+    {
+      "viewport": "phone-390",
+      "width": 390,
+      "height": 844,
+      "groups": 70,
+      "query": "?workpulse=70&collapsedGroups=grp_wp_0,grp_wp_1,grp_wp_2,grp_wp_3,grp_wp_4,grp_wp_5,grp_wp_6,grp_wp_7,grp_wp_8,grp_wp_9,grp_wp_10,grp_wp_11,grp_wp_12,grp_wp_13,grp_wp_14,grp_wp_15,grp_wp_16,grp_wp_17,grp_wp_18,grp_wp_19,grp_wp_20,grp_wp_21,grp_wp_22,grp_wp_23,grp_wp_24,grp_wp_25,grp_wp_26,grp_wp_27,grp_wp_28,grp_wp_29,grp_wp_30,grp_wp_31,grp_wp_32,grp_wp_33,grp_wp_34,grp_wp_35,grp_wp_36,grp_wp_37,grp_wp_38,grp_wp_39,grp_wp_40,grp_wp_41,grp_wp_42,grp_wp_43,grp_wp_44,grp_wp_45,grp_wp_46,grp_wp_47,grp_wp_48,grp_wp_49,grp_wp_50,grp_wp_51,grp_wp_52,grp_wp_53,grp_wp_54,grp_wp_55,grp_wp_56,grp_wp_57,grp_wp_58,grp_wp_59,grp_wp_60,grp_wp_61,grp_wp_62,grp_wp_63,grp_wp_64,grp_wp_65,grp_wp_66,grp_wp_67,grp_wp_68,grp_wp_69",
+      "cards": 46,
+      "rateDots": 0,
+      "stylesheetInjected": false,
+      "gateRemoved": true,
+      "gatedCensus": {
+        "dots": 0,
+        "parked": 0,
+        "animating": 0,
+        "animatingVisible": 0,
+        "anyRunning": 3
+      },
+      "gatedIdle": {
+        "fps": 60,
+        "frames": 151,
+        "dropped": 0,
+        "longTasks": 0,
+        "longTaskMs": 0
+      },
+      "ungatedCensus": {
+        "dots": 0,
+        "parked": 0,
+        "animating": 0,
+        "animatingVisible": 0,
+        "anyRunning": 3
+      },
+      "ungatedIdle": {
+        "fps": 60,
+        "frames": 151,
+        "dropped": 0,
+        "longTasks": 0,
+        "longTaskMs": 0
+      },
+      "killedCensus": {
+        "dots": 0,
+        "parked": 0,
+        "animating": 0,
+        "animatingVisible": 0,
+        "anyRunning": 3
+      },
+      "killedIdle": {
+        "fps": 60,
+        "frames": 151,
+        "dropped": 0,
+        "longTasks": 0,
+        "longTaskMs": 0
+      },
+      "elapsedMs": 8156,
+      "pulseRateCalls": 0,
+      "pollsInWindow": 0
+    },
+    {
+      "viewport": "desktop-1280x800",
+      "width": 1280,
+      "height": 800,
+      "groups": 0,
+      "query": "?workpulse=0",
+      "cards": 46,
+      "rateDots": 0,
+      "stylesheetInjected": false,
+      "gateRemoved": true,
+      "gatedCensus": {
+        "dots": 0,
+        "parked": 0,
+        "animating": 0,
+        "animatingVisible": 0,
+        "anyRunning": 3
+      },
+      "gatedIdle": {
+        "fps": 60,
+        "frames": 151,
+        "dropped": 0,
+        "longTasks": 0,
+        "longTaskMs": 0
+      },
+      "ungatedCensus": {
+        "dots": 0,
+        "parked": 0,
+        "animating": 0,
+        "animatingVisible": 0,
+        "anyRunning": 3
+      },
+      "ungatedIdle": {
+        "fps": 60,
+        "frames": 151,
+        "dropped": 0,
+        "longTasks": 0,
+        "longTaskMs": 0
+      },
+      "killedCensus": {
+        "dots": 0,
+        "parked": 0,
+        "animating": 0,
+        "animatingVisible": 0,
+        "anyRunning": 3
+      },
+      "killedIdle": {
+        "fps": 60,
+        "frames": 151,
+        "dropped": 0,
+        "longTasks": 0,
+        "longTaskMs": 0
+      },
+      "elapsedMs": 8142,
+      "pulseRateCalls": 0,
+      "pollsInWindow": 0
+    },
+    {
+      "viewport": "desktop-1280x800",
+      "width": 1280,
+      "height": 800,
+      "groups": 20,
+      "query": "?workpulse=20&collapsedGroups=grp_wp_0,grp_wp_1,grp_wp_2,grp_wp_3,grp_wp_4,grp_wp_5,grp_wp_6,grp_wp_7,grp_wp_8,grp_wp_9,grp_wp_10,grp_wp_11,grp_wp_12,grp_wp_13,grp_wp_14,grp_wp_15,grp_wp_16,grp_wp_17,grp_wp_18,grp_wp_19",
+      "cards": 46,
+      "rateDots": 0,
+      "stylesheetInjected": false,
+      "gateRemoved": true,
+      "gatedCensus": {
+        "dots": 0,
+        "parked": 0,
+        "animating": 0,
+        "animatingVisible": 0,
+        "anyRunning": 3
+      },
+      "gatedIdle": {
+        "fps": 60,
+        "frames": 151,
+        "dropped": 0,
+        "longTasks": 0,
+        "longTaskMs": 0
+      },
+      "ungatedCensus": {
+        "dots": 0,
+        "parked": 0,
+        "animating": 0,
+        "animatingVisible": 0,
+        "anyRunning": 3
+      },
+      "ungatedIdle": {
+        "fps": 60,
+        "frames": 151,
+        "dropped": 0,
+        "longTasks": 0,
+        "longTaskMs": 0
+      },
+      "killedCensus": {
+        "dots": 0,
+        "parked": 0,
+        "animating": 0,
+        "animatingVisible": 0,
+        "anyRunning": 3
+      },
+      "killedIdle": {
+        "fps": 60,
+        "frames": 151,
+        "dropped": 0,
+        "longTasks": 0,
+        "longTaskMs": 0
+      },
+      "elapsedMs": 8140,
+      "pulseRateCalls": 0,
+      "pollsInWindow": 0
+    },
+    {
+      "viewport": "desktop-1280x800",
+      "width": 1280,
+      "height": 800,
+      "groups": 70,
+      "query": "?workpulse=70&collapsedGroups=grp_wp_0,grp_wp_1,grp_wp_2,grp_wp_3,grp_wp_4,grp_wp_5,grp_wp_6,grp_wp_7,grp_wp_8,grp_wp_9,grp_wp_10,grp_wp_11,grp_wp_12,grp_wp_13,grp_wp_14,grp_wp_15,grp_wp_16,grp_wp_17,grp_wp_18,grp_wp_19,grp_wp_20,grp_wp_21,grp_wp_22,grp_wp_23,grp_wp_24,grp_wp_25,grp_wp_26,grp_wp_27,grp_wp_28,grp_wp_29,grp_wp_30,grp_wp_31,grp_wp_32,grp_wp_33,grp_wp_34,grp_wp_35,grp_wp_36,grp_wp_37,grp_wp_38,grp_wp_39,grp_wp_40,grp_wp_41,grp_wp_42,grp_wp_43,grp_wp_44,grp_wp_45,grp_wp_46,grp_wp_47,grp_wp_48,grp_wp_49,grp_wp_50,grp_wp_51,grp_wp_52,grp_wp_53,grp_wp_54,grp_wp_55,grp_wp_56,grp_wp_57,grp_wp_58,grp_wp_59,grp_wp_60,grp_wp_61,grp_wp_62,grp_wp_63,grp_wp_64,grp_wp_65,grp_wp_66,grp_wp_67,grp_wp_68,grp_wp_69",
+      "cards": 46,
+      "rateDots": 0,
+      "stylesheetInjected": false,
+      "gateRemoved": true,
+      "gatedCensus": {
+        "dots": 0,
+        "parked": 0,
+        "animating": 0,
+        "animatingVisible": 0,
+        "anyRunning": 3
+      },
+      "gatedIdle": {
+        "fps": 60,
+        "frames": 151,
+        "dropped": 0,
+        "longTasks": 0,
+        "longTaskMs": 0
+      },
+      "ungatedCensus": {
+        "dots": 0,
+        "parked": 0,
+        "animating": 0,
+        "animatingVisible": 0,
+        "anyRunning": 3
+      },
+      "ungatedIdle": {
+        "fps": 60,
+        "frames": 151,
+        "dropped": 0,
+        "longTasks": 0,
+        "longTaskMs": 0
+      },
+      "killedCensus": {
+        "dots": 0,
+        "parked": 0,
+        "animating": 0,
+        "animatingVisible": 0,
+        "anyRunning": 3
+      },
+      "killedIdle": {
+        "fps": 60,
+        "frames": 151,
+        "dropped": 0,
+        "longTasks": 0,
+        "longTaskMs": 0
+      },
+      "elapsedMs": 8141,
+      "pulseRateCalls": 0,
+      "pollsInWindow": 0
+    }
+  ]
+}
