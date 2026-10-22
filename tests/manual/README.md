@@ -223,7 +223,10 @@ Three board laws asserted after every step (opt out per step with
 `invariants: false`): one top-level lane per thread (the Done projection's
 family card the only legal second home), a lane's displayed cards that
 appear in its stored rank keep the stored relative order, and no refusal
-banner on screen.
+banner on screen — except the board's own `resolved to no move` report: a
+release whose insertion slot already holds the dragged card is a correct
+no-op refusal, not a break, and a random drag reaches it by dropping a card
+onto its own neighbour.
 
 ## Matrix (suite-level `matrix: { viewports, themes }`)
 
