@@ -2571,12 +2571,25 @@ async function runFuzz(suite, { page, report }) {
       } else if (roll < 0.48) {
         const lane = pick(lanes);
         const from = pick(lane.cards);
-        const targets =
+        const wanted =
           lane.columnId === "done" ? ["pinned"]
           : lane.columnId === "pinned" ? ["done", "unread"]
           : lane.columnId === "unread" ? ["done", "pinned"]
           : ["done", "pinned", "unread"];
-        gesture = { kind: "drag_to_column", from, column: pick(targets) };
+        // A target column that is not on the board cannot take the drop: an
+        // empty lane renders no section (the status "unread" lane with no
+        // unread threads, for one), so there is nothing to aim at and a real
+        // operator has no gesture to make. The pick still runs so the RNG
+        // stream stays the one the seed names, then falls back to a rendered
+        // target, or to a no-op when the lane offers none.
+        const rendered = new Set(state.lanes.map((entry) => entry.columnId));
+        const picked = pick(wanted);
+        const column = rendered.has(picked)
+          ? picked
+          : wanted.find((id) => rendered.has(id));
+        if (column !== undefined) {
+          gesture = { kind: "drag_to_column", from, column };
+        }
       } else if (roll < 0.60) {
         const steppable = lanes.filter((lane) => lane.cards.length >= 2);
         if (steppable.length > 0) {
