@@ -94,5 +94,10 @@ export const UNRELEASED_ITEMS: readonly { text: string; children: string[]; grou
     "text": "**Hiding idle children no longer buries a busy grandchild.** The idle filter read only a child's own state, so an idle child carried its working or unread grandchild out of view with its row. A child now hides only when its whole subtree is idle, in the expanded rows and the collapsed dot strip alike.",
     "children": [],
     "group": "Family cards"
+  },
+  {
+    "text": "**A big family folds on whole rows and reveals the rest in one click.** The child-thread list used to cap at a fixed height and scroll, so its bottom row rendered sliced and the rest of the family hid behind an invisible scrollbar. The card now renders a whole number of rows with a Show all handle, and the count above still names the whole family.",
+    "children": [],
+    "group": "Family cards"
   }
 ];

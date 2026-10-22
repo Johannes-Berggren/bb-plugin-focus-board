@@ -10,7 +10,7 @@
 import { useSyncExternalStore } from "react";
 import { createRoot } from "react-dom/client";
 import type { ComponentType, ReactNode } from "react";
-import { SIM_ATTENTION_THREADS, SIM_BULK_THREADS, SIM_DEMO_THREADS, SIM_DONE_IDS, SIM_DONE_RECORDS, SIM_PROJECTS, SIM_PROVIDERS, SIM_SECTIONS, SIM_THREADS, SIM_WORKSPACE_FILES, SIM_WORK_PULSE_GROUPS, SIM_ZOOM_FAMILY_THREADS, type SimThread } from "./data";
+import { SIM_ATTENTION_THREADS, SIM_BULK_THREADS, SIM_DEMO_THREADS, SIM_DONE_IDS, SIM_DONE_RECORDS, SIM_ORCH_FAMILY_THREADS, SIM_PROJECTS, SIM_PROVIDERS, SIM_SECTIONS, SIM_THREADS, SIM_WORKSPACE_FILES, SIM_WORK_PULSE_GROUPS, SIM_ZOOM_FAMILY_THREADS, type SimThread } from "./data";
 import {
   applyRankMoveFractions,
   type FractionColumn,
@@ -257,6 +257,10 @@ const WORKPULSE_DATA =
   WORKPULSE > 0
     ? SIM_WORK_PULSE_GROUPS(WORKPULSE)
     : { threads: [] as SimThread[], groups: [] as { groupId: string; name: string; memberIds: string[] }[] };
+// `?orchestrator=1` (the "grandchildren don't pop out" repro): append the
+// orchestrator fixture (data.ts SIM_ORCH_FAMILY_THREADS) — a root with nine
+// lieutenants and 77 grandchildren, the shape the operator screenshotted.
+const ORCH_MODE = new URLSearchParams(window.location.search).get("orchestrator") === "1";
 // `?failautotitle=` (comma list): autotitle call kinds that fail ONCE, then
 // succeed — the UAT suite walks a failure into the fallback modal and out
 // through an alternative. Kinds: "plain" (the bare ✨ call), "threadmodel"
@@ -275,6 +279,7 @@ let simThreads: readonly SimThread[] = EMPTY_MODE
       ...(ATTENTION > 0 ? SIM_ATTENTION_THREADS(ATTENTION) : []),
       ...(ZOOM_FAMILY_MODE ? SIM_ZOOM_FAMILY_THREADS : []),
       ...WORKPULSE_DATA.threads,
+      ...(ORCH_MODE ? SIM_ORCH_FAMILY_THREADS : []),
     ];
 
 /**

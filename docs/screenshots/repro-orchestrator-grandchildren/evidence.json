@@ -1,0 +1,47 @@
+{
+  "collapsed": {
+    "cardHeight": 275,
+    "cardWidth": 244,
+    "label": "86 child threads",
+    "strip": {
+      "dotCount": 86,
+      "childGlyphCount": 9,
+      "subGlyphCount": 77,
+      "stripHeight": 176
+    },
+    "rows": null
+  },
+  "folded": {
+    "cardHeight": 369,
+    "cardWidth": 244,
+    "label": "86 child threads",
+    "strip": null,
+    "rows": {
+      "rowCount": 5,
+      "clippedRows": 0,
+      "scrollHeight": 266,
+      "clientHeight": 266,
+      "scrolls": false,
+      "handle": "Show all 86"
+    }
+  },
+  "revealed": {
+    "cardHeight": 4297,
+    "cardWidth": 244,
+    "label": "86 child threads",
+    "strip": null,
+    "rows": {
+      "rowCount": 86,
+      "clippedRows": 0,
+      "scrollHeight": 4194,
+      "clientHeight": 4194,
+      "scrolls": false,
+      "handle": "Show fewer"
+    }
+  },
+  "parentView": {
+    "cellCount": 86,
+    "laneHeight": 2868,
+    "plusChip": null
+  }
+}
