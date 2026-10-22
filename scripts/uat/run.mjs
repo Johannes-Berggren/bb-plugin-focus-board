@@ -853,9 +853,14 @@ const pageAriaProbe = (label) => {
  *    (the same multiplicity rule the transport planner applies).
  * 2. The cards of a lane that ARE in its stored rank keep the stored
  *    relative order (a sparse order constrains its members, nothing more).
- * 3. No refusal or sweep-refusal banner is on screen unless the step asked
- *    for one — a silent-failure tripwire for gesture sequences nobody
- *    hand-wrote.
+ * 3. No refusal or sweep-refusal banner is on screen, EXCEPT the board's own
+ *    no-move report ("... resolved to no move"). That refusal is correct by
+ *    design: the drop's insertion slot already holds the dragged card, so
+ *    the release changes nothing (lib/rank.ts moveTargetFor), and a random
+ *    gesture sequence (the fuzz) reaches it by dropping a card onto its own
+ *    neighbour. Every OTHER refusal — an unidentified card, an unavailable
+ *    order, a strip-nest refusal, a sweep refusal — is a silent-failure
+ *    tripwire for gesture sequences nobody hand-wrote and still fails.
  */
 const pageInvariants = () => {
   const problems = [];
@@ -913,9 +918,25 @@ const pageInvariants = () => {
       }
     }
   }
-  const banner = document.querySelector('[data-testid="rank-error-banner"], [data-testid="sweep-refusal"]');
+  // Two banners report a refusal: the rank-error banner and the sweep
+  // refusal. The rank-error banner ALSO carries the board's correct no-op
+  // report — a release whose insertion slot already holds the dragged card
+  // (lib/rank.ts moveTargetFor: "the slot directly above the hovered card,
+  // when the dragged card is that hover's direct upper neighbour"). The
+  // operator's release asked for a move that resolved to none, so the board
+  // saying so is right, and the acceptance is deliberately narrow: only the
+  // rank banner, only a "resolved to no move" reason. The sweep refusal and
+  // every other rank refusal still fail, which is what keeps this a
+  // tripwire rather than a blanket amnesty.
+  const rankBanner = document.querySelector('[data-testid="rank-error-banner"]');
+  const sweepBanner = document.querySelector('[data-testid="sweep-refusal"]');
+  const banner = rankBanner ?? sweepBanner;
   if (banner !== null) {
-    problems.push(`refusal banner on screen: ${banner.textContent?.trim().slice(0, 90)}`);
+    const text = banner.textContent?.trim() ?? "";
+    const noOpRefusal = rankBanner !== null && /\bresolved to no move\b/.test(text);
+    if (!noOpRefusal) {
+      problems.push(`refusal banner on screen: ${text.slice(0, 90)}`);
+    }
   }
   return { ok: problems.length === 0, problems };
 };
@@ -2550,12 +2571,25 @@ async function runFuzz(suite, { page, report }) {
       } else if (roll < 0.48) {
         const lane = pick(lanes);
         const from = pick(lane.cards);
-        const targets =
+        const wanted =
           lane.columnId === "done" ? ["pinned"]
           : lane.columnId === "pinned" ? ["done", "unread"]
           : lane.columnId === "unread" ? ["done", "pinned"]
           : ["done", "pinned", "unread"];
-        gesture = { kind: "drag_to_column", from, column: pick(targets) };
+        // A target column that is not on the board cannot take the drop: an
+        // empty lane renders no section (the status "unread" lane with no
+        // unread threads, for one), so there is nothing to aim at and a real
+        // operator has no gesture to make. The pick still runs so the RNG
+        // stream stays the one the seed names, then falls back to a rendered
+        // target, or to a no-op when the lane offers none.
+        const rendered = new Set(state.lanes.map((entry) => entry.columnId));
+        const picked = pick(wanted);
+        const column = rendered.has(picked)
+          ? picked
+          : wanted.find((id) => rendered.has(id));
+        if (column !== undefined) {
+          gesture = { kind: "drag_to_column", from, column };
+        }
       } else if (roll < 0.60) {
         const steppable = lanes.filter((lane) => lane.cards.length >= 2);
         if (steppable.length > 0) {

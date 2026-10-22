@@ -6,7 +6,9 @@
 # pointer card clicks, right-click menu actions, and host pushes that
 # re-derive the lanes mid-run. After EVERY gesture the board invariants must
 # hold: one top-level lane per thread (the Done projection the only second
-# home), stored cards keep their stored order, no refusal banner on screen.
+# home), stored cards keep their stored order, no refusal banner on screen
+# except the board's own `resolved to no move` refusal — a correct no-op a
+# random drag reaches by dropping a card onto its own neighbour.
 # A failing run prints the seed and the last 30 gestures so the sequence
 # replays exactly.
 #
