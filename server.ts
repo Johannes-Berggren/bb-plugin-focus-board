@@ -11,6 +11,7 @@
 // Plugin metadata writes emit no thread realtime event, so the explicit
 // done-changed publish stays.
 import { defineRpcContract, type BbPluginApi } from "@get-bb/plugin-sdk";
+import { createThreadPulseTracker } from "./lib/thread-pulse";
 import {
   PluginCliError,
   cliCommand,
@@ -584,6 +585,23 @@ export const rpcContract = defineRpcContract({
   group_delete: {
     input: z.object({ groupId: z.string().min(1) }),
     output: z.object({ groupId: z.string().min(1) }),
+  },
+  /**
+   * Token burn rates for the working dots' pulse (issue #279), in tokens per
+   * second, read from the sampler's in-memory rings (lib/thread-pulse). A
+   * thread absent from `rates` has no measurable rate yet: absence is the
+   * honest "unknown", never a fabricated zero.
+   *
+   * The CALL is also the sampler's demand signal: it extends the lease that
+   * keeps token sampling alive, so a board nobody is looking at costs no reads
+   * at all (lib/thread-pulse, `beginDemand`).
+   */
+  pulse_rates: {
+    input: z.null(),
+    output: z.object({
+      rates: z.record(z.string(), z.number()),
+      generatedAt: z.number(),
+    }),
   },
 });
 
@@ -1988,7 +2006,48 @@ export default async function plugin(bb: BbPluginApi) {
     };
   }
 
+  // The working dot's rate sampler (issue #279). Nothing here runs until a
+  // board asks for rates: the subscription is created on the first
+  // `pulse_rates` call, and the sampler itself reads no thread's context until
+  // the demand lease is open (lib/thread-pulse). A plugin whose board nobody
+  // has open costs one registered function and no events.
+  const pulse = createThreadPulseTracker({
+    readUsedTokens: async (threadId) => {
+      const context = await bb.sdk.threads.context({ threadId });
+      return context.usage?.usedTokens ?? null;
+    },
+    onSampleError: (threadId, error) => {
+      bb.log.warn(
+        `pulse sample failed for ${threadId}: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    },
+  });
+  let pulseSubscribed = false;
+  const ensurePulseSubscribed = (): void => {
+    if (pulseSubscribed) return;
+    pulseSubscribed = true;
+    // A thread-changed event carries the event types it was raised for; only
+    // the two token-usage types can have moved the used-token count, and
+    // `noteEvent` drops everything else on the first comparison.
+    const unsubscribe = bb.sdk.subscribe({
+      event: "thread:changed",
+      callback: (event) => {
+        if (event.id === undefined) return;
+        void pulse.noteEvent(event.id, event.metadata?.eventTypes);
+      },
+    });
+    bb.onDispose(unsubscribe);
+  };
+
   bb.rpc.register(rpcContract, {
+    pulse_rates: async () => {
+      // The call IS the sampler's demand signal (issue #279): it opens the
+      // lease that lets the sampler read a thread's context at all, so a board
+      // nobody is looking at costs no reads.
+      ensurePulseSubscribed();
+      pulse.beginDemand();
+      return { rates: pulse.rates(), generatedAt: Date.now() };
+    },
     done_list: async () => {
       const [{ doneIds, records }, kept] = await Promise.all([
         listDoneRecords(),

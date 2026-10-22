@@ -833,6 +833,54 @@ export const SIM_ZOOM_FAMILY_THREADS: readonly SimThread[] = [
  * Deterministic; ids are `thr_pulse_<index>`, all in the Needs-you lane
  * (hasPendingInteraction), all recent so they lead the lane and sit together.
  */
+/**
+ * The working population for `?workpulse=N` (issue #279): N feature groups of
+ * three active members each, so folding those boxes paints 3N genuine
+ * `working` dots through the shipped rate-pulse path instead of probe-injected
+ * clones. The harness answers `pulse_rates` for these ids with three different
+ * rates, so every group carries the slow, middle, and fast periods together,
+ * which is the mix that shows whether the durations themselves matter.
+ *
+ * Deterministic; group ids are `grp_wp_<i>`, member ids `thr_wp_<i>_<m>`.
+ */
+export function SIM_WORK_PULSE_GROUPS(
+  count: number,
+  now: number = SIM_NOW,
+): {
+  threads: SimThread[];
+  groups: { groupId: string; name: string; memberIds: string[] }[];
+} {
+  const threads: SimThread[] = [];
+  const groups: { groupId: string; name: string; memberIds: string[] }[] = [];
+  const projects = ["proj_board", "proj_api", "proj_web"];
+  const providers = ["pi", "claude-code", "codex"];
+  for (let i = 0; i < count; i += 1) {
+    const groupId = `grp_wp_${i}`;
+    const memberIds: string[] = [];
+    for (let m = 0; m < 3; m += 1) {
+      const id = `thr_wp_${i}_${m}`;
+      memberIds.push(id);
+      const updatedAt = now - (i * 3 + m) * MINUTE;
+      threads.push(
+        thread({
+          id,
+          displayTitle: `Working ${i}.${m}: streaming tokens`,
+          projectId: projects[i % projects.length]!,
+          providerId: providers[i % providers.length]!,
+          status: "active",
+          runtimeStatus: "active",
+          updatedAt,
+          lastReadAt: updatedAt,
+          environment: boardEnv(`perf/workpulse-${i}-${m}`),
+          href: `/projects/board/threads/${id}`,
+        }),
+      );
+    }
+    groups.push({ groupId, name: `Workpulse ${i}`, memberIds });
+  }
+  return { threads, groups };
+}
+
 export function SIM_ATTENTION_THREADS(count: number, now: number = SIM_NOW): SimThread[] {
   const out: SimThread[] = [];
   const projects = ["proj_board", "proj_api", "proj_web"];

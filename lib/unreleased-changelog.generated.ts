@@ -31,6 +31,14 @@ export const UNRELEASED_ITEMS: readonly { text: string; children: string[]; grou
     "group": "Groups and family boxes"
   },
   {
+    "text": "**A collapsed family's working dots breathe at the thread's token rate.** The blue dot now pulses, and its period comes from how fast that thread is spending tokens, so a thread streaming fast breathes fast and a quiet one breathes slow.",
+    "children": [
+      "A thread the board cannot measure yet still pulses, at the slowest period, instead of sitting still.",
+      "A folded family box's member dots breathe the same way, off-screen dots hold still, and rates are asked for only while a board is open and visible, so the breathing adds no idle work."
+    ],
+    "group": "Status dots"
+  },
+  {
     "text": "**Letterbox bars take the image's own edge color.** When a wallpaper leaves bars under Letterbox, the picker samples the image's averaged edge color once (CORS-permitting hosts only) and fills the bars with it instead of the theme background.",
     "children": [
       "The sampled color saves with the wallpaper, so the board never re-reads pixels; a host that refuses the read keeps the themed bars."

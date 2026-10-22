@@ -23,7 +23,9 @@ import { SweepButton, SweepCancelButton } from "./sweep-button";
 import { SweepNoticeBanner, SweepRefusalBanner } from "./sweep-banners";
 import { ThreadCard } from "./thread-card";
 import { useCardSpotlightStyles } from "./card-spotlight";
-import { useAttentionPulseGate } from "./attention-pulse-gate";
+import { attentionPulseRef, useAttentionPulseGate } from "./attention-pulse-gate";
+import { DOT_PULSE_ATTR, dotPulseStyle, useDotPulseStyles } from "./dot-pulse";
+import { pulsePeriodMs } from "../lib/pulse-rate";
 import { MenuPopover } from "./menu-popover";
 import type { ThreadLink } from "../lib/link-metadata";
 import { groupBoxMenuActions } from "../lib/group-metadata";
@@ -479,6 +481,14 @@ interface BoardProps {
    */
   snoozeFor?: (threadId: string) => number | null;
   /**
+   * Token burn rate lookup in tokens per second (issue #279), from
+   * `usePulseRates`. It paces the pulse of a folded family box's `working`
+   * member dots, and rides through to the cards' collapsed strips. An id the
+   * sampler cannot measure yet is absent, which is the honest unmeasured state
+   * and holds the base period rather than freezing the dot.
+   */
+  pulseRateFor?: (threadId: string) => number | undefined;
+  /**
    * Sweep wiring: eligibility per column (empty when nothing is eligible),
    * and the armed lifecycle. Arming pre-selects the past-threshold
    * candidates; from there `armedSweep`'s list is LIVE — card clicks toggle
@@ -654,6 +664,7 @@ export function Board({
   reveal = null,
   menuActionsFor,
   snoozeFor,
+  pulseRateFor,
   sweepCandidatesFor,
   armedSweep = null,
   sweepRun = null,
@@ -682,6 +693,9 @@ export function Board({
   // each board mounts it idempotently, so whichever board renders first wins.
   useCardSpotlightStyles();
   useAttentionPulseGate();
+  // The working dot's rate pulse (issue #279): the keyframes rule the collapsed
+  // dots animate through, mounted once per document like the gate above.
+  useDotPulseStyles();
   // One flow read for every axis-aware site: which way the board scrolls,
   // which rect axis the drop thirds split on, which keys reorder, and which
   // dimension the transport's ghost collapse and arrival grow measure.
@@ -3679,6 +3693,7 @@ export function Board({
                             )
                           }
                           snoozeFor={snoozeFor}
+                          pulseRateFor={pulseRateFor}
                           doneIds={doneIds}
                           activeThreadId={activeThreadId}
                           dimmed={dimmedIds.has(thread.id)}
@@ -4175,10 +4190,24 @@ export function Board({
                           >
                             {box.members.map((member) => {
                               const state = threadState(member);
+                              // The rate pulse (issue #279): a working member's
+                              // dot breathes at its measured burn, base period
+                              // when unmeasured. Attention dots keep their own
+                              // animation; both ride the visible-only gate.
+                              const pulsePeriod =
+                                state === "working"
+                                  ? pulsePeriodMs(pulseRateFor?.(member.id) ?? null)
+                                  : null;
+                              const animated = state === "attention" || pulsePeriod !== null;
                               return (
                                 <span
                                   key={member.id}
+                                  ref={animated ? attentionPulseRef : undefined}
                                   data-collapsed-group-dot=""
+                                  data-dot-pulse={
+                                    pulsePeriod === null ? undefined : String(pulsePeriod)
+                                  }
+                                  style={pulsePeriod === null ? undefined : dotPulseStyle(pulsePeriod)}
                                   title={`${member.displayTitle} · ${THREAD_STATE_LABELS[state] ?? state}`}
                                   className={cn(
                                     "size-1.5 rounded-full",

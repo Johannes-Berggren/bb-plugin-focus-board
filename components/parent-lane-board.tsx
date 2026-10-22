@@ -13,6 +13,7 @@ import { ThreadCard } from "./thread-card";
 import { ThreadCardMenu } from "./thread-card-menu";
 import { useCardSpotlightStyles } from "./card-spotlight";
 import { useAttentionPulseGate } from "./attention-pulse-gate";
+import { useDotPulseStyles } from "./dot-pulse";
 import type { ThreadLink } from "../lib/link-metadata";
 import type { CardMenuAction } from "./thread-card-menu";
 import { EmptyState } from "./empty-state";
@@ -81,6 +82,13 @@ interface ParentLaneBoardProps {
    * chip (lane minis show the clock alone).
    */
   snoozeFor?: (threadId: string) => number | null;
+  /**
+   * Token burn rate lookup in tokens per second (issue #279), from
+   * `usePulseRates`. It paces the pulse of a lane card's collapsed-strip
+   * `working` dots. An absent id is the honest unmeasured state and holds the
+   * base period.
+   */
+  pulseRateFor?: (threadId: string) => number | undefined;
   /**
    * Attention reporting (components/attention-freeze): the card a pointer
    * enters, and the card it leaves. The caller pins each entered card's
@@ -325,6 +333,7 @@ export function ParentLaneBoard({
   onNewTask,
   menuActionsFor,
   snoozeFor,
+  pulseRateFor,
   onAttentionEnter,
   onAttentionLeave,
   sweepCandidatesFor,
@@ -344,6 +353,7 @@ export function ParentLaneBoard({
   // each board mounts it idempotently, so whichever board renders first wins.
   useCardSpotlightStyles();
   useAttentionPulseGate();
+  useDotPulseStyles();
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const spacerRef = useRef<HTMLDivElement | null>(null);
   const [geoIdx, setGeoIdx] = useState(0);
@@ -1157,6 +1167,7 @@ export function ParentLaneBoard({
                           validatedHrefs={validatedHrefs}
                           menuActions={menuActionsFor(cell.thread)}
                           snoozeFor={snoozeFor}
+                          pulseRateFor={pulseRateFor}
                           activeThreadId={activeThreadId}
                           // The family renders as sibling cells here, not
                           // nested rows: when the lane holds the focused

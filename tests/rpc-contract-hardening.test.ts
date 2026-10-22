@@ -58,6 +58,7 @@ const validInputs: Record<Method, unknown> = {
   group_rename: { groupId: "grp_x", name: "Auth rework" },
   group_set: { threadId: "thr_x", groupId: null },
   group_delete: { groupId: "grp_x" },
+  pulse_rates: null,
 };
 
 const nullInputMethods: Method[] = [
@@ -69,6 +70,7 @@ const nullInputMethods: Method[] = [
   "sweep_config_get",
   "link_list",
   "error_acks_list",
+  "pulse_rates",
 ];
 
 const inputSchemaOf = (method: Method) =>

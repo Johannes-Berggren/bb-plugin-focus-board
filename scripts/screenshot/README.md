@@ -199,6 +199,14 @@ npx vite preview --config scripts/screenshot/vite.probe.config.ts --strictPort
   pulse killed (the ceiling). Also scrolls a busy lane to prove the gate
   toggles and adds no scroll cost. Reads `PROBE_ATTENTION`, `PROBE_CPU`,
   `PROBE_SCALE`.
+- `probe-working-dot-pulse.mjs` — the working dots' rate pulse (#279). Opens
+  `?workpulse=N&collapsedGroups=…`, whose board paints 3N genuine `working`
+  dots through the shipped rate pulse, and reports per viewport and per N: the
+  dot census (parked, animating, animating and visible), the idle frame rate
+  with the gate, with the gate's stylesheet removed (every dot animating), and
+  with every rate pulse killed (the ceiling), plus the page's long tasks and
+  the number of `pulse_rates` calls inside the measurement window. Reads
+  `PROBE_GROUPS`, `PROBE_VIEWPORTS`, `PROBE_CPU`.
 - `probe-pinned-child.mjs`, `probe-chips.mjs` — the older one-shot DOM probes.
 
 Each honors `CHROME_PATH`, `HARNESS_URL`, `OUT_DIR`, and `PROBE_CPU`; evidence

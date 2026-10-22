@@ -76,6 +76,17 @@ window.localStorage.setItem(
   JSON.stringify(collapsed === null ? [] : collapsed.split(",").filter(Boolean)),
 );
 
+// Seed the persisted collapsed-GROUP store the same way: `?collapsedGroups=id1,id2`
+// folds those feature-group boxes into one card (the COLLAPSED_GROUPS_KEY the
+// box's own chevron writes). Absent → empty, so the default board keeps every
+// box expanded. The rate-pulse probe (#279) uses this to paint the folded
+// boxes' member dots, which is where the working-dot pulse lives.
+const collapsedGroups = params.get("collapsedGroups");
+window.localStorage.setItem(
+  "focus-board:collapsedGroups",
+  JSON.stringify(collapsedGroups === null ? [] : collapsedGroups.split(",").filter(Boolean)),
+);
+
 // Seed the harness's rank store before the app's first rank_list call, so a
 // UAT pass can start from a column that already has a stored order.
 const seedRanks = params.get("ranks");
