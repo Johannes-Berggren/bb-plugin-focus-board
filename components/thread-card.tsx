@@ -389,10 +389,68 @@ function DotPreviewBubble({
 }
 
 /**
- * More nested child rows than this and the list caps its height and scrolls
- * instead of stretching the family card (and its whole lane) toward the sky.
+ * The family card's rows fold to this many whole rows; the rest go behind a
+ * "Show all" handle. A whole-row budget replaces the old pixel cap
+ * (`max-h-64` plus an overflow scroll): a pixel cap cannot end on a row
+ * boundary, so it sliced the last row and hid the rest behind an overlay
+ * scrollbar with no affordance (operator report 2026-10-22, "grandchildren
+ * don't pop out"). Counting rows bounds the card at roughly the old height
+ * while every rendered row stays whole, and the withheld rows stay one
+ * click away.
  */
-export const NESTED_ROWS_SCROLL_THRESHOLD = 5;
+export const FAMILY_ROWS_BEFORE_FOLD = 5;
+
+/** One rendered family row: a child row and the sub-rows the fold kept under it. */
+export interface FoldedFamilyRow {
+  child: PluginSidebarThread;
+  subRows: readonly PluginSidebarThread[];
+}
+
+export interface FoldedFamilyRows {
+  /** The rows to render now, in family order. */
+  rows: FoldedFamilyRow[];
+  /** Every visible row in the family: child rows plus their sub-rows. */
+  totalRows: number;
+  /** True when rows were withheld, so a Show all handle is due. */
+  folded: boolean;
+}
+
+/**
+ * Fold the family's rows to a whole-row budget, in family order: each child
+ * row, then as many of its sub-rows as the budget still allows. Children
+ * keep the sub-rows that fit under them, so a fold never reorders the family
+ * or strands a child from its own sub-rows. `showAll` renders every row and
+ * reports `folded: false`.
+ */
+export function foldFamilyRows(
+  children: readonly PluginSidebarThread[],
+  subRowsFor: (parentId: string) => readonly PluginSidebarThread[],
+  showAll: boolean,
+  budget: number = FAMILY_ROWS_BEFORE_FOLD,
+): FoldedFamilyRows {
+  const totalRows = children.reduce(
+    (count, child) => count + 1 + subRowsFor(child.id).length,
+    0,
+  );
+  if (showAll || totalRows <= budget) {
+    return {
+      rows: children.map((child) => ({ child, subRows: subRowsFor(child.id) })),
+      totalRows,
+      folded: false,
+    };
+  }
+  const rows: FoldedFamilyRow[] = [];
+  let remaining = Math.max(0, budget);
+  for (const child of children) {
+    if (remaining <= 0) break;
+    remaining -= 1; // the child's own row
+    const subs = subRowsFor(child.id);
+    const take = subs.slice(0, Math.max(0, remaining));
+    remaining -= take.length;
+    rows.push({ child, subRows: take });
+  }
+  return { rows, totalRows, folded: true };
+}
 
 /**
  * The collapsed dot's hover preview bubble width CAP (the `max-w-64`
@@ -1134,6 +1192,16 @@ export function ThreadCardImpl({
   // dot and every click stays with the selection gesture.
   const [armedDone, setArmedDone] = useState(false);
 
+  // The rows list's fold (see foldFamilyRows): false shows the whole-row
+  // budget, true shows every row. Local like `localCollapsed`, so an
+  // unpersisted peek at the rest of the family never leaks across sessions.
+  const [showAllRows, setShowAllRows] = useState(false);
+  // The rows the card renders: a whole-row budget, the rest behind the Show
+  // all handle. The count and the strip keep reading `visibleRowCount` (the
+  // whole family), so the fold never changes what the label claims.
+  const foldedRows = foldFamilyRows(visibleChildren, visibleSubsFor, showAllRows);
+  const rowsOverflow = foldedRows.totalRows > FAMILY_ROWS_BEFORE_FOLD;
+
   // The hovered dot's preview bubble (issue #174's overflow follow-up):
   // enter/focus records the dot's viewport position, leave/blur clears it,
   // and the bubble renders as a fixed-position portal to body — placed by
@@ -1828,22 +1896,9 @@ export function ThreadCardImpl({
             </div>
           ) : null}
           {!collapsed && onOpenThread !== undefined && visibleChildren.length > 0 ? (
-            <div
-              data-nested-rows=""
-              className={cn(
-                "mt-1 border-l border-border/70 pl-2",
-                // A big family scrolls its rows inside the card; a small one
-                // renders at natural height.
-                visibleChildren.length > NESTED_ROWS_SCROLL_THRESHOLD &&
-                // The snap keeps the rest on whole rows: a trackpad or wheel
-                // stop between rows left the first visible child sliced at
-                // the cap's edge, reading as clipped content with no
-                // scrollbar to explain the cut (operator report).
-                "max-h-64 overflow-y-auto snap-y snap-mandatory",
-              )}
-            >
+            <div data-nested-rows="" className="mt-1 border-l border-border/70 pl-2">
               <ul className="flex flex-col gap-1">
-                {visibleChildren.map((child) => {
+                {foldedRows.rows.map(({ child, subRows }) => {
                   const childDone = doneIds?.has(child.id) ?? false;
                   // The sub-row tier (issue #120): a child row nests its own
                   // children, indenting one tier under its indented list.
@@ -1852,11 +1907,12 @@ export function ThreadCardImpl({
                   // deeper tier ever arrives here. The idle filter treats
                   // the sub-row tier like the row tier: a visible child's
                   // own idle sub-rows hide too (the shared visibleSubsFor
-                  // rule the count and the strip read as well).
-                  const subRows = visibleSubsFor(child.id);
+                  // rule the count and the strip read as well). The fold
+                  // gives each child the sub-rows that fit its budget, so a
+                  // folded row never loses a sub-row it had room for.
                   const subRankKey = childRankKey(child.id);
                   return (
-                    <li key={child.id} className="snap-start">
+                    <li key={child.id}>
                       <ChildRow
                         child={child}
                         dimmed={isDone || childDone}
@@ -1878,17 +1934,12 @@ export function ThreadCardImpl({
                       {subRows.length > 0 ? (
                         <ul
                           data-child-sub-rows=""
-                          className={cn(
-                            // One narrower indent step than the card's
-                            // own rows list, so the tier reads as depth.
-                            "mt-1 flex flex-col gap-1 border-l border-border/50 pl-2 ml-1",
-                            subRows.length > NESTED_ROWS_SCROLL_THRESHOLD &&
-                              // Same whole-row rest as the row tier's cap.
-                              "max-h-64 overflow-y-auto snap-y snap-mandatory",
-                          )}
+                          // One narrower indent step than the card's own rows
+                          // list, so the tier reads as depth.
+                          className="mt-1 flex flex-col gap-1 border-l border-border/50 pl-2 ml-1"
                         >
                           {subRows.map((sub) => (
-                            <li key={sub.id} className="snap-start">
+                            <li key={sub.id}>
                               <ChildRow
                                 child={sub}
                                 dimmed={isDone || childDone || doneIds?.has(sub.id) === true}
@@ -1913,6 +1964,38 @@ export function ThreadCardImpl({
                   );
                 })}
               </ul>
+              {rowsOverflow ? (
+                // The fold's handle: the withheld rows stay one click away,
+                // and its label names the whole family, so the count above
+                // never disagrees with what the control reveals. The rows
+                // list carries no height cap and no scroll, so every
+                // rendered row stays whole (the old `max-h-64` scroll sliced
+                // its last row and hid the rest behind an invisible
+                // scrollbar with no affordance).
+                <button
+                  type="button"
+                  data-show-all-rows=""
+                  aria-expanded={showAllRows}
+                  aria-label={
+                    showAllRows
+                      ? "Show fewer child threads"
+                      : `Show all ${foldedRows.totalRows} child threads`
+                  }
+                  onClick={(event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    setShowAllRows((value) => !value);
+                  }}
+                  className={cn(
+                    "mt-1 flex w-full items-center justify-center gap-1 rounded-md border border-dashed border-border/60",
+                    "py-1 text-[11px] text-muted-foreground/80",
+                    "transition-colors hover:bg-accent/60 hover:text-foreground",
+                    "focus:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                  )}
+                >
+                  {showAllRows ? "Show fewer" : `Show all ${foldedRows.totalRows}`}
+                </button>
+              ) : null}
             </div>
           ) : null}
         </div>

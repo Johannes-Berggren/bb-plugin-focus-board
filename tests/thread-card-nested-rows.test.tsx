@@ -1,11 +1,13 @@
 // @vitest-environment jsdom
 // The family card's nested child list grows with the family; past a handful
-// of rows it must cap its height and scroll instead of stretching the card
-// (and the whole lane) toward the sky. jsdom does no layout, so the tests
-// pin the contract through the classes the cap is written with.
+// of rows it folds to a whole number of rows and hands the rest to a Show
+// all control, instead of capping by pixels and scrolling (which sliced the
+// last row and hid the rest behind an invisible scrollbar). jsdom does no
+// layout, so the tests pin the contract through the rendered rows and the
+// handle's markup.
 import { afterEach, describe, expect, it } from "vitest";
-import { cleanup, render } from "@testing-library/react";
-import { NESTED_ROWS_SCROLL_THRESHOLD, ThreadCard } from "../components/thread-card";
+import { cleanup, fireEvent, render } from "@testing-library/react";
+import { FAMILY_ROWS_BEFORE_FOLD, ThreadCard } from "../components/thread-card";
 import { thread } from "./thread-fixture";
 
 const parent = thread({ id: "p", displayTitle: "Parent" });
@@ -37,51 +39,63 @@ function rowsContainer(): HTMLElement {
   return el;
 }
 
-describe("the family card's nested child list", () => {
+/** The child id of every rendered row, in render order (child rows and sub-rows alike). */
+function rowThreadIds(): string[] {
+  return Array.from(
+    document.querySelectorAll("[data-nested-rows] a[data-thread-card]"),
+  ).map((node) => node.getAttribute("data-thread-card") ?? "");
+}
+
+/** The rows list's Show all / Show fewer handle, or null when every row fits. */
+function showAllHandle(): HTMLElement | null {
+  const button = document.querySelector("[data-show-all-rows]");
+  return button instanceof HTMLElement ? button : null;
+}
+
+describe("the family card's rows fold on whole rows", () => {
+  // The fold replaces the old pixel cap (`max-h-64` + overflow scroll): a
+  // pixel cap cannot end on a row boundary, so the list always sliced its
+  // last row and hid the rest behind an invisible (overlay) scrollbar with
+  // no affordance. The fold shows a whole number of rows and hands the rest
+  // to a Show all control.
   afterEach(cleanup);
 
-  it(`renders at natural height with ${NESTED_ROWS_SCROLL_THRESHOLD} rows or fewer`, () => {
-    renderCard(NESTED_ROWS_SCROLL_THRESHOLD);
+  it(`renders every row with ${FAMILY_ROWS_BEFORE_FOLD} rows or fewer, no handle`, () => {
+    renderCard(FAMILY_ROWS_BEFORE_FOLD);
+    expect(rowThreadIds()).toHaveLength(FAMILY_ROWS_BEFORE_FOLD);
+    expect(showAllHandle()).toBeNull();
+  });
+
+  it("folds past the threshold: whole rows only, no pixel cap, and a Show all handle", () => {
+    renderCard(FAMILY_ROWS_BEFORE_FOLD + 1);
     const container = rowsContainer();
-    expect(container.className).not.toContain("overflow-y-auto");
+    // No slicing is possible: the list carries no height cap and no scroll.
     expect(container.className).not.toContain("max-h-");
+    expect(container.className).not.toContain("overflow-y-auto");
+    expect(rowThreadIds()).toHaveLength(FAMILY_ROWS_BEFORE_FOLD);
+    const handle = showAllHandle();
+    expect(handle).not.toBeNull();
+    expect(handle?.textContent).toContain(`Show all ${FAMILY_ROWS_BEFORE_FOLD + 1}`);
   });
 
-  it("caps and scrolls the list when the family has more rows than the threshold", () => {
-    renderCard(NESTED_ROWS_SCROLL_THRESHOLD + 1);
-    const container = rowsContainer();
-    expect(container.className).toContain("overflow-y-auto");
-    expect(container.className).toContain("max-h-");
+  it("the handle reveals every row, then folds them back", () => {
+    renderCard(FAMILY_ROWS_BEFORE_FOLD + 1);
+    fireEvent.click(showAllHandle() as HTMLElement);
+    expect(rowThreadIds()).toHaveLength(FAMILY_ROWS_BEFORE_FOLD + 1);
+    expect(showAllHandle()?.textContent).toContain("Show fewer");
+    fireEvent.click(showAllHandle() as HTMLElement);
+    expect(rowThreadIds()).toHaveLength(FAMILY_ROWS_BEFORE_FOLD);
   });
 
-  // The cap's inner scroll can rest between rows (a trackpad or wheel stop
-  // lands mid-glyph), and when it does the first visible row reads sliced at
-  // the container's top edge with no scrollbar to explain the cut (operator
-  // report: "the selector still gets clipped"). Mandatory vertical snapping
-  // pins every rest to a row's top, so the capped list never shows a cut row
-  // where it rests. jsdom does no layout; the contract is again the classes.
-  it("snaps its capped scroll to whole rows so the rest never slices a row", () => {
-    renderCard(NESTED_ROWS_SCROLL_THRESHOLD + 1);
-    expect(rowsContainer().className).toContain("snap-y");
-    expect(rowsContainer().className).toContain("snap-mandatory");
-    for (const li of rowsContainer().querySelectorAll(":scope > ul > li")) {
-      expect(li.className).toContain("snap-start");
-    }
-    // The cap must stay the only rest constraint: a small family renders
-    // natural height with no snap machinery at all.
-    cleanup();
-    renderCard(NESTED_ROWS_SCROLL_THRESHOLD);
-    expect(rowsContainer().className).not.toContain("snap-y");
-  });
-
-  it("the capped sub-row tier snaps to whole rows the same way", () => {
-    // (threshold + 1) grandchildren under one child = the sub-row tier caps.
+  it("the fold budget spans both tiers: a child's own sub-rows count against it", () => {
+    // One child with six sub-rows is seven rows: the fold shows the child and
+    // four of its sub-rows, and the handle names all seven.
     const child = thread({ id: "c", parentThreadId: "p", displayTitle: "The child" });
-    const grandkids = children(NESTED_ROWS_SCROLL_THRESHOLD + 1).map((g) =>
+    const grandkids = Array.from({ length: FAMILY_ROWS_BEFORE_FOLD + 1 }, (_, index) =>
       thread({
-        id: `g-${g.id}`,
+        id: `g${index}`,
         parentThreadId: "c",
-        displayTitle: `Grandchild ${g.id}`,
+        displayTitle: `Grandchild ${index}`,
       }),
     );
     render(
@@ -96,14 +110,12 @@ describe("the family card's nested child list", () => {
         onOpenThread={() => {}}
       />,
     );
-    const subRows = document.querySelector("[data-child-sub-rows]");
-    if (!(subRows instanceof HTMLElement)) throw new Error("missing sub-row container");
-    expect(subRows.className).toContain("overflow-y-auto");
-    expect(subRows.className).toContain("snap-y");
-    expect(subRows.className).toContain("snap-mandatory");
-    for (const li of subRows.querySelectorAll(":scope > li")) {
-      expect(li.className).toContain("snap-start");
-    }
+    const ids = rowThreadIds();
+    expect(ids).toHaveLength(FAMILY_ROWS_BEFORE_FOLD);
+    expect(ids[0]).toBe("c");
+    expect(showAllHandle()?.textContent).toContain(`Show all ${FAMILY_ROWS_BEFORE_FOLD + 2}`);
+    fireEvent.click(showAllHandle() as HTMLElement);
+    expect(rowThreadIds()).toHaveLength(FAMILY_ROWS_BEFORE_FOLD + 2);
   });
 });
 
