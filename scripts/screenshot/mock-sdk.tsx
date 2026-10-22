@@ -10,7 +10,7 @@
 import { useSyncExternalStore } from "react";
 import { createRoot } from "react-dom/client";
 import type { ComponentType, ReactNode } from "react";
-import { SIM_ATTENTION_THREADS, SIM_BULK_THREADS, SIM_DEMO_THREADS, SIM_DONE_IDS, SIM_DONE_RECORDS, SIM_PROJECTS, SIM_PROVIDERS, SIM_SECTIONS, SIM_THREADS, SIM_WORKSPACE_FILES, SIM_ZOOM_FAMILY_THREADS, type SimThread } from "./data";
+import { SIM_ATTENTION_THREADS, SIM_BULK_THREADS, SIM_DEMO_THREADS, SIM_DONE_IDS, SIM_DONE_RECORDS, SIM_PROJECTS, SIM_PROVIDERS, SIM_SECTIONS, SIM_THREADS, SIM_WORKSPACE_FILES, SIM_WORK_PULSE_GROUPS, SIM_ZOOM_FAMILY_THREADS, type SimThread } from "./data";
 import {
   applyRankMoveFractions,
   type FractionColumn,
@@ -244,6 +244,19 @@ const ATTENTION = Math.max(0, Number(new URLSearchParams(window.location.search)
 // children than the standard demo families carry, so the right-click →
 // "Zoom to family" sequence reads on a family whose size is the point.
 const ZOOM_FAMILY_MODE = new URLSearchParams(window.location.search).get("zoomfamily") === "1";
+// `?workpulse=N` (the rate-pulse probe, #279): append N feature groups of three
+// active members each, and answer `pulse_rates` for those ids with a spread of
+// rates — so a probe measures genuine `working` dots breathing through the
+// shipped rate pulse. The probe also passes `?collapsedGroups=` listing these
+// group ids, which is what folds the boxes into dot strips.
+const WORKPULSE = Math.max(
+  0,
+  Number(new URLSearchParams(window.location.search).get("workpulse") ?? "0") || 0,
+);
+const WORKPULSE_DATA =
+  WORKPULSE > 0
+    ? SIM_WORK_PULSE_GROUPS(WORKPULSE)
+    : { threads: [] as SimThread[], groups: [] as { groupId: string; name: string; memberIds: string[] }[] };
 // `?failautotitle=` (comma list): autotitle call kinds that fail ONCE, then
 // succeed — the UAT suite walks a failure into the fallback modal and out
 // through an alternative. Kinds: "plain" (the bare ✨ call), "threadmodel"
@@ -261,6 +274,7 @@ let simThreads: readonly SimThread[] = EMPTY_MODE
       ...(SCALE > 0 ? SIM_BULK_THREADS(SCALE) : []),
       ...(ATTENTION > 0 ? SIM_ATTENTION_THREADS(ATTENTION) : []),
       ...(ZOOM_FAMILY_MODE ? SIM_ZOOM_FAMILY_THREADS : []),
+      ...WORKPULSE_DATA.threads,
     ];
 
 /**
@@ -580,6 +594,13 @@ let simGroupAssignments: Record<string, string> = {
   thr_column_sort: "grp_chat_imagegent",
   thr_drag_done: "grp_chat_imagegent",
 };
+// The workpulse fixtures (`?workpulse=N`) own their groups: the registry gets
+// a named record per group and the assignment map gets one row per member, so
+// the board renders them as real boxes without any group_* write.
+for (const group of WORKPULSE_DATA.groups) {
+  simGroupRegistry[group.groupId] = { name: group.name, createdAt: "2026-10-22T00:00:00.000Z" };
+  for (const memberId of group.memberIds) simGroupAssignments[memberId] = group.groupId;
+}
 (globalThis as unknown as { __uat?: unknown }).__uat = {
   seedRanks: (orders: Record<string, string[]>) => {
     simRanks = Object.fromEntries(
@@ -644,6 +665,18 @@ const rpcCall = async (method: string, args?: unknown): Promise<unknown> => {
     return { orders: structuredClone(ordersFromFractionStore(simRanks)) };
   if (method === "pin_parks_list") return { parks: {} };
   if (method === "snooze_list") return { snoozes: {} };
+  // The working dots' rate pulse (issue #279). Three rates per group so every
+  // folded box paints the slow, middle, and fast period together; the app
+  // derives the periods through the real lib/pulse-rate mapping.
+  if (method === "pulse_rates") {
+    const rates: Record<string, number> = {};
+    for (const group of WORKPULSE_DATA.groups) {
+      group.memberIds.forEach((memberId, index) => {
+        rates[memberId] = [0.5, 4, 40][index] ?? 4;
+      });
+    }
+    return { rates, generatedAt: Date.now() };
+  }
   // The mock previously fell through to `{}` here, and the app's links
   // reader (`Object.entries(result.links)`) recorded an unhandled rejection
   // on every harness boot and every "link-changed" wake.
