@@ -1,0 +1,35 @@
+# Operator-assisted E2E: a same-slot reorder is a correct no-op, not a break.
+#
+# The board refuses a drop whose insertion slot already holds the dragged
+# card, and says so on screen (`lib/rank.ts` `moveTargetFor`: "the slot
+# directly above the hovered card, when the dragged card is that hover's
+# direct upper neighbour"). The release changes nothing, so nothing moves and
+# nothing is written — the refusal is the CORRECT outcome. The suite-level
+# invariant "no refusal banner on screen" must therefore accept this one
+# refusal, while every other refusal (an unidentified card, an unavailable
+# order, a strip-nest refusal, a sweep refusal) still fails the run. Issue
+# #284: the seeded gesture fuzz reached this same refusal with a random
+# drag and reported it as a broken invariant.
+#
+# Run: npm run uat -- tests/manual/uat-noop-reorder.yaml
+suite: noop-reorder
+harness:
+  config: scripts/screenshot/vite.config.ts
+  port: 5198
+defaults:
+  groupBy: status
+  theme: dark
+  invariants: true
+steps:
+  - id: same-slot-reorder-refuses-and-the-invariant-accepts-it
+    title: A card dropped into its own slot refuses out loud, and the invariant does not call it a break
+    # The Unread lane is pinned to a known order so the pair is deterministic:
+    # thr_rpc_auth sits directly above thr_uat_queue. "before thr_uat_queue"
+    # is thr_rpc_auth's OWN slot, so the drop resolves to no move, the banner
+    # says so, and no order is written.
+    goto: "?groupBy=status&ranks={\"status:unread\":[\"thr_rpc_auth\",\"thr_uat_queue\",\"thr_review_pr\"]}"
+    drag: { from: thr_rpc_auth, to: thr_uat_queue, edge: before }
+    assert:
+      - visible_error: "resolved to no move"
+      - store: { "status:unread": ["thr_rpc_auth", "thr_uat_queue", "thr_review_pr"] }
+      - rpc_not_called: rank_move
