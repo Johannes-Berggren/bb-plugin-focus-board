@@ -1029,15 +1029,23 @@ export function ThreadCardImpl({
   // filter, so the control can never hide a child that wants the operator.
   const isIdleChild = (child: PluginSidebarThread) =>
     threadState(child, errorAckIds) === "idle";
+  // A child hides only when it AND its whole subtree are idle. A working or
+  // unread grandchild rides its idle parent's row, so hiding the parent would
+  // bury the grandchild with it and break the filter's one promise: never
+  // hide a thread that wants the operator. The walk is one tier deep in
+  // practice: the display depth cap gives a grandchild no sub-rows of its own.
+  const isIdleSubtree = (child: PluginSidebarThread): boolean =>
+    isIdleChild(child) &&
+    (grandchildThreadsByParent?.get(child.id) ?? []).every(isIdleSubtree);
   const visibleChildren = hideIdle
-    ? children.filter((child) => !isIdleChild(child))
+    ? children.filter((child) => !isIdleSubtree(child))
     : children;
   // The sub-tier's one rendering rule, shared by every consumer: the rows
   // list these members, the strip paints them, and the fold's count names
   // them — so count, rows, and dots agree by construction.
   const visibleSubsFor = (parentId: string): readonly PluginSidebarThread[] => {
     const subs = grandchildThreadsByParent?.get(parentId) ?? [];
-    return hideIdle ? subs.filter((sub) => !isIdleChild(sub)) : subs;
+    return hideIdle ? subs.filter((sub) => !isIdleSubtree(sub)) : subs;
   };
   // A hidden child's sub-rows go with it; a visible child's own idle
   // sub-rows filter out too, so the fold's count names what the section

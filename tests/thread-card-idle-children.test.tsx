@@ -197,6 +197,58 @@ describe("sub-rows follow the filter", () => {
     expect(row("thr_g1")).not.toBeNull();
     expect(row("thr_g2")).not.toBeNull();
   });
+
+  it("an idle child with a working grandchild keeps its row, so the filter never hides work", () => {
+    const { parent, children } = family();
+    const grandchildThreadsByParent = new Map<string, PluginSidebarThread[]>([
+      // Idle child thr_c1 carries a WORKING grandchild. Hiding thr_c1 would
+      // hide the work under it, so the child row stays and only its idle
+      // grandchild filters out.
+      [
+        "thr_c1",
+        [
+          thread({ id: "thr_g1", parentThreadId: "thr_c1", displayTitle: "Grandchild one", status: "active", updatedAt: 3000 }),
+          thread({ id: "thr_g2", parentThreadId: "thr_c1", displayTitle: "Grandchild two", updatedAt: 2900 }),
+        ],
+      ],
+    ]);
+    renderCard({ thread: parent, childThreads: children, grandchildThreadsByParent });
+    fireEvent.click(idleToggle(false));
+    // The idle child is not fully idle: it and its working grandchild stay.
+    expect(row("thr_c1")).not.toBeNull();
+    expect(row("thr_g1")).not.toBeNull();
+    // Its idle grandchild still filters out, like any visible child's would.
+    expect(row("thr_g2")).toBeNull();
+    // No child is fully idle now, so the label keeps the plain count.
+    expect(sectionToggle(false).textContent).toContain("5 child threads");
+  });
+
+  it("an unread grandchild protects its idle parent's row too", () => {
+    const { parent, children } = family();
+    const grandchildThreadsByParent = new Map<string, PluginSidebarThread[]>([
+      // Unread is non-idle, so the same protection holds as for working.
+      ["thr_c1", [thread({ id: "thr_g1", parentThreadId: "thr_c1", displayTitle: "Grandchild one", isUnread: true, updatedAt: 3000 })]],
+    ]);
+    renderCard({ thread: parent, childThreads: children, grandchildThreadsByParent });
+    fireEvent.click(idleToggle(false));
+    expect(row("thr_c1")).not.toBeNull();
+    expect(row("thr_g1")).not.toBeNull();
+  });
+
+  it("the collapsed dot strip keeps the protected child's dot and its working sub-dot", () => {
+    const { parent, children } = family();
+    const grandchildThreadsByParent = new Map<string, PluginSidebarThread[]>([
+      ["thr_c1", [thread({ id: "thr_g1", parentThreadId: "thr_c1", displayTitle: "Grandchild one", status: "active", updatedAt: 3000 })]],
+    ]);
+    renderCard({ thread: parent, childThreads: children, grandchildThreadsByParent });
+    fireEvent.click(sectionToggle(false));
+    fireEvent.click(idleToggle(false));
+    const dotIds = Array.from(dots().querySelectorAll("button[data-child-dot]")).map(
+      (button) => button.getAttribute("data-child-dot"),
+    );
+    expect(dotIds).toContain("thr_c1");
+    expect(dotIds).toContain("thr_g1");
+  });
 });
 
 describe("without any idle-child gesture the card renders every child", () => {

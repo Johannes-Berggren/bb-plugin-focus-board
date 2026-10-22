@@ -81,5 +81,10 @@ export const UNRELEASED_ITEMS: readonly { text: string; children: string[]; grou
     "text": "**A Forgejo chip names its item, not its host.** A Cove or Gitea link used to collapse every item on the host into one chip reading `git.cove`, and following it opened whichever item happened to be first. Each link now reads its number (`#42`) with its own href, a PR leads with the PR glyph, the mark points at that repo's list page, and a `#39` in a title stops wearing GitHub's mark.",
     "children": [],
     "group": "Card ticket chips"
+  },
+  {
+    "text": "**Hiding idle children no longer buries a busy grandchild.** The idle filter read only a child's own state, so an idle child carried its working or unread grandchild out of view with its row. A child now hides only when its whole subtree is idle, in the expanded rows and the collapsed dot strip alike.",
+    "children": [],
+    "group": "Family cards"
   }
 ];
