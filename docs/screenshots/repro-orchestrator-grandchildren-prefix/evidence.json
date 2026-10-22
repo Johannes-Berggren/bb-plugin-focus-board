@@ -1,0 +1,36 @@
+{
+  "collapsed": {
+    "cardHeight": 275,
+    "cardWidth": 244,
+    "label": "86 child threads",
+    "strip": {
+      "dotCount": 86,
+      "childGlyphCount": 9,
+      "subGlyphCount": 77,
+      "stripHeight": 176
+    },
+    "rows": null
+  },
+  "folded": {
+    "cardHeight": 359,
+    "cardWidth": 244,
+    "label": "86 child threads",
+    "strip": null,
+    "rows": {
+      "rowCount": 86,
+      "clippedRows": 81,
+      "scrollHeight": 1975,
+      "clientHeight": 256,
+      "scrolls": true,
+      "handle": null
+    }
+  },
+  "revealed": {
+    "error": "missing Show all handle"
+  },
+  "parentView": {
+    "cellCount": 86,
+    "laneHeight": 2868,
+    "plusChip": null
+  }
+}

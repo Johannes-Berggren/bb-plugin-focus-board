@@ -588,8 +588,9 @@ export const SIM_DEMO_THREADS: readonly SimThread[] = [
 
   // Family E — a big family (thread thr_pczkebjtyr, "Fix clipped selector"):
   // ten children with the family's open child mid-list, so the expanded rows
-  // cross NESTED_ROWS_SCROLL_THRESHOLD and the card clips or scrolls where
-  // the operator's screenshot showed the sliced rows. Demo-only (`?demo=1`).
+  // cross FAMILY_ROWS_BEFORE_FOLD and the card folds the surplus behind its
+  // Show all handle where the operator's screenshot showed sliced rows.
+  // Demo-only (`?demo=1`).
   thread({
     id: "thr_demo_big",
     displayTitle: "Focus Board Orchestrator Overview",
@@ -820,6 +821,54 @@ export const SIM_ZOOM_FAMILY_THREADS: readonly SimThread[] = [
     }),
   ),
 ];
+
+/**
+ * The orchestrator shape (operator report 2026-10-22, "grandchildren don't
+ * pop out"): a root with nine lieutenants, three of them childless and first
+ * in order, the six busy ones carrying grandchildren below the rows cap's
+ * scroll fold. Mirrors the real Workstation orchestrator board (9 direct
+ * children, 77 grandchildren). `?orchestrator=1` only, so UAT stays pinned.
+ */
+export const SIM_ORCH_FAMILY_PARENT_ID = "thr_demo_orch";
+export const SIM_ORCH_FAMILY_THREADS: readonly SimThread[] = (() => {
+  const counts = [0, 0, 0, 6, 9, 14, 5, 16, 27];
+  const out: SimThread[] = [
+    thread({
+      id: SIM_ORCH_FAMILY_PARENT_ID,
+      displayTitle: "Workstation orchestrator",
+      status: "active",
+      runtimeStatus: "active",
+      updatedAt: SIM_NOW - 90 * 1000,
+      lastReadAt: SIM_NOW - 90 * 1000,
+      environment: boardEnv("main"),
+    }),
+  ];
+  counts.forEach((n, i) => {
+    out.push(
+      thread({
+        id: `thr_demo_orch_L${i}`,
+        displayTitle: `L${i + 1} lieutenant`,
+        parentThreadId: SIM_ORCH_FAMILY_PARENT_ID,
+        updatedAt: SIM_NOW - (i + 2) * MINUTE,
+        lastReadAt: SIM_NOW - (i + 2) * MINUTE,
+        environment: boardEnv("main"),
+      }),
+    );
+    for (let g = 0; g < n; g += 1) {
+      out.push(
+        thread({
+          id: `thr_demo_orch_L${i}_g${g}`,
+          displayTitle: `L${i + 1} step ${g} · the grandchild tier`,
+          parentThreadId: `thr_demo_orch_L${i}`,
+          updatedAt: SIM_NOW - (i + 30 + g) * MINUTE,
+          lastReadAt: SIM_NOW - (i + 30 + g) * MINUTE,
+          environment: boardEnv("main"),
+        }),
+      );
+    }
+  });
+  return out;
+})();
 
 /**
  * A synthetic ATTENTION-HEAVY population for the pulse probe (#260):

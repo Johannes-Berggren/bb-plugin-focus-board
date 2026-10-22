@@ -94,18 +94,27 @@ host app involved.
   `OUT_DIR` overrides.
 
 - `repro-clipped-selector.mjs` — one-shot headless probe for the family card's
-  child-row list rest state (the "Fix clipped selector" report): loads the
-  ten-child demo family `thr_demo_big`, measures the card's child-thread
-  section geometry at four panel widths, then gives the capped rows list a
-  9px wheel-sized scroll and reads the rest position. Exits non-zero unless
-  the rest lands snapped on a row boundary and no measured surface sits past
-  the card's edges (pre-fix code rests at 9px and
-  slices the first row mid-glyph at the cap's edge). Artifacts land in
-  `docs/screenshots/repro-clipped-selector/` (card clips per width plus
-  `evidence.json`; the pre-fix run is preserved in
-  `docs/screenshots/repro-clipped-selector-prefix/` via `OUT_DIR`). Run the
-  vite harness first; honors the same `CHROME_PATH`, `HARNESS_URL`, and
-  `OUT_DIR` overrides.
+  child-row list fold (the "Fix clipped selector" report, now the whole-row
+  fold): loads the ten-child demo family `thr_demo_big`, measures the card's
+  child-thread section geometry at four panel widths, then verifies the fold
+  in real geometry — the folded list renders exactly `FAMILY_ROWS_BEFORE_FOLD`
+  whole rows with no scroll and no row past the card's bottom edge, offers its
+  `Show all N` handle, and the handle reveals the whole family. Exits non-zero
+  on any violation or right-edge offender. Artifacts land in
+  `docs/screenshots/repro-clipped-selector/` (`evidence.json` plus card clips
+  per width). Run the vite harness first; honors `CHROME_PATH`, `HARNESS_URL`,
+  and `OUT_DIR`.
+
+- `repro-orchestrator-grandchildren.mjs` — one-shot headless repro for the
+  "grandchildren don't pop out" report (2026-10-22): loads the orchestrator
+  fixture (`?orchestrator=1`, a root with nine lieutenants and 77
+  grandchildren), and captures the card collapsed (dot strip), expanded
+  (folded with the `Show all 86` handle), and revealed (every row). Exits
+  non-zero unless the folded list shows exactly five whole rows with no scroll
+  and no clipped row, and the handle reveals all 86. Artifacts land in
+  `docs/screenshots/repro-orchestrator-grandchildren/` (`collapsed.png`,
+  `expanded-folded.png`, `expanded-revealed.png`, `evidence.json`). Run the
+  vite harness first; honors `CHROME_PATH`, `HARNESS_URL`, and `OUT_DIR`.
 
 - `repro-ghost-gutter-strip.mjs` — one-shot headless repro/verification for
   the parent view's ghost duplicate card strip (#227): loads the parent board

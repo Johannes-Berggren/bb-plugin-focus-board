@@ -1,11 +1,13 @@
-// Inspect driver (thread thr_pczkebjtyr, "Fix clipped selector"): the
-// operator's screenshot shows an expanded family card on a ~330px-wide
-// panel and reports "selector still gets clipped". This driver shots the
-// family card at several panel widths and dumps the geometry of the
-// child-threads section (toggle row, eye toggle, nested rows, last row's
-// chips) against the card's box, flagging anything that sits past the
-// card's right or bottom edge. Usage: vite harness running, then node this
-// file. Honors CHROME_PATH, HARNESS_URL, OUT_DIR.
+// Inspection driver (thread thr_pczkebjtyr, "Fix clipped selector"): the
+// operator's screenshot showed an expanded family card on a ~330px-wide
+// panel with a sliced row. The card's rows now fold on whole rows behind a
+// Show all handle (no pixel cap, no scroll), so this driver shots the family
+// card at several panel widths, measures the child-threads section geometry
+// (toggle, nested rows, last row, chips) against the card's box flagging
+// anything past its right or bottom edge, and verifies the fold: whole rows,
+// no scroll, a Show all handle, and the handle revealing the whole family.
+// Usage: vite harness running, then node this file.
+// Honors CHROME_PATH, HARNESS_URL, OUT_DIR.
 import { mkdirSync, writeFileSync } from "node:fs";
 import puppeteer from "puppeteer-core";
 
@@ -121,41 +123,65 @@ for (const width of [900, 560, 420, 331]) {
   });
 }
 
-// The rest-slice probe: wheel the capped rows list a few px down and read
-// where the scroll rests. Without whole-row snapping the rest lands mid-row
-// (the operator's sliced first child at the cap's edge); with it, the rest
-// must settle back on a row boundary. jsdom cannot answer this, so this is
-// the real-geometry verification.
-const restProbe = await page.evaluate(async () => {
-  const el = document.querySelector('[data-thread-card="thr_demo_big"] [data-nested-rows]');
-  if (!(el instanceof HTMLElement)) throw new Error("missing nested rows container");
-  const firstRow = el.querySelector(":scope > ul > li");
-  if (!(firstRow instanceof HTMLElement)) throw new Error("missing first row");
-  const rowH = firstRow.getBoundingClientRect().height + 4; // rows + gap-1
-  const scrollBefore = el.scrollTop;
-  // A small wheel tick, the trackpad-sized gesture that stopped the
-  // operator's list mid-row.
-  el.dispatchEvent(
-    new WheelEvent("wheel", { deltaY: 9, bubbles: true, cancelable: true }),
-  );
-  el.scrollTop = scrollBefore + 9;
-  await new Promise((r) => setTimeout(r, 450));
-  return {
-    rowHeight: Math.round(rowH),
-    scrollTopAt9: Math.round(el.scrollTop),
-    slicedTop: el.scrollTop % rowH > 1,
-  };
-});
-results.restProbe = restProbe;
+// The whole-row fold probe: the rows list carries no height cap and no
+// scroll now (the old pixel cap sliced its last row and hid the rest behind
+// an invisible overlay scrollbar with no affordance). jsdom cannot answer
+// this, so this is the real-geometry verification: the folded list must not
+// scroll, must render whole rows only (nothing past the card's bottom edge),
+// must offer its Show all handle, and the handle must reveal every row.
+const foldProbe = await (async () => {
+  await page.goto(`${BASE}?demo=1#/plugins/focus-board/board/t/thr_demo_big_c2`, {
+    waitUntil: "networkidle0",
+  });
+  await sleep(900);
+  const readRows = () =>
+    page.evaluate(() => {
+      const card = document.querySelector('[data-thread-card="thr_demo_big"]');
+      const rows = card.querySelector("[data-nested-rows]");
+      const anchors = [...rows.querySelectorAll("a[data-thread-card]")];
+      const cardRect = card.getBoundingClientRect();
+      const clippedRows = anchors.filter(
+        (a) => a.getBoundingClientRect().bottom > cardRect.bottom + 0.5,
+      ).length;
+      const handle = rows.querySelector("[data-show-all-rows]");
+      return {
+        rowCount: anchors.length,
+        clippedRows,
+        scrollHeight: rows.scrollHeight,
+        clientHeight: rows.clientHeight,
+        handle: handle === null ? null : handle.textContent.trim(),
+      };
+    });
+  const folded = await readRows();
+  const clicked = await page.evaluate(() => {
+    const button = document.querySelector(
+      '[data-thread-card="thr_demo_big"] [data-show-all-rows]',
+    );
+    if (button === null) return false;
+    button.click();
+    return true;
+  });
+  if (clicked) await sleep(500);
+  const revealed = await readRows();
+  return { folded, revealed };
+})();
+results.foldProbe = foldProbe;
 
 writeFileSync(`${OUT_DIR}evidence.json`, JSON.stringify(results, null, 2));
-console.log(JSON.stringify({ restProbe }, null, 1));
+console.log(JSON.stringify({ restProbe: foldProbe }, null, 1));
 const bad = results.widths.some((w) => Object.values(w).some((v) => v && typeof v === "object" && v.pastCardRight));
 console.log(bad ? "OFFENDER FOUND" : "no right-edge offender");
-const restOk = restProbe.slicedTop === false && restProbe.scrollTopAt9 % 1 === 0 && restProbe.scrollTopAt9 < 5;
-console.log(restOk ? "REST ALIGNED" : "REST SLICED");
-// The whole probe's verdict: every geometry must sit inside the card and
-// the rest must land snapped on a row boundary.
-process.exitCode = restOk && !bad ? 0 : 1;
+// The fold's verdict: the folded list shows a whole-row budget with no scroll
+// and no clipped row, offers its Show all handle, and the handle reveals the
+// whole family.
+const foldOk =
+  foldProbe.folded.rowCount === 5 &&
+  foldProbe.folded.clippedRows === 0 &&
+  foldProbe.folded.scrollHeight <= foldProbe.folded.clientHeight + 1 &&
+  foldProbe.folded.handle !== null &&
+  foldProbe.revealed.rowCount === 10 &&
+  foldProbe.revealed.clippedRows === 0;
+console.log(foldOk ? "FOLD WHOLE, HANDLE REVEALS ALL" : "FOLD BROKEN");
+process.exitCode = foldOk && !bad ? 0 : 1;
 await browser.close();
 process.exit(process.exitCode);
