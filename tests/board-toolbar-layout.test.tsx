@@ -9,7 +9,14 @@
 // plain settings gear otherwise (click opens on Behavior).
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
-import { BoardToolbar, SEARCH_PLACEHOLDER_MIN_WIDTH, searchPlaceholderFor } from "../components/board-toolbar";
+import {
+  BoardToolbar,
+  SEARCH_PLACEHOLDER,
+  SEARCH_PLACEHOLDER_MIN_WIDTH,
+  SEARCH_PLACEHOLDER_SHORT,
+  SEARCH_PLACEHOLDER_SHORT_MIN_WIDTH,
+  searchPlaceholderFor,
+} from "../components/board-toolbar";
 
 type BoardToolbarProps = Parameters<typeof BoardToolbar>[0];
 
@@ -328,20 +335,25 @@ describe("BoardToolbar search clear button", () => {
 
 describe("BoardToolbar search placeholder ladder", () => {
   // jsdom has no layout, so the rule the layout consumes is pinned here: the
-  // field's own measured width feeds searchPlaceholderFor, and at or below the
-  // floor the field paints no placeholder rather than a fragment of one word.
-  // The 1.7.0 release screenshot caught the fragment ("Sea") at tablet width
-  // with the pane open, where the board keeps its 320px floor and the
-  // collapsed row leaves the field whatever the other controls do not take.
+  // field's own measured width feeds searchPlaceholderFor, which paints the
+  // full string, the short label, or nothing, and never a fragment of a word.
+  // The 1.7.0 release screenshot forced the middle rung: at tablet width with
+  // the pane open the board holds its 320px floor and the collapsed row left
+  // the field 60.77px wide, so the single long string painted as "Sea".
   it("keeps the full placeholder whenever the field can hold it", () => {
-    expect(searchPlaceholderFor(null)).toBe("Search title or id…"); // unmeasured: degrade
-    expect(searchPlaceholderFor(412)).toBe("Search title or id…"); // tablet, no pane
-    expect(searchPlaceholderFor(SEARCH_PLACEHOLDER_MIN_WIDTH)).toBe("Search title or id…");
+    expect(searchPlaceholderFor(null)).toBe(SEARCH_PLACEHOLDER); // unmeasured: degrade
+    expect(searchPlaceholderFor(412)).toBe(SEARCH_PLACEHOLDER); // tablet, no pane
+    expect(searchPlaceholderFor(SEARCH_PLACEHOLDER_MIN_WIDTH)).toBe(SEARCH_PLACEHOLDER);
   });
 
-  it("drops the placeholder instead of painting a partial word", () => {
-    expect(searchPlaceholderFor(SEARCH_PLACEHOLDER_MIN_WIDTH - 1)).toBe("");
-    expect(searchPlaceholderFor(130.77)).toBe(""); // phone board: 89px of text space
+  it("steps down to the short label where only that fits", () => {
+    expect(searchPlaceholderFor(SEARCH_PLACEHOLDER_MIN_WIDTH - 1)).toBe(SEARCH_PLACEHOLDER_SHORT);
+    expect(searchPlaceholderFor(130.77)).toBe(SEARCH_PLACEHOLDER_SHORT); // phone board: 89px of text space
+    expect(searchPlaceholderFor(SEARCH_PLACEHOLDER_SHORT_MIN_WIDTH)).toBe(SEARCH_PLACEHOLDER_SHORT);
+  });
+
+  it("drops the placeholder rather than paint a partial word", () => {
+    expect(searchPlaceholderFor(SEARCH_PLACEHOLDER_SHORT_MIN_WIDTH - 1)).toBe("");
     expect(searchPlaceholderFor(60.77)).toBe(""); // tablet with the pane open: 19px
   });
 

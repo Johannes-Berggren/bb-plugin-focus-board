@@ -76,7 +76,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - **The New Thread dialog's header controls no longer touch.** Maximize and the dialog's own close sat edge to edge and read as one control. A 16px inset now separates them.
 
-- **The board's search field stops painting half a word.** Squeezed by an open thread pane, it used to clip its placeholder to "Sea". The field now shows the magnifier alone whenever the full text will not fit, and still takes typing.
+- **The board's search field stops painting half a word.** Squeezed by an open thread pane, it used to clip its placeholder to "Sea". It now steps down to "Search", then to the magnifier alone, before any word is cut.
 
 #### Cards and chips
 

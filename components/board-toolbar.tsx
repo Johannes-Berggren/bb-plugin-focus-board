@@ -41,23 +41,35 @@ export const NARROW_HEADER_COLLAPSE_WIDTH = 1024;
  *  the same band observer. */
 export const VIEW_KEEP_VISIBLE_MIN_WIDTH = 560;
 
-/** The narrowest search field that can paint its whole placeholder. At
- *  text-xs the placeholder ("Search title or id…") measures about 98.7px and
- *  the field's lead and trail padding take 40px (pl-7 plus pr-3), so a field
- *  below about 139px can only show a fragment of a word: the 1.7.0 release
- *  screenshot caught exactly that ("Sea") at tablet width with the pane open,
- *  where the board keeps its 320px floor and the collapsed row feeds the
- *  search whatever the other controls leave. Narrower than this the field
- *  paints no placeholder and lets its magnifier be the icon-only affordance;
- *  it stays focusable and typed text still scrolls inside it. */
-export const SEARCH_PLACEHOLDER_MIN_WIDTH = 140;
+/** The full search placeholder. */
+export const SEARCH_PLACEHOLDER = "Search title or id…";
 
-/** The placeholder to paint for a measured search-field width. A null read
- *  (jsdom, old hosts: no ResizeObserver) keeps the full placeholder, the same
- *  degrade the band measurement uses. */
+/** The placeholder's middle rung, painted where only a short label fits. */
+export const SEARCH_PLACEHOLDER_SHORT = "Search";
+
+/** The narrowest search field that can paint the full placeholder. At
+ *  text-xs the string measures about 98.7px and the short label about 38px,
+ *  while the field's lead and trail padding take 40px (pl-7 plus pr-3), so
+ *  139px holds the full string and 79px holds the short one; each floor
+ *  carries a few px of slack for a wider UI font. Below the short floor the
+ *  field paints no placeholder and lets its magnifier be the icon-only
+ *  affordance. The rungs exist because of the 1.7.0 release screenshot: at
+ *  tablet width with the pane open the board holds its 320px floor and the
+ *  collapsed row left the field 60.77px wide, so the single long string
+ *  painted as "Sea". */
+export const SEARCH_PLACEHOLDER_MIN_WIDTH = 144;
+export const SEARCH_PLACEHOLDER_SHORT_MIN_WIDTH = 88;
+
+/** The placeholder to paint for a measured search-field width: the full
+ *  string, the short label, or none, so no width ever paints a partial word.
+ *  A null read (jsdom, old hosts: no ResizeObserver) keeps the full
+ *  placeholder, the same degrade the band measurement uses. */
 export function searchPlaceholderFor(fieldWidth: number | null): string {
-  return fieldWidth === null || fieldWidth >= SEARCH_PLACEHOLDER_MIN_WIDTH
-    ? "Search title or id…"
+  if (fieldWidth === null || fieldWidth >= SEARCH_PLACEHOLDER_MIN_WIDTH) {
+    return SEARCH_PLACEHOLDER;
+  }
+  return fieldWidth >= SEARCH_PLACEHOLDER_SHORT_MIN_WIDTH
+    ? SEARCH_PLACEHOLDER_SHORT
     : "";
 }
 
