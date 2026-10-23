@@ -24,12 +24,22 @@ describe("bb focus-board done/snooze/link CLI", () => {
   let listedThreads: ReturnType<typeof makeThreadResponse>[];
   let archivedThreads: ReturnType<typeof makeThreadResponse>[];
   let archived: string[];
+  // Reproduce the real SDK: getPluginMetadata answers HTTP 404 for a thread
+  // the host no longer has (the deleted-thread shape), rather than the
+  // in-memory stub's permissive `{}`. Off by default so every other test
+  // keeps the permissive stub; the gone-thread suite turns it on.
+  let notFound404: boolean;
+  // Per-id rejections that are NOT the thread-gone 404 — a scan must let
+  // these stay loud rather than mistake them for a deleted thread.
+  let metadataErrors: Map<string, Error>;
 
   beforeEach(() => {
     metadata = new Map();
     listedThreads = [];
     archivedThreads = [];
     archived = [];
+    notFound404 = false;
+    metadataErrors = new Map();
   });
 
   async function load(): Promise<void> {
@@ -39,8 +49,18 @@ describe("bb focus-board done/snooze/link CLI", () => {
         threads: {
           list: async (args?: { archived?: boolean }) =>
             args?.archived ? archivedThreads : listedThreads,
-          getPluginMetadata: async ({ threadId }: { threadId: string }) =>
-            metadata.get(threadId) ?? {},
+          getPluginMetadata: async ({ threadId }: { threadId: string }) => {
+            const injected = metadataErrors.get(threadId);
+            if (injected !== undefined) throw injected;
+            if (
+              notFound404 &&
+              !listedThreads.some((thread) => thread.id === threadId) &&
+              !archivedThreads.some((thread) => thread.id === threadId)
+            ) {
+              throw new Error("HTTP 404: Thread not found");
+            }
+            return metadata.get(threadId) ?? {};
+          },
           updatePluginMetadata: async ({
             threadId,
             set,
@@ -134,6 +154,112 @@ describe("bb focus-board done/snooze/link CLI", () => {
       expect(result.stdout).toContain("not in the live thread list");
       expect(result.stdout).toContain("thr_gone");
       expect(result.stdout).toContain("keep");
+    });
+
+    // Regression (issue #259): an index id whose thread was deleted makes
+    // getPluginMetadata reject with HTTP 404. The scan must report that id
+    // (flagged stale) and exit 0, never crash the whole listing.
+    it("exits 0 and names an index-only id whose thread is gone", async () => {
+      await load();
+      notFound404 = true;
+      await bb.storage.kv.set("done-index", ["thr_gone"]);
+
+      const result = await harness.behavior.runCli(["done", "list"]);
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout).toContain("thr_gone");
+      expect(result.stdout).toContain("not in the live thread list");
+    });
+
+    it("marks a gone index id stale in --json (doneAt null, inLiveList false)", async () => {
+      await load();
+      notFound404 = true;
+      await bb.storage.kv.set("done-index", ["thr_gone"]);
+
+      const result = await harness.behavior.runCli(["done", "list", "--json"]);
+      expect(result.exitCode).toBe(0);
+      expect(JSON.parse(result.stdout)).toEqual([
+        {
+          id: "thr_gone",
+          title: null,
+          doneAt: null,
+          keep: false,
+          inLiveList: false,
+          stale: true,
+        },
+      ]);
+    });
+
+    it("names several gone index ids without crashing", async () => {
+      await load();
+      notFound404 = true;
+      await bb.storage.kv.set("done-index", ["thr_g1", "thr_g2", "thr_g3"]);
+
+      const result = await harness.behavior.runCli(["done", "list", "--json"]);
+      expect(result.exitCode).toBe(0);
+      const rows = JSON.parse(result.stdout) as Array<{
+        id: string;
+        stale: boolean;
+      }>;
+      expect(rows.map((row) => row.id).sort()).toEqual([
+        "thr_g1",
+        "thr_g2",
+        "thr_g3",
+      ]);
+      expect(rows.every((row) => row.stale)).toBe(true);
+    });
+
+    it("reports every index id as gone when the whole index outlives its threads", async () => {
+      await load();
+      notFound404 = true;
+      await bb.storage.kv.set("done-index", ["thr_g1", "thr_g2"]);
+
+      const result = await harness.behavior.runCli(["done", "list"]);
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout).toContain("thr_g1");
+      expect(result.stdout).toContain("thr_g2");
+    });
+
+    it("reports the healthy Done marks alongside gone index ids", async () => {
+      await load();
+      notFound404 = true;
+      listedThreads = [makeThreadResponse({ id: "thr_live", title: "Live" })];
+      await harness.behavior.callRpc("done_set", {
+        threadId: "thr_live",
+        done: true,
+      });
+      await bb.storage.kv.set("done-index", [
+        "thr_live",
+        "thr_gone_a",
+        "thr_gone_b",
+      ]);
+
+      const result = await harness.behavior.runCli(["done", "list", "--json"]);
+      expect(result.exitCode).toBe(0);
+      const rows = JSON.parse(result.stdout) as Array<{
+        id: string;
+        title: string | null;
+        doneAt: string | null;
+        stale: boolean;
+      }>;
+      const live = rows.find((row) => row.id === "thr_live");
+      expect(live?.title).toBe("Live");
+      expect(typeof live?.doneAt).toBe("string");
+      expect(live?.stale).toBe(false);
+      for (const id of ["thr_gone_a", "thr_gone_b"]) {
+        const gone = rows.find((row) => row.id === id);
+        expect(gone?.doneAt).toBeNull();
+        expect(gone?.stale).toBe(true);
+      }
+    });
+
+    it("still fails loud on a non-404 error from the metadata read", async () => {
+      await load();
+      await bb.storage.kv.set("done-index", ["thr_bad"]);
+      metadataErrors.set("thr_bad", new Error("disk on fire"));
+
+      const result = await harness.behavior.runCli(["done", "list"]);
+      expect(result.exitCode).toBe(1);
+      expect(result.stderr).toContain("disk on fire");
     });
 
     it("surfaces a keep flag set through the KV keep store", async () => {
