@@ -177,15 +177,17 @@ export function NewThreadModal({
       pane's default. */}
       <DialogContent className="max-w-3xl">
         {onMaximize ? (
-          // Next to the dialog's own close (right-4): maximize expands this
-          // composer into bb's main new-thread view — seeds and prompt text
-          // ride along — without spending the draft on a spawn.
+          // A further 16px inset from the dialog's own close (right-4), so the
+          // two header buttons leave a clear gap instead of abutting and
+          // reading as one control. Maximize expands this composer into bb's
+          // main new-thread view, seeds and prompt text riding along, without
+          // spending the draft on a spawn.
           <button
             type="button"
             onClick={onMaximize}
             aria-label="Maximize new thread"
             title="Open in the main new-thread view"
-            className="absolute right-12 top-4 inline-flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="absolute right-16 top-4 inline-flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             <Icon name="Maximize2" className="size-4" aria-hidden />
           </button>

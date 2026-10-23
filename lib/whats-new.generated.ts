@@ -88,6 +88,16 @@ export const DERIVED_WHATS_NEW: readonly { version: string; items: readonly { le
         "group": "Board layout"
       },
       {
+        "lead": "The New Thread dialog's header controls no longer touch.",
+        "children": [],
+        "group": "Board layout"
+      },
+      {
+        "lead": "The board's search field stops painting half a word.",
+        "children": [],
+        "group": "Board layout"
+      },
+      {
         "lead": "`bb focus-board done list` survives a done index entry whose thread was deleted.",
         "children": [],
         "group": "Cards and chips"

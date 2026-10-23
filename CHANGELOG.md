@@ -74,6 +74,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - **The thread pane stops before the board runs out of room.** Dragging the pane's edge wide used to squeeze the board's own column until its toolbar and lane headers spilled over the pane, doubling text on a wallpaper whose z-order put the board on top. The pane now keeps a lane and a quarter (320px) of board to its left, so the drag settles with a clean board instead of overlapping chrome (issue #273).
 
+- **The New Thread dialog's header controls no longer touch.** Maximize and the dialog's own close sat edge to edge and read as one control. A 16px inset now separates them.
+
+- **The board's search field stops painting half a word.** Squeezed by an open thread pane, it used to clip its placeholder to "Sea". It now steps down to "Search", then to the magnifier alone, before any word is cut.
+
 #### Cards and chips
 
 - **`bb focus-board done list` survives a done index entry whose thread was deleted.** A stale index id used to abort the whole listing with `HTTP 404: Thread not found`; the command now exits 0, prints the marks it can read, and flags the stale ids in the listing. Any other metadata failure still stops the command loud (issue #259).

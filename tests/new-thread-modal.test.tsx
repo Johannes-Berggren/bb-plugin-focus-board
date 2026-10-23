@@ -266,6 +266,19 @@ describe("NewThreadModal", () => {
     expect(onSpawned).not.toHaveBeenCalled();
   });
 
+  it("insets the maximize button clear of the dialog's own close", () => {
+    // The 2026-10-23 release screenshot caught the maximize button abutting
+    // the dialog's close: both boxes render 32px wide, maximize at right-12
+    // and the close at right-4, so their edges met at exactly 0px and the pair
+    // read as one control. jsdom has no layout, so the guard is the offset
+    // contract, and the harness measured a 16px gap once the inset moved to
+    // right-16.
+    renderModal({ withMaximize: true });
+    const maximize = screen.getByLabelText("Maximize new thread");
+    expect(maximize.className).toContain("right-16");
+    expect(maximize.className).not.toContain("right-12");
+  });
+
   it("without a hand-off handler, carries no maximize button (inverse)", () => {
     renderModal();
     expect(screen.queryByLabelText("Maximize new thread")).toBeNull();
