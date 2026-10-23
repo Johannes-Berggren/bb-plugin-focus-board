@@ -7,17 +7,21 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
-#### Board toolbar
+### Changed
 
-- **The board search field gains a search button while it holds text and is focused.** The button sits left of the clear x and clicks like Enter: it re-confirms the live search and keeps the field focused with its text. Blurring the field or clearing it hides the button.
+### Fixed
+
+## [1.7.0] - 2026-10-22
+
+### Added
 
 #### Board layout
 
-- **The Parent view's rows each carry their own sweep.** Every sweepable row's rail cell has the same broom the Focus view's columns use, and arming it sweeps that row's cards across every family lane. The A-while-ago row marks its aged-out children Done, the Done row archives, and the Needs-you and Working rows carry no sweep at all.
-
 - **The board's lanes can run horizontal.** A "Lane direction" choice in the Appearance settings tab (mirrored on the plugin configuration page) turns the shipped column board into lanes as rows, each lane's cards flowing left to right; the choice persists across sessions.
 
-#### New Thread composer
+- **The Parent view's rows each carry their own sweep.** Every sweepable row's rail cell has the same broom the Focus view's columns use, and arming it sweeps that row's cards across every family lane. The A-while-ago row marks its aged-out children Done, the Done row archives, and the Needs-you and Working rows carry no sweep at all.
+
+- **The board search field gains a search button while it holds text and is focused.** The button sits left of the clear x and clicks like Enter: it re-confirms the live search and keeps the field focused with its text. Blurring the field or clearing it hides the button.
 
 - **The overview board opens the New Thread composer on a keyboard shortcut.** Pressing the configured key (default C) with no pane open opens the same composer the New Thread button does; typing in a pane never triggers it, and the key is changeable or switchable off in Settings → Behavior.
 
@@ -27,42 +31,40 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - **A family box folds into one normal card.** A chevron beside the box label, or Collapse group in the box menu, turns the whole dashed box into a single card: it keeps the dashed ring so it never reads as a parent card, names the group with its member count and one status dot per member, and a click (or the menu's Expand group) unfolds it again. The fold persists per group and stays in step with a second bb window's fold, and the folded card still drags and join-drops as the whole box.
 
-#### Status dots
+#### Card animations
 
 - **A collapsed family's working dots breathe at the thread's token rate.** The blue dot now pulses, and its period comes from how fast that thread is spending tokens, so a thread streaming fast breathes fast and a quiet one breathes slow.
   - A thread the board cannot measure yet still pulses, at the slowest period, instead of sitting still.
   - A folded family box's member dots breathe the same way, off-screen dots hold still, and rates are asked for only while a board is open and visible, so the breathing adds no idle work.
 
-#### Wallpaper
+#### Settings
 
-- **Letterbox bars take the image's own edge color.** When a wallpaper leaves bars under Letterbox, the picker samples the image's averaged edge color once (CORS-permitting hosts only) and fills the bars with it instead of the theme background.
+- **A wallpaper's letterbox bars take the image's own edge color.** When a wallpaper leaves bars under Letterbox, the picker samples the image's averaged edge color once (CORS-permitting hosts only) and fills the bars with it instead of the theme background.
   - The sampled color saves with the wallpaper, so the board never re-reads pixels; a host that refuses the read keeps the themed bars.
 
 ### Changed
 
-#### Board scale
+#### Board layout
 
 - **A burst of realtime signals refetches the board once, not once per signal.** The done, link, ack, snooze, rank, and group echoes now wait out one quiet window: ten signals landing together settle as a single coalesced refetch pass, so a board with hundreds of threads stops repainting on every echo.
 
-#### Cards
+#### Cards and chips
 
 - **A state change repaints only the changed cards, not the whole board.** The thread card is memoized on what it actually renders: toggling done, an ack, or a snooze on a board of hundreds of threads now re-renders just the affected card's subtree (and its family), while freshly rebuilt menus, dots, and closures on the untouched cards can no longer force a repaint.
 
 - **Opening a thread on a big board repaints one card, not the whole board.** The open thread was a board-wide value, so tapping a card set it on every card at once and re-rendered all of them: on a phone that measured 1005 card renders and made the tap feel like it had missed (issue #265). A card now reacts only when the open thread is its own or one of its family's.
 
+#### Card animations
+
 - **Opening a thread holds its card in the spotlight while the rest of the board recedes.** The pane-held card and the family holding it keep their surface, the same focus the pointer arms on hover, now with no pointer in play.
 
-#### Wallpaper
+#### Settings
 
 - **The wallpaper crop tunes over the image itself.** The picker's preview now paints the image at its own aspect and lays the board's paint frame, the box the wallpaper actually fills at the window's ratio, over it, so its place and size show which parts and how much of the image fill the board, with the bars showing as frame overhang. Dragging reframes, pinching zooms, the frame takes arrow keys, and the board's own footprint rides inside as the porthole with the dim scrim and the lane and card silhouettes.
 
 ### Fixed
 
-#### Done tracking
-
-- **`bb focus-board done list` survives a done index entry whose thread was deleted.** A stale index id used to abort the whole listing with `HTTP 404: Thread not found`; the command now exits 0, prints the marks it can read, and flags the stale ids in the listing. Any other metadata failure still stops the command loud (issue #259).
-
-#### Wallpaper
+#### Settings
 
 - **The wallpaper frames the window, not the board's viewport.** The wallpaper now paints into the bb window's box at the window's ratio: opening and closing the thread pane (or resizing a sidebar) carves the board's view out of one fixed image instead of refitting the crop, and the picker's viewport preview models the same framing.
 
@@ -72,11 +74,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - **The thread pane stops before the board runs out of room.** Dragging the pane's edge wide used to squeeze the board's own column until its toolbar and lane headers spilled over the pane, doubling text on a wallpaper whose z-order put the board on top. The pane now keeps a lane and a quarter (320px) of board to its left, so the drag settles with a clean board instead of overlapping chrome (issue #273).
 
-#### Card ticket chips
+#### Cards and chips
+
+- **`bb focus-board done list` survives a done index entry whose thread was deleted.** A stale index id used to abort the whole listing with `HTTP 404: Thread not found`; the command now exits 0, prints the marks it can read, and flags the stale ids in the listing. Any other metadata failure still stops the command loud (issue #259).
 
 - **A Forgejo chip names its item, not its host.** A Cove or Gitea link used to collapse every item on the host into one chip reading `git.cove`, and following it opened whichever item happened to be first. Each link now reads its number (`#42`) with its own href, a PR leads with the PR glyph, the mark points at that repo's list page, and a `#39` in a title stops wearing GitHub's mark.
 
-#### Family cards
+#### Groups and family boxes
 
 - **Hiding idle children no longer buries a busy grandchild.** The idle filter read only a child's own state, so an idle child carried its working or unread grandchild out of view with its row. A child now hides only when its whole subtree is idle, in the expanded rows and the collapsed dot strip alike.
 
