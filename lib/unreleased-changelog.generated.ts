@@ -71,6 +71,11 @@ export const UNRELEASED_ITEMS: readonly { text: string; children: string[]; grou
     "group": "Wallpaper"
   },
   {
+    "text": "**`bb focus-board done list` survives a done index entry whose thread was deleted.** A stale index id used to abort the whole listing with `HTTP 404: Thread not found`; the command now exits 0, prints the marks it can read, and flags the stale ids in the listing. Any other metadata failure still stops the command loud (issue #259).",
+    "children": [],
+    "group": "Done tracking"
+  },
+  {
     "text": "**The wallpaper frames the window, not the board's viewport.** The wallpaper now paints into the bb window's box at the window's ratio: opening and closing the thread pane (or resizing a sidebar) carves the board's view out of one fixed image instead of refitting the crop, and the picker's viewport preview models the same framing.",
     "children": [],
     "group": "Wallpaper"

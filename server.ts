@@ -825,6 +825,41 @@ export default async function plugin(bb: BbPluginApi) {
     return parseDoneRecord(value);
   }
 
+  /**
+   * The 404 bb answers for a thread id the host no longer has — deleted
+   * since a board-owned index (the done index) last saw it.
+   * getPluginMetadata is the only per-thread reader, so this exact
+   * rejection is what a stale index entry produces (issue #259).
+   */
+  function isThreadGoneError(error: unknown): boolean {
+    const message = error instanceof Error ? error.message : String(error);
+    return /thread not found/i.test(message) || /\b404\b/.test(message);
+  }
+
+  /**
+   * A thread's Done record as a scan reads it. "gone" is a reportable
+   * state for a best-effort scan — the done index can outlive the thread
+   * it names — while any rejection that is NOT the thread-gone 404
+   * propagates, so a genuine infrastructure failure stays loud.
+   */
+  type DoneRecordScan =
+    | { state: "record"; record: DoneRecord }
+    | { state: "none" }
+    | { state: "gone" };
+
+  async function scanDoneRecord(threadId: string): Promise<DoneRecordScan> {
+    let namespace: unknown;
+    try {
+      namespace = await bb.sdk.threads.getPluginMetadata({ threadId });
+    } catch (error: unknown) {
+      if (isThreadGoneError(error)) return { state: "gone" };
+      throw error;
+    }
+    const value = (namespace as Record<string, JsonValue>)[DONE_METADATA_KEY];
+    const record = parseDoneRecord(value);
+    return record === null ? { state: "none" } : { state: "record", record };
+  }
+
   async function readDoneIndex(): Promise<string[]> {
     const ids: unknown = await bb.storage.kv.get(DONE_INDEX_KV_KEY);
     if (!Array.isArray(ids)) return [];
@@ -2549,36 +2584,46 @@ export default async function plugin(bb: BbPluginApi) {
       const records: Array<{
         id: string;
         title: string | null;
-        doneAt: string;
+        doneAt: string | null;
         keep: boolean;
         inLiveList: boolean;
+        // True for an index id whose thread is gone (deleted since its
+        // mark): the index named it, but there is no surviving record to
+        // read, so it is reported rather than dropped or crashed on.
+        stale: boolean;
       }> = [];
       // Live + archived threads first, then the board's index-only ids
       // (threads deleted since their mark): the index is the only way to
       // see those, because the SDK has no metadata scan.
       for (const thread of candidates) {
         seen.add(thread.id);
-        const record = await readDoneRecord(thread.id);
-        if (record === null) continue;
+        const scanned = await scanDoneRecord(thread.id);
+        if (scanned.state !== "record") continue;
         records.push({
           id: thread.id,
           title: thread.title ?? thread.titleFallback,
-          doneAt: record.doneAt,
-          keep: record.keep === true || kept[thread.id] === true,
+          doneAt: scanned.record.doneAt,
+          keep: scanned.record.keep === true || kept[thread.id] === true,
           inLiveList: liveIds.has(thread.id),
+          stale: false,
         });
       }
       for (const threadId of await listIndexOnlyIds()) {
         if (seen.has(threadId)) continue;
         seen.add(threadId);
-        const record = await readDoneRecord(threadId);
-        if (record === null) continue;
+        const scanned = await scanDoneRecord(threadId);
+        if (scanned.state === "none") continue;
+        // A gone id still prints: the index holds it, so the operator
+        // learns the entry outlived its thread instead of losing the
+        // listing to a 404.
+        const record = scanned.state === "record" ? scanned.record : null;
         records.push({
           id: threadId,
           title: null,
-          doneAt: record.doneAt,
-          keep: record.keep === true || kept[threadId] === true,
+          doneAt: record?.doneAt ?? null,
+          keep: record?.keep === true || kept[threadId] === true,
           inLiveList: false,
+          stale: record === null,
         });
       }
       const stdout = _input.options.json
@@ -2590,11 +2635,12 @@ export default async function plugin(bb: BbPluginApi) {
                 const flags = [
                   row.keep ? "keep" : null,
                   row.inLiveList ? null : "not in the live thread list",
+                  row.stale ? "thread deleted" : null,
                 ]
                   .filter((flag) => flag !== null)
                   .join(", ");
                 const suffix = flags.length > 0 ? ` (${flags})` : "";
-                return `${row.id}\t${row.doneAt}\t${row.title ?? "(untitled)"}${suffix}`;
+                return `${row.id}\t${row.doneAt ?? "(unknown)"}\t${row.title ?? "(untitled)"}${suffix}`;
               })
               .join("\n") + "\n";
       return { exitCode: 0, stdout };
