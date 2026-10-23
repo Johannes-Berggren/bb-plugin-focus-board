@@ -9,7 +9,7 @@
 // plain settings gear otherwise (click opens on Behavior).
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
-import { BoardToolbar } from "../components/board-toolbar";
+import { BoardToolbar, SEARCH_PLACEHOLDER_MIN_WIDTH, searchPlaceholderFor } from "../components/board-toolbar";
 
 type BoardToolbarProps = Parameters<typeof BoardToolbar>[0];
 
@@ -323,5 +323,32 @@ describe("BoardToolbar search clear button", () => {
     const clear = screen.getByLabelText("Clear search");
     expect(clear instanceof HTMLElement && search instanceof HTMLElement).toBe(true);
     expect(commonAncestor(search, clear)).not.toBe(root);
+  });
+});
+
+describe("BoardToolbar search placeholder ladder", () => {
+  // jsdom has no layout, so the rule the layout consumes is pinned here: the
+  // field's own measured width feeds searchPlaceholderFor, and at or below the
+  // floor the field paints no placeholder rather than a fragment of one word.
+  // The 1.7.0 release screenshot caught the fragment ("Sea") at tablet width
+  // with the pane open, where the board keeps its 320px floor and the
+  // collapsed row leaves the field whatever the other controls do not take.
+  it("keeps the full placeholder whenever the field can hold it", () => {
+    expect(searchPlaceholderFor(null)).toBe("Search title or id…"); // unmeasured: degrade
+    expect(searchPlaceholderFor(412)).toBe("Search title or id…"); // tablet, no pane
+    expect(searchPlaceholderFor(SEARCH_PLACEHOLDER_MIN_WIDTH)).toBe("Search title or id…");
+  });
+
+  it("drops the placeholder instead of painting a partial word", () => {
+    expect(searchPlaceholderFor(SEARCH_PLACEHOLDER_MIN_WIDTH - 1)).toBe("");
+    expect(searchPlaceholderFor(130.77)).toBe(""); // phone board: 89px of text space
+    expect(searchPlaceholderFor(60.77)).toBe(""); // tablet with the pane open: 19px
+  });
+
+  it("wires the rule into the field's own placeholder attribute", () => {
+    renderToolbar();
+    expect(
+      screen.getByLabelText("Search threads").getAttribute("placeholder"),
+    ).toBe(searchPlaceholderFor(null));
   });
 });

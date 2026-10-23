@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 import type { RefObject } from "react";
 import type { PluginSidebarProject } from "@get-bb/plugin-sdk/app";
 import { Icon } from "@/components/ui/icon";
@@ -40,6 +40,26 @@ export const NARROW_HEADER_COLLAPSE_WIDTH = 1024;
  *  before. Estimated like NARROW_HEADER_COLLAPSE_WIDTH, measured live by
  *  the same band observer. */
 export const VIEW_KEEP_VISIBLE_MIN_WIDTH = 560;
+
+/** The narrowest search field that can paint its whole placeholder. At
+ *  text-xs the placeholder ("Search title or id…") measures about 98.7px and
+ *  the field's lead and trail padding take 40px (pl-7 plus pr-3), so a field
+ *  below about 139px can only show a fragment of a word: the 1.7.0 release
+ *  screenshot caught exactly that ("Sea") at tablet width with the pane open,
+ *  where the board keeps its 320px floor and the collapsed row feeds the
+ *  search whatever the other controls leave. Narrower than this the field
+ *  paints no placeholder and lets its magnifier be the icon-only affordance;
+ *  it stays focusable and typed text still scrolls inside it. */
+export const SEARCH_PLACEHOLDER_MIN_WIDTH = 140;
+
+/** The placeholder to paint for a measured search-field width. A null read
+ *  (jsdom, old hosts: no ResizeObserver) keeps the full placeholder, the same
+ *  degrade the band measurement uses. */
+export function searchPlaceholderFor(fieldWidth: number | null): string {
+  return fieldWidth === null || fieldWidth >= SEARCH_PLACEHOLDER_MIN_WIDTH
+    ? "Search title or id…"
+    : "";
+}
 
 /**
  * Linear-model dropdown: clicking a row's label applies it as the single
@@ -653,6 +673,29 @@ export function BoardToolbar({
     observer.observe(header);
     return () => observer.disconnect();
   }, []);
+  // The search field's own width gates its placeholder (the rule lives in
+  // searchPlaceholderFor): the field is the thing whose width decides whether
+  // the placeholder can paint in full, and the collapsed row's flex space can
+  // shrink it under the threshold while the band itself is still wide. A
+  // callback ref, not a mount-time effect: the box sits in two different
+  // subtrees (the collapsed row and the desktop row), so the node React
+  // mounts changes with the layout and a ref captured once would keep
+  // observing the detached one. Guarded like the band observer, so jsdom
+  // keeps the placeholder.
+  const [searchBoxWidth, setSearchBoxWidth] = useState<number | null>(null);
+  const searchBoxObserverRef = useRef<ResizeObserver | null>(null);
+  const searchBoxRef = useCallback((node: HTMLDivElement | null) => {
+    searchBoxObserverRef.current?.disconnect();
+    searchBoxObserverRef.current = null;
+    if (node === null || typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver((entries) => {
+      setSearchBoxWidth(
+        entries[entries.length - 1]?.contentRect.width ?? node.clientWidth,
+      );
+    });
+    observer.observe(node);
+    searchBoxObserverRef.current = observer;
+  }, []);
   // The collapsed header layout (and its search-field fill behavior)
   // applies whether the band is compact by media query or narrow by
   // measurement — the borrowed collapse shares everything with mobile.
@@ -714,7 +757,7 @@ export function BoardToolbar({
         (the search is live, so the click re-confirms the query and keeps
         the field focused). The reserved trailing padding fits both buttons
         without shifting the text when focus toggles the extra one. */
-    <div className={cn("relative", collapsedHeader ? "min-w-0 flex-1" : "w-44 sm:w-56")}>
+    <div ref={searchBoxRef} className={cn("relative", collapsedHeader ? "min-w-0 flex-1" : "w-44 sm:w-56")}>
       <Icon
         name="Search"
         className="pointer-events-none absolute left-2 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground"
@@ -726,7 +769,7 @@ export function BoardToolbar({
         onChange={(event) => onSearchChange(event.target.value)}
         onFocus={() => setSearchFocused(true)}
         onBlur={() => setSearchFocused(false)}
-        placeholder="Search title or id…"
+        placeholder={searchPlaceholderFor(searchBoxWidth)}
         aria-label="Search threads"
         className={cn("h-8 pl-7 text-xs", search !== "" && "pr-14")}
       />

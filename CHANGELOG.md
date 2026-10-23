@@ -76,6 +76,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - **The New Thread dialog's header controls no longer touch.** Maximize and the dialog's own close sat edge to edge and read as one control. A 16px inset now separates them.
 
+- **The board's search field stops painting half a word.** Squeezed by an open thread pane, it used to clip its placeholder to "Sea". The field now shows the magnifier alone whenever the full text will not fit, and still takes typing.
+
 #### Cards and chips
 
 - **`bb focus-board done list` survives a done index entry whose thread was deleted.** A stale index id used to abort the whole listing with `HTTP 404: Thread not found`; the command now exits 0, prints the marks it can read, and flags the stale ids in the listing. Any other metadata failure still stops the command loud (issue #259).
